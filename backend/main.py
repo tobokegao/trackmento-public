@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
         print(f"[outputs] removed {removed} old files")
     print(f"[public] PNG の URL は {public_base_url()}/outputs/... で返します（.env の PUBLIC_BASE_URL）")
     app.state.http = httpx.AsyncClient(
-        timeout=15,
+        timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
         headers={"User-Agent": os.getenv("MB_USER_AGENT", "musicgrid-local/0.1")},
     )
@@ -167,9 +167,9 @@ class BandcampBody(BaseModel):
 async def from_url(body: BandcampBody) -> Track:
     """Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify の URL からジャケット（サムネイル）・曲名・アーティストを取る。"""
     url = body.url.strip()
-    label, fetch = fromurl.resolve(url)
+    label, _ = fromurl.resolve(url)
     try:
-        return await fetch(url, client=app.state.http)
+        return await fromurl.fetch(url, client=app.state.http)   # 直接取れなければ roxy にフォールバックする
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     except httpx.HTTPStatusError as e:

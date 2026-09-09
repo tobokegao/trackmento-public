@@ -43,6 +43,7 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         # 削除済み・非公開などで直接取れない → otoDB（roxy）に登録があればそれを使う
         try:
             t = await otodb.roxy_fetch(url, client=client)
-        except (ValueError, httpx.HTTPError):
+        except (ValueError, httpx.HTTPError) as e2:
+            print(f"[from-url] {label} 失敗 → roxy も失敗: {e2!r}")
             raise e from None
         return t

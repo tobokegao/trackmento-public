@@ -74,7 +74,8 @@ async def roxy_fetch(query: str, *, client: httpx.AsyncClient | None = None) -> 
     own = client is None
     client = client or httpx.AsyncClient(timeout=25, follow_redirects=True)
     try:
-        r = await client.get(ROXY, params={"q": query.strip()}, headers={"User-Agent": UA})
+        # roxy は各サイトへ取りに行くぶん遅いことがあるので、長めに待つ
+        r = await client.get(ROXY, params={"q": query.strip()}, headers={"User-Agent": UA}, timeout=45)
         if r.status_code == 404:
             raise ValueError("roxy / otoDB にも情報がありませんでした")
         r.raise_for_status()
