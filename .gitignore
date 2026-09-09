@@ -9,3 +9,5 @@ grids/*
 cache.sqlite3*
 uploads/*
 !uploads/.gitkeep
+shares/*
+!shares/.gitkeep

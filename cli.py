@@ -8,13 +8,14 @@
   python cli.py list   [--grid NAME]                                      # 現在の並びを表示
   python cli.py move   --from N --to M [--grid NAME]                      # 入れ替え
   python cli.py remove --index N [--grid NAME]
-  python cli.py render [--grid NAME] [--size 3x3] [--ratio 16:9] [--sidebar] [--title "..."] ...
+  python cli.py share  [--grid NAME] [--size 3x3] [--ratio 16:9] [--sidebar] [--title "..."] ...   # PNG + 共有ページ URL
+  python cli.py render [--grid NAME] ...                                  # PNG だけ
   python cli.py clear  [--grid NAME]
   python cli.py grids                                                     # グリッド一覧
 
 - 番号 N は画面の番号バッジと同じ 1 始まり
 - 既定グリッド名は default。状態は grids/<NAME>.json に保存され Web と共有される
-- render の最後の行は必ず `URL: http://...`（Claude Code がそのまま転記する）
+- share / render の最後の行は必ず `URL: http://...`（Claude Code がそのまま転記する）
 """
 from __future__ import annotations
 
@@ -269,7 +270,7 @@ def cmd_grids(a: argparse.Namespace) -> int:
 
 
 def cmd_render(a: argparse.Namespace) -> int:
-    from backend import render
+    from backend import render, share
     from backend.config import public_base_url
 
     doc = grids.load(a.grid)
@@ -305,13 +306,19 @@ def cmd_render(a: argparse.Namespace) -> int:
         doc.touch()
         grids.save(doc)
 
-    path, im = render.render_to_file(doc)
     print_list(doc)
     o = doc.options
-    print(f"出力: {path.name}  {im.width}×{im.height}px  比率 {o.ratio}  サイドバー {'あり' if o.sidebar else 'なし'}  背景 {o.bg}")
     base = public_base_url()
     if not _server_alive(base):
-        print(f"注意: サーバーが応答しません。URL を開くには uvicorn を起動してください（uvicorn backend.main:app --host 0.0.0.0 --port 8000）", file=sys.stderr)
+        print("注意: サーバーが応答しません。URL を開くには uvicorn を起動してください（uvicorn backend.main:app --host 0.0.0.0 --port 8000）", file=sys.stderr)
+    if a.cmd == "share":
+        info = share.create(doc)
+        print(f"共有: {info['id']}  {info['width']}×{info['height']}px  比率 {o.ratio}  サイドバー {'あり' if o.sidebar else 'なし'}  背景 {o.bg}")
+        print(f"PNG: {base}{info['png']}")
+        print(f"URL: {base}/s/{info['id']}")
+        return 0
+    path, im = render.render_to_file(doc)
+    print(f"出力: {path.name}  {im.width}×{im.height}px  比率 {o.ratio}  サイドバー {'あり' if o.sidebar else 'なし'}  背景 {o.bg}")
     print(f"URL: {base}/outputs/{path.name}")
     return 0
 
@@ -370,8 +377,26 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--index", "-i", type=int, required=True)
     sp.set_defaults(fn=cmd_remove)
 
-    sp = sub.add_parser("render", help="PNG を作って outputs/ に保存し URL を表示")
+    sp = sub.add_parser("share", help="トラックを共有: PNG と並びのスナップショットを保存し、共有ページの URL を表示（render と同じオプション）")
     grid_arg(sp)
+    _render_opts(sp)
+    sp.set_defaults(fn=cmd_render)
+
+    sp = sub.add_parser("render", help="PNG だけを作って outputs/ に保存し URL を表示")
+    grid_arg(sp)
+    _render_opts(sp)
+    sp.set_defaults(fn=cmd_render)
+
+    sp = sub.add_parser("clear", help="グリッドを空にする")
+    grid_arg(sp)
+    sp.set_defaults(fn=cmd_clear)
+
+    sp = sub.add_parser("grids", help="保存されているグリッドの一覧")
+    sp.set_defaults(fn=cmd_grids)
+    return p
+
+
+def _render_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--size", help="3x3 / 4x6 / 3x8 / 5x5 / 任意 WxH")
     sp.add_argument("--ratio", choices=["1:1", "16:9", "9:16", "free"])
     sp.add_argument("--sidebar", dest="sidebar", action="store_true", default=None, help="曲名リストを付ける")
@@ -385,15 +410,6 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--bg-custom", metavar="#RRGGBB", help="背景色を直接指定")
     sp.add_argument("--margin", type=int, help="余白 px（0〜160）")
     sp.add_argument("--gap", type=int, help="マスとマスの間隔 px（0〜96、既定 12）")
-    sp.set_defaults(fn=cmd_render)
-
-    sp = sub.add_parser("clear", help="グリッドを空にする")
-    grid_arg(sp)
-    sp.set_defaults(fn=cmd_clear)
-
-    sp = sub.add_parser("grids", help="保存されているグリッドの一覧")
-    sp.set_defaults(fn=cmd_grids)
-    return p
 
 
 def main(argv: list[str]) -> int:

@@ -438,7 +438,10 @@ output { font-variant-numeric: tabular-nums; }
 .output { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: var(--line) solid var(--color-rule); }
 .output[hidden] { display: none; }
 .output img { width: auto; max-width: 100%; max-height: 70dvh; border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
-.output .dl { justify-self: start; }
+.share-url { display: grid; gap: var(--space-1); }
+.share-url .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
+.share-url .input { font-family: ui-monospace, monospace; font-size: var(--text-sm); }
+.share-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .spec { display: grid; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }
 .spec dt { font-family: var(--font-display); color: var(--color-muted); }
 .spec dd { margin: 0; font-variant-numeric: tabular-nums; }
@@ -554,19 +557,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックすると入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
       <div class="grid-actions">
-        <button class="btn btn-primary" type="button" id="render-btn"><span class="label">画像を作る</span></button>
+        <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
-        <button class="btn" type="button" id="import-btn">JSON を読込</button>
-        <button class="btn" type="button" id="export-btn">JSON を出力</button>
-        <input type="file" id="import-file" accept="application/json,.json" hidden>
-        <button class="btn" type="button" id="reload-btn" title="サーバーに保存されている並び（CLI／スマホで更新したもの）を読み直す">サーバーから読込</button>
-        <button class="btn" type="button" id="server-render-btn" title="サーバー側で PNG を作り、スマホから開ける URL を得る">URL を出力</button>
         <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
       </div>
       <div class="output" id="output" hidden>
-        <img id="output-img" alt="生成したグリッド画像のプレビュー">
-        <p class="msg" id="output-url" hidden></p>
-        <a class="btn dl" id="download" download="trackmento.png" href="#">PNG を保存</a>
+        <img id="output-img" alt="共有した画像のプレビュー">
+        <div class="share-url"><span class="lbl">共有 URL</span><input class="input" id="share-url" type="text" readonly></div>
+        <div class="share-actions">
+          <button class="btn" type="button" id="copy-btn">URL をコピー</button>
+          <button class="btn" type="button" id="native-share-btn" hidden>共有…</button>
+          <a class="btn" id="open-share" href="#" target="_blank" rel="noopener">共有ページを開く</a>
+          <a class="btn dl" id="download" download="trackmento.png" href="#">PNG を保存</a>
+        </div>
       </div>
     </div>
   </section>
@@ -664,11 +667,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     bcForm: $("#bandcamp-form"), bcUrl: $("#bc-url"), bcBtn: $("#bc-btn"), bcMsg: $("#bc-msg"),
     mForm: $("#manual-form"), mImage: $("#m-image"), mTitle: $("#m-title"), mArtist: $("#m-artist"), mBtn: $("#m-btn"), mMsg: $("#m-msg"),
     mFileBtn: $("#m-file-btn"), mFile: $("#m-file"), mFileMsg: $("#m-file-msg"),
-    exportBtn: $("#export-btn"), importBtn: $("#import-btn"), importFile: $("#import-file"),
-    serverRenderBtn: $("#server-render-btn"), reloadBtn: $("#reload-btn"), outputUrl: $("#output-url"),
+    shareBtn: $("#share-btn"), shareUrl: $("#share-url"), copyBtn: $("#copy-btn"), nativeShareBtn: $("#native-share-btn"), openShare: $("#open-share"),
     results: $("#results"), resultsCount: $("#results-count"),
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
-    renderBtn: $("#render-btn"), clearBtn: $("#clear-btn"),
+    clearBtn: $("#clear-btn"),
     editor: $("#editor"), eNum: $("#editor-num"), eTitle: $("#editor-title"), eSource: $("#editor-source"), eTitleIn: $("#e-title"), eArtistIn: $("#e-artist"), eMeta: $("#editor-meta"), eRemove: $("#e-remove"), eClose: $("#e-close"),
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
@@ -997,7 +999,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.grid.dataset.selecting = selected !== null ? "true" : "false";
     const n = state.cells.filter(Boolean).length;
     els.gridCount.textContent = `${n}/${state.cells.length}`;
-    els.renderBtn.disabled = n === 0;
+    els.shareBtn.disabled = n === 0;
     renderEditor();
     updateSpec();
   }
@@ -1207,162 +1209,37 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       return true;
     } catch { return false; }
   }
-  els.reloadBtn.addEventListener("click", async () => {
-    setBtnState(els.reloadBtn, "loading");
-    const server = await fetchServerGrid();
-    setBtnState(els.reloadBtn, null);
-    if (!server) { say(els.gridMsg, "サーバーにまだ保存されたグリッドがありません。", "error"); return; }
-    try {
-      lastPushed = signature(server);
-      applyData(server);
-      els.output.hidden = true;
-      say(els.gridMsg, `サーバーから読み直しました（${state.cells.filter(Boolean).length} 曲）。`);
-    } catch (err) { say(els.gridMsg, `読み直せませんでした。${err.message}`, "error"); }
-  });
-  els.exportBtn.addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(serialize(), null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".json";
-    document.body.append(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    say(els.gridMsg, `「${a.download}」を書き出しました。`);
-  });
-  els.importBtn.addEventListener("click", () => els.importFile.click());
-  els.importFile.addEventListener("change", async () => {
-    const f = els.importFile.files[0];
-    if (!f) return;
-    try {
-      applyData(JSON.parse(await f.text()));
-      els.output.hidden = true;
-      say(els.gridMsg, `「${f.name}」を読み込みました（${state.cells.filter(Boolean).length} 曲）。`);
-    } catch (err) {
-      say(els.gridMsg, `読み込めませんでした。${err.message}`, "error");
-    }
-    els.importFile.value = "";
-  });
-
-  /* サーバー（Pillow）で描く。CLI の render と同じ結果になる。URL は LAN 内のスマホから開ける */
-  els.serverRenderBtn.addEventListener("click", async () => {
+  /* ---- トラックを共有: サーバーで PNG を作り、並びのスナップショットと共有ページ URL を得る ---- */
+  els.shareBtn.addEventListener("click", async () => {
     if (!state.cells.some(Boolean)) { say(els.gridMsg, "曲を置いてから押してください。", "error"); return; }
-    setBtnState(els.serverRenderBtn, "loading"); say(els.gridMsg, "");
+    setBtnState(els.shareBtn, "loading"); say(els.gridMsg, "");
     try {
       clearTimeout(saveTimer);
       if (!(await pushNow())) throw new Error("サーバーに保存できませんでした");
-      const r = await fetch("/render", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME }) });
+      const r = await fetch("/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
-      if (els.download.href.startsWith("blob:")) URL.revokeObjectURL(els.download.href);
-      els.outputImg.src = `/outputs/${d.file}`;
-      els.download.href = `/outputs/${d.file}`; els.download.download = d.file;
-      els.outputUrl.innerHTML = ""; const a = document.createElement("a"); a.href = d.url; a.textContent = d.url; a.target = "_blank"; a.rel = "noopener";
-      els.outputUrl.append("URL: ", a); els.outputUrl.hidden = false;
+      els.outputImg.src = d.png;
+      els.download.href = d.png; els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
+      els.shareUrl.value = d.url; els.openShare.href = d.url;
+      els.nativeShareBtn.hidden = !navigator.share;
       els.output.hidden = false;
-      setBtnState(els.serverRenderBtn, null);
-      say(els.gridMsg, `サーバーで ${d.width} × ${d.height} px の PNG を作りました。`);
-      els.download.focus({ preventScroll: true });
+      setBtnState(els.shareBtn, null);
+      say(els.gridMsg, `${d.width} × ${d.height} px の PNG と共有 URL ができました。`);
+      els.shareUrl.focus({ preventScroll: true }); els.shareUrl.select();
     } catch (err) {
-      setBtnState(els.serverRenderBtn, "error");
-      say(els.gridMsg, `サーバーで作れませんでした（${err.message}）。`, "error");
-      setTimeout(() => setBtnState(els.serverRenderBtn, null), 2500);
+      setBtnState(els.shareBtn, "error");
+      say(els.gridMsg, `共有できませんでした（${err.message}）。`, "error");
+      setTimeout(() => setBtnState(els.shareBtn, null), 2500);
     }
   });
-
-  els.renderBtn.addEventListener("click", async () => {
-    const bg = bgColor();
-    const light = isLight(bg);
-    const ink = light ? token("ink") : token("paper");
-    const badgeBg = light ? token("paper") : token("ink");
-    const muted = light ? token("muted") : token("rule");
-    setBtnState(els.renderBtn, "loading"); say(els.gridMsg, "");
-    try {
-      const L = layout();
-      // 同梱フォントを読み込んでから描く。読めなかったときは代替フォントで書き出し、その旨を伝える
-      await Promise.allSettled([
-        document.fonts.load(`700 ${L.titleSize}px "IBM Plex Sans JP"`),
-        document.fonts.load(`400 ${L.fontS}px "IBM Plex Sans JP"`),
-        document.fonts.load(`700 20px "Silkscreen"`),
-      ]);
-      const jpFontOK = document.fonts.check(`700 ${L.titleSize}px "IBM Plex Sans JP"`) && document.fonts.check(`400 ${L.fontS}px "IBM Plex Sans JP"`);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(L.W * L.scale); canvas.height = Math.round(L.H * L.scale);
-      const ctx = canvas.getContext("2d");
-      ctx.scale(L.scale, L.scale);
-      ctx.imageSmoothingQuality = "high";
-      ctx.fillStyle = bg; ctx.fillRect(0, 0, L.W, L.H);
-
-      // タイトル
-      let y0 = L.oy;
-      if (L.title) {
-        ctx.fillStyle = ink; ctx.font = `700 ${L.titleSize}px "IBM Plex Sans JP", sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-        ctx.fillText(ellipsize(ctx, L.title, L.gw + (L.side === "right" ? L.sbGap + L.sbW : 0)), L.ox, y0 + L.titleH / 2);
-        y0 += L.titleH;
-      }
-
-      // グリッド
-      const imgs = await Promise.all(state.cells.map(t => t ? loadImage(t.image).catch(() => null) : null));
-      const numFont = document.fonts.check(`700 20px "Silkscreen"`) ? `700 22px "Silkscreen", monospace` : `700 24px "IBM Plex Sans JP", sans-serif`;
-      state.cells.forEach((t, i) => {
-        const c = i % state.cols, r = Math.floor(i / state.cols);
-        const x = L.ox + c * (CELL_PX + state.gap), y = y0 + r * (CELL_PX + state.gap);
-        ctx.fillStyle = light ? token("paper-3") : token("ink-2"); ctx.fillRect(x, y, CELL_PX, CELL_PX);
-        if (imgs[i]) drawCover(ctx, imgs[i], x, y, CELL_PX, CELL_PX);
-        if (state.numbers) {
-          const label = String(i + 1).padStart(2, "0");
-          ctx.font = numFont; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-          const bw = Math.ceil(ctx.measureText(label).width) + 24, bh = 40;
-          ctx.fillStyle = badgeBg; ctx.fillRect(x, y, bw, bh);
-          ctx.fillStyle = ink; ctx.fillRect(x + bw, y, 4, bh); ctx.fillRect(x, y + bh, bw + 4, 4);
-          ctx.fillText(label, x + 12, y + bh / 2 + 1);
-        }
-      });
-
-      // サイドバー（曲名リスト）
-      if (L.side !== "none") {
-        const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox;
-        const sy = L.side === "right" ? y0 : y0 + L.gh + L.sbGap;
-        const colW = L.side === "right" ? L.sbW : Math.floor((L.sbW - GAP_PX * 2 * (L.sbCols - 1)) / L.sbCols);
-        const perCol = L.side === "right" ? state.cells.length : Math.ceil(state.cells.length / L.sbCols);
-        state.cells.forEach((t, i) => {
-          const col = Math.floor(i / perCol), row = i % perCol;
-          const x = sx + col * (colW + GAP_PX * 2), yy = sy + row * L.lineH + L.lineH / 2;
-          ctx.textAlign = "left";
-          ctx.font = numFont.replace(/\d+px/, `${Math.round(L.fontS * 0.8)}px`); ctx.fillStyle = muted;
-          const num = String(i + 1).padStart(2, "0");
-          // ピクセルフォントは em ボックス内で字面が上に寄るので、字面の中心を行の中心に置く
-          ctx.textBaseline = "alphabetic";
-          const nm = ctx.measureText(num);
-          ctx.fillText(num, x, Math.round(yy + (nm.actualBoundingBoxAscent - nm.actualBoundingBoxDescent) / 2));
-          ctx.textBaseline = "middle";
-          const nw = nm.width + Math.round(L.fontS * 0.8);
-          if (!t) return;
-          ctx.fillStyle = ink; ctx.font = `700 ${L.fontS}px "IBM Plex Sans JP", sans-serif`;
-          const tw = ctx.measureText(t.title).width;
-          const maxW = colW - nw;
-          if (tw >= maxW) { ctx.fillText(ellipsize(ctx, t.title, maxW), x + nw, yy); return; }
-          ctx.fillText(t.title, x + nw, yy);
-          ctx.fillStyle = muted; ctx.font = `400 ${L.fontS}px "IBM Plex Sans JP", sans-serif`;
-          ctx.fillText(ellipsize(ctx, `  ${t.artist}`, maxW - tw), x + nw + tw, yy);
-        });
-      }
-
-      const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
-      if (els.download.href.startsWith("blob:")) URL.revokeObjectURL(els.download.href);
-      const url = URL.createObjectURL(blob);
-      els.outputImg.src = url; els.download.href = url; els.outputUrl.hidden = true;
-      els.download.download = (L.title || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
-      els.output.hidden = false;
-      setBtnState(els.renderBtn, null);
-      say(els.gridMsg, jpFontOK
-        ? `${canvas.width} × ${canvas.height} px の PNG ができました。`
-        : `${canvas.width} × ${canvas.height} px の PNG ができました。同梱フォント（IBM Plex Sans JP）が読めなかったので代替フォントで書き出しています。/fonts/ が配信されているか確認してください。`,
-        jpFontOK ? null : "error");
-      els.download.focus({ preventScroll: true });
-    } catch (err) {
-      setBtnState(els.renderBtn, "error");
-      say(els.gridMsg, `画像を作れませんでした（${err.message}）。もう一度押してください。`, "error");
-      setTimeout(() => setBtnState(els.renderBtn, null), 2500);
-    }
+  els.copyBtn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(els.shareUrl.value); setBtnState(els.copyBtn, "success"); say(els.gridMsg, "共有 URL をコピーしました。"); }
+    catch { els.shareUrl.select(); say(els.gridMsg, "コピーできなかったので、URL 欄を選択しました。手動でコピーしてください。", "error"); }
+    setTimeout(() => setBtnState(els.copyBtn, null), 1500);
+  });
+  els.nativeShareBtn.addEventListener("click", async () => {
+    try { await navigator.share({ title: state.title.trim() || "TRACKMENTO", url: els.shareUrl.value }); } catch { /* キャンセル */ }
   });
 
   /* ---- 折りたたみ（Explorer 風）。PC とスマホで別々に記憶し、初期値はスマホだけオプションと補助フォームを畳む ---- */
@@ -1402,7 +1279,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   renderSwatches();
   syncControls(); renderGrid();
-  restore().finally(() => { ready = true; save(); loadHealth(); });
+  async function restoreFromShare() {
+    const sid = new URLSearchParams(location.search).get("share");
+    if (!sid || !/^[a-z0-9]{6,16}$/.test(sid)) return false;
+    try {
+      const r = await fetch(`/shares/${sid}.json`, { cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      applyData(await r.json());
+      history.replaceState(null, "", location.pathname);
+      say(els.gridMsg, `共有 ${sid} の並びを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
+      return true;
+    } catch (err) {
+      say(els.gridMsg, `共有 ${sid} を読み込めませんでした（${err.message}）。`, "error");
+      return false;
+    }
+  }
+  restoreFromShare().then(ok => ok ? Promise.resolve() : restore()).finally(() => { ready = true; save(); loadHealth(); });
 })();
 </script>
 </body>

@@ -35,11 +35,12 @@ copy .env.example .env          # 必要なら API キーを記入
 .venv/Scripts/python cli.py list
 .venv/Scripts/python cli.py move --from 1 --to 3
 .venv/Scripts/python cli.py remove --index 2
-.venv/Scripts/python cli.py render --ratio 16:9 --sidebar --title "私を構成する9曲"
+.venv/Scripts/python cli.py share --ratio 16:9 --sidebar --title "私を構成する9曲"   # PNG + 共有ページ URL
+.venv/Scripts/python cli.py render                                                  # PNG だけ
 .venv/Scripts/python cli.py clear
 ```
 
-`render` の最後の行は `URL: http://...` で、生成 PNG は `outputs/` から配信されます。
+`share` / `render` の最後の行は `URL: http://...` です。`share` は PNG と並びのスナップショットを `shares/` に保存し、共有ページ（`/s/<id>`）から PNG 保存や「TRACKMENTO で開く」ができます。
 グリッドの状態は `grids/<name>.json` に保存され、Web UI と共有されます（Web 側は自動保存＋「サーバーから読み直す」）。
 スマホからの運用手順は `CLAUDE.md` を参照。
 
@@ -50,8 +51,10 @@ backend/          FastAPI (/search, /bandcamp, /image-proxy, /render, /grids, /h
 backend/sources/  iTunes / Last.fm / MusicBrainz / Discogs / Bandcamp
 backend/cache.py  SQLite キャッシュ（検索結果・画像）→ cache.sqlite3
 backend/grids.py  グリッド JSON の読み書き
-backend/render.py Pillow による PNG 描画（フロントの Canvas と同じレイアウト）
-cli.py            add / pick / search / list / move / remove / render / clear / grids
+backend/render.py Pillow による PNG 描画
+backend/share.py  トラックを共有（PNG + 並びのスナップショット + 共有ページ）→ shares/
+backend/uploads.py 手入力用の画像アップロード → uploads/
+cli.py            add / pick / search / list / move / remove / share / render / clear / grids
 frontend/         単一 HTML
 fonts/            同梱フォント（OFL）。/fonts/ で配信
 outputs/          生成 PNG（/outputs/ で静的配信。OUTPUTS_KEEP 世代を保持）

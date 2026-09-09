@@ -14,10 +14,10 @@ from dotenv import load_dotenv
 from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, render, uploads
+from backend import grids, render, share, uploads
 from backend.cache import cache
 from backend.config import public_base_url
 from backend.grids import GridDoc, GridOptions
@@ -60,6 +60,7 @@ async def lifespan(app: FastAPI):
     OUTPUTS.mkdir(exist_ok=True)
     GRIDS.mkdir(exist_ok=True)
     uploads.UPLOADS.mkdir(exist_ok=True)
+    share.SHARES.mkdir(exist_ok=True)
     pruned = await asyncio.to_thread(cache.prune)
     if any(pruned.values()):
         print(f"[cache] pruned {pruned}")
@@ -83,6 +84,7 @@ app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
 app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
 app.mount("/uploads", StaticFiles(directory=uploads.UPLOADS, check_dir=False), name="uploads")
+app.mount("/shares", StaticFiles(directory=share.SHARES, check_dir=False), name="shares")
 
 
 @app.get("/")
@@ -359,3 +361,32 @@ async def upload_image(file: UploadFile = File(...)) -> dict:
     except ValueError as e:
         raise HTTPException(415, str(e)) from e
     return {"url": url, "absolute": f"{public_base_url()}{url}", "name": file.filename}
+
+
+# ---------- トラックを共有（PNG + 並びのスナップショット + 共有ページ） ----------
+@app.post("/share")
+async def share_grid(body: RenderBody = Body(default_factory=RenderBody)) -> dict:
+    name = _grid_name(body.grid)
+    try:
+        doc = grids.load(name)
+    except ValueError as e:
+        raise HTTPException(500, str(e)) from e
+    if not any(doc.cells):
+        raise HTTPException(400, f"グリッド {name} に曲がありません")
+    if apply_render_options(doc, body):
+        doc.touch()
+        grids.save(doc)
+    try:
+        info = await run_in_threadpool(share.create, doc)
+    except RuntimeError as e:
+        raise HTTPException(500, str(e)) from e
+    base = public_base_url()
+    return {**info, "url": f"{base}/s/{info['id']}", "png_url": f"{base}{info['png']}"}
+
+
+@app.get("/s/{sid}", response_class=HTMLResponse)
+async def share_page(sid: str) -> HTMLResponse:
+    snap = share.load(sid)
+    if not snap:
+        raise HTTPException(404, "この共有は見つかりません")
+    return HTMLResponse(share.page_html(snap, public_base_url()))

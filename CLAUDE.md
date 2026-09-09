@@ -27,7 +27,8 @@ claude --remote-control TRACKMENTO                                             #
 .venv/Scripts/python cli.py list   [--grid NAME]
 .venv/Scripts/python cli.py move   --from N --to M [--grid NAME]
 .venv/Scripts/python cli.py remove --index N [--grid NAME]
-.venv/Scripts/python cli.py render [--grid NAME] [--size 3x3] [--ratio 1:1|16:9|9:16|free] [--sidebar|--no-sidebar]
+.venv/Scripts/python cli.py share  [--grid NAME] [--size 3x3] [--ratio 1:1|16:9|9:16|free] [--sidebar|--no-sidebar]   # PNG + 共有ページ URL
+.venv/Scripts/python cli.py render [--grid NAME] ...                                                          # PNG だけ（オプションは share と同じ）
                                    [--title "…"] [--no-title] [--numbers|--no-numbers] [--bg paper|ink|mustard|cerulean|lavender|vermilion|mint|pink]
                                    [--bg-custom "#rrggbb"] [--margin 48] [--gap 12]
 .venv/Scripts/python cli.py clear  [--grid NAME]
@@ -37,8 +38,10 @@ claude --remote-control TRACKMENTO                                             #
 - 番号 N は画面の番号バッジと同じ **1 始まり**
 - 既定グリッドは `default`。状態は `grids/<NAME>.json` に保存され、Web UI と共有される
   （Web は起動時に localStorage とサーバーの新しい方を読む。開きっぱなしの Web には「サーバーから読み直す」ボタンがある）
-- `render` は指定したオプションをグリッド JSON にも保存する。次回以降は省略してよい
-- `render` の最後の行は必ず `URL: http://...`
+- `share` / `render` は指定したオプションをグリッド JSON にも保存する。次回以降は省略してよい
+- `share` は PNG と並びのスナップショットを `shares/<id>.{png,json}` に保存し、共有ページ `http://…/s/<id>` の URL を出す。
+  共有ページには PNG・曲リスト・「TRACKMENTO で開く」（`/?share=<id>` でその並びを Web に読み込む）がある
+- `share` / `render` の最後の行は必ず `URL: http://...`
 - 検索結果と画像は `cache.sqlite3` にキャッシュされる。取り直したいときは Web の `/search?...&nocache=true`
 
 ## スマホからの依頼への対応手順
@@ -56,9 +59,10 @@ claude --remote-control TRACKMENTO                                             #
 ### 「N 番と M 番を入れ替えて」「N 番を消して」
 `cli.py move --from N --to M` / `cli.py remove --index N`。結果の並びをそのまま返す。
 
-### 「画像にして」「16:9 で曲名リスト付きにして」
-1. 指定があればオプションを付けて `cli.py render --ratio 16:9 --sidebar --title "…"`。無ければ `cli.py render`
-2. 出力の並び一覧と **`URL:` の行を省略せずそのまま返す**。スマホ側はその URL をタップして画像を開く・保存する
+### 「画像にして」「共有して」「16:9 で曲名リスト付きにして」
+1. 指定があればオプションを付けて `cli.py share --ratio 16:9 --sidebar --title "…"`。無ければ `cli.py share`
+2. 出力の並び一覧と **`URL:` の行を省略せずそのまま返す**。スマホ側はその URL（共有ページ）を開いて PNG を保存したり、
+   「TRACKMENTO で開く」で並びを読み込んだりできる。PNG だけ欲しいと言われたら `PNG:` の行も添える
 3. `注意: サーバーが応答しません` が出たら uvicorn を起動してから URL を伝える
 
 ### 「全部消して」
@@ -66,7 +70,7 @@ claude --remote-control TRACKMENTO                                             #
 
 ## 開発メモ
 
-- 構成: `backend/`（FastAPI、sources/、cache.py、grids.py、render.py、config.py）、`frontend/index.html`（単一 HTML）、`cli.py`、`fonts/`（OFL 同梱）
+- 構成: `backend/`（FastAPI、sources/、cache.py、grids.py、render.py、share.py、uploads.py、config.py）、`frontend/index.html`（単一 HTML）、`cli.py`、`fonts/`（OFL 同梱）
 - サーバー側描画（`backend/render.py`）はフロントの Canvas 描画 `layout()` と同じ式。片方を変えたらもう片方も変える
 - UI デザインは Hallmark の方針（仕様書「UI デザイン方針」）。色・フォントは CSS 変数トークン経由、角丸なし
 - 動作確認は各ステップごとにブラウザで（`claude-in-chrome` または手動）。サーバーは `--reload` なしで起動しているとコード変更後に再起動が必要
