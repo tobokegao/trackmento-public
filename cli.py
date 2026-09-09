@@ -87,7 +87,8 @@ async def _search(q: str, artist: str, sources: list[str]) -> tuple[list[Track],
                 except Exception as e:  # 1ソースの失敗は次へ
                     print(f"  ({SOURCE_LABEL[name]} で失敗: {e})", file=sys.stderr)
                     continue
-                cache.set_search(name, q, artist, [t.model_dump() for t in res])
+                if res:
+                    cache.set_search(name, q, artist, [t.model_dump() for t in res])
             if res:
                 return merge(res), name
     return [], None

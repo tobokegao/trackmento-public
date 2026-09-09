@@ -145,7 +145,8 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
                 results[i] = []
                 continue
             results[i] = res
-            await asyncio.to_thread(cache.set_search, names[i], q, artist, [t.model_dump() for t in res])
+            if res:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）
+                await asyncio.to_thread(cache.set_search, names[i], q, artist, [t.model_dump() for t in res])
     return [r or [] for r in results]
 
 

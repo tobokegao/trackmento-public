@@ -16,7 +16,7 @@ from backend.models import Track
 
 ENDPOINT = "https://api.discogs.com/database/search"
 UA = "trackmento/0.1 +https://github.com/local/musicgrid-local"
-_DISAMBIG_RE = re.compile(r"\s*\(\d+\)$")  # "Artist (2)" の重複回避サフィックス
+_DISAMBIG_RE = re.compile(r"(\s*\(\d+\)|\*)+$")  # "Artist (2)" / "Artist*" の重複回避サフィックス
 
 
 def token() -> str:
@@ -63,15 +63,24 @@ async def search(q: str, artist: str = "", *, limit: int = 15, client: httpx.Asy
     own = client is None
     client = client or httpx.AsyncClient(timeout=15)
     try:
-        r = await client.get(ENDPOINT, params=params, headers={"User-Agent": UA, "Accept": "application/json"})
-        r.raise_for_status()
-        data = r.json()
+        out = await _query(client, params, q, artist)
+        if not out and q.strip() and artist.strip():
+            # Discogs はアーティスト表記（ローマ字／別名）が違うと track+artist で 0 件になりやすい。
+            # そのときはアーティストのリリース一覧に落として、収録盤を選べるようにする
+            params.pop("track", None)
+            out = await _query(client, params, q, artist)
     finally:
         if own:
             await client.aclose()
+    return out
+
+
+async def _query(client: httpx.AsyncClient, params: dict, q: str, artist: str) -> list[Track]:
+    r = await client.get(ENDPOINT, params=params, headers={"User-Agent": UA, "Accept": "application/json"})
+    r.raise_for_status()
     seen: set[str] = set()
     out: list[Track] = []
-    for item in data.get("results", []):
+    for item in r.json().get("results", []):
         t = _to_track(item, q, artist)
         if t and t.image not in seen:
             seen.add(t.image)
