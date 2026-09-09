@@ -3,7 +3,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
-Source = Literal["itunes", "musicbrainz", "discogs", "bandcamp", "soundcloud", "youtube", "nicovideo", "bilibili", "manual"]
+Source = Literal["itunes", "musicbrainz", "discogs", "bandcamp", "soundcloud", "youtube", "nicovideo", "bilibili", "spotify", "manual"]
 
 
 class Track(BaseModel):

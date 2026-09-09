@@ -20,7 +20,7 @@ claude --remote-control TRACKMENTO                                             #
 
 ```bash
 .venv/Scripts/python cli.py add    --artist "A" --title "T" [--grid NAME] [--source itunes|mb|discogs] [--first]
-.venv/Scripts/python cli.py add    --url "https://xxx.bandcamp.com/track/..." [--grid NAME]     # Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili の URL
+.venv/Scripts/python cli.py add    --url "https://xxx.bandcamp.com/track/..." [--grid NAME]     # Bandcamp / SoundCloud / Spotify / YouTube / ニコニコ動画 / bilibili の URL
 .venv/Scripts/python cli.py add    --image "https://.../cover.jpg" --artist "A" --title "T" [--grid NAME]   # 手入力
 .venv/Scripts/python cli.py pick   --index N [--grid NAME]     # 直前の候補から選ぶ
 .venv/Scripts/python cli.py search --artist "A" --title "T"    # 候補を見るだけ（pick で選べる）
@@ -51,7 +51,7 @@ claude --remote-control TRACKMENTO                                             #
 2. 曲名＋アーティストが一致する候補があれば自動で次の空きマスに入る。出力の「NN 番に追加: …」をそのまま伝える
    （検索順は MusicBrainz → Discogs → iTunes。iTunes は曲名・アーティスト名にクエリを含むものだけ返し、完全一致が先頭）
 3. **候補が複数出た場合は必ず番号付きで提示し、ユーザーが番号を返してから** `cli.py pick --index N` で確定する。勝手に選ばない
-4. 見つからない場合の順に: `--source discogs` / `--source mb` → Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili なら URL をもらって `--url URL` → 画像 URL をもらって `--image URL --artist --title`
+4. 見つからない場合の順に: `--source discogs` / `--source mb` → Bandcamp / SoundCloud / Spotify / YouTube / ニコニコ動画 / bilibili なら URL をもらって `--url URL` → 画像 URL をもらって `--image URL --artist --title`
 5. 空きマスがないと言われたら、`remove --index N` で外すか `render --size 4x6` などで広げるかをユーザーに聞く
 
 ### 「今の並びは？」

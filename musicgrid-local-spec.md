@@ -182,7 +182,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - `backend/render.py` の layout はフロントの layout() と同じ式（丸めは JS の Math.round 相当）。寸法は一致する
 - Remote Control の起動コマンドは現行の Claude Code では `claude --remote-control <name>`（フラグ形式）
 - `PUBLIC_BASE_URL=auto` で LAN IP を自動検出。タスク16 のスマホ実機確認は未実施（手順は CLAUDE.md）
-- Last.fm は画像が iTunes と重なるため廃止。SoundCloud（oEmbed）・YouTube（oEmbed + i.ytimg.com）・ニコニコ動画（getthumbinfo）・bilibili（動画ページの __INITIAL_STATE__）は URL 貼付で対応（キー不要）
+- Last.fm は画像が iTunes と重なるため廃止。SoundCloud（oEmbed）・YouTube（oEmbed + i.ytimg.com）・ニコニコ動画（getthumbinfo）・bilibili（動画ページの __INITIAL_STATE__）・Spotify（クローラ UA での og タグ、無ければ embed の JSON）は URL 貼付で対応（キー不要）
 - 「トラックを共有」: PNG と並びのスナップショットを shares/ に保存し、共有ページ /s/<id> と /?share=<id> で読み込み。JSON 入出力は廃止
 
 ---
