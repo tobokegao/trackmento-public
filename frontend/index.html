@@ -315,8 +315,8 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
   border: var(--line) solid var(--color-ink);
   background: var(--color-ink);
   list-style: none; margin: 0;
-  /* 全体が画面に収まるよう、縦マス数が多いほど横幅を絞る */
-  max-width: min(100%, calc((100dvh - 22rem) * var(--cols, 3) / var(--rows, 3)));
+  /* ペインの幅いっぱいに使う（縦に長いグリッドはページをスクロールして見る。マスが小さくなるより見やすい） */
+  max-width: 100%;
   min-width: min(100%, 16rem);
 }
 .grid[data-numbers="off"] .num { display: none; }
@@ -335,7 +335,7 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .cell.is-selected::after { content: ""; position: absolute; inset: 0; border: 5px solid var(--color-mustard); box-shadow: inset 0 0 0 2px var(--color-ink); pointer-events: none; z-index: 2; }
 /* 「入れる先」の空マス: 破線のマスタード枠 + 中央に矢印 */
 .cell.is-target::after { content: ""; position: absolute; inset: 0; border: 5px dashed var(--color-mustard); box-shadow: inset 0 0 0 2px var(--color-ink); pointer-events: none; z-index: 2; }
-.cell.is-target::before { content: "↓ ここに入れる"; position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); background: color-mix(in oklab, var(--color-mustard) 55%, transparent); z-index: 1; }
+.cell.is-target::before { content: ""; position: absolute; inset: 0; background: color-mix(in oklab, var(--color-mustard) 55%, transparent); z-index: 1; }
 .cell.is-target .num { background: var(--color-mustard); color: var(--color-ink); }
 
 /* スマホ用の検索シート（空マスをタップすると検索と候補をまとめて下から出す） */
