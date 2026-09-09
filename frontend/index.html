@@ -192,6 +192,7 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .seg input:disabled + span { opacity: .45; cursor: not-allowed; }
 
 .search-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.sub-form { border-top: var(--line) dashed var(--color-rule); }
 .search-actions { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
 .msg { font-size: var(--text-sm); color: var(--color-muted); margin: 0; min-height: 1.4em; overflow-wrap: anywhere; }
 .msg[data-tone="error"] { color: var(--color-ink); border-left: 6px solid var(--color-error); padding-left: var(--space-2); }
@@ -316,6 +317,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <p class="msg" id="search-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
+    <form class="pane-body search-form sub-form" id="bandcamp-form" novalidate>
+      <div class="field">
+        <label for="bc-url">Bandcamp の URL（トラック／アルバムページ）</label>
+        <input class="input" id="bc-url" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…">
+      </div>
+      <div class="search-actions">
+        <button class="btn" type="submit" id="bc-btn"><span class="label">URL から取る</span></button>
+        <p class="msg" id="bc-msg" role="status" aria-live="polite"></p>
+      </div>
+    </form>
   </section>
 
   <section class="pane pane-results" aria-labelledby="h-results">
@@ -384,6 +395,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const els = {
     status: $("#bar-status"), form: $("#search-form"), q: $("#q"), artist: $("#artist"),
     sources: $("#sources"), searchBtn: $("#search-btn"), searchMsg: $("#search-msg"),
+    bcForm: $("#bandcamp-form"), bcUrl: $("#bc-url"), bcBtn: $("#bc-btn"), bcMsg: $("#bc-msg"),
     results: $("#results"), resultsCount: $("#results-count"),
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"),
     renderBtn: $("#render-btn"), clearBtn: $("#clear-btn"),
@@ -449,7 +461,32 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
   });
 
+  /* ---- bandcamp URL ---- */
+  els.bcForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const url = els.bcUrl.value.trim();
+    els.bcUrl.removeAttribute("aria-invalid");
+    if (!/^https?:\/\//.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まる Bandcamp のページ URL を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
+    setBtnState(els.bcBtn, "loading"); say(els.bcMsg, "");
+    try {
+      const r = await fetch("/bandcamp", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+      currentResults = [d, ...currentResults.filter(t => t.image !== d.image)];
+      renderResults(currentResults);
+      els.bcUrl.value = "";
+      setBtnState(els.bcBtn, null);
+      say(els.bcMsg, `候補の先頭に「${d.title}」を入れました。クリックで配置します。`);
+    } catch (err) {
+      setBtnState(els.bcBtn, "error");
+      say(els.bcMsg, `取れませんでした。${err.message}`, "error");
+      setTimeout(() => setBtnState(els.bcBtn, null), 2500);
+    }
+  });
+
+  let currentResults = [];
   function renderResults(tracks) {
+    currentResults = tracks;
     els.results.innerHTML = "";
     els.resultsCount.textContent = String(tracks.length);
     if (!tracks.length) {

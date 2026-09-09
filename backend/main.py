@@ -10,11 +10,13 @@ from urllib.parse import urlparse
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from backend.merge import merge
 from backend.models import Track
-from backend.sources import itunes, musicbrainz
+from backend.sources import bandcamp, itunes, lastfm, musicbrainz
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -36,11 +38,11 @@ IMAGE_HOST_ALLOWLIST = (
 )
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
 
-SOURCES = {
-    "itunes": itunes.search,
-    "musicbrainz": musicbrainz.search,
-}
-DEFAULT_SOURCES = ("itunes", "musicbrainz")
+SOURCES = {"itunes": itunes.search}
+if lastfm.enabled():
+    SOURCES["lastfm"] = lastfm.search
+SOURCES["musicbrainz"] = musicbrainz.search
+DEFAULT_SOURCES = tuple(SOURCES)  # source 省略時はこれらを並列で叩いてマージ
 
 
 @asynccontextmanager
@@ -99,7 +101,24 @@ async def search(
             print(f"[search] {name} failed: {res!r}")
             continue
         out.extend(res)
-    return out
+    return merge(out) if len(names) > 1 else out
+
+
+class BandcampBody(BaseModel):
+    url: str
+
+
+@app.post("/bandcamp", response_model=Track)
+async def bandcamp_lookup(body: BandcampBody) -> Track:
+    """Bandcamp のトラック／アルバム URL からジャケット・曲名・アーティストを取る。"""
+    try:
+        return await bandcamp.fetch(body.url.strip(), client=app.state.http)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(502, f"Bandcamp が {e.response.status_code} を返しました") from e
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"取得失敗: {e}") from e
 
 
 def _host_allowed(url: str) -> bool:
