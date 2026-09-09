@@ -9,6 +9,7 @@ import re
 
 import httpx
 
+from backend.merge import _n
 from backend.models import Track
 
 ENDPOINT = "https://itunes.apple.com/search"
@@ -50,11 +51,19 @@ async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "J
     finally:
         if own:
             await client.aclose()
+    # iTunes の検索はあいまい（曲名の一部一致・カバー・オルゴール版まで返る）ので、
+    # 正規化した曲名／アーティスト名が完全に一致するものだけに絞る（空白・記号・大小・全角半角は無視）
+    want_title, want_artist = _n(q), _n(artist)
     out: list[Track] = []
     for item in data.get("results", []):
         if item.get("wrapperType") not in (None, "track"):
             continue
         t = _to_track(item)
-        if t:
-            out.append(t)
+        if not t:
+            continue
+        if want_title and _n(t.title) != want_title:
+            continue
+        if want_artist and _n(t.artist) != want_artist:
+            continue
+        out.append(t)
     return out

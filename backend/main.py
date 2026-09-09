@@ -45,10 +45,12 @@ IMAGE_HOST_ALLOWLIST = (
 )
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
 
-SOURCES = {"itunes": itunes.search, "musicbrainz": musicbrainz.search}
-DEFAULT_SOURCES = tuple(SOURCES)  # source 省略時はこれらを並列で叩いてマージ（Discogs は明示指定のみ）
+# ALL（source 省略時）はこの順で並べ、重複は先のソースを残す: MusicBrainz > Discogs > iTunes
+SOURCES = {"musicbrainz": musicbrainz.search}
 if discogs.enabled():
     SOURCES["discogs"] = discogs.search
+SOURCES["itunes"] = itunes.search
+DEFAULT_SOURCES = tuple(SOURCES)
 
 
 @asynccontextmanager

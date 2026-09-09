@@ -175,7 +175,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 
 ### 実装メモ（2026-09-09 タスク11〜16 完了時）
 - キャッシュ: `cache.sqlite3` に検索結果（7日）と画像（30日・300MB 上限）。`/search?nocache=true` で取り直し
-- Discogs は横断検索（source 省略時）には含めず、ソース明示時のみ使う（トークンが要るため）
+- ALL（source 省略時）は MusicBrainz → Discogs（トークンがあるとき）→ iTunes の順。重複は先のソースを残す。iTunes は完全一致のみ
 - フォントは `fonts/` に IBM Plex Sans JP / Silkscreen / DotGothic16（OFL）を同梱し `/fonts/` で配信。Google Fonts 依存を外した
 - グリッド JSON: Web は localStorage とサーバー `grids/default.json` の両方に保存し、起動時に savedAt が新しい方を採用。
   `/render` と CLI の `render` は指定オプションをグリッド JSON に保存する

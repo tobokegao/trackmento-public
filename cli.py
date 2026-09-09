@@ -100,7 +100,7 @@ def search_candidates(title: str, artist: str, source: str | None) -> list[Track
             raise CliError(f"未知のソース: {source}（itunes / mb / discogs）")
         order = [key]
     else:
-        order = ["itunes", "musicbrainz", "discogs"]
+        order = ["musicbrainz", "discogs", "itunes"]
     tracks, _ = asyncio.run(_search(title, artist, order))
     return tracks[:MAX_CANDIDATES]
 
@@ -343,7 +343,7 @@ def build_parser() -> argparse.ArgumentParser:
     grid_arg(sp)
     sp.add_argument("--title", "-t", help="曲名")
     sp.add_argument("--artist", "-a", help="アーティスト名")
-    sp.add_argument("--source", "-s", help="itunes | mb | discogs（省略時は iTunes → MusicBrainz → Discogs の順）")
+    sp.add_argument("--source", "-s", help="itunes | mb | discogs（省略時は MusicBrainz → Discogs → iTunes の順）")
     sp.add_argument("--first", action="store_true", help="候補が複数でも先頭を採用する")
     sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp（トラック／アルバム）または SoundCloud（トラック）の URL")
     sp.add_argument("--bandcamp", metavar="URL", help=argparse.SUPPRESS)  # 旧名
