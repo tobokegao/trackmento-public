@@ -477,8 +477,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <body>
 
 <header class="bar">
-  <h1 class="wordmark"><span class="mark">TRACKMENTO</span> <small>local</small></h1>
-  <p class="bar-status" id="bar-status" aria-live="polite">起動中</p>
+  <h1 class="wordmark"><span class="mark">TRACKMENTO</span> <small id="wordmark-tag"></small></h1>
+  <p class="bar-status" id="bar-status" aria-live="polite"></p>
 </header>
 
 <main class="workbench">
@@ -738,7 +738,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const d = await r.json();
       available = d.sources || [];
       isPublic = !!d.public;
-      els.status.textContent = "接続OK";
+      // ローカル運用では「local」と接続状態を出す。公開サイトでは出さない（利用者には意味が無い）
+      $("#wordmark-tag").textContent = isPublic ? "" : "local";
+      els.status.textContent = isPublic ? "" : "接続OK";
       els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
       $("#foot-discogs").hidden = !available.includes("discogs");
     } catch {
