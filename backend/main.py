@@ -98,6 +98,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
+
+
+@app.exception_handler(Exception)
+async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+    """想定外の例外も JSON で返す（フロントが「Internal Server Error」の生テキストを JSON として読もうとして失敗しないように）。
+    原因はサーバーログに残す。"""
+    import traceback
+    print(f"[error] {request.method} {request.url.path}: {exc!r}")
+    print("".join(traceback.format_exception(exc)))
+    return JSONResponse({"detail": f"サーバー内部でエラーが起きました（{type(exc).__name__}）。時間をおいて再試行しても直らない場合は連絡先へ"}, status_code=500)
+
+
 if cors_origins():
     # GitHub Pages など別オリジンのフロントから呼べるようにする（Cookie は使わないので credentials は不要）
     app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["*"], max_age=600)
@@ -491,6 +503,11 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
         raise HTTPException(507, str(e)) from e
     except RuntimeError as e:
         raise HTTPException(500, str(e)) from e
+    except Exception as e:  # R2 への保存失敗など
+        import traceback
+        print(f"[share] failed: {e!r}")
+        print(traceback.format_exc())
+        raise HTTPException(502, f"共有の保存に失敗しました（{type(e).__name__}）。少し待ってからもう一度お試しください") from e
     _count_share(request)
     if public_mode() and not storage.get_storage().is_remote:
         housekeeping.prune_shares()   # R2 のときはバケットのライフサイクルルールに任せる
