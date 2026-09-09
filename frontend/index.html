@@ -619,8 +619,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <fieldset class="field">
         <legend>表示</legend>
         <label class="check"><input type="checkbox" id="opt-title" checked><span>タイトル</span></label>
-        <label class="check"><input type="checkbox" id="opt-sidebar"><span>曲名リスト（サイドバー）</span></label>
-        <label class="check"><input type="checkbox" id="opt-numbers" checked><span>番号バッジ</span></label>
+        <label class="check"><input type="checkbox" id="opt-sidebar" checked><span>曲名リスト（サイドバー）</span></label>
+        <label class="check"><input type="checkbox" id="opt-numbers"><span>番号バッジ</span></label>
       </fieldset>
 
       <fieldset class="field">
@@ -630,12 +630,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </fieldset>
 
       <div class="field">
-        <label for="margin">余白 <output id="margin-out" for="margin">48</output> px</label>
-        <input type="range" id="margin" min="0" max="160" step="8" value="48">
+        <label for="margin">余白 <output id="margin-out" for="margin">16</output> px</label>
+        <input type="range" id="margin" min="0" max="160" step="8" value="16">
       </div>
       <div class="field">
-        <label for="gap">マスの間隔 <output id="gap-out" for="gap">12</output> px</label>
-        <input type="range" id="gap" min="0" max="96" step="4" value="12">
+        <label for="gap">マスの間隔 <output id="gap-out" for="gap">16</output> px</label>
+        <input type="range" id="gap" min="0" max="96" step="4" value="16">
       </div>
 
       <dl class="spec">
@@ -695,7 +695,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
-    ratio: "1:1", showTitle: true, sidebar: false, numbers: true, bg: "paper", bgCustom: null, margin: 48, gap: 12,
+    ratio: "1:1", showTitle: true, sidebar: true, numbers: false, bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（2026-09-09 の画面設定）
   };
   let available = [];
   let dragFrom = null;
@@ -1194,12 +1194,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     state.title = typeof d.title === "string" ? d.title.slice(0, 60) : "";
     const o = d.options || {};
     state.ratio = o.ratio in RATIOS ? o.ratio : "1:1";
-    state.showTitle = o.showTitle !== false; state.sidebar = o.sidebar === true; state.numbers = o.numbers !== false;
+    state.showTitle = o.showTitle !== false; state.sidebar = o.sidebar !== false; state.numbers = o.numbers === true;
     const bgKeys = SWATCHES.map(s => s[0]);
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else { state.bg = bgKeys.includes(o.bg) ? o.bg : "paper"; }
-    state.margin = clamp(o.margin, 0, 160, 48);
-    state.gap = clamp(o.gap, 0, 96, 12);
+    state.margin = clamp(o.margin, 0, 160, 16);
+    state.gap = clamp(o.gap, 0, 96, 16);
     selected = null; target = null;
     syncControls();
     renderGrid();

@@ -28,12 +28,12 @@ _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 class GridOptions(BaseModel):
     ratio: Ratio = "1:1"
     showTitle: bool = True
-    sidebar: bool = False
-    numbers: bool = True
+    sidebar: bool = True
+    numbers: bool = False
     bg: str = "paper"
     bgCustom: Optional[str] = None
-    margin: int = 48
-    gap: int = 12       # マスとマスの間隔（出力 px）
+    margin: int = 16
+    gap: int = 16       # マスとマスの間隔（出力 px）
 
     @field_validator("bg")
     @classmethod
@@ -46,7 +46,7 @@ class GridOptions(BaseModel):
         try:
             return max(0, min(160, int(round(float(v)))))
         except (TypeError, ValueError):
-            return 48
+            return 16
 
     @field_validator("gap", mode="before")
     @classmethod
@@ -54,7 +54,7 @@ class GridOptions(BaseModel):
         try:
             return max(0, min(96, int(round(float(v)))))
         except (TypeError, ValueError):
-            return 12
+            return 16
 
     @model_validator(mode="after")
     def _custom(self) -> "GridOptions":

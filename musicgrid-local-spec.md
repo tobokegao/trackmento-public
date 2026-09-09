@@ -222,9 +222,9 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
   "title": "…", "cols": 3, "rows": 3,
   "cells": [ <共通レスポンス型 Track> | null, ... ],   // cols*rows 個
   "stash": [ <Track>, ... ],                            // 縮小時に退避した曲
-  "options": { "ratio": "1:1|16:9|9:16|free", "showTitle": true, "sidebar": false,
-               "numbers": true, "bg": "paper|ink|mustard|cerulean|lavender|vermilion|mint|pink|custom",
-               "bgCustom": "#rrggbb|null", "margin": 48, "gap": 12 } }
+  "options": { "ratio": "1:1|16:9|9:16|free", "showTitle": true, "sidebar": true,
+               "numbers": false, "bg": "paper|ink|mustard|cerulean|lavender|vermilion|mint|pink|custom",
+               "bgCustom": "#rrggbb|null", "margin": 16, "gap": 16 } }
 ```
 - `/image-proxy` はホワイトリスト外でも公開ホストなら通す（私設IP・ループバック・解決不能は 403）。手入力の画像URL対応のため
 

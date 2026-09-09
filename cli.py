@@ -411,7 +411,7 @@ def _render_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--bg", choices=["paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink"], help="背景色")
     sp.add_argument("--bg-custom", metavar="#RRGGBB", help="背景色を直接指定")
     sp.add_argument("--margin", type=int, help="余白 px（0〜160）")
-    sp.add_argument("--gap", type=int, help="マスとマスの間隔 px（0〜96、既定 12）")
+    sp.add_argument("--gap", type=int, help="マスとマスの間隔 px（0〜96、既定 16）")
 
 
 def main(argv: list[str]) -> int:
