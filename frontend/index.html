@@ -4,9 +4,590 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MusicGrid Local</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Sans+JP:wght@400;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
+ * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(95% 0.015 95) · accent: oklch(60% 0.14 235)
+ * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers only) · axes: light / risograph-bold / cool
+ * studied: no · context: user-provided (audience: self, J-POP · use: search → place → PNG · tone: utilitarian) · v1.1.0
+ * Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4
+ */
+:root {
+  /* paper / ink (cool-tinted, no pure extremes) */
+  --color-paper:    oklch(95% 0.015 95);
+  --color-paper-2:  oklch(91% 0.018 95);
+  --color-paper-3:  oklch(87% 0.020 95);
+  --color-ink:      oklch(20% 0.012 250);
+  --color-ink-2:    oklch(28% 0.012 250);
+  --color-muted:    oklch(46% 0.012 250);
+  --color-rule:     oklch(76% 0.012 250);
+  --color-rule-2:   oklch(82% 0.012 250);
+  /* the six riso inks — badges and one primary accent */
+  --color-mustard:  oklch(80% 0.150 88);
+  --color-cerulean: oklch(60% 0.140 235);
+  --color-lavender: oklch(74% 0.100 295);
+  --color-vermilion:oklch(62% 0.200 32);
+  --color-mint:     oklch(84% 0.110 165);
+  --color-pink:     oklch(78% 0.130 350);
+  --color-accent:   var(--color-cerulean);
+  --color-accent-ink: var(--color-paper);
+  --color-focus:    oklch(58% 0.200 235);
+  --color-error:    var(--color-vermilion);
+  --color-grain:    oklch(20% 0.012 250 / 0.06);   /* overlay modifier for halftone dots */
+
+  --font-display: "DotGothic16", "IBM Plex Sans JP", sans-serif;
+  --font-body:    "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-outlier: "Silkscreen", "DotGothic16", monospace;
+
+  --text-xs: 0.64rem; --text-sm: 0.8rem; --text-base: 1rem; --text-md: 1.25rem; --text-lg: 1.5625rem;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
+  --line: 2px;
+  --shadow: 4px 4px 0 var(--color-ink);
+  --shadow-sm: 2px 2px 0 var(--color-ink);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --dur-tick: 100ms; --dur-short: 180ms; --dur-mid: 260ms;
+}
+
+*, *::before, *::after { box-sizing: border-box; border-radius: 0; }
+html, body { overflow-x: clip; }
+html { background: var(--color-paper); color: var(--color-ink); }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-paper);
+  background-image: radial-gradient(var(--color-grain) 1px, transparent 1.2px);
+  background-size: 6px 6px;
+}
+h1, h2, h3, legend { font-family: var(--font-display); font-weight: 400; font-style: normal; line-height: 1.15; margin: 0; overflow-wrap: anywhere; min-width: 0; }
+button, input, select { font: inherit; color: inherit; }
+img { max-width: 100%; display: block; }
+:focus { outline: none; }
+:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+::selection { background: var(--color-mint); color: var(--color-ink); }
+
+/* ---------- toolbar (menubar) ---------- */
+.bar {
+  display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--line) solid var(--color-ink);
+  background: var(--color-paper);
+}
+.wordmark {
+  font-family: var(--font-outlier); font-weight: 700; font-size: var(--text-md); letter-spacing: 0.02em;
+  text-shadow: 3px 3px 0 var(--color-cerulean);
+  white-space: nowrap;
+}
+.wordmark small { font-family: var(--font-display); font-size: var(--text-xs); text-shadow: none; color: var(--color-muted); margin-left: var(--space-2); letter-spacing: 0; }
+.bar-status { margin: 0 0 0 auto; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
+
+/* ---------- panes ---------- */
+.workbench {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  align-content: start;
+}
+@media (min-width: 60rem) {
+  .workbench {
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr) minmax(0, 17rem);
+    grid-template-areas: "search grid options" "results grid options";
+    grid-template-rows: auto 1fr;
+    padding: var(--space-6);
+    gap: var(--space-6);
+    align-items: start;
+  }
+  .pane-search { grid-area: search; }
+  .pane-results { grid-area: results; }
+  .pane-grid { grid-area: grid; }
+  .pane-options { grid-area: options; }
+}
+.pane {
+  border: var(--line) solid var(--color-ink);
+  background: var(--color-paper);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.pane-title {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-bottom: var(--line) solid var(--color-ink);
+  background: repeating-linear-gradient(to bottom, var(--color-ink) 0 2px, var(--color-paper) 2px 4px);
+}
+.pane-title h2 {
+  font-size: var(--text-sm); letter-spacing: 0.04em;
+  background: var(--color-paper); padding: 0 var(--space-2);
+  border: var(--line) solid var(--color-ink);
+}
+.pane-title .count { margin-left: auto; font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--line) solid var(--color-ink); padding: 0 var(--space-1); }
+.pane-body { padding: var(--space-3); }
+
+/* ---------- controls ---------- */
+.field { display: grid; gap: var(--space-1); }
+.field label, .field legend { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
+fieldset.field { border: 0; padding: 0; margin: 0; }
+fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
+.input {
+  width: 100%; min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--line) solid var(--color-ink);
+  background: var(--color-paper);
+  box-shadow: inset 2px 2px 0 var(--color-paper-3);
+  transition: box-shadow var(--dur-short) var(--ease-out);
+}
+.input::placeholder { color: var(--color-muted); }
+.input:hover { box-shadow: inset 2px 2px 0 var(--color-rule-2); }
+.input:focus-visible { outline-offset: 0; box-shadow: inset 2px 2px 0 var(--color-paper-3); }
+.input[aria-invalid="true"] { border-color: var(--color-error); box-shadow: inset 2px 2px 0 var(--color-error); }
+.input:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: 40px; padding: var(--space-1) var(--space-4);
+  border: var(--line) solid var(--color-ink);
+  background: var(--color-paper); color: var(--color-ink);
+  font-family: var(--font-display); font-size: var(--text-base); letter-spacing: 0.02em;
+  text-decoration: none;
+  white-space: nowrap; cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-tick) var(--ease-out), box-shadow var(--dur-tick) var(--ease-out), background-color var(--dur-short) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: var(--color-paper-2); }
+}
+.btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--color-ink); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; transform: none; box-shadow: var(--shadow-sm); }
+.btn-primary { background: var(--color-ink); color: var(--color-paper); box-shadow: 4px 4px 0 var(--color-cerulean); }
+@media (hover: hover) and (pointer: fine) { .btn-primary:hover { background: var(--color-ink-2); } }
+.btn-primary:active { box-shadow: 0 0 0 var(--color-cerulean); }
+.btn[data-state="loading"] { cursor: progress; }
+.btn[data-state="loading"] .label::after { content: "…"; }
+.btn[data-state="loading"]::before { content: ""; width: 8px; height: 8px; background: currentColor; animation: blink 1s steps(2) infinite; }
+.btn[data-state="error"] { border-color: var(--color-error); box-shadow: 2px 2px 0 var(--color-error); }
+.btn[data-state="success"] { border-color: var(--color-mint); }
+@keyframes blink { 50% { opacity: 0; } }
+@media (pointer: coarse) { .btn { min-height: 44px; } }
+
+.seg { display: flex; flex-wrap: wrap; border: var(--line) solid var(--color-ink); width: fit-content; max-width: 100%; min-width: 0; }
+.seg label { border-bottom: var(--line) solid var(--color-ink); margin-bottom: calc(-1 * var(--line)); }
+.seg label { position: relative; }
+.seg input { position: absolute; inset: 0; opacity: 0; margin: 0; }
+.seg span {
+  display: block; padding: var(--space-1) var(--space-3);
+  font-family: var(--font-display); font-size: var(--text-sm); white-space: nowrap; cursor: pointer;
+  border-right: var(--line) solid var(--color-ink);
+}
+.seg label:last-child span { border-right: 0; }
+.seg input:checked + span { background: var(--color-ink); color: var(--color-paper); }
+.seg input:focus-visible + span { outline: 3px solid var(--color-focus); outline-offset: -3px; }
+.seg input:disabled + span { opacity: .45; cursor: not-allowed; }
+
+.search-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.search-actions { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+.msg { font-size: var(--text-sm); color: var(--color-muted); margin: 0; min-height: 1.4em; overflow-wrap: anywhere; }
+.msg[data-tone="error"] { color: var(--color-ink); border-left: 6px solid var(--color-error); padding-left: var(--space-2); }
+
+/* ---------- results ---------- */
+.results { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); max-height: 60dvh; overflow-y: auto; }
+@media (min-width: 60rem) { .results { max-height: calc(100dvh - 24rem); } }
+.result {
+  display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-3); align-items: center;
+  width: 100%; padding: var(--space-2); text-align: left;
+  border: var(--line) solid var(--color-ink); background: var(--color-paper); cursor: pointer;
+  transition: transform var(--dur-tick) var(--ease-out), background-color var(--dur-short) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) { .result:hover { background: var(--color-paper-2); transform: translateX(2px); } }
+.result:active { transform: translate(1px, 1px); }
+.result img { width: 56px; height: 56px; object-fit: cover; border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
+.result .t { font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.result .a { font-size: var(--text-sm); color: var(--color-ink-2); overflow-wrap: anywhere; }
+.result .meta { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
+.badge {
+  font-family: var(--font-outlier); font-size: var(--text-xs); letter-spacing: 0.02em; line-height: 1.6;
+  padding: 0 var(--space-1); border: var(--line) solid var(--color-ink); color: var(--color-ink); white-space: nowrap;
+}
+.badge[data-source="itunes"]      { background: var(--color-pink); }
+.badge[data-source="lastfm"]      { background: var(--color-vermilion); }
+.badge[data-source="musicbrainz"] { background: var(--color-lavender); }
+.badge[data-source="discogs"]     { background: var(--color-mustard); }
+.badge[data-source="bandcamp"]    { background: var(--color-mint); }
+.badge[data-source="manual"]      { background: var(--color-cerulean); color: var(--color-paper); }
+.empty { padding: var(--space-4) var(--space-2); color: var(--color-muted); font-size: var(--text-sm); display: grid; gap: var(--space-1); }
+.empty strong { font-family: var(--font-display); font-weight: 400; color: var(--color-ink); font-size: var(--text-base); }
+
+/* ---------- grid ---------- */
+.grid-head { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: var(--line) solid var(--color-ink);
+  background: var(--color-ink);
+  list-style: none; margin: 0;
+  max-width: min(100%, calc(100dvh - 22rem));
+  min-width: min(100%, 20rem);
+}
+.cell {
+  position: relative; aspect-ratio: 1;
+  background-color: var(--color-paper-2);
+  background-image:
+    linear-gradient(45deg, var(--color-paper-3) 25%, transparent 25%, transparent 75%, var(--color-paper-3) 75%),
+    linear-gradient(45deg, var(--color-paper-3) 25%, transparent 25%, transparent 75%, var(--color-paper-3) 75%);
+  background-size: 16px 16px; background-position: 0 0, 8px 8px;
+  min-width: 0;
+}
+.cell img { width: 100%; height: 100%; object-fit: cover; }
+.cell.is-over { outline: 4px solid var(--color-cerulean); outline-offset: -4px; }
+.cell[draggable="true"] { cursor: grab; }
+.cell.is-dragging { opacity: .5; }
+.cell .num {
+  position: absolute; left: 0; top: 0;
+  font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1.6;
+  padding: 0 var(--space-1); background: var(--color-paper); border-right: var(--line) solid var(--color-ink); border-bottom: var(--line) solid var(--color-ink);
+}
+.cell .rm {
+  position: absolute; right: 0; top: 0; width: 28px; height: 28px; padding: 0;
+  display: grid; place-items: center;
+  font-family: var(--font-outlier); font-size: var(--text-sm); line-height: 1;
+  background: var(--color-paper); border: 0; border-left: var(--line) solid var(--color-ink); border-bottom: var(--line) solid var(--color-ink);
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) { .cell .rm:hover { background: var(--color-vermilion); } }
+.cell .rm:active { background: var(--color-vermilion); }
+.cell .cap {
+  position: absolute; inset: auto 0 0 0; padding: 2px var(--space-1);
+  background: var(--color-paper); border-top: var(--line) solid var(--color-ink);
+  font-size: var(--text-xs); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.grid-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+
+/* ---------- output ---------- */
+.output { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: var(--line) solid var(--color-rule); }
+.output img { border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
+.output .dl { justify-self: start; }
+.spec { display: grid; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }
+.spec dt { font-family: var(--font-display); color: var(--color-muted); }
+.spec dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+footer { padding: var(--space-3) var(--space-4); border-top: var(--line) solid var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); display: flex; gap: var(--space-4); flex-wrap: wrap; }
+footer a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+</style>
 </head>
 <body>
-<h1>MusicGrid Local</h1>
-<p>雛形です。タスク4で UI を実装します。</p>
+
+<header class="bar">
+  <h1 class="wordmark">MUSICGRID <small>local</small></h1>
+  <p class="bar-status" id="bar-status" aria-live="polite">起動中</p>
+</header>
+
+<main class="workbench">
+
+  <section class="pane pane-search" aria-labelledby="h-search">
+    <div class="pane-title"><h2 id="h-search">検索</h2></div>
+    <form class="pane-body search-form" id="search-form" novalidate>
+      <div class="field">
+        <label for="q">曲名</label>
+        <input class="input" id="q" name="q" type="search" autocomplete="off" placeholder="例: Pretender" enterkeyhint="search">
+      </div>
+      <div class="field">
+        <label for="artist">アーティスト名</label>
+        <input class="input" id="artist" name="artist" type="search" autocomplete="off" placeholder="例: Official髭男dism" enterkeyhint="search">
+      </div>
+      <fieldset class="field">
+        <legend>ソース</legend>
+        <div class="seg" id="sources" role="radiogroup" aria-label="検索ソース"></div>
+      </fieldset>
+      <div class="search-actions">
+        <button class="btn btn-primary" type="submit" id="search-btn"><span class="label">検索する</span></button>
+        <p class="msg" id="search-msg" role="status" aria-live="polite"></p>
+      </div>
+    </form>
+  </section>
+
+  <section class="pane pane-results" aria-labelledby="h-results">
+    <div class="pane-title"><h2 id="h-results">候補</h2><span class="count" id="results-count" aria-label="候補数">0</span></div>
+    <div class="pane-body">
+      <ul class="results" id="results">
+        <li class="empty"><strong>まだ候補がありません</strong><span>曲名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>クリックで次の空きマスに入ります。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="pane pane-grid" aria-labelledby="h-grid">
+    <div class="pane-title"><h2 id="h-grid">グリッド 3×3</h2><span class="count" id="grid-count" aria-label="配置数">0/9</span></div>
+    <div class="pane-body">
+      <div class="grid-head">
+        <div class="field">
+          <label for="title">タイトル（省略可）</label>
+          <input class="input" id="title" type="text" placeholder="例: 私を構成する9曲" maxlength="60">
+        </div>
+      </div>
+      <ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3"></ol>
+      <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックすると入ります。マスをドラッグすると入れ替え。</p>
+      <div class="grid-actions">
+        <button class="btn btn-primary" type="button" id="render-btn"><span class="label">画像を作る</span></button>
+        <button class="btn" type="button" id="clear-btn">全部クリア</button>
+      </div>
+      <div class="output" id="output" hidden>
+        <img id="output-img" alt="生成したグリッド画像のプレビュー">
+        <a class="btn dl" id="download" download="musicgrid.png" href="#">PNG を保存</a>
+      </div>
+    </div>
+  </section>
+
+  <aside class="pane pane-options" aria-labelledby="h-options">
+    <div class="pane-title"><h2 id="h-options">出力</h2></div>
+    <div class="pane-body">
+      <dl class="spec">
+        <dt>マス</dt><dd>3 × 3 · 各 600 px</dd>
+        <dt>比率</dt><dd>1:1（プリセットは後で追加）</dd>
+        <dt>形式</dt><dd>PNG</dd>
+        <dt>画像取得</dt><dd>同一オリジンの /image-proxy 経由</dd>
+      </dl>
+    </div>
+  </aside>
+
+</main>
+
+<footer>
+  <span>MusicGrid Local</span>
+  <a href="/health">/health</a>
+  <span id="foot-sources"></span>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const SOURCE_LABEL = { itunes: "iTunes", lastfm: "Last.fm", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", manual: "手入力" };
+  const ALL_SOURCES = ["itunes", "lastfm", "musicbrainz", "discogs"];
+  const CELL_PX = 600, GAP_PX = 12, MARGIN_PX = 48, TITLE_PX = 140;
+
+  const state = { cols: 3, rows: 3, title: "", cells: Array(9).fill(null) };
+  let available = [];
+  let dragFrom = null;
+
+  const els = {
+    status: $("#bar-status"), form: $("#search-form"), q: $("#q"), artist: $("#artist"),
+    sources: $("#sources"), searchBtn: $("#search-btn"), searchMsg: $("#search-msg"),
+    results: $("#results"), resultsCount: $("#results-count"),
+    grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"),
+    renderBtn: $("#render-btn"), clearBtn: $("#clear-btn"),
+    output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
+  };
+
+  const proxied = (url) => `/image-proxy?url=${encodeURIComponent(url)}`;
+  const setBtnState = (btn, s) => { if (s) btn.dataset.state = s; else delete btn.dataset.state; btn.disabled = s === "loading"; };
+  const say = (el, text, tone) => { el.textContent = text; if (tone) el.dataset.tone = tone; else delete el.dataset.tone; };
+
+  /* ---- sources ---- */
+  async function loadHealth() {
+    try {
+      const r = await fetch("/health");
+      const d = await r.json();
+      available = d.sources || [];
+      els.status.textContent = "接続OK";
+      els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
+    } catch {
+      available = [];
+      els.status.textContent = "サーバーに接続できません";
+    }
+    renderSources();
+  }
+  function renderSources() {
+    els.sources.innerHTML = "";
+    const opts = [];
+    if (available.length > 1) opts.push({ v: "", label: "横断", on: true });
+    for (const s of ALL_SOURCES) opts.push({ v: s, label: SOURCE_LABEL[s], on: available.includes(s) });
+    let checked = false;
+    for (const o of opts) {
+      const l = document.createElement("label");
+      const i = document.createElement("input");
+      i.type = "radio"; i.name = "source"; i.value = o.v; i.disabled = !o.on;
+      if (o.on && !checked) { i.checked = true; checked = true; }
+      const sp = document.createElement("span"); sp.textContent = o.label;
+      if (!o.on) l.title = "未実装";
+      l.append(i, sp); els.sources.append(l);
+    }
+  }
+
+  /* ---- search ---- */
+  els.form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const q = els.q.value.trim(), artist = els.artist.value.trim();
+    els.q.removeAttribute("aria-invalid");
+    if (!q && !artist) { els.q.setAttribute("aria-invalid", "true"); say(els.searchMsg, "曲名かアーティスト名のどちらかは必要です。", "error"); els.q.focus({ preventScroll: true }); return; }
+    const source = new FormData(els.form).get("source") || "";
+    const params = new URLSearchParams({ q, artist });
+    if (source) params.set("source", source);
+    setBtnState(els.searchBtn, "loading"); say(els.searchMsg, "");
+    try {
+      const r = await fetch(`/search?${params}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const tracks = await r.json();
+      renderResults(tracks);
+      setBtnState(els.searchBtn, null);
+      say(els.searchMsg, tracks.length ? `${tracks.length} 件` : "見つかりませんでした。表記を変えるか、別のソースを試してください。");
+    } catch (err) {
+      setBtnState(els.searchBtn, "error");
+      say(els.searchMsg, `検索に失敗しました（${err.message}）。サーバーが起動しているか確認して、もう一度押してください。`, "error");
+      setTimeout(() => setBtnState(els.searchBtn, null), 2500);
+    }
+  });
+
+  function renderResults(tracks) {
+    els.results.innerHTML = "";
+    els.resultsCount.textContent = String(tracks.length);
+    if (!tracks.length) {
+      const li = document.createElement("li"); li.className = "empty";
+      li.innerHTML = "<strong>該当なし</strong><span>曲名を短くする、アーティスト名だけで検索する、などを試してください。</span>";
+      els.results.append(li);
+      return;
+    }
+    for (const t of tracks) {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "result";
+      b.setAttribute("aria-label", `${t.title} / ${t.artist} をグリッドに追加`);
+      const img = document.createElement("img");
+      img.src = proxied(t.thumb || t.image); img.alt = ""; img.loading = "lazy"; img.width = 56; img.height = 56;
+      const box = document.createElement("div");
+      const tt = document.createElement("div"); tt.className = "t"; tt.textContent = t.title;
+      const meta = document.createElement("div"); meta.className = "meta";
+      const a = document.createElement("span"); a.className = "a"; a.textContent = t.artist + (t.album ? ` · ${t.album}` : "");
+      const badge = document.createElement("span"); badge.className = "badge"; badge.dataset.source = t.source; badge.textContent = SOURCE_LABEL[t.source] || t.source;
+      meta.append(badge, a); box.append(tt, meta); b.append(img, box); li.append(b);
+      b.addEventListener("click", () => addTrack(t));
+      els.results.append(li);
+    }
+  }
+
+  /* ---- grid ---- */
+  function addTrack(t) {
+    const i = state.cells.findIndex(c => c === null);
+    if (i < 0) { say(els.gridMsg, "空きマスがありません。× で外してから追加してください。", "error"); return; }
+    state.cells[i] = t;
+    renderGrid();
+    say(els.gridMsg, `${i + 1} 番に「${t.title}」を入れました。`);
+  }
+  function removeAt(i) {
+    const t = state.cells[i]; state.cells[i] = null; renderGrid();
+    if (t) say(els.gridMsg, `${i + 1} 番の「${t.title}」を外しました。`);
+  }
+  function swap(a, b) {
+    if (a === b) return;
+    [state.cells[a], state.cells[b]] = [state.cells[b], state.cells[a]];
+    renderGrid(); say(els.gridMsg, `${a + 1} 番と ${b + 1} 番を入れ替えました。`);
+  }
+  function renderGrid() {
+    els.grid.style.setProperty("--cols", state.cols);
+    els.grid.innerHTML = "";
+    state.cells.forEach((t, i) => {
+      const li = document.createElement("li");
+      li.className = "cell"; li.dataset.index = i;
+      const num = document.createElement("span"); num.className = "num"; num.textContent = String(i + 1).padStart(2, "0");
+      li.append(num);
+      if (t) {
+        li.draggable = true;
+        li.setAttribute("aria-label", `${i + 1} 番: ${t.title} / ${t.artist}`);
+        const img = document.createElement("img"); img.src = proxied(t.image); img.alt = ""; img.draggable = false;
+        const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.setAttribute("aria-label", `${i + 1} 番の ${t.title} を外す`);
+        rm.addEventListener("click", (e) => { e.stopPropagation(); removeAt(i); });
+        const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `${t.title} / ${t.artist}`;
+        li.append(img, rm, cap);
+      } else {
+        li.setAttribute("aria-label", `${i + 1} 番: 空`);
+      }
+      li.addEventListener("dragstart", (e) => { dragFrom = i; li.classList.add("is-dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); });
+      li.addEventListener("dragend", () => { dragFrom = null; li.classList.remove("is-dragging"); });
+      li.addEventListener("dragover", (e) => { if (dragFrom === null) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; li.classList.add("is-over"); });
+      li.addEventListener("dragleave", () => li.classList.remove("is-over"));
+      li.addEventListener("drop", (e) => { e.preventDefault(); li.classList.remove("is-over"); const from = Number(e.dataTransfer.getData("text/plain")); if (Number.isInteger(from)) swap(from, i); });
+      els.grid.append(li);
+    });
+    const n = state.cells.filter(Boolean).length;
+    els.gridCount.textContent = `${n}/${state.cells.length}`;
+    els.renderBtn.disabled = n === 0;
+  }
+  els.clearBtn.addEventListener("click", () => {
+    if (!state.cells.some(Boolean)) return;
+    state.cells.fill(null); renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
+  });
+  els.title.addEventListener("input", () => { state.title = els.title.value; });
+
+  /* ---- render (Canvas) ---- */
+  function loadImage(url) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error("画像の取得に失敗"));
+      img.src = proxied(url);
+    });
+  }
+  function drawCover(ctx, img, x, y, w, h) {
+    const s = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+    const sw = w / s, sh = h / s, sx = (img.naturalWidth - sw) / 2, sy = (img.naturalHeight - sh) / 2;
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  }
+  els.renderBtn.addEventListener("click", async () => {
+    const css = getComputedStyle(document.documentElement);
+    const paper = css.getPropertyValue("--color-paper").trim();
+    const ink = css.getPropertyValue("--color-ink").trim();
+    const title = state.title.trim();
+    setBtnState(els.renderBtn, "loading"); say(els.gridMsg, "");
+    try {
+      await document.fonts.load(`700 80px "IBM Plex Sans JP"`);
+      const W = MARGIN_PX * 2 + state.cols * CELL_PX + (state.cols - 1) * GAP_PX;
+      const top = MARGIN_PX + (title ? TITLE_PX : 0);
+      const H = top + state.rows * CELL_PX + (state.rows - 1) * GAP_PX + MARGIN_PX;
+      const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = paper; ctx.fillRect(0, 0, W, H);
+      if (title) {
+        ctx.fillStyle = ink; ctx.font = `700 80px "IBM Plex Sans JP", sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+        ctx.fillText(title, MARGIN_PX, MARGIN_PX + TITLE_PX / 2, W - MARGIN_PX * 2);
+      }
+      const imgs = await Promise.all(state.cells.map(t => t ? loadImage(t.image).catch(() => null) : null));
+      state.cells.forEach((t, i) => {
+        const c = i % state.cols, r = Math.floor(i / state.cols);
+        const x = MARGIN_PX + c * (CELL_PX + GAP_PX), y = top + r * (CELL_PX + GAP_PX);
+        ctx.fillStyle = ink; ctx.fillRect(x, y, CELL_PX, CELL_PX);
+        if (imgs[i]) drawCover(ctx, imgs[i], x, y, CELL_PX, CELL_PX);
+      });
+      const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+      if (els.download.href.startsWith("blob:")) URL.revokeObjectURL(els.download.href);
+      const url = URL.createObjectURL(blob);
+      els.outputImg.src = url; els.download.href = url;
+      els.download.download = (title || "musicgrid").replace(/[\\/:*?"<>|]/g, "_") + ".png";
+      els.output.hidden = false;
+      setBtnState(els.renderBtn, null);
+      say(els.gridMsg, `${W} × ${H} px の PNG ができました。`);
+      els.download.focus({ preventScroll: true });
+    } catch (err) {
+      setBtnState(els.renderBtn, "error");
+      say(els.gridMsg, `画像を作れませんでした（${err.message}）。もう一度押してください。`, "error");
+      setTimeout(() => setBtnState(els.renderBtn, null), 2500);
+    }
+  });
+
+  renderGrid();
+  loadHealth();
+})();
+</script>
 </body>
 </html>

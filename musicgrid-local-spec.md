@@ -157,7 +157,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - [x] 1. リポジトリ雛形作成、requirements.txt、.env.example、README
 - [x] 2. `sources/itunes.py`（キー不要なので最初に動作確認）
 - [x] 3. `main.py` に `/search` と `/image-proxy` と静的配信
-- [ ] 4. `frontend/index.html`: 検索→3×3グリッドに追加→PNG保存の最小動作
+- [x] 4. `frontend/index.html`: 検索→3×3グリッドに追加→PNG保存の最小動作
 - [ ] 5. `sources/musicbrainz.py`（1秒スリープ、User-Agent）
 - [ ] 6. `sources/lastfm.py`
 - [ ] 7. `sources/bandcamp.py` + `/bandcamp`
