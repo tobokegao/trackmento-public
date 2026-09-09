@@ -14,6 +14,10 @@ import httpx
 from backend.models import Track
 
 MB_ENDPOINT = "https://musicbrainz.org/ws/2/recording"
+
+
+class SourceBusy(Exception):
+    """一時的に使えない（混雑・レート制限）。検索全体は続け、利用者にその旨を知らせる"""
 CAA = "https://coverartarchive.org/release/{mbid}/front-{size}"
 _lock = asyncio.Lock()
 _last_call = 0.0
@@ -43,10 +47,15 @@ async def _mb_get(client: httpx.AsyncClient, params: dict) -> dict:
         _last_call = time.monotonic()
         headers = {"User-Agent": _user_agent(), "Accept": "application/json"}
         r = await client.get(MB_ENDPOINT, params=params, headers=headers)
-        if r.status_code == 503:  # レート制限。1回だけ待って再試行
-            await asyncio.sleep(1.1)
+        # 503 = 混雑かレート制限。間隔を広げながら最大 3 回まで再試行（1 回では通らないことが多い）
+        for wait in (1.5, 3.0, 5.0):
+            if r.status_code != 503:
+                break
+            await asyncio.sleep(wait)
             _last_call = time.monotonic()
             r = await client.get(MB_ENDPOINT, params=params, headers=headers)
+    if r.status_code == 503:
+        raise SourceBusy("MusicBrainz が混雑しています（503）。少し待ってから再検索してください")
     r.raise_for_status()
     return r.json()
 

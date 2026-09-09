@@ -194,13 +194,13 @@ async def health() -> dict:
     }
 
 
-@app.get("/search", response_model=list[Track])
+@app.get("/search")
 async def search(
     q: str = Query("", description="曲名"),
     artist: str = Query("", description="アーティスト名"),
     source: str | None = Query(None, description="itunes|musicbrainz|discogs|otodb。省略時は横断（otodb は含まない）"),
     nocache: bool = Query(False, description="true でキャッシュを使わず取り直す"),
-) -> list[Track]:
+) -> JSONResponse:
     if not (q.strip() or artist.strip()):
         raise HTTPException(400, "q または artist を指定してください")
     if source:
@@ -211,14 +211,21 @@ async def search(
     else:
         names = list(DEFAULT_SOURCES)
 
+    results, failed = await search_sources(names, q, artist, nocache=nocache)
     out: list[Track] = []
-    for name, res in zip(names, await search_sources(names, q, artist, nocache=nocache)):
+    for res in results:
         out.extend(res)
-    return merge(out) if len(names) > 1 else out
+    tracks = merge(out) if len(names) > 1 else out
+    headers = {}
+    if failed:
+        # 失敗したソースをフロントに知らせる（ヘッダは ASCII のみ）。例: "musicbrainz=busy,itunes=error"
+        headers["X-Search-Failed"] = ",".join(f"{n}={k}" for n, k in failed.items())
+    return JSONResponse([t.model_dump() for t in tracks], headers=headers)
 
 
-async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool = False) -> list[list[Track]]:
-    """ソースごとにキャッシュを引き、無いものだけ並列で取りに行く。失敗したソースは空扱い。"""
+async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool = False) -> tuple[list[list[Track]], dict[str, str]]:
+    """ソースごとにキャッシュを引き、無いものだけ並列で取りに行く。失敗したソースは空扱いにし、名前と理由（busy/error）を返す。"""
+    failed: dict[str, str] = {}
     results: list[list[Track] | None] = [None] * len(names)
     if not nocache:
         for i, name in enumerate(names):
@@ -236,11 +243,12 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
                 # 1ソースの失敗で全体を落とさない。失敗はキャッシュしない
                 print(f"[search] {names[i]} failed: {res!r}")
                 results[i] = []
+                failed[names[i]] = "busy" if isinstance(res, musicbrainz.SourceBusy) or "503" in str(res) else "error"
                 continue
             results[i] = res
             if res:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）
                 await asyncio.to_thread(cache.set_search, names[i], q, artist, [t.model_dump() for t in res])
-    return [r or [] for r in results]
+    return [r or [] for r in results], failed
 
 
 class BandcampBody(BaseModel):

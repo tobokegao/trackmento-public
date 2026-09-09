@@ -793,7 +793,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const tracks = await r.json();
       renderResults(tracks);
       setBtnState(els.searchBtn, null);
-      say(els.searchMsg, tracks.length ? `${tracks.length} 件` : "見つかりませんでした。表記を変えるか、別のソースを試してください。");
+      // 一部のソースが失敗していたら、その旨を添える（MusicBrainz の混雑など）
+      const failed = (r.headers.get("X-Search-Failed") || "").split(",").filter(Boolean).map(s => s.split("="));
+      const failNote = failed.length
+        ? " " + failed.map(([n, k]) => `${SOURCE_LABEL[n] || n} は${k === "busy" ? "混雑中で応答しませんでした（少し待って再検索）" : "エラーで取得できませんでした"}。`).join("")
+        : "";
+      say(els.searchMsg, (tracks.length ? `${tracks.length} 件` : "見つかりませんでした。表記を変えるか、別のソースを試してください。") + failNote, failed.length ? "error" : null);
     } catch (err) {
       setBtnState(els.searchBtn, "error");
       say(els.searchMsg, `検索に失敗しました（${err.message}）。サーバーが起動しているか確認して、もう一度押してください。`, "error");
