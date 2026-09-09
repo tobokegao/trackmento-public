@@ -162,7 +162,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - [x] 6. `sources/lastfm.py`
 - [x] 7. `sources/bandcamp.py` + `/bandcamp`
 - [x] 8. 横断検索の重複マージ
-- [ ] 9. グリッドサイズ／比率プリセット／サイドバー／番号／背景色
+- [x] 9. グリッドサイズ／比率プリセット／サイドバー／番号／背景色
 - [ ] 10. localStorage 保存、JSON 入出力、手入力追加
 - [ ] 11. SQLite キャッシュ
 - [ ] 12. `sources/discogs.py`（トークンありのときだけ有効）

@@ -244,9 +244,11 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
   border: var(--line) solid var(--color-ink);
   background: var(--color-ink);
   list-style: none; margin: 0;
-  max-width: min(100%, calc(100dvh - 22rem));
-  min-width: min(100%, 20rem);
+  /* 全体が画面に収まるよう、縦マス数が多いほど横幅を絞る */
+  max-width: min(100%, calc((100dvh - 22rem) * var(--cols, 3) / var(--rows, 3)));
+  min-width: min(100%, 16rem);
 }
+.grid[data-numbers="off"] .num { display: none; }
 .cell {
   position: relative; aspect-ratio: 1;
   background-color: var(--color-paper-2);
@@ -281,9 +283,40 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 }
 .grid-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
 
+/* ---------- options ---------- */
+.opts { display: grid; gap: var(--space-4); }
+.custom-size { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-sm); }
+.custom-size label { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); }
+.input.num { width: 4.5rem; padding: var(--space-1) var(--space-2); font-variant-numeric: tabular-nums; }
+.check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; min-height: 28px; }
+.check input {
+  appearance: none; width: 18px; height: 18px; margin: 0; flex: none;
+  border: var(--line) solid var(--color-ink); background: var(--color-paper);
+  box-shadow: inset 2px 2px 0 var(--color-paper-3);
+  display: grid; place-items: center; cursor: pointer;
+}
+.check input:checked { background: var(--color-ink); box-shadow: none; }
+.check input:checked::after { content: ""; width: 8px; height: 8px; background: var(--color-paper); }
+.check input:disabled { opacity: .5; cursor: not-allowed; }
+.swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.swatches label { position: relative; width: 28px; height: 28px; }
+.swatches input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.swatches span { display: block; width: 100%; height: 100%; border: var(--line) solid var(--color-ink); background: var(--sw); }
+.swatches input:checked + span { outline: 3px solid var(--color-ink); outline-offset: 2px; }
+.swatches input:focus-visible + span { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.custom-color { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-family: var(--font-display); font-size: var(--text-sm); }
+.custom-color input { appearance: none; width: 28px; height: 28px; padding: 0; border: var(--line) solid var(--color-ink); background: none; cursor: pointer; }
+.custom-color input::-webkit-color-swatch-wrapper { padding: 0; }
+.custom-color input::-webkit-color-swatch { border: 0; }
+input[type="range"] { appearance: none; width: 100%; height: 24px; background: transparent; margin: 0; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: var(--line); background: var(--color-ink); }
+input[type="range"]::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; margin-top: -7px; background: var(--color-ink); border: var(--line) solid var(--color-ink); box-shadow: inset 0 0 0 3px var(--color-paper); }
+input[type="range"]:focus-visible { outline-offset: 4px; }
+output { font-variant-numeric: tabular-nums; }
+
 /* ---------- output ---------- */
 .output { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: var(--line) solid var(--color-rule); }
-.output img { border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
+.output img { width: auto; max-width: 100%; max-height: 70dvh; border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
 .output .dl { justify-self: start; }
 .spec { display: grid; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }
 .spec dt { font-family: var(--font-display); color: var(--color-muted); }
@@ -348,7 +381,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   </section>
 
   <section class="pane pane-grid" aria-labelledby="h-grid">
-    <div class="pane-title"><h2 id="h-grid">グリッド 3×3</h2><span class="count" id="grid-count" aria-label="配置数">0/9</span></div>
+    <div class="pane-title"><h2 id="h-grid">グリッド <span id="grid-size-label">3×3</span></h2><span class="count" id="grid-count" aria-label="配置数">0/9</span></div>
     <div class="pane-body">
       <div class="grid-head">
         <div class="field">
@@ -356,7 +389,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <input class="input" id="title" type="text" placeholder="例: 私を構成する9曲" maxlength="60">
         </div>
       </div>
-      <ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3"></ol>
+      <ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックすると入ります。マスをドラッグすると入れ替え。</p>
       <div class="grid-actions">
         <button class="btn btn-primary" type="button" id="render-btn"><span class="label">画像を作る</span></button>
@@ -370,13 +403,56 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   </section>
 
   <aside class="pane pane-options" aria-labelledby="h-options">
-    <div class="pane-title"><h2 id="h-options">出力</h2></div>
-    <div class="pane-body">
+    <div class="pane-title"><h2 id="h-options">出力オプション</h2></div>
+    <div class="pane-body opts">
+      <fieldset class="field">
+        <legend>グリッド（横 × 縦）</legend>
+        <div class="seg" id="size-seg" role="radiogroup" aria-label="グリッドサイズ">
+          <label><input type="radio" name="size" value="3x3" checked><span>3×3</span></label>
+          <label><input type="radio" name="size" value="4x6"><span>4×6</span></label>
+          <label><input type="radio" name="size" value="3x8"><span>3×8</span></label>
+          <label><input type="radio" name="size" value="5x5"><span>5×5</span></label>
+          <label><input type="radio" name="size" value="custom"><span>任意</span></label>
+        </div>
+        <div class="custom-size" id="custom-size" hidden>
+          <label>横 <input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="12" value="3" aria-label="横のマス数"></label>
+          <span aria-hidden="true">×</span>
+          <label>縦 <input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="12" value="3" aria-label="縦のマス数"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend>比率</legend>
+        <div class="seg" id="ratio-seg" role="radiogroup" aria-label="出力比率">
+          <label><input type="radio" name="ratio" value="1:1" checked><span>1:1</span></label>
+          <label><input type="radio" name="ratio" value="16:9"><span>16:9 X</span></label>
+          <label><input type="radio" name="ratio" value="4:5"><span>4:5 投稿</span></label>
+          <label><input type="radio" name="ratio" value="9:16"><span>9:16 ストーリーズ</span></label>
+          <label><input type="radio" name="ratio" value="free"><span>なし</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend>表示</legend>
+        <label class="check"><input type="checkbox" id="opt-title" checked><span>タイトル</span></label>
+        <label class="check"><input type="checkbox" id="opt-sidebar"><span>曲名リスト（サイドバー）</span></label>
+        <label class="check"><input type="checkbox" id="opt-numbers" checked><span>番号バッジ</span></label>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend>背景色</legend>
+        <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
+        <label class="custom-color">好きな色 <input type="color" id="bg-custom" value="#f2efe6" aria-label="背景色を自由に指定"></label>
+      </fieldset>
+
+      <div class="field">
+        <label for="margin">余白 <output id="margin-out" for="margin">48</output> px</label>
+        <input type="range" id="margin" min="0" max="160" step="8" value="48">
+      </div>
+
       <dl class="spec">
-        <dt>マス</dt><dd>3 × 3 · 各 600 px</dd>
-        <dt>比率</dt><dd>1:1（プリセットは後で追加）</dd>
-        <dt>形式</dt><dd>PNG</dd>
-        <dt>画像取得</dt><dd>同一オリジンの /image-proxy 経由</dd>
+        <dt>出力サイズ</dt><dd id="spec-out">—</dd>
+        <dt>マスの大きさ</dt><dd id="spec-cell">600 px</dd>
       </dl>
     </div>
   </aside>
@@ -395,9 +471,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const $ = (s) => document.querySelector(s);
   const SOURCE_LABEL = { itunes: "iTunes", lastfm: "Last.fm", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", manual: "手入力" };
   const ALL_SOURCES = ["itunes", "lastfm", "musicbrainz", "discogs"];
-  const CELL_PX = 600, GAP_PX = 12, MARGIN_PX = 48, TITLE_PX = 140;
+  const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
+  const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
+  const SWATCHES = [
+    ["paper", "クリーム"], ["ink", "黒"], ["mustard", "マスタード"], ["cerulean", "セルリアン"],
+    ["lavender", "ラベンダー"], ["vermilion", "朱赤"], ["mint", "ミント"], ["pink", "ピンク"],
+  ];
 
-  const state = { cols: 3, rows: 3, title: "", cells: Array(9).fill(null) };
+  const state = {
+    cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
+    ratio: "1:1", showTitle: true, sidebar: false, numbers: true, bg: "paper", bgCustom: null, margin: 48,
+  };
   let available = [];
   let dragFrom = null;
 
@@ -406,9 +490,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     sources: $("#sources"), searchBtn: $("#search-btn"), searchMsg: $("#search-msg"),
     bcForm: $("#bandcamp-form"), bcUrl: $("#bc-url"), bcBtn: $("#bc-btn"), bcMsg: $("#bc-msg"),
     results: $("#results"), resultsCount: $("#results-count"),
-    grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"),
+    grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
     renderBtn: $("#render-btn"), clearBtn: $("#clear-btn"),
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
+    sizeSeg: $("#size-seg"), customSize: $("#custom-size"), cols: $("#cols"), rows: $("#rows"),
+    ratioSeg: $("#ratio-seg"), optTitle: $("#opt-title"), optSidebar: $("#opt-sidebar"), optNumbers: $("#opt-numbers"),
+    swatches: $("#swatches"), bgCustom: $("#bg-custom"), margin: $("#margin"), marginOut: $("#margin-out"),
+    specOut: $("#spec-out"), specCell: $("#spec-cell"),
   };
 
   const proxied = (url) => `/image-proxy?url=${encodeURIComponent(url)}`;
@@ -539,8 +627,29 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     [state.cells[a], state.cells[b]] = [state.cells[b], state.cells[a]];
     renderGrid(); say(els.gridMsg, `${a + 1} 番と ${b + 1} 番を入れ替えました。`);
   }
+  function resizeGrid(cols, rows) {
+    cols = Math.min(12, Math.max(1, cols | 0)); rows = Math.min(12, Math.max(1, rows | 0));
+    const n = cols * rows, cur = state.cells.length;
+    if (n < cur) {
+      // 溢れた曲は退避。サイズを戻すと復帰する
+      const cut = state.cells.slice(n).filter(Boolean);
+      state.stash = cut.concat(state.stash);
+      state.cells = state.cells.slice(0, n);
+      if (cut.length) say(els.gridMsg, `${cut.length} 曲をいったん外しました。サイズを戻すと復帰します。`);
+    } else if (n > cur) {
+      const add = [];
+      while (add.length < n - cur) add.push(state.stash.length ? state.stash.shift() : null);
+      state.cells = state.cells.concat(add);
+    }
+    state.cols = cols; state.rows = rows;
+    els.cols.value = cols; els.rows.value = rows;
+    renderGrid();
+  }
   function renderGrid() {
     els.grid.style.setProperty("--cols", state.cols);
+    els.grid.style.setProperty("--rows", state.rows);
+    els.grid.dataset.numbers = state.numbers ? "on" : "off";
+    els.gridSizeLabel.textContent = `${state.cols}×${state.rows}`;
     els.grid.innerHTML = "";
     state.cells.forEach((t, i) => {
       const li = document.createElement("li");
@@ -568,12 +677,52 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const n = state.cells.filter(Boolean).length;
     els.gridCount.textContent = `${n}/${state.cells.length}`;
     els.renderBtn.disabled = n === 0;
+    updateSpec();
   }
   els.clearBtn.addEventListener("click", () => {
-    if (!state.cells.some(Boolean)) return;
-    state.cells.fill(null); renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
+    if (!state.cells.some(Boolean) && !state.stash.length) return;
+    state.cells.fill(null); state.stash = []; renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
   });
-  els.title.addEventListener("input", () => { state.title = els.title.value; });
+  els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
+
+  /* ---- options ---- */
+  els.sizeSeg.addEventListener("change", () => {
+    const picked = els.sizeSeg.querySelector("input:checked").value;
+    els.customSize.hidden = picked !== "custom";
+    if (picked !== "custom") { const [c, r] = picked.split("x").map(Number); resizeGrid(c, r); }
+    else resizeGrid(Number(els.cols.value), Number(els.rows.value));
+  });
+  for (const inp of [els.cols, els.rows]) inp.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value)));
+  els.ratioSeg.addEventListener("change", () => { state.ratio = els.ratioSeg.querySelector("input:checked").value; updateSpec(); });
+  els.optTitle.addEventListener("change", () => { state.showTitle = els.optTitle.checked; els.title.disabled = !state.showTitle; updateSpec(); });
+  els.optSidebar.addEventListener("change", () => { state.sidebar = els.optSidebar.checked; updateSpec(); });
+  els.optNumbers.addEventListener("change", () => { state.numbers = els.optNumbers.checked; renderGrid(); });
+  els.margin.addEventListener("input", () => { state.margin = Number(els.margin.value); els.marginOut.value = state.margin; updateSpec(); });
+  els.bgCustom.addEventListener("input", () => {
+    state.bg = "custom"; state.bgCustom = els.bgCustom.value;
+    for (const i of els.swatches.querySelectorAll("input")) i.checked = false;
+    updateSpec();
+  });
+  function renderSwatches() {
+    els.swatches.innerHTML = "";
+    for (const [key, label] of SWATCHES) {
+      const l = document.createElement("label"); l.title = label;
+      const i = document.createElement("input"); i.type = "radio"; i.name = "bg"; i.value = key; i.checked = key === state.bg; i.setAttribute("aria-label", label);
+      const sp = document.createElement("span"); sp.style.setProperty("--sw", `var(--color-${key})`);
+      i.addEventListener("change", () => { state.bg = key; updateSpec(); });
+      l.append(i, sp); els.swatches.append(l);
+    }
+  }
+
+  /* ---- colour helpers (CSS 変数 → 実 RGB) ---- */
+  const probe = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  function toRGB(cssColor) {
+    probe.fillStyle = "#000"; probe.fillStyle = cssColor; probe.clearRect(0, 0, 1, 1); probe.fillRect(0, 0, 1, 1);
+    const [r, g, b] = probe.getImageData(0, 0, 1, 1).data; return [r, g, b];
+  }
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim();
+  function bgColor() { return state.bg === "custom" ? state.bgCustom : token(state.bg); }
+  function isLight(cssColor) { const [r, g, b] = toRGB(cssColor); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55; }
 
   /* ---- render (Canvas) ---- */
   function loadImage(url) {
@@ -589,40 +738,126 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const sw = w / s, sh = h / s, sx = (img.naturalWidth - sw) / 2, sy = (img.naturalHeight - sh) / 2;
     ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
   }
+  function ellipsize(ctx, text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    let lo = 0, hi = text.length;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ctx.measureText(text.slice(0, mid) + "…").width <= maxW) lo = mid; else hi = mid - 1; }
+    return text.slice(0, lo) + "…";
+  }
+
+  /* レイアウト計算。描画せずにサイズだけ求める（右ペインの「出力サイズ」表示にも使う） */
+  function layout() {
+    const { cols, rows } = state;
+    const m = state.margin;
+    const title = state.showTitle ? state.title.trim() : "";
+    const n = state.cells.length;
+    const gw = cols * CELL_PX + (cols - 1) * GAP_PX, gh = rows * CELL_PX + (rows - 1) * GAP_PX;
+    const titleSize = Math.round(Math.min(96, Math.max(48, gw * 0.045)));
+    const titleH = title ? Math.round(titleSize * 1.9) : 0;
+    const ratio = RATIOS[state.ratio];
+    // サイドバー: 横長・正方形なら右、縦長ならグリッドの下
+    const side = state.sidebar ? (ratio === null || ratio >= 1 ? "right" : "bottom") : "none";
+    const lineH = side === "right"
+      ? Math.max(30, Math.min(84, Math.floor(gh / n)))
+      : Math.round(Math.max(48, Math.min(96, gw * 0.045)));
+    const fontS = Math.round(lineH * 0.5);
+    let sbW = 0, sbH = 0, sbCols = 1;
+    if (side === "right") { sbW = Math.max(720, Math.round(gw * 0.5)); sbH = gh; }
+    if (side === "bottom") { sbCols = n > 12 ? 2 : 1; sbW = gw; sbH = Math.ceil(n / sbCols) * lineH; }
+    const sbGap = side === "none" ? 0 : GAP_PX * 4;
+    const contentW = side === "right" ? gw + sbGap + sbW : gw;
+    const contentH = titleH + gh + (side === "bottom" ? sbGap + sbH : 0);
+    let W = contentW + m * 2, H = contentH + m * 2;
+    if (ratio !== null) { if (W / H < ratio) W = Math.round(H * ratio); else H = Math.round(W / ratio); }
+    const scale = Math.min(1, MAX_SIDE / Math.max(W, H));
+    const ox = Math.round((W - contentW) / 2), oy = Math.round((H - contentH) / 2);
+    return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap };
+  }
+  function updateSpec() {
+    const L = layout();
+    els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
+    els.specCell.textContent = `${Math.round(CELL_PX * L.scale)} px`;
+  }
+
   els.renderBtn.addEventListener("click", async () => {
-    const css = getComputedStyle(document.documentElement);
-    const paper = css.getPropertyValue("--color-paper").trim();
-    const ink = css.getPropertyValue("--color-ink").trim();
-    const title = state.title.trim();
+    const bg = bgColor();
+    const light = isLight(bg);
+    const ink = light ? token("ink") : token("paper");
+    const badgeBg = light ? token("paper") : token("ink");
+    const muted = light ? token("muted") : token("rule");
     setBtnState(els.renderBtn, "loading"); say(els.gridMsg, "");
     try {
-      await document.fonts.load(`700 80px "IBM Plex Sans JP"`);
-      const W = MARGIN_PX * 2 + state.cols * CELL_PX + (state.cols - 1) * GAP_PX;
-      const top = MARGIN_PX + (title ? TITLE_PX : 0);
-      const H = top + state.rows * CELL_PX + (state.rows - 1) * GAP_PX + MARGIN_PX;
-      const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
+      const L = layout();
+      await Promise.all([
+        document.fonts.load(`700 ${L.titleSize}px "IBM Plex Sans JP"`),
+        document.fonts.load(`400 ${L.fontS}px "IBM Plex Sans JP"`),
+        document.fonts.load(`700 20px "Silkscreen"`),
+      ]);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(L.W * L.scale); canvas.height = Math.round(L.H * L.scale);
       const ctx = canvas.getContext("2d");
+      ctx.scale(L.scale, L.scale);
       ctx.imageSmoothingQuality = "high";
-      ctx.fillStyle = paper; ctx.fillRect(0, 0, W, H);
-      if (title) {
-        ctx.fillStyle = ink; ctx.font = `700 80px "IBM Plex Sans JP", sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-        ctx.fillText(title, MARGIN_PX, MARGIN_PX + TITLE_PX / 2, W - MARGIN_PX * 2);
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, L.W, L.H);
+
+      // タイトル
+      let y0 = L.oy;
+      if (L.title) {
+        ctx.fillStyle = ink; ctx.font = `700 ${L.titleSize}px "IBM Plex Sans JP", sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+        ctx.fillText(ellipsize(ctx, L.title, L.gw + (L.side === "right" ? L.sbGap + L.sbW : 0)), L.ox, y0 + L.titleH / 2);
+        y0 += L.titleH;
       }
+
+      // グリッド
       const imgs = await Promise.all(state.cells.map(t => t ? loadImage(t.image).catch(() => null) : null));
+      const numFont = document.fonts.check(`700 20px "Silkscreen"`) ? `700 22px "Silkscreen", monospace` : `700 24px "IBM Plex Sans JP", sans-serif`;
       state.cells.forEach((t, i) => {
         const c = i % state.cols, r = Math.floor(i / state.cols);
-        const x = MARGIN_PX + c * (CELL_PX + GAP_PX), y = top + r * (CELL_PX + GAP_PX);
-        ctx.fillStyle = ink; ctx.fillRect(x, y, CELL_PX, CELL_PX);
+        const x = L.ox + c * (CELL_PX + GAP_PX), y = y0 + r * (CELL_PX + GAP_PX);
+        ctx.fillStyle = light ? token("paper-3") : token("ink-2"); ctx.fillRect(x, y, CELL_PX, CELL_PX);
         if (imgs[i]) drawCover(ctx, imgs[i], x, y, CELL_PX, CELL_PX);
+        if (state.numbers) {
+          const label = String(i + 1).padStart(2, "0");
+          ctx.font = numFont; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+          const bw = Math.ceil(ctx.measureText(label).width) + 24, bh = 40;
+          ctx.fillStyle = badgeBg; ctx.fillRect(x, y, bw, bh);
+          ctx.fillStyle = ink; ctx.fillRect(x + bw, y, 4, bh); ctx.fillRect(x, y + bh, bw + 4, 4);
+          ctx.fillText(label, x + 12, y + bh / 2 + 1);
+        }
       });
+
+      // サイドバー（曲名リスト）
+      if (L.side !== "none") {
+        const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox;
+        const sy = L.side === "right" ? y0 : y0 + L.gh + L.sbGap;
+        const colW = L.side === "right" ? L.sbW : Math.floor((L.sbW - GAP_PX * 2 * (L.sbCols - 1)) / L.sbCols);
+        const perCol = L.side === "right" ? state.cells.length : Math.ceil(state.cells.length / L.sbCols);
+        state.cells.forEach((t, i) => {
+          const col = Math.floor(i / perCol), row = i % perCol;
+          const x = sx + col * (colW + GAP_PX * 2), yy = sy + row * L.lineH + L.lineH / 2;
+          ctx.textBaseline = "middle"; ctx.textAlign = "left";
+          ctx.font = numFont.replace(/\d+px/, `${Math.round(L.fontS * 0.8)}px`); ctx.fillStyle = muted;
+          const num = String(i + 1).padStart(2, "0"); ctx.fillText(num, x, yy);
+          const nw = ctx.measureText(num).width + Math.round(L.fontS * 0.8);
+          if (!t) return;
+          ctx.fillStyle = ink; ctx.font = `700 ${L.fontS}px "IBM Plex Sans JP", sans-serif`;
+          const tw = ctx.measureText(t.title).width;
+          const maxW = colW - nw;
+          if (tw >= maxW) { ctx.fillText(ellipsize(ctx, t.title, maxW), x + nw, yy); return; }
+          ctx.fillText(t.title, x + nw, yy);
+          ctx.fillStyle = muted; ctx.font = `400 ${L.fontS}px "IBM Plex Sans JP", sans-serif`;
+          ctx.fillText(ellipsize(ctx, `  ${t.artist}`, maxW - tw), x + nw + tw, yy);
+        });
+      }
+
       const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
       if (els.download.href.startsWith("blob:")) URL.revokeObjectURL(els.download.href);
       const url = URL.createObjectURL(blob);
       els.outputImg.src = url; els.download.href = url;
-      els.download.download = (title || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
+      els.download.download = (L.title || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
       els.output.hidden = false;
       setBtnState(els.renderBtn, null);
-      say(els.gridMsg, `${W} × ${H} px の PNG ができました。`);
+      say(els.gridMsg, `${canvas.width} × ${canvas.height} px の PNG ができました。`);
       els.download.focus({ preventScroll: true });
     } catch (err) {
       setBtnState(els.renderBtn, "error");
@@ -631,6 +866,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
   });
 
+  renderSwatches();
   renderGrid();
   loadHealth();
 })();
