@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from backend.cache import cache
 from backend.merge import merge
 from backend.models import Track
 from backend.sources import bandcamp, itunes, lastfm, musicbrainz
@@ -51,6 +52,9 @@ DEFAULT_SOURCES = tuple(SOURCES)  # source 省略時はこれらを並列で叩�
 async def lifespan(app: FastAPI):
     OUTPUTS.mkdir(exist_ok=True)
     GRIDS.mkdir(exist_ok=True)
+    pruned = await asyncio.to_thread(cache.prune)
+    if any(pruned.values()):
+        print(f"[cache] pruned {pruned}")
     app.state.http = httpx.AsyncClient(
         timeout=15,
         follow_redirects=True,
@@ -60,6 +64,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         await app.state.http.aclose()
+        cache.close()
 
 
 app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
@@ -73,7 +78,7 @@ async def index() -> FileResponse:
 
 @app.get("/health")
 async def health() -> dict:
-    return {"ok": True, "sources": sorted(SOURCES)}
+    return {"ok": True, "sources": sorted(SOURCES), "cache": await asyncio.to_thread(cache.stats)}
 
 
 @app.get("/search", response_model=list[Track])
@@ -81,6 +86,7 @@ async def search(
     q: str = Query("", description="曲名"),
     artist: str = Query("", description="アーティスト名"),
     source: str | None = Query(None, description="itunes|lastfm|musicbrainz|discogs。省略時は横断"),
+    nocache: bool = Query(False, description="true でキャッシュを使わず取り直す"),
 ) -> list[Track]:
     if not (q.strip() or artist.strip()):
         raise HTTPException(400, "q または artist を指定してください")
@@ -92,18 +98,35 @@ async def search(
     else:
         names = list(DEFAULT_SOURCES)
 
-    client = app.state.http
-    results = await asyncio.gather(
-        *(SOURCES[n](q, artist, client=client) for n in names), return_exceptions=True
-    )
     out: list[Track] = []
-    for name, res in zip(names, results):
-        if isinstance(res, BaseException):
-            # 1ソースの失敗で全体を落とさない
-            print(f"[search] {name} failed: {res!r}")
-            continue
+    for name, res in zip(names, await search_sources(names, q, artist, nocache=nocache)):
         out.extend(res)
     return merge(out) if len(names) > 1 else out
+
+
+async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool = False) -> list[list[Track]]:
+    """ソースごとにキャッシュを引き、無いものだけ並列で取りに行く。失敗したソースは空扱い。"""
+    results: list[list[Track] | None] = [None] * len(names)
+    if not nocache:
+        for i, name in enumerate(names):
+            hit = await asyncio.to_thread(cache.get_search, name, q, artist)
+            if hit is not None:
+                results[i] = [Track.model_validate(t) for t in hit]
+    misses = [i for i, r in enumerate(results) if r is None]
+    if misses:
+        client = app.state.http
+        fetched = await asyncio.gather(
+            *(SOURCES[names[i]](q, artist, client=client) for i in misses), return_exceptions=True
+        )
+        for i, res in zip(misses, fetched):
+            if isinstance(res, BaseException):
+                # 1ソースの失敗で全体を落とさない。失敗はキャッシュしない
+                print(f"[search] {names[i]} failed: {res!r}")
+                results[i] = []
+                continue
+            results[i] = res
+            await asyncio.to_thread(cache.set_search, names[i], q, artist, [t.model_dump() for t in res])
+    return [r or [] for r in results]
 
 
 class BandcampBody(BaseModel):
@@ -151,9 +174,20 @@ def _host_allowed(url: str) -> bool:
 
 @app.get("/image-proxy")
 async def image_proxy(url: str = Query(..., description="取得する画像URL")) -> Response:
-    """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。"""
+    """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。取得結果は SQLite にキャッシュ。"""
     if not _host_allowed(url):
         raise HTTPException(403, "このホストの画像は取得できません（私設アドレスや解決できないホスト）")
+    hit = await asyncio.to_thread(cache.get_image, url)
+    if hit:
+        ctype, data = hit
+    else:
+        ctype, data = await fetch_image(url)
+        await asyncio.to_thread(cache.set_image, url, ctype, data)
+    return Response(content=data, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
+
+
+async def fetch_image(url: str) -> tuple[str, bytes]:
+    """画像を取得して (content-type, bytes) を返す。失敗は HTTPException。"""
     client: httpx.AsyncClient = app.state.http
     try:
         # 画像 CDN の中には汎用 UA を弾くものがある（Wikimedia 等）ためブラウザ風にする
@@ -162,13 +196,9 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL")
         raise HTTPException(502, f"取得失敗: {e}") from e
     if r.status_code != 200:
         raise HTTPException(502, f"画像サーバーが {r.status_code} を返しました")
-    ctype = r.headers.get("content-type", "")
+    ctype = r.headers.get("content-type", "").split(";")[0].strip()
     if not ctype.startswith("image/"):
         raise HTTPException(415, f"画像ではありません: {ctype}")
     if len(r.content) > IMAGE_MAX_BYTES:
         raise HTTPException(413, "画像が大きすぎます")
-    return Response(
-        content=r.content,
-        media_type=ctype,
-        headers={"Cache-Control": "public, max-age=86400"},
-    )
+    return ctype, r.content
