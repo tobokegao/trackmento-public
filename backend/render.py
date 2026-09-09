@@ -60,9 +60,9 @@ def _oklch_to_hex(L: float, C: float, H: float) -> str:
 
 
 TOKENS = {
-    "paper": _oklch_to_hex(0.95, 0.006, 95),
-    "paper-2": _oklch_to_hex(0.91, 0.008, 95),
-    "paper-3": _oklch_to_hex(0.87, 0.010, 95),
+    "paper": _oklch_to_hex(0.97, 0.003, 95),
+    "paper-2": _oklch_to_hex(0.93, 0.004, 95),
+    "paper-3": _oklch_to_hex(0.89, 0.005, 95),
     "ink": _oklch_to_hex(0.20, 0.012, 250),
     "ink-2": _oklch_to_hex(0.28, 0.012, 250),
     "muted": _oklch_to_hex(0.46, 0.012, 250),

@@ -73,7 +73,7 @@ def page_html(snap: dict, base: str) -> str:
 @font-face {{ font-family: "Silkscreen"; font-weight: 700; src: url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
 @font-face {{ font-family: "DotGothic16"; src: url("/fonts/DotGothic16-Regular.ttf") format("truetype"); }}
 * {{ box-sizing: border-box; border-radius: 0; }}
-body {{ margin: 0; background: #f0eeea; color: #12171b; font-family: "IBM Plex Sans JP", sans-serif; line-height: 1.55; }}
+body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "IBM Plex Sans JP", sans-serif; line-height: 1.55; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
 .mark {{ font-family: "Silkscreen", monospace; font-weight: 700; font-size: 20px; letter-spacing: .04em; padding-bottom: 10px;
   background: linear-gradient(to right, #e6b731 0 16.66%, #008bc7 0 33.33%, #e5462c 0 50%, #af9ee4 0 66.66%, #80e2b9 0 83.33%, #f594c3 0) bottom / 100% 5px no-repeat; }}
@@ -82,9 +82,9 @@ main {{ max-width: 56rem; margin: 0 auto; padding: 16px; display: grid; gap: 16p
 h1 {{ font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 1.25rem; margin: 0; }}
 img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b; }}
 .btns {{ display: flex; flex-wrap: wrap; gap: 8px; }}
-.btn {{ display: inline-flex; align-items: center; min-height: 44px; padding: 4px 16px; border: 2px solid #12171b; background: #f0eeea; color: #12171b;
+.btn {{ display: inline-flex; align-items: center; min-height: 44px; padding: 4px 16px; border: 2px solid #12171b; background: #f6f5f3; color: #12171b;
   font-family: "DotGothic16", sans-serif; text-decoration: none; box-shadow: 2px 2px 0 #12171b; }}
-.btn.primary {{ background: #12171b; color: #f0eeea; }}
+.btn.primary {{ background: #12171b; color: #f6f5f3; }}
 ol {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }}
 li {{ display: flex; gap: 10px; align-items: baseline; }}
 .n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
