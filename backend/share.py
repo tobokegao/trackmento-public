@@ -130,6 +130,7 @@ li {{ display: flex; gap: 10px; align-items: baseline; }}
 .n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
 .a {{ color: #53595f; }}
 p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere; }}
+p.meta a {{ color: #12171b; }}
 </style></head>
 <body>
 <header><span class="mark">TRACKMENTO</span><small>share</small></header>
@@ -143,5 +144,6 @@ p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere;
   <ol>{''.join(rows)}</ol>
   <p class="meta">{n} 曲 · {snap.get('cols')}×{snap.get('rows')} · 共有 ID {sid} · {html.escape(snap.get('createdAt') or '')}</p>
   <p class="meta">この URL: {base}/s/{sid}</p>
+  <p class="meta">連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""
