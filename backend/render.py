@@ -243,7 +243,9 @@ def render(doc: GridDoc) -> Image.Image:
             x = sx + col * (col_w + GAP_PX * 2)
             yy = sy + row * L.line_h + L.line_h / 2
             num = f"{i + 1:02d}"
-            d.text((x, yy), num, font=f_num, fill=muted, anchor="lm")
+            # ピクセルフォントは em ボックス内で字面が上に寄るので、字面（インク）の中心を行の中心に置く
+            _, top, _, bottom = f_num.getbbox(num, anchor="ls")
+            d.text((x, rnd(yy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
             nw = d.textlength(num, font=f_num) + rnd(L.font_s * 0.8)
             if not t:
                 continue

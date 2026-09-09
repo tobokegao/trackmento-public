@@ -189,19 +189,21 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 @keyframes blink { 50% { opacity: 0; } }
 @media (pointer: coarse) { .btn { min-height: 44px; } }
 
-.seg { display: flex; flex-wrap: wrap; border: var(--line) solid var(--color-ink); width: fit-content; max-width: 100%; min-width: 0; }
-.seg label { border-bottom: var(--line) solid var(--color-ink); margin-bottom: calc(-1 * var(--line)); }
+.seg { display: flex; flex-wrap: wrap; gap: var(--space-1); max-width: 100%; min-width: 0; }
 .seg label { position: relative; }
 .seg input { position: absolute; inset: 0; opacity: 0; margin: 0; }
+/* 折り返しても崩れないよう、1 項目ずつ四辺の枠を持つ四角いボタンにする */
 .seg span {
   display: block; padding: var(--space-1) var(--space-3);
   font-family: var(--font-display); font-size: var(--text-sm); white-space: nowrap; cursor: pointer;
-  border-right: var(--line) solid var(--color-ink);
+  border: var(--line) solid var(--color-ink); background: var(--color-paper);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-tick) var(--ease-out), box-shadow var(--dur-tick) var(--ease-out), background-color var(--dur-short) var(--ease-out);
 }
-.seg label:last-child span { border-right: 0; }
-.seg input:checked + span { background: var(--color-ink); color: var(--color-paper); }
-.seg input:focus-visible + span { outline: 3px solid var(--color-focus); outline-offset: -3px; }
-.seg input:disabled + span { opacity: .45; cursor: not-allowed; }
+@media (hover: hover) and (pointer: fine) { .seg input:not(:disabled):not(:checked) + span:hover { background: var(--color-paper-2); } }
+.seg input:checked + span { background: var(--color-ink); color: var(--color-paper); transform: translate(2px, 2px); box-shadow: 0 0 0 var(--color-ink); }
+.seg input:focus-visible + span { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.seg input:disabled + span { opacity: .45; cursor: not-allowed; box-shadow: none; }
 
 .search-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
 .sub-form { border-top: var(--line) dashed var(--color-rule); }
@@ -1038,10 +1040,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         state.cells.forEach((t, i) => {
           const col = Math.floor(i / perCol), row = i % perCol;
           const x = sx + col * (colW + GAP_PX * 2), yy = sy + row * L.lineH + L.lineH / 2;
-          ctx.textBaseline = "middle"; ctx.textAlign = "left";
+          ctx.textAlign = "left";
           ctx.font = numFont.replace(/\d+px/, `${Math.round(L.fontS * 0.8)}px`); ctx.fillStyle = muted;
-          const num = String(i + 1).padStart(2, "0"); ctx.fillText(num, x, yy);
-          const nw = ctx.measureText(num).width + Math.round(L.fontS * 0.8);
+          const num = String(i + 1).padStart(2, "0");
+          // ピクセルフォントは em ボックス内で字面が上に寄るので、字面の中心を行の中心に置く
+          ctx.textBaseline = "alphabetic";
+          const nm = ctx.measureText(num);
+          ctx.fillText(num, x, Math.round(yy + (nm.actualBoundingBoxAscent - nm.actualBoundingBoxDescent) / 2));
+          ctx.textBaseline = "middle";
+          const nw = nm.width + Math.round(L.fontS * 0.8);
           if (!t) return;
           ctx.fillStyle = ink; ctx.font = `700 ${L.fontS}px "IBM Plex Sans JP", sans-serif`;
           const tw = ctx.measureText(t.title).width;
