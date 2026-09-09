@@ -183,6 +183,14 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 
 ---
 
+### UI デザイン方針（決定）
+- Anti-AI-slop 系スキル **Hallmark**（https://github.com/nutlope/hallmark, MIT, Star 28k）を `~/.claude/skills/hallmark` に導入済み
+- タスク4以降の `frontend/index.html` は Hallmark の Design flow に従って作る
+  - 3質問ゲート（Audience / Use case / Tone）→ ジャンル → マクロ構造 → テーマ → トークン固定 → slop-test
+  - 色・フォントは必ず CSS 変数トークン経由。紫グラデ、Inter 単独、3カラム均等カード、ガラス風、全画面中央ヒーローは禁止
+  - 見出しはイタリック禁止、320/375/414/768px で横スクロールなし
+- ツール系 UI なので macrostructure は Workbench 系を第一候補にする（ランディングページ用の hero/footer 類型は使わない）
+
 ## 9. Remote Control 運用（スマホから曲を追加して画像を受け取る）
 
 ### 前提
