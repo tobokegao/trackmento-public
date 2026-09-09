@@ -40,6 +40,7 @@ IMAGE_HOST_ALLOWLIST = (
     "ytimg.com",               # YouTube サムネイル
     "nimg.jp",                 # ニコニコ動画サムネイル（nicovideo.cdn.nimg.jp）
     "nicovideo.jp",
+    "hdslb.com",               # bilibili カバー画像
     "coverartarchive.org",     # MusicBrainz CAA
     "archive.org",
     "discogs.com",             # Discogs
@@ -160,7 +161,7 @@ class BandcampBody(BaseModel):
 @app.post("/from-url", response_model=Track)
 @app.post("/bandcamp", response_model=Track)   # 旧名。互換のため残す
 async def from_url(body: BandcampBody) -> Track:
-    """Bandcamp / SoundCloud / YouTube / ニコニコ動画の URL からジャケット（サムネイル）・曲名・アーティストを取る。"""
+    """Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili の URL からジャケット（サムネイル）・曲名・アーティストを取る。"""
     url = body.url.strip()
     label, fetch = fromurl.resolve(url)
     try:

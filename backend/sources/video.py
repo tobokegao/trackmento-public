@@ -4,10 +4,14 @@
   サムネイルは動画 ID から i.ytimg.com の maxresdefault → sddefault → hqdefault の順に存在するものを使う
 - ニコニコ動画: https://ext.nicovideo.jp/api/getthumbinfo/{sm…} (XML) → title, user_nickname / ch_name, thumbnail_url。
   新しい動画は thumbnail_url + ".L" で大きい画像が取れる（無ければ元のまま）
+- bilibili: 公開 API（x/web-interface/view）は Cookie 無しだと 412 で弾かれるので、動画ページの HTML に埋め込まれた
+  window.__INITIAL_STATE__（videoData.title / owner.name / pic）を読む。無ければ og:title / og:image / meta[name=author]。
+  b23.tv の短縮 URL はリダイレクト先を使う
 サムネイルは 16:9 なので、正方形のマスでは中央が切り出される。
 """
 from __future__ import annotations
 
+import json
 import re
 from urllib.parse import parse_qs, urlparse
 from xml.etree import ElementTree
@@ -21,6 +25,9 @@ YT_OEMBED = "https://www.youtube.com/oembed"
 NICO_THUMBINFO = "https://ext.nicovideo.jp/api/getthumbinfo/"
 _YT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 _NICO_ID_RE = re.compile(r"\b((?:sm|nm|so)\d+)\b")
+_BILI_ID_RE = re.compile(r"/video/((?:BV[0-9A-Za-z]{10})|(?:av\d+))", re.IGNORECASE)
+_BILI_STATE_RE = re.compile(r"window\.__INITIAL_STATE__=(\{.*?\});\(function", re.S)
+BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
 
 def _host(url: str) -> str:
@@ -38,6 +45,68 @@ def is_youtube(url: str) -> bool:
 def is_nicovideo(url: str) -> bool:
     h = _host(url)
     return h.endswith("nicovideo.jp") or h == "nico.ms"
+
+
+def is_bilibili(url: str) -> bool:
+    h = _host(url)
+    return h.endswith("bilibili.com") or h == "b23.tv"
+
+
+def _meta(html: str, attr: str, name: str) -> str | None:
+    m = re.search(r'<meta[^>]+%s="%s"[^>]+content="([^"]*)"' % (attr, re.escape(name)), html) or \
+        re.search(r'<meta[^>]+content="([^"]*)"[^>]+%s="%s"' % (attr, re.escape(name)), html)
+    return m.group(1) if m else None
+
+
+async def fetch_bilibili(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
+    own = client is None
+    client = client or httpx.AsyncClient(timeout=15, follow_redirects=True)
+    headers = {"User-Agent": BROWSER_UA, "Accept": "text/html", "Accept-Language": "ja,en;q=0.8"}
+    try:
+        if _host(url) == "b23.tv":
+            r0 = await client.get(url, headers=headers, follow_redirects=False)
+            url = r0.headers.get("location") or url
+        m = _BILI_ID_RE.search(urlparse(url).path)
+        if not m:
+            raise ValueError("bilibili の動画 URL（bilibili.com/video/BV… または av…）を貼ってください")
+        vid = m.group(1)
+        r = await client.get(f"https://www.bilibili.com/video/{vid}/", headers=headers)
+        if r.status_code == 404:
+            raise ValueError("bilibili にその動画がありません")
+        r.raise_for_status()
+        html = r.text
+        title = artist = pic = None
+        sm = _BILI_STATE_RE.search(html)
+        if sm:
+            try:
+                vd = (json.loads(sm.group(1)) or {}).get("videoData") or {}
+                title, artist, pic = vd.get("title"), (vd.get("owner") or {}).get("name"), vd.get("pic")
+            except json.JSONDecodeError:
+                pass
+        if not title:
+            t = _meta(html, "property", "og:title") or ""
+            title = re.sub(r"_哔哩哔哩_bilibili$", "", t).strip() or None
+        artist = artist or _meta(html, "name", "author") or ""
+        pic = pic or (_meta(html, "property", "og:image") or "").split("@")[0]
+        if not title or "视频去哪了" in title:
+            raise ValueError("bilibili にその動画がありません（削除済みか非公開の可能性）")
+        if not pic:
+            raise ValueError("この動画にはカバー画像がありません")
+        if pic.startswith("//"):
+            pic = "https:" + pic
+        pic = pic.replace("http://", "https://", 1)
+    finally:
+        if own:
+            await client.aclose()
+    return Track(
+        source="bilibili",
+        title=title.strip(),
+        artist=artist.strip(),
+        album=None,
+        image=pic,
+        thumb=pic + "@320w_320h_1c",   # bilibili の画像 CDN はサイズ指定サフィックスで縮小できる
+        external_url=f"https://www.bilibili.com/video/{vid}/",
+    )
 
 
 def youtube_id(url: str) -> str | None:

@@ -3,7 +3,7 @@
 「私を構成する9枚」「好きな曲9選」のようなジャケットグリッド画像を、
 **曲単位・手動選択・複数ソース横断検索**で作るローカルツール。
 
-iTunes に無い音源（Bandcamp 限定リリース等）も MusicBrainz / Discogs / Bandcamp・SoundCloud・YouTube・ニコニコ動画の URL から拾えます。
+iTunes に無い音源（Bandcamp 限定リリース等）も MusicBrainz / Discogs / Bandcamp・SoundCloud・YouTube・ニコニコ動画・bilibili の URL から拾えます。
 仕様の詳細は `musicgrid-local-spec.md` を参照。
 
 ## セットアップ
@@ -30,7 +30,7 @@ copy .env.example .env          # 必要なら API キーを記入
 ```bash
 .venv/Scripts/python cli.py add --artist "Artist" --title "Song"   # 候補が複数なら番号付きで表示
 .venv/Scripts/python cli.py pick --index 2                        # 番号で確定
-.venv/Scripts/python cli.py add --url "https://xxx.bandcamp.com/track/..."      # Bandcamp / SoundCloud / YouTube / ニコニコ動画
+.venv/Scripts/python cli.py add --url "https://xxx.bandcamp.com/track/..."      # Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili
 .venv/Scripts/python cli.py add --image "https://.../cover.jpg" --artist "A" --title "T"
 .venv/Scripts/python cli.py list
 .venv/Scripts/python cli.py move --from 1 --to 3
@@ -48,7 +48,7 @@ copy .env.example .env          # 必要なら API キーを記入
 
 ```
 backend/          FastAPI (/search, /bandcamp, /image-proxy, /render, /grids, /health)
-backend/sources/  iTunes / MusicBrainz / Discogs / URL 貼付（Bandcamp / SoundCloud / YouTube / ニコニコ動画）
+backend/sources/  iTunes / MusicBrainz / Discogs / URL 貼付（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili）
 backend/cache.py  SQLite キャッシュ（検索結果・画像）→ cache.sqlite3
 backend/grids.py  グリッド JSON の読み書き
 backend/render.py Pillow による PNG 描画

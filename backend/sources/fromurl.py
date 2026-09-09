@@ -1,4 +1,4 @@
-"""URL 貼付の振り分け。Bandcamp / SoundCloud / YouTube / ニコニコ動画をホスト名で判定して fetch 関数を返す。"""
+"""URL 貼付の振り分け。Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili をホスト名で判定して fetch 関数を返す。"""
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
@@ -19,6 +19,8 @@ def resolve(url: str) -> tuple[str, Fetcher]:
         return "YouTube", video.fetch_youtube
     if video.is_nicovideo(url):
         return "ニコニコ動画", video.fetch_nicovideo
+    if video.is_bilibili(url):
+        return "bilibili", video.fetch_bilibili
     return "Bandcamp", bandcamp.fetch
 
 

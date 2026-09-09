@@ -12,16 +12,16 @@
 @font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }
 @font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/DotGothic16-Regular.ttf") format("truetype"); }
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
- * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(95% 0.015 95) · accent: oklch(60% 0.14 235)
+ * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(95% 0.006 95) · accent: oklch(60% 0.14 235)
  * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
  * studied: no · context: user-provided (audience: self, J-POP · use: search → place → PNG · tone: utilitarian) · v1.1.0
  * Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4
  */
 :root {
   /* paper / ink (cool-tinted, no pure extremes) */
-  --color-paper:    oklch(95% 0.015 95);
-  --color-paper-2:  oklch(91% 0.018 95);
-  --color-paper-3:  oklch(87% 0.020 95);
+  --color-paper:    oklch(95% 0.006 95);
+  --color-paper-2:  oklch(91% 0.008 95);
+  --color-paper-3:  oklch(87% 0.010 95);
   --color-ink:      oklch(20% 0.012 250);
   --color-ink-2:    oklch(28% 0.012 250);
   --color-muted:    oklch(46% 0.012 250);
@@ -315,6 +315,7 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .badge[data-source="soundcloud"]  { background: var(--color-vermilion); }
 .badge[data-source="youtube"]     { background: var(--color-vermilion); color: var(--color-paper); }
 .badge[data-source="nicovideo"]   { background: var(--color-paper-3); }
+.badge[data-source="bilibili"]    { background: var(--color-cerulean); color: var(--color-paper); }
 .badge[data-source="musicbrainz"] { background: var(--color-lavender); }
 .badge[data-source="discogs"]     { background: var(--color-mustard); }
 .badge[data-source="bandcamp"]    { background: var(--color-mint); }
@@ -513,10 +514,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </div>
     </form>
     <div class="sub" id="sub-bandcamp">
-    <button class="sub-title" type="button" aria-expanded="true">URL から（Bandcamp / SoundCloud / YouTube / ニコニコ）</button>
+    <button class="sub-title" type="button" aria-expanded="true">URL から（Bandcamp / SoundCloud / YouTube / ニコニコ / bilibili）</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画のページ URL</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili のページ URL</label>
         <input class="input" id="bc-url" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://…bandcamp.com/track/… / soundcloud.com/… / youtu.be/… / nicovideo.jp/watch/sm…">
       </div>
       <div class="search-actions">
@@ -657,7 +658,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
             <br>3. サーバー（uvicorn）を再起動する → ソースに Discogs が現れます
             <br>アーティスト名はローマ字表記のことが多いので、日本語で 0 件なら英語で試してください。曲名で見つからないときはそのアーティストのリリース一覧が出ます。</p>
           <p><b>ALL</b>: MusicBrainz → Discogs → iTunes の順に並べ、同じ曲はこの順で先のものを残します。</p>
-          <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります（キー不要）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。</p>
+          <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります（キー不要）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。</p>
     </div>
   </div>
 </div>
@@ -680,7 +681,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
-  const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", manual: "手入力" };
+  const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", manual: "手入力" };
   const ALL_SOURCES = ["itunes", "musicbrainz", "discogs"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, free: null };   // 4:5 は廃止。古い JSON の 4:5 は 1:1 に読み替える
@@ -787,7 +788,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     e.preventDefault();
     const url = els.bcUrl.value.trim();
     els.bcUrl.removeAttribute("aria-invalid");
-    if (!/^https?:\/\//.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画）を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
+    if (!/^https?:\/\//.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili）を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
     setBtnState(els.bcBtn, "loading"); say(els.bcMsg, "");
     try {
       const r = await fetch("/from-url", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });

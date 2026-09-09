@@ -182,7 +182,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - `backend/render.py` の layout はフロントの layout() と同じ式（丸めは JS の Math.round 相当）。寸法は一致する
 - Remote Control の起動コマンドは現行の Claude Code では `claude --remote-control <name>`（フラグ形式）
 - `PUBLIC_BASE_URL=auto` で LAN IP を自動検出。タスク16 のスマホ実機確認は未実施（手順は CLAUDE.md）
-- Last.fm は画像が iTunes と重なるため廃止。SoundCloud（oEmbed）・YouTube（oEmbed + i.ytimg.com）・ニコニコ動画（getthumbinfo）は URL 貼付で対応（キー不要）
+- Last.fm は画像が iTunes と重なるため廃止。SoundCloud（oEmbed）・YouTube（oEmbed + i.ytimg.com）・ニコニコ動画（getthumbinfo）・bilibili（動画ページの __INITIAL_STATE__）は URL 貼付で対応（キー不要）
 - 「トラックを共有」: PNG と並びのスナップショットを shares/ に保存し、共有ページ /s/<id> と /?share=<id> で読み込み。JSON 入出力は廃止
 
 ---
@@ -208,7 +208,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - **Audience**: 自分用。日本の J-POP リスナー
 - **Use case**: 曲を検索してマスに置き、PNG を書き出す。1画面で完結するツール
 - **Tone**: utilitarian。リソグラフ風フラット、レトロ GUI／ドット絵を意識。角丸なし（`border-radius: 0`）
-- **色**: 地はクリーム＋黒インク。アクセントはマスタード／セルリアンブルー／ラベンダー／朱赤／ミント／ピンクの6色。
+- **色**: 地はクリーム（2026-09-09 に黄みを半分以下へ: paper の彩度 0.015 → 0.006）＋黒インク。アクセントはマスタード／セルリアンブルー／ラベンダー／朱赤／ミント／ピンクの6色。
   全体は暖色に寄せない（主アクセントはセルリアン、暖色3色はバッジ等に限定）。ソース6種（iTunes / Last.fm / MusicBrainz / Discogs / Bandcamp / 手入力）にこの6色を1対1で割り当てる
 - **テーマルート**: Hallmark custom（tuned）。macrostructure は Workbench
 - **ワードマーク**: Silkscreen 700 の大文字。版ズレは二重に見えて読みづらいため不採用、文字の下にセルリアンの太線（5px）。日本語ドット表示は粗さが出せず不採用

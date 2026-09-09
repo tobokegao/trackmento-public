@@ -14,7 +14,7 @@ _STRIP_RE = re.compile(r"[\s\W_]+", re.UNICODE)
 # よくある盤種の接尾辞は鍵から落とす（"Lemon - Single" と "Lemon" を同一視）
 _ALBUM_NOISE_RE = re.compile(r"\s*[-–—]\s*(single|ep)\s*$", re.IGNORECASE)
 # 同じ曲が複数ソースにあればこの順で残す
-PRIORITY = {"musicbrainz": 0, "discogs": 1, "itunes": 2, "bandcamp": 3, "soundcloud": 4, "youtube": 5, "nicovideo": 6, "manual": 7}
+PRIORITY = {"musicbrainz": 0, "discogs": 1, "itunes": 2, "bandcamp": 3, "soundcloud": 4, "youtube": 5, "nicovideo": 6, "bilibili": 7, "manual": 8}
 
 
 def _n(s: str | None) -> str:
