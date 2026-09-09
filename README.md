@@ -48,7 +48,7 @@ copy .env.example .env          # 必要なら API キーを記入
 
 ```
 backend/          FastAPI (/search, /bandcamp, /image-proxy, /render, /grids, /health)
-backend/sources/  iTunes / MusicBrainz / Discogs / URL 貼付（Bandcamp / SoundCloud / Spotify / YouTube / ニコニコ動画 / bilibili）
+backend/sources/  iTunes / MusicBrainz / Discogs / otoDB（音MAD） / URL 貼付（Bandcamp / SoundCloud / Spotify / YouTube / ニコニコ動画 / bilibili）
 backend/cache.py  SQLite キャッシュ（検索結果・画像）→ cache.sqlite3
 backend/grids.py  グリッド JSON の読み書き
 backend/render.py Pillow による PNG 描画

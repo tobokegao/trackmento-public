@@ -1,6 +1,6 @@
 """TRACKMENTO CLI。Claude Code（Remote Control でスマホから）が Bash で叩く想定。
 
-  python cli.py add    --artist A --title T [--grid NAME] [--source itunes|mb|discogs] [--first]
+  python cli.py add    --artist A --title T [--grid NAME] [--source itunes|mb|discogs|otodb] [--first]
   python cli.py add    --url URL [--grid NAME]                            # Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify の URL
   python cli.py add    --image URL --artist A --title T [--grid NAME]     # 手入力
   python cli.py pick   --index N [--grid NAME]                            # 直前の候補から選択
@@ -39,8 +39,8 @@ from backend.merge import merge, norm_key  # noqa: E402
 from backend.models import Track  # noqa: E402
 
 PENDING = grids.GRIDS / ".pending.json"
-SOURCE_ALIAS = {"mb": "musicbrainz", "musicbrainz": "musicbrainz", "itunes": "itunes", "discogs": "discogs"}
-SOURCE_LABEL = {"itunes": "iTunes", "musicbrainz": "MusicBrainz", "discogs": "Discogs", "bandcamp": "Bandcamp", "soundcloud": "SoundCloud", "youtube": "YouTube", "nicovideo": "ニコニコ動画", "bilibili": "bilibili", "spotify": "Spotify", "manual": "手入力"}
+SOURCE_ALIAS = {"mb": "musicbrainz", "musicbrainz": "musicbrainz", "itunes": "itunes", "discogs": "discogs", "otodb": "otodb"}
+SOURCE_LABEL = {"itunes": "iTunes", "musicbrainz": "MusicBrainz", "discogs": "Discogs", "bandcamp": "Bandcamp", "soundcloud": "SoundCloud", "youtube": "YouTube", "nicovideo": "ニコニコ動画", "bilibili": "bilibili", "spotify": "Spotify", "otodb": "otoDB", "manual": "手入力"}
 MAX_CANDIDATES = 8
 
 
@@ -70,9 +70,9 @@ async def _search(q: str, artist: str, sources: list[str]) -> tuple[list[Track],
     """sources の順に検索し、最初に候補が出たソースの結果を返す。"""
     import httpx
 
-    from backend.sources import discogs, itunes, musicbrainz
+    from backend.sources import discogs, itunes, musicbrainz, otodb
 
-    fns = {"itunes": itunes.search, "musicbrainz": musicbrainz.search, "discogs": discogs.search}
+    fns = {"itunes": itunes.search, "musicbrainz": musicbrainz.search, "discogs": discogs.search, "otodb": otodb.search}
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
         for name in sources:
             if name == "discogs" and not discogs.enabled():
@@ -97,7 +97,7 @@ def search_candidates(title: str, artist: str, source: str | None) -> list[Track
     if source:
         key = SOURCE_ALIAS.get(source.lower())
         if not key:
-            raise CliError(f"未知のソース: {source}（itunes / mb / discogs）")
+            raise CliError(f"未知のソース: {source}（itunes / mb / discogs / otodb）")
         order = [key]
     else:
         order = ["musicbrainz", "discogs", "itunes"]
@@ -343,7 +343,7 @@ def build_parser() -> argparse.ArgumentParser:
     grid_arg(sp)
     sp.add_argument("--title", "-t", help="曲名")
     sp.add_argument("--artist", "-a", help="アーティスト名")
-    sp.add_argument("--source", "-s", help="itunes | mb | discogs（省略時は MusicBrainz → Discogs → iTunes の順）")
+    sp.add_argument("--source", "-s", help="itunes | mb | discogs | otodb（省略時は MusicBrainz → Discogs → iTunes の順。otodb は音MAD 用で明示指定のみ）")
     sp.add_argument("--first", action="store_true", help="候補が複数でも先頭を採用する")
     sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL")
     sp.add_argument("--bandcamp", metavar="URL", help=argparse.SUPPRESS)  # 旧名

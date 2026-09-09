@@ -23,7 +23,7 @@ from backend.config import public_base_url
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
-from backend.sources import discogs, fromurl, itunes, musicbrainz
+from backend.sources import discogs, fromurl, itunes, musicbrainz, otodb
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -43,6 +43,7 @@ IMAGE_HOST_ALLOWLIST = (
     "hdslb.com",               # bilibili カバー画像
     "scdn.co",                 # Spotify ジャケット
     "spotifycdn.com",
+    "otodb.net",               # otoDB サムネイル（cdn.otodb.net）
     "coverartarchive.org",     # MusicBrainz CAA
     "archive.org",
     "discogs.com",             # Discogs
@@ -57,6 +58,7 @@ if discogs.enabled():
     SOURCES["discogs"] = discogs.search
 SOURCES["itunes"] = itunes.search
 DEFAULT_SOURCES = tuple(SOURCES)
+SOURCES["otodb"] = otodb.search   # 音MAD データベース。ALL には含めず、明示選択のときだけ
 
 
 @asynccontextmanager
@@ -111,7 +113,7 @@ async def health() -> dict:
 async def search(
     q: str = Query("", description="曲名"),
     artist: str = Query("", description="アーティスト名"),
-    source: str | None = Query(None, description="itunes|musicbrainz|discogs。省略時は横断"),
+    source: str | None = Query(None, description="itunes|musicbrainz|discogs|otodb。省略時は横断（otodb は含まない）"),
     nocache: bool = Query(False, description="true でキャッシュを使わず取り直す"),
 ) -> list[Track]:
     if not (q.strip() or artist.strip()):

@@ -183,6 +183,8 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - Remote Control の起動コマンドは現行の Claude Code では `claude --remote-control <name>`（フラグ形式）
 - `PUBLIC_BASE_URL=auto` で LAN IP を自動検出。タスク16 のスマホ実機確認は未実施（手順は CLAUDE.md）
 - Last.fm は画像が iTunes と重なるため廃止。SoundCloud（oEmbed）・YouTube（oEmbed + i.ytimg.com）・ニコニコ動画（getthumbinfo）・bilibili（動画ページの __INITIAL_STATE__）・Spotify（クローラ UA での og タグ、無ければ embed の JSON）は URL 貼付で対応（キー不要）
+- otoDB（音MAD データベース）: /api/work/search を検索ソース「otoDB」として追加（ALL には含めない）。作者はタグの Creator 区分。
+  動画 URL の直接取得に失敗したときは roxy（roxy.otodb.net/xml）にフォールバックし、削除済み動画でも otoDB 登録分は取れる
 - 「トラックを共有」: PNG と並びのスナップショットを shares/ に保存し、共有ページ /s/<id> と /?share=<id> で読み込み。JSON 入出力は廃止
 
 ---

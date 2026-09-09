@@ -317,6 +317,7 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .badge[data-source="nicovideo"]   { background: var(--color-paper-3); }
 .badge[data-source="bilibili"]    { background: var(--color-cerulean); color: var(--color-paper); }
 .badge[data-source="spotify"]     { background: var(--color-mint); }
+.badge[data-source="otodb"]       { background: var(--color-ink); color: var(--color-mustard); }
 .badge[data-source="musicbrainz"] { background: var(--color-lavender); }
 .badge[data-source="discogs"]     { background: var(--color-mustard); }
 .badge[data-source="bandcamp"]    { background: var(--color-mint); }
@@ -518,8 +519,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL</label>
-        <input class="input" id="bc-url" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…">
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）</label>
+        <input class="input" id="bc-url" name="url" type="text" inputmode="url" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…">
       </div>
       <div class="search-actions">
         <button class="btn" type="submit" id="bc-btn"><span class="label">URL から取る</span></button>
@@ -658,8 +659,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
             <br>2. 表示された文字列を <code>.env</code> の <code>DISCOGS_TOKEN=</code> の後ろに貼る
             <br>3. サーバー（uvicorn）を再起動する → ソースに Discogs が現れます
             <br>アーティスト名はローマ字表記のことが多いので、日本語で 0 件なら英語で試してください。曲名で見つからないときはそのアーティストのリリース一覧が出ます。</p>
+          <p><b>otoDB</b>: 音MAD データベース（otodb.net）。キー不要。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。ALL には含めず、選んだときだけ検索します。</p>
           <p><b>ALL</b>: MusicBrainz → Discogs → iTunes の順に並べ、同じ曲はこの順で先のものを残します。</p>
-          <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム。検索はキーが要るので URL のみ）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります（キー不要）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。</p>
+          <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム。検索はキーが要るので URL のみ）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります（キー不要）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
     </div>
   </div>
 </div>
@@ -682,8 +684,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
-  const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", manual: "手入力" };
-  const ALL_SOURCES = ["itunes", "musicbrainz", "discogs"];
+  const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", manual: "手入力" };
+  const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, free: null };   // 4:5 は廃止。古い JSON の 4:5 は 1:1 に読み替える
   const SWATCHES = [
@@ -789,7 +791,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     e.preventDefault();
     const url = els.bcUrl.value.trim();
     els.bcUrl.removeAttribute("aria-invalid");
-    if (!/^https?:\/\//.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
+    if (!/^https?:\/\//.test(url) && !/^(?:(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$/.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
     setBtnState(els.bcBtn, "loading"); say(els.bcMsg, "");
     try {
       const r = await fetch("/from-url", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
