@@ -299,6 +299,19 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 }
 .cell img { width: 100%; height: 100%; object-fit: cover; }
 .cell.is-over { outline: 4px solid var(--color-cerulean); outline-offset: -4px; }
+.cell { cursor: pointer; }
+.cell.is-selected { outline: 4px solid var(--color-cerulean); outline-offset: -4px; }
+.cell.is-selected .num { background: var(--color-cerulean); color: var(--color-paper); }
+.grid[data-selecting="true"] .cell:not(.is-selected) { cursor: copy; }
+/* 選択中のマスの編集パネル */
+.editor { display: grid; gap: var(--space-2); margin-top: var(--space-3); padding: var(--space-3); border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
+.editor[hidden] { display: none; }
+.editor-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-family: var(--font-display); font-size: var(--text-sm); }
+.editor-head .num-badge { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-cerulean); color: var(--color-paper); border: var(--line) solid var(--color-ink); padding: 0 var(--space-1); }
+.editor-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-2); }
+.editor-meta { font-size: var(--text-sm); color: var(--color-muted); margin: 0; overflow-wrap: anywhere; }
+.editor-meta a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.editor-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .cell[draggable="true"] { cursor: grab; }
 .cell.is-dragging { opacity: .5; }
 .cell .num {
@@ -454,7 +467,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         </div>
       </div>
       <ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol>
-      <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックすると入ります。マスをドラッグすると入れ替え。</p>
+      <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックすると入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
+      <div class="editor" id="editor" hidden aria-labelledby="editor-title">
+        <div class="editor-head"><span class="num-badge" id="editor-num">01</span><span id="editor-title">選択中</span><span class="badge" id="editor-source"></span></div>
+        <div class="editor-fields">
+          <div class="field"><label for="e-title">曲名</label><input class="input" id="e-title" type="text" autocomplete="off" maxlength="120"></div>
+          <div class="field"><label for="e-artist">アーティスト名</label><input class="input" id="e-artist" type="text" autocomplete="off" maxlength="120"></div>
+        </div>
+        <p class="editor-meta" id="editor-meta"></p>
+        <div class="editor-actions">
+          <button class="btn" type="button" id="e-remove">このマスを外す</button>
+          <button class="btn" type="button" id="e-close">選択解除</button>
+        </div>
+      </div>
       <div class="grid-actions">
         <button class="btn btn-primary" type="button" id="render-btn"><span class="label">画像を作る</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
@@ -565,6 +590,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     results: $("#results"), resultsCount: $("#results-count"),
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
     renderBtn: $("#render-btn"), clearBtn: $("#clear-btn"),
+    editor: $("#editor"), eNum: $("#editor-num"), eTitle: $("#editor-title"), eSource: $("#editor-source"), eTitleIn: $("#e-title"), eArtistIn: $("#e-artist"), eMeta: $("#editor-meta"), eRemove: $("#e-remove"), eClose: $("#e-close"),
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     sizeSeg: $("#size-seg"), customSize: $("#custom-size"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"), optTitle: $("#opt-title"), optSidebar: $("#opt-sidebar"), optNumbers: $("#opt-numbers"),
@@ -701,12 +727,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function addTrack(t) {
     const i = state.cells.findIndex(c => c === null);
     if (i < 0) { say(els.gridMsg, "空きマスがありません。× で外してから追加してください。", "error"); return; }
-    state.cells[i] = t;
+    state.cells[i] = { ...t };   // 候補と切り離す（曲名の編集が候補に波及しないように）
     renderGrid();
     say(els.gridMsg, `${i + 1} 番に「${t.title}」を入れました。`);
   }
   function removeAt(i) {
-    const t = state.cells[i]; state.cells[i] = null; renderGrid();
+    const t = state.cells[i]; state.cells[i] = null;
+    if (selected === i) selected = null;
+    renderGrid();
     if (t) say(els.gridMsg, `${i + 1} 番の「${t.title}」を外しました。`);
   }
   function swap(a, b) {
@@ -714,6 +742,53 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     [state.cells[a], state.cells[b]] = [state.cells[b], state.cells[a]];
     renderGrid(); say(els.gridMsg, `${a + 1} 番と ${b + 1} 番を入れ替えました。`);
   }
+
+  /* ---- タップで選んでタップで入れ替え（スマホ向け。PC でも使える） ---- */
+  let selected = null;   // 選択中のマス番号（0 始まり）。保存はしない
+  function onCellTap(i) {
+    if (selected === null) {
+      if (!state.cells[i]) { say(els.gridMsg, `${i + 1} 番は空です。候補をクリックすると入ります。`); return; }
+      selected = i; renderGrid();
+      say(els.gridMsg, `${i + 1} 番を選択中。別のマスをタップすると入れ替え（空マスなら移動）。もう一度タップで解除。`);
+      return;
+    }
+    if (selected === i) { selected = null; renderGrid(); say(els.gridMsg, "選択を解除しました。"); return; }
+    const from = selected, wasEmpty = !state.cells[i];
+    selected = null;
+    [state.cells[from], state.cells[i]] = [state.cells[i], state.cells[from]];
+    renderGrid();
+    say(els.gridMsg, wasEmpty ? `${from + 1} 番を ${i + 1} 番に移しました。` : `${from + 1} 番と ${i + 1} 番を入れ替えました。`);
+  }
+  function clearSelection() { if (selected !== null) { selected = null; renderGrid(); } }
+  function renderEditor() {
+    const t = selected !== null ? state.cells[selected] : null;
+    if (!t) { els.editor.hidden = true; return; }
+    els.editor.hidden = false;
+    els.eNum.textContent = String(selected + 1).padStart(2, "0");
+    els.eSource.textContent = SOURCE_LABEL[t.source] || t.source; els.eSource.dataset.source = t.source;
+    if (document.activeElement !== els.eTitleIn) els.eTitleIn.value = t.title;
+    if (document.activeElement !== els.eArtistIn) els.eArtistIn.value = t.artist;
+    els.eMeta.innerHTML = "";
+    const parts = [];
+    if (t.album) parts.push(`アルバム: ${t.album}`);
+    els.eMeta.append(parts.join(" · "));
+    if (t.external_url) {
+      if (parts.length) els.eMeta.append(" · ");
+      const a = document.createElement("a"); a.href = t.external_url; a.target = "_blank"; a.rel = "noopener"; a.textContent = "元ページを開く"; els.eMeta.append(a);
+    }
+    if (!parts.length && !t.external_url) els.eMeta.textContent = "曲名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。";
+  }
+  els.eTitleIn.addEventListener("input", () => {
+    const t = selected !== null && state.cells[selected]; if (!t) return;
+    t.title = els.eTitleIn.value; renderGrid();
+  });
+  els.eArtistIn.addEventListener("input", () => {
+    const t = selected !== null && state.cells[selected]; if (!t) return;
+    t.artist = els.eArtistIn.value; renderGrid();
+  });
+  els.eRemove.addEventListener("click", () => { if (selected !== null) removeAt(selected); });
+  els.eClose.addEventListener("click", () => { clearSelection(); say(els.gridMsg, "選択を解除しました。"); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && selected !== null) { clearSelection(); say(els.gridMsg, "選択を解除しました。"); } });
   function resizeGrid(cols, rows) {
     cols = Math.min(12, Math.max(1, cols | 0)); rows = Math.min(12, Math.max(1, rows | 0));
     const n = cols * rows, cur = state.cells.length;
@@ -730,6 +805,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     state.cols = cols; state.rows = rows;
     els.cols.value = cols; els.rows.value = rows;
+    if (selected !== null && !state.cells[selected]) selected = null;
     renderGrid();
   }
   function renderGrid() {
@@ -740,7 +816,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.grid.innerHTML = "";
     state.cells.forEach((t, i) => {
       const li = document.createElement("li");
-      li.className = "cell"; li.dataset.index = i;
+      li.className = "cell" + (selected === i ? " is-selected" : ""); li.dataset.index = i;
+      li.addEventListener("click", (e) => { if (e.target.closest(".rm")) return; onCellTap(i); });
       const num = document.createElement("span"); num.className = "num"; num.textContent = String(i + 1).padStart(2, "0");
       li.append(num);
       if (t) {
@@ -754,21 +831,23 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       } else {
         li.setAttribute("aria-label", `${i + 1} 番: 空`);
       }
-      li.addEventListener("dragstart", (e) => { dragFrom = i; li.classList.add("is-dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); });
+      li.addEventListener("dragstart", (e) => { if (selected !== null) { selected = null; els.grid.querySelectorAll(".is-selected").forEach(c => c.classList.remove("is-selected")); els.editor.hidden = true; } dragFrom = i; li.classList.add("is-dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); });
       li.addEventListener("dragend", () => { dragFrom = null; li.classList.remove("is-dragging"); });
       li.addEventListener("dragover", (e) => { if (dragFrom === null) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; li.classList.add("is-over"); });
       li.addEventListener("dragleave", () => li.classList.remove("is-over"));
       li.addEventListener("drop", (e) => { e.preventDefault(); li.classList.remove("is-over"); const from = Number(e.dataTransfer.getData("text/plain")); if (Number.isInteger(from)) swap(from, i); });
       els.grid.append(li);
     });
+    els.grid.dataset.selecting = selected !== null ? "true" : "false";
     const n = state.cells.filter(Boolean).length;
     els.gridCount.textContent = `${n}/${state.cells.length}`;
     els.renderBtn.disabled = n === 0;
+    renderEditor();
     updateSpec();
   }
   els.clearBtn.addEventListener("click", () => {
     if (!state.cells.some(Boolean) && !state.stash.length) return;
-    state.cells.fill(null); state.stash = []; renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
+    state.cells.fill(null); state.stash = []; selected = null; renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
   });
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
 
@@ -894,6 +973,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else { state.bg = bgKeys.includes(o.bg) ? o.bg : "paper"; }
     state.margin = clamp(o.margin, 0, 160, 48);
+    selected = null;
     syncControls();
     renderGrid();
   }
