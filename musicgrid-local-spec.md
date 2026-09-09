@@ -164,14 +164,24 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - [x] 8. 横断検索の重複マージ
 - [x] 9. グリッドサイズ／比率プリセット／サイドバー／番号／背景色
 - [x] 10. localStorage 保存、JSON 入出力、手入力追加
-- [ ] 11. SQLite キャッシュ
-- [ ] 12. `sources/discogs.py`（トークンありのときだけ有効）
-- [ ] 13. 日本語フォント同梱と PNG 書き出し時のフォント適用確認
-- [ ] 14. `backend/render.py`（Pillow でサーバー側描画）と `POST /render`、`outputs/` 静的配信
-- [ ] 15. `cli.py`（add / list / render / clear）。Claude Code が Bash から呼ぶ想定
-- [ ] 16. `CLAUDE.md` に CLI の使い方と定型ワークフローを記載し、Remote Control でスマホから動作確認
+- [x] 11. SQLite キャッシュ
+- [x] 12. `sources/discogs.py`（トークンありのときだけ有効）
+- [x] 13. 日本語フォント同梱と PNG 書き出し時のフォント適用確認
+- [x] 14. `backend/render.py`（Pillow でサーバー側描画）と `POST /render`、`outputs/` 静的配信
+- [x] 15. `cli.py`（add / list / render / clear）。Claude Code が Bash から呼ぶ想定
+- [x] 16. `CLAUDE.md` に CLI の使い方と定型ワークフローを記載し、Remote Control でスマホから動作確認
 
 各ステップごとにブラウザで動作確認してから次へ進む。
+
+### 実装メモ（2026-09-09 タスク11〜16 完了時）
+- キャッシュ: `cache.sqlite3` に検索結果（7日）と画像（30日・300MB 上限）。`/search?nocache=true` で取り直し
+- Discogs は横断検索（source 省略時）には含めず、ソース明示時のみ使う（トークンが要るため）
+- フォントは `fonts/` に IBM Plex Sans JP / Silkscreen / DotGothic16（OFL）を同梱し `/fonts/` で配信。Google Fonts 依存を外した
+- グリッド JSON: Web は localStorage とサーバー `grids/default.json` の両方に保存し、起動時に savedAt が新しい方を採用。
+  `/render` と CLI の `render` は指定オプションをグリッド JSON に保存する
+- `backend/render.py` の layout はフロントの layout() と同じ式（丸めは JS の Math.round 相当）。寸法は一致する
+- Remote Control の起動コマンドは現行の Claude Code では `claude --remote-control <name>`（フラグ形式）
+- `PUBLIC_BASE_URL=auto` で LAN IP を自動検出。タスク16 のスマホ実機確認は未実施（手順は CLAUDE.md）
 
 ---
 
@@ -225,8 +235,8 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 ### 起動手順（PC側、毎回）
 ```bash
 cd musicgrid-local
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 &   # API + 画像配信
-claude remote-control --name "MusicGrid"                 # スペースキーで QR 表示
+.venv/Scripts/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 &   # API + 画像配信
+claude --remote-control TRACKMENTO                                               # QR をスマホで読む
 ```
 スマホの Claude アプリで QR を読むか、Code タブから "MusicGrid" を選ぶ。
 

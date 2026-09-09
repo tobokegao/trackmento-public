@@ -6,4 +6,4 @@ outputs/*
 !outputs/.gitkeep
 grids/*
 !grids/.gitkeep
-cache.sqlite3
+cache.sqlite3*
