@@ -192,6 +192,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - ツール系 UI なので macrostructure は Workbench 系を第一候補にする（ランディングページ用の hero/footer 類型は使わない）
 
 #### デザインブリーフ（2026-09-09 決定・Hallmark 3質問ゲートの回答）
+- **サイト名（画面表示）**: 「トラックグリッド」。リポジトリ名は musicgrid-local のまま
 - **Audience**: 自分用。日本の J-POP リスナー
 - **Use case**: 曲を検索してマスに置き、PNG を書き出す。1画面で完結するツール
 - **Tone**: utilitarian。リソグラフ風フラット、レトロ GUI／ドット絵を意識。角丸なし（`border-radius: 0`）

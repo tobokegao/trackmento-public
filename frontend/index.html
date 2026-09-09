@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MusicGrid Local</title>
+<title>トラックグリッド</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Sans+JP:wght@400;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <style>
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(95% 0.015 95) · accent: oklch(60% 0.14 235)
- * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers only) · axes: light / risograph-bold / cool
+ * display: DotGothic16 (incl. wordmark) · body: IBM Plex Sans JP · outlier: Silkscreen (cell numbers + count badges only) · axes: light / risograph-bold / cool
  * studied: no · context: user-provided (audience: self, J-POP · use: search → place → PNG · tone: utilitarian) · v1.1.0
  * Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4
  */
@@ -81,7 +81,7 @@ img { max-width: 100%; display: block; }
   background: var(--color-paper);
 }
 .wordmark {
-  font-family: var(--font-outlier); font-weight: 700; font-size: var(--text-md); letter-spacing: 0.02em;
+  font-family: var(--font-display); font-weight: 400; font-size: var(--text-lg); letter-spacing: 0.06em;
   text-shadow: 3px 3px 0 var(--color-cerulean);
   white-space: nowrap;
 }
@@ -290,7 +290,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <body>
 
 <header class="bar">
-  <h1 class="wordmark">MUSICGRID <small>local</small></h1>
+  <h1 class="wordmark">トラックグリッド <small>local</small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite">起動中</p>
 </header>
 
@@ -344,7 +344,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </div>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="生成したグリッド画像のプレビュー">
-        <a class="btn dl" id="download" download="musicgrid.png" href="#">PNG を保存</a>
+        <a class="btn dl" id="download" download="trackgrid.png" href="#">PNG を保存</a>
       </div>
     </div>
   </section>
@@ -364,7 +364,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 </main>
 
 <footer>
-  <span>MusicGrid Local</span>
+  <span>トラックグリッド</span>
   <a href="/health">/health</a>
   <span id="foot-sources"></span>
 </footer>
@@ -573,7 +573,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (els.download.href.startsWith("blob:")) URL.revokeObjectURL(els.download.href);
       const url = URL.createObjectURL(blob);
       els.outputImg.src = url; els.download.href = url;
-      els.download.download = (title || "musicgrid").replace(/[\\/:*?"<>|]/g, "_") + ".png";
+      els.download.download = (title || "trackgrid").replace(/[\\/:*?"<>|]/g, "_") + ".png";
       els.output.hidden = false;
       setBtnState(els.renderBtn, null);
       say(els.gridMsg, `${W} × ${H} px の PNG ができました。`);
