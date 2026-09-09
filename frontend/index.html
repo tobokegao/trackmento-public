@@ -333,6 +333,32 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .cell.is-over { outline: 4px solid var(--color-cerulean); outline-offset: -4px; }
 .cell { cursor: pointer; }
 .cell.is-selected::after { content: ""; position: absolute; inset: 0; border: 5px solid var(--color-mustard); box-shadow: inset 0 0 0 2px var(--color-ink); pointer-events: none; z-index: 2; }
+/* 「入れる先」の空マス: 破線のマスタード枠 + 中央に矢印 */
+.cell.is-target::after { content: ""; position: absolute; inset: 0; border: 5px dashed var(--color-mustard); box-shadow: inset 0 0 0 2px var(--color-ink); pointer-events: none; z-index: 2; }
+.cell.is-target::before { content: "↓ ここに入れる"; position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); background: color-mix(in oklab, var(--color-mustard) 55%, transparent); z-index: 1; }
+.cell.is-target .num { background: var(--color-mustard); color: var(--color-ink); }
+
+/* スマホ用の検索シート（空マスをタップすると検索と候補をまとめて下から出す） */
+.sheet { position: fixed; inset: 0; z-index: 50; display: grid; align-items: end; }
+.sheet[hidden] { display: none; }
+.sheet-backdrop { position: absolute; inset: 0; background: color-mix(in oklab, var(--color-ink) 45%, transparent); }
+.sheet-panel {
+  position: relative; max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr);
+  border-top: var(--line) solid var(--color-ink); background: var(--color-paper);
+  box-shadow: 0 -4px 0 var(--color-ink);
+}
+.sheet-head {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--line) solid var(--color-ink);
+  background: repeating-linear-gradient(to bottom, var(--color-ink) 0 2px, var(--color-paper) 2px 4px);
+}
+.sheet-head h2 { font-size: var(--text-sm); letter-spacing: 0.04em; background: var(--color-paper); padding: 0 var(--space-2); border: var(--line) solid var(--color-ink); }
+.sheet-head .btn { margin-left: auto; min-height: 36px; }
+.sheet-body { overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); }
+.sheet-body .pane { box-shadow: none; }
+.sheet-body .results { max-height: none; }
+body.sheet-open { overflow: hidden; }
 .cell.is-selected .num { background: var(--color-mustard); color: var(--color-ink); }
 .grid[data-selecting="true"] .cell:not(.is-selected) { cursor: copy; }
 /* 選択中のマスの編集パネル */
@@ -592,6 +618,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
 </main>
 
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet-backdrop" id="sheet-backdrop"></div>
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2 id="sheet-title">01 番に入れる曲を探す</h2><button class="btn" type="button" id="sheet-close">閉じる</button></div>
+    <div class="sheet-body" id="sheet-body"></div>
+  </div>
+</div>
+
 <footer>
   <span>TRACKMENTO</span>
   <a href="/health">/health</a>
@@ -789,13 +823,48 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
 
   /* ---- grid ---- */
+  /* 「入れる先」のマス。空マスをクリック／タップすると決まり、次に選んだ候補はそこに入る */
+  let target = null;
   function addTrack(t) {
-    const i = state.cells.findIndex(c => c === null);
+    let i = target !== null && state.cells[target] === null ? target : state.cells.findIndex(c => c === null);
     if (i < 0) { say(els.gridMsg, "空きマスがありません。× で外してから追加してください。", "error"); return; }
+    target = null;
     state.cells[i] = { ...t };   // 候補と切り離す（曲名の編集が候補に波及しないように）
     renderGrid();
     say(els.gridMsg, `${i + 1} 番に「${t.title}」を入れました。`);
+    if (sheetOpen()) closeSheet();
   }
+  function setTarget(i) {
+    target = i; selected = null; renderGrid();
+    if (isMobile()) { openSheet(i); return; }
+    say(els.gridMsg, `${i + 1} 番に入れる曲を検索してください。候補をクリックするとここに入ります。もう一度タップで解除。`);
+    els.q.focus({ preventScroll: false });
+  }
+  function clearTarget() { if (target !== null) { target = null; renderGrid(); } }
+
+  /* ---- スマホ用シート: 検索ペインと候補ペインを一時的にシートへ移し、閉じたら元に戻す ---- */
+  const sheet = $("#sheet"), sheetBody = $("#sheet-body"), sheetTitle = $("#sheet-title");
+  const isMobile = () => !window.matchMedia("(min-width: 60rem)").matches;
+  const sheetOpen = () => !sheet.hidden;
+  function openSheet(i) {
+    sheetTitle.textContent = `${String(i + 1).padStart(2, "0")} 番に入れる曲を探す`;
+    const search = $(".pane-search"), results = $(".pane-results");
+    sheetBody.append(search, results);
+    search.dataset.collapsed = "false"; results.dataset.collapsed = "false";
+    sheet.hidden = false; document.body.classList.add("sheet-open");
+    sheetBody.scrollTop = 0;
+    setTimeout(() => els.q.focus({ preventScroll: true }), 50);
+  }
+  function closeSheet() {
+    if (!sheetOpen()) return;
+    const wb = $(".workbench");
+    wb.append($(".pane-search"), $(".pane-results"));   // 並び順は CSS の order が決める
+    applyFold();
+    sheet.hidden = true; document.body.classList.remove("sheet-open");
+  }
+  $("#sheet-close").addEventListener("click", closeSheet);
+  $("#sheet-backdrop").addEventListener("click", closeSheet);
+  window.matchMedia("(min-width: 60rem)").addEventListener("change", () => { if (!isMobile()) closeSheet(); });
   function removeAt(i) {
     const t = state.cells[i]; state.cells[i] = null;
     if (selected === i) selected = null;
@@ -812,7 +881,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   let selected = null;   // 選択中のマス番号（0 始まり）。保存はしない
   function onCellTap(i) {
     if (selected === null) {
-      if (!state.cells[i]) { say(els.gridMsg, `${i + 1} 番は空です。候補をクリックすると入ります。`); return; }
+      if (!state.cells[i]) {
+        if (target === i) { clearTarget(); say(els.gridMsg, "入れる先の指定を解除しました。"); return; }
+        setTarget(i); return;
+      }
+      target = null;
       selected = i; renderGrid();
       say(els.gridMsg, `${i + 1} 番を選択中。別のマスをタップすると入れ替え（空マスなら移動）。もう一度タップで解除。`);
       return;
@@ -853,7 +926,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
   els.eRemove.addEventListener("click", () => { if (selected !== null) removeAt(selected); });
   els.eClose.addEventListener("click", () => { clearSelection(); say(els.gridMsg, "選択を解除しました。"); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && selected !== null) { clearSelection(); say(els.gridMsg, "選択を解除しました。"); } });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (sheetOpen()) { closeSheet(); return; }
+    if (selected !== null) { clearSelection(); say(els.gridMsg, "選択を解除しました。"); return; }
+    if (target !== null) { clearTarget(); say(els.gridMsg, "入れる先の指定を解除しました。"); }
+  });
   function resizeGrid(cols, rows) {
     cols = Math.min(12, Math.max(1, cols | 0)); rows = Math.min(12, Math.max(1, rows | 0));
     const n = cols * rows, cur = state.cells.length;
@@ -881,7 +959,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.grid.innerHTML = "";
     state.cells.forEach((t, i) => {
       const li = document.createElement("li");
-      li.className = "cell" + (selected === i ? " is-selected" : ""); li.dataset.index = i;
+      li.className = "cell" + (selected === i ? " is-selected" : "") + (target === i && !t ? " is-target" : ""); li.dataset.index = i;
       li.addEventListener("click", (e) => { if (e.target.closest(".rm")) return; onCellTap(i); });
       const num = document.createElement("span"); num.className = "num"; num.textContent = String(i + 1).padStart(2, "0");
       li.append(num);
@@ -903,6 +981,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       li.addEventListener("drop", (e) => { e.preventDefault(); li.classList.remove("is-over"); const from = Number(e.dataTransfer.getData("text/plain")); if (Number.isInteger(from)) swap(from, i); });
       els.grid.append(li);
     });
+    if (target !== null && state.cells[target]) target = null;
     els.grid.dataset.selecting = selected !== null ? "true" : "false";
     const n = state.cells.filter(Boolean).length;
     els.gridCount.textContent = `${n}/${state.cells.length}`;
@@ -912,7 +991,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   els.clearBtn.addEventListener("click", () => {
     if (!state.cells.some(Boolean) && !state.stash.length) return;
-    state.cells.fill(null); state.stash = []; selected = null; renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
+    state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
   });
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
 
@@ -1038,7 +1117,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else { state.bg = bgKeys.includes(o.bg) ? o.bg : "paper"; }
     state.margin = clamp(o.margin, 0, 160, 48);
-    selected = null;
+    selected = null; target = null;
     syncControls();
     renderGrid();
   }
