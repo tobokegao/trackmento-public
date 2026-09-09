@@ -199,7 +199,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - **色**: 地はクリーム＋黒インク。アクセントはマスタード／セルリアンブルー／ラベンダー／朱赤／ミント／ピンクの6色。
   全体は暖色に寄せない（主アクセントはセルリアン、暖色3色はバッジ等に限定）。ソース6種（iTunes / Last.fm / MusicBrainz / Discogs / Bandcamp / 手入力）にこの6色を1対1で割り当てる
 - **テーマルート**: Hallmark custom（tuned）。macrostructure は Workbench
-- **ワードマーク**: Silkscreen 700 の大文字にセルリアンの版ズレ（text-shadow 3px）。日本語ドット表示は粗さが出せず不採用
+- **ワードマーク**: Silkscreen 700 の大文字。版ズレは二重に見えて読みづらいため不採用、文字の下にセルリアンの太線（5px）。日本語ドット表示は粗さが出せず不採用
 - **横断検索のマージ鍵**: 曲名＋アーティスト＋アルバム名（「- Single」「- EP」接尾辞は無視）。同じ曲の別ジャケットを残すため
 
 ## 9. Remote Control 運用（スマホから曲を追加して画像を受け取る）

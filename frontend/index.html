@@ -81,11 +81,13 @@ img { max-width: 100%; display: block; }
   background: var(--color-paper);
 }
 .wordmark {
+  display: flex; align-items: baseline; gap: var(--space-2);
   font-family: var(--font-outlier); font-weight: 700; font-size: var(--text-lg); letter-spacing: 0.04em;
-  text-shadow: 3px 3px 0 var(--color-cerulean);
   white-space: nowrap;
 }
-.wordmark small { font-family: var(--font-display); font-size: var(--text-xs); text-shadow: none; color: var(--color-muted); margin-left: var(--space-2); letter-spacing: 0; }
+/* 版ズレはやめ、文字の下にセルリアンの太線（リソのベタ1色） */
+.wordmark .mark { display: inline-block; line-height: 1; padding-bottom: 2px; box-shadow: 0 5px 0 var(--color-cerulean); }
+.wordmark small { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); letter-spacing: 0; }
 .bar-status { margin: 0 0 0 auto; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
 
 /* ---------- panes ---------- */
@@ -291,7 +293,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <body>
 
 <header class="bar">
-  <h1 class="wordmark">TRACKMENTO <small>local</small></h1>
+  <h1 class="wordmark"><span class="mark">TRACKMENTO</span> <small>local</small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite">起動中</p>
 </header>
 
