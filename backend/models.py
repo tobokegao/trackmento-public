@@ -1,0 +1,16 @@
+"""全ソース共通のレスポンス型。"""
+from typing import Literal, Optional
+
+from pydantic import BaseModel
+
+Source = Literal["itunes", "lastfm", "musicbrainz", "discogs", "bandcamp", "manual"]
+
+
+class Track(BaseModel):
+    source: Source
+    title: str
+    artist: str
+    album: Optional[str] = None
+    image: str
+    thumb: Optional[str] = None
+    external_url: Optional[str] = None

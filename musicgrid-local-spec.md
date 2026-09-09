@@ -1,0 +1,240 @@
+# MusicGrid Local — 曲単位ジャケットグリッド作成ツール 仕様書
+
+Claude Code で開発を再開するための引き継ぎドキュメント。
+まずこのファイルを読み、「実装タスク」の順に進めてください。
+
+---
+
+## 1. 目的
+
+X などで流行している「私を構成する9枚」「好きな曲9選」のようなグリッド画像を、
+**曲単位**で手動選択して作成するツールをローカルで動かす。
+
+参考サイト: https://musicgrid-nine.vercel.app/
+（アルバム／曲を検索してグリッドに配置 → 画像保存。アートワークは iTunes Search API のみ）
+
+### 既存ツールでは足りない点
+- MusicGrid: 曲単位で選べるが iTunes にない音源（Bandcamp限定リリース等）が拾えない
+- charty (https://github.com/iyra/charty): Last.fm + Discogs 対応だがアルバム単位
+- SongStitch / Riffology: Last.fm の再生履歴から自動生成。手動選択ではない
+
+→ 「曲単位・手動選択・複数ソース横断検索」を満たすものが無いので自作する。
+
+### 想定ジャンル
+パンク／ハードコア、ノイズ／実験音楽、日本のインディー。
+iTunes 未配信が多いので Last.fm / MusicBrainz / Bandcamp からの取得が重要。
+
+---
+
+## 2. 要件
+
+### 必須
+- 曲名（＋アーティスト名）で検索し、候補をジャケット付きで表示
+- 検索ソースを切替可能: iTunes / Last.fm / MusicBrainz(Cover Art Archive) / Discogs / Bandcamp(URL貼付)
+- 候補をタップ／クリックで次の空きマスに追加、ドラッグで入れ替え、×で削除
+- 検索で見つからない場合は **画像URL＋曲名＋アーティスト名を手入力**で追加できる
+- グリッドサイズ: 3×3 (9) / 4×6 (24) / 3×8 (24) / 5×5 (25) / 任意 W×H
+- 出力比率プリセット: X横長 16:9 / インスタ投稿 4:5 / 正方形 1:1 / ストーリーズ 9:16
+- タイトル表示 ON/OFF、曲名・アーティスト名のサイドバー表示 ON/OFF、背景色、余白
+- PNG 書き出し（高解像度、少なくともマス目 500px 以上）
+- 作成中のグリッドをブラウザ (localStorage) と JSON エクスポート／インポートで保存
+- **CLI からも操作できること**（Claude Code Remote Control でスマホから使うため。詳細は「9. Remote Control 運用」）
+- **生成した PNG を簡易 HTTP サーバーで配信し、URL で受け取れること**
+
+### あると良い
+- 取得済みアートワークのキャッシュ（SQLite or JSON）で API 制限回避
+- 複数チャートの保存・切替
+- 番号バッジ表示
+- 日本語フォント同梱（曲名が化けないように）
+
+### やらないこと
+- ユーザー登録・公開ページ・ランキング等の SNS 機能
+- Last.fm 再生履歴からの自動生成（必要なら後で）
+
+---
+
+## 3. 構成
+
+```
+musicgrid-local/
+├── backend/
+│   ├── main.py          # FastAPI: /search, /bandcamp, /image-proxy
+│   ├── sources/
+│   │   ├── itunes.py
+│   │   ├── lastfm.py
+│   │   ├── musicbrainz.py
+│   │   ├── discogs.py
+│   │   └── bandcamp.py
+│   ├── cache.py         # SQLite キャッシュ
+│   ├── models.py        # 共通レスポンス型
+│   └── render.py        # サーバー側 PNG 描画（Pillow）。CLI からも Web からも使う
+├── cli.py               # Claude Code から叩く CLI（add / list / render / clear）
+├── frontend/
+│   └── index.html       # 単一HTML（CSS/JS内包）
+├── outputs/             # 生成 PNG の保存先。FastAPI が /outputs/ で静的配信
+├── grids/               # 作業中グリッドの JSON（CLI と Web で共有）
+├── .env.example
+├── requirements.txt
+└── README.md
+```
+
+### 技術選定
+- バックエンド: Python 3.11+ / FastAPI / httpx
+  - 役割: API キーの秘匿、CORS 回避、レスポンス形式の統一、キャッシュ
+- フロント: 素の HTML + JS（フレームワーク不要）。画像書き出しは Canvas API
+  - 外部画像を Canvas に描くと tainted になるため、必ず `/image-proxy` 経由で読み込む
+- 起動: `uvicorn backend.main:app --reload` → http://localhost:8000 で index.html を配信
+
+### 共通レスポンス型（全ソースをこれに正規化）
+```json
+{
+  "source": "itunes | lastfm | musicbrainz | discogs | bandcamp | manual",
+  "title": "曲名",
+  "artist": "アーティスト名",
+  "album": "アルバム名（任意）",
+  "image": "ジャケット画像URL（高解像度）",
+  "thumb": "サムネイルURL（任意）",
+  "external_url": "元ページURL（任意）"
+}
+```
+
+---
+
+## 4. 各ソースの取得仕様
+
+| ソース | エンドポイント | 認証 | 制限 | 備考 |
+|---|---|---|---|---|
+| iTunes | `https://itunes.apple.com/search?term={q}&entity=song&country=JP&limit=25` | 不要 | 緩い | `artworkUrl100` の `100x100` を `1000x1000` に置換で高解像度 |
+| Last.fm | `track.search` → `track.getInfo` | APIキー(無料) | 緩い | `track.search` は画像が空のことが多いので `getInfo` の `album.image[extralarge]` を使う |
+| MusicBrainz + CAA | `https://musicbrainz.org/ws/2/recording?query=...&fmt=json` → `https://coverartarchive.org/release/{release-mbid}/front-500` | 不要 | **1 req/秒・User-Agent 必須** | recording の `releases[]` から release MBID を取り CAA を叩く。404 は「画像なし」 |
+| Discogs | `https://api.discogs.com/database/search?track={q}&artist={a}&type=release&token=...` | トークン必須 | 60 req/分 | `cover_image` を使う。未設定時はソース選択肢から非表示 |
+| Bandcamp | 公式APIなし。トラック／アルバムページURLを受け取り `og:image` を抽出 | 不要 | スクレイピング | ユーザーがURLを貼る運用。曲名・アーティストも `og:title` / `meta[name=title]` から拾う |
+
+### 環境変数 (.env)
+```
+LASTFM_API_KEY=
+DISCOGS_TOKEN=
+MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
+```
+
+---
+
+## 5. API 設計（バックエンド）
+
+- `GET /search?q=&artist=&source=`
+  - `source` 省略時は iTunes + Last.fm + MusicBrainz を並列で叩き、
+    `title+artist` の正規化キーで重複マージ（µsic tools と同じ発想）
+- `POST /bandcamp` body: `{ "url": "..." }` → 共通レスポンス型を返す
+- `GET /image-proxy?url=` → 画像をそのまま返す（Canvas の CORS 対策）。許可ドメインをホワイトリスト化
+- `GET /` → frontend/index.html
+- `GET /grids/{name}` / `PUT /grids/{name}` → 作業中グリッド JSON の読み書き（CLI と Web で同じファイルを共有）
+- `POST /render` body: `{ "grid": "<name>", "ratio": "16:9", "sidebar": true }`
+  → `backend/render.py` で PNG を生成し `outputs/` に保存、`{ "url": "http://<host>:8000/outputs/<name>-<timestamp>.png" }` を返す
+- `GET /outputs/{file}` → 生成 PNG の静的配信（FastAPI `StaticFiles`）
+
+### 簡易 HTTP 配信の方針
+- 追加の Web サーバーは立てず、FastAPI の `StaticFiles` で `outputs/` をマウントする
+- レスポンスの URL は **LAN 内の IP**（例 `http://192.168.x.x:8000/outputs/...`）で返す。
+  `uvicorn --host 0.0.0.0` で起動し、ホスト名は `.env` の `PUBLIC_BASE_URL` で指定
+- 外出先から見たい場合は Tailscale か Cloudflare Tunnel で `PUBLIC_BASE_URL` を差し替える（後回しで可）
+- `outputs/` は世代管理: 直近 50 件を残し古いものは起動時に削除
+
+---
+
+## 6. フロント UI 要素
+
+1. 上部: 検索欄（曲名 / アーティスト）、ソース切替タブ、Bandcamp URL 入力
+2. 左: 検索結果リスト（サムネ＋曲名＋アーティスト＋ソースバッジ）
+3. 中央: グリッド（サイズ選択、比率選択、タイトル入力）
+4. 右 or 下: オプション（タイトル表示、サイドバー表示、番号、背景色、余白）
+5. ボタン: 画像を作る / PNG保存 / JSON書き出し / JSON読み込み / 全部クリア
+6. 手入力追加フォーム: 画像URL・曲名・アーティスト
+
+---
+
+## 7. 実装タスク（この順で）
+
+- [ ] 1. リポジトリ雛形作成、requirements.txt、.env.example、README
+- [ ] 2. `sources/itunes.py`（キー不要なので最初に動作確認）
+- [ ] 3. `main.py` に `/search` と `/image-proxy` と静的配信
+- [ ] 4. `frontend/index.html`: 検索→3×3グリッドに追加→PNG保存の最小動作
+- [ ] 5. `sources/musicbrainz.py`（1秒スリープ、User-Agent）
+- [ ] 6. `sources/lastfm.py`
+- [ ] 7. `sources/bandcamp.py` + `/bandcamp`
+- [ ] 8. 横断検索の重複マージ
+- [ ] 9. グリッドサイズ／比率プリセット／サイドバー／番号／背景色
+- [ ] 10. localStorage 保存、JSON 入出力、手入力追加
+- [ ] 11. SQLite キャッシュ
+- [ ] 12. `sources/discogs.py`（トークンありのときだけ有効）
+- [ ] 13. 日本語フォント同梱と PNG 書き出し時のフォント適用確認
+- [ ] 14. `backend/render.py`（Pillow でサーバー側描画）と `POST /render`、`outputs/` 静的配信
+- [ ] 15. `cli.py`（add / list / render / clear）。Claude Code が Bash から呼ぶ想定
+- [ ] 16. `CLAUDE.md` に CLI の使い方と定型ワークフローを記載し、Remote Control でスマホから動作確認
+
+各ステップごとにブラウザで動作確認してから次へ進む。
+
+---
+
+## 8. 未決事項（着手時に決める）
+
+- Canvas 書き出しにするか、html2canvas 等のライブラリを使うか（まず Canvas API で試す）
+- 日本語フォントは何を同梱するか（Noto Sans JP など）
+- 将来 REAPER × TouchDesigner 環境と連携するなら JSON 出力形式を先に固めておくか
+
+---
+
+## 9. Remote Control 運用（スマホから曲を追加して画像を受け取る）
+
+### 前提
+- Claude Code の Remote Control（`claude remote-control`）を使う。セッションは PC 上で動き、
+  スマホの Claude アプリ（Code タブ）はその窓になる。ファイル・ツール・MCP は PC 側のものがそのまま使える
+- Pro / Max / Team / Enterprise のいずれかで claude.ai ログインが必要（API キー不可）
+- PC のプロセスを止めるとオフラインになる。長時間動かすなら tmux / screen 内で起動する
+
+### 起動手順（PC側、毎回）
+```bash
+cd musicgrid-local
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 &   # API + 画像配信
+claude remote-control --name "MusicGrid"                 # スペースキーで QR 表示
+```
+スマホの Claude アプリで QR を読むか、Code タブから "MusicGrid" を選ぶ。
+
+### スマホからの流れ
+1. スマホで「○○（アーティスト）の『△△』を追加して」と送る
+2. PC 側の Claude Code が `python cli.py add --artist "○○" --title "△△"` を実行
+   - CLI は iTunes → Last.fm → MusicBrainz の順に検索し、最初にジャケットが取れたものを採用
+   - 複数候補で迷う場合は候補を番号付きで返し、スマホから番号で選ぶ
+   - Bandcamp 限定なら URL を送ってもらい `cli.py add --bandcamp <url>`
+3. 「画像にして」で `python cli.py render --ratio 16:9 --sidebar`
+   → PNG を `outputs/` に保存し、配信 URL とリストを標準出力に出す
+4. Claude Code はその出力をそのまま返す。スマホ側には
+   - 曲名／アーティスト／ソースの一覧（テキスト）
+   - `http://<PC の LAN IP>:8000/outputs/xxxx.png` の URL
+   が表示されるので、URL をタップして画像を開く／保存する
+
+### 画像を URL で返す理由
+- スマホ→PC の画像添付は公式対応しているが、PC で生成した画像がセッション内に表示されるかは
+  公式ドキュメントに明記がない。テキストは確実に同期されるので、URL で渡すのが最も確実
+- 同期フォルダ方式は採らない。FastAPI の静的配信で完結させる
+
+### CLI 仕様（cli.py）
+```
+cli.py add    --artist A --title T [--grid NAME] [--source itunes|lastfm|mb|discogs]
+cli.py add    --bandcamp URL [--grid NAME]
+cli.py add    --image URL --artist A --title T [--grid NAME]   # 手入力
+cli.py pick   --index N                                         # 直前の候補から選択
+cli.py list   [--grid NAME]                                     # 現在の並びを表示
+cli.py move   --from N --to M                                   # 入れ替え
+cli.py remove --index N
+cli.py render [--grid NAME] [--size 3x3] [--ratio 16:9] [--sidebar] [--title "..."]
+cli.py clear  [--grid NAME]
+```
+- 既定グリッド名は `default`。状態は `grids/<NAME>.json` に保存し Web 側と共有
+- 出力は人間が読めるテキスト。`render` の最後の行は必ず `URL: http://...` にする
+  （Claude Code がそのまま転記できるように）
+
+### CLAUDE.md に書くこと
+- 上記 CLI の使い方
+- 「曲を追加して」「画像にして」「今の並びは？」への対応手順
+- 候補が複数あるときは必ず番号付きで提示してから確定すること
+- render 後は URL を省略せずそのまま返すこと
