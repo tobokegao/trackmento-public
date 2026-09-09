@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from backend import grids, housekeeping, netguard, render, share, storage, uploads
 from backend.cache import cache
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
-                            rate_limit_per_minute, trust_proxy)
+                            rate_limit_per_minute, share_budget_bytes, share_limits, trust_proxy)
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
@@ -104,17 +104,43 @@ if cors_origins():
 # ---------- 簡易レートリミット（IP ごと・1 分間の回数。公開時の連打・スクレイピング対策） ----------
 _RATE_PATHS = ("/search", "/from-url", "/bandcamp", "/upload", "/share", "/render", "/grids")
 _hits: dict[str, deque] = defaultdict(deque)
+# 共有の 1 日あたり回数（IP ごと／全体）。プロセス内カウンタ。日付が変わるとリセット
+_share_day = {"date": "", "per_ip": defaultdict(int), "total": 0}
+
+
+def _client_ip(request: Request) -> str:
+    ip = request.client.host if request.client else "?"
+    if trust_proxy():
+        xff = [v.strip() for v in (request.headers.get("x-forwarded-for") or "").split(",") if v.strip()]
+        if xff:
+            ip = xff[-1]
+    return ip
+
+
+def _check_share_quota(request: Request) -> None:
+    per_ip, per_day = share_limits()
+    if not per_ip and not per_day:
+        return
+    today = time.strftime("%Y-%m-%d")
+    if _share_day["date"] != today:
+        _share_day.update(date=today, per_ip=defaultdict(int), total=0)
+    ip = _client_ip(request)
+    if per_ip and _share_day["per_ip"][ip] >= per_ip:
+        raise HTTPException(429, f"この端末からの共有は 1 日 {per_ip} 回までです。明日またお試しください")
+    if per_day and _share_day["total"] >= per_day:
+        raise HTTPException(429, f"本日の共有回数がサーバー全体の上限（{per_day} 回）に達しました。明日またお試しください")
+
+
+def _count_share(request: Request) -> None:
+    _share_day["per_ip"][_client_ip(request)] += 1
+    _share_day["total"] += 1
 
 
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
     limit = rate_limit_per_minute()
     if limit and request.url.path.startswith(_RATE_PATHS):
-        ip = request.client.host if request.client else "?"
-        if trust_proxy():
-            xff = [v.strip() for v in (request.headers.get("x-forwarded-for") or "").split(",") if v.strip()]
-            if xff:
-                ip = xff[-1]   # 信頼できるプロキシが末尾に付けた値。先頭は偽装できる
+        ip = _client_ip(request)   # プロキシを信頼するのは TRUST_PROXY=1 のときだけ（先頭は偽装できるので末尾）
         now = time.monotonic()
         q = _hits[ip]
         while q and now - q[0] > 60:
@@ -163,6 +189,7 @@ async def health() -> dict:
         "public_base_url": public_base_url(),
         "public": public_mode(),
         "frontend_url": frontend_url(),
+        "storage": storage.get_storage().name,
         "grids": [] if public_mode() else grids.list_names(),   # 公開時は他人のグリッド名を見せない
     }
 
@@ -437,10 +464,14 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
         doc.touch()
         grids.save(doc)
     _check_cells(doc)
+    _check_share_quota(request)
     try:
-        info = await run_in_threadpool(share.create, doc)
+        info = await run_in_threadpool(share.create, doc, share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0)
+    except share.BudgetExceeded as e:
+        raise HTTPException(507, str(e)) from e
     except RuntimeError as e:
         raise HTTPException(500, str(e)) from e
+    _count_share(request)
     if public_mode() and not storage.get_storage().is_remote:
         housekeeping.prune_shares()   # R2 のときはバケットのライフサイクルルールに任せる
     base = base_url_for(request)

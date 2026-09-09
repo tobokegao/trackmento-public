@@ -47,6 +47,32 @@ def max_cells() -> int:
     return max(0, v)
 
 
+def max_side() -> int:
+    """書き出し PNG の最大辺。公開モードは 4000px（1 枚を軽く）。ローカルは 8000px。MAX_SIDE で変更可"""
+    try:
+        return max(1000, int(os.getenv("MAX_SIDE", "4000" if public_mode() else "8000")))
+    except ValueError:
+        return 4000 if public_mode() else 8000
+
+
+def share_budget_bytes() -> int:
+    """共有ファイルの合計サイズの上限。SHARE_BUDGET_GB（既定 9.5 = R2 無料枠 10GB の手前）。0 で無制限"""
+    try:
+        gb = float(os.getenv("SHARE_BUDGET_GB", "9.5"))
+    except ValueError:
+        gb = 9.5
+    return int(gb * 1024 ** 3) if gb > 0 else 0
+
+
+def share_limits() -> tuple[int, int]:
+    """(IP ごとの 1 日の共有回数, サーバー全体の 1 日の共有回数)。公開モードの既定は 20 / 200。ローカルは無制限。0 で無制限"""
+    d_ip, d_all = ("20", "200") if public_mode() else ("0", "0")
+    try:
+        return max(0, int(os.getenv("SHARE_LIMIT_PER_IP_DAY", d_ip))), max(0, int(os.getenv("SHARE_LIMIT_PER_DAY", d_all)))
+    except ValueError:
+        return (20, 200) if public_mode() else (0, 0)
+
+
 def rate_limit_per_minute() -> int:
     try:
         return max(0, int(os.getenv("RATE_LIMIT", "120")))

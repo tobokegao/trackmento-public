@@ -22,6 +22,12 @@ services:
         value: "120"
       - key: TRUST_PROXY
         value: "1"
+      - key: SHARE_BUDGET_GB
+        value: "9.5"
+      - key: SHARE_LIMIT_PER_IP_DAY
+        value: "20"
+      - key: SHARE_LIMIT_PER_DAY
+        value: "200"
       # 共有 PNG を Cloudflare R2 に置く（ダッシュボードで値を入れる）
       - key: R2_ACCOUNT_ID
         sync: false

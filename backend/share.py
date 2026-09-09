@@ -1,13 +1,14 @@
 """「トラックを共有」。その時点の並びを PNG と JSON のスナップショットとして shares/<id>.{png,json} に保存し、
 共有 URL（/s/<id>）で PNG・曲リスト・「TRACKMENTO で開く」（/?share=<id>）をまとめて見られるようにする。
 
-- id は内容のハッシュ 6 桁 + 時刻 4 桁（同じ並びでも押すたびに別 id。過去の共有は消えない）
+- id は内容のハッシュ 6 桁 + 時刻 4 桁 + 乱数 2 桁（同じ並びでも押すたびに別 id。過去の共有は消えない）
 - outputs/ と違って世代管理で消さない（共有 URL が死なないように）
 """
 from __future__ import annotations
 
 import hashlib
 import html
+import secrets
 import json
 import re
 import time
@@ -28,7 +29,8 @@ def _new_id(doc: GridDoc) -> str:
     body = json.dumps(doc.model_dump(exclude={"savedAt", "name"}), ensure_ascii=False, sort_keys=True)
     h = hashlib.sha1(body.encode("utf-8")).hexdigest()[:6]
     t = format(int(time.time()) % (36 ** 4), "x")[-4:].rjust(4, "0")
-    return f"{h}{t}"
+    r = secrets.token_hex(1)   # 同じ内容を同じ秒に共有しても別 ID になるように
+    return f"{h}{t}{r}"
 
 
 def png_url(sid: str) -> str:
@@ -36,19 +38,36 @@ def png_url(sid: str) -> str:
     return storage.get_storage().public_url(f"{sid}.png") or f"/shares/{sid}.png"
 
 
-def create(doc: GridDoc) -> dict:
-    """PNG と JSON を保存（ローカルの shares/ か Cloudflare R2）して {id, png, json, width, height} を返す。
-    png は公開 URL があれば絶対 URL、無ければ /shares/... の相対 URL。"""
+class BudgetExceeded(Exception):
+    def __init__(self, used: int, budget: int, need: int):
+        super().__init__(f"共有の保存容量が上限に達しています（使用 {used / 1024**3:.2f} GB / 上限 {budget / 1024**3:.2f} GB）。古い共有が期限切れで消えるまでお待ちください")
+        self.used, self.budget, self.need = used, budget, need
+
+
+def create(doc: GridDoc, budget: int = 0) -> dict:
+    """PNG と JSON を保存（ローカルの shares/ か Cloudflare R2）して {id, png, json, width, height, bytes} を返す。
+    png は公開 URL があれば絶対 URL、無ければ /shares/... の相対 URL。
+    budget > 0 のときは、保存後の合計がそれを超えるなら保存せず BudgetExceeded を投げる（実バイト数で判定）。"""
     st = storage.get_storage()
     sid = _new_id(doc)
     im = render.render(doc)
     buf = io.BytesIO()
     im.save(buf, "PNG", optimize=True)
+    png = buf.getvalue()
     snap = doc.model_dump()
     snap.update({"id": sid, "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")})
-    st.put(f"{sid}.png", buf.getvalue(), "image/png")
-    st.put(f"{sid}.json", json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8"), "application/json")
-    return {"id": sid, "png": png_url(sid), "json": f"/shares/{sid}.json", "width": im.width, "height": im.height}
+    js = json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8")
+    need = len(png) + len(js)
+    if budget > 0:
+        used = storage.usage_bytes()
+        if used + need > budget:
+            used = storage.usage_bytes(refresh=True)   # キャッシュが古い可能性があるので取り直してから最終判断
+            if used + need > budget:
+                raise BudgetExceeded(used, budget, need)
+    st.put(f"{sid}.png", png, "image/png")
+    st.put(f"{sid}.json", js, "application/json")
+    storage.add_usage(need)
+    return {"id": sid, "png": png_url(sid), "json": f"/shares/{sid}.json", "width": im.width, "height": im.height, "bytes": need}
 
 
 def get_png(sid: str) -> bytes | None:

@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import os
+import threading
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,6 +44,9 @@ class LocalStorage:
 
     def public_url(self, key: str) -> str | None:
         return None
+
+    def usage_bytes(self) -> int:
+        return sum(p.stat().st_size for p in SHARES.glob("*") if p.is_file()) if SHARES.exists() else 0
 
 
 class R2Storage:
@@ -91,6 +96,43 @@ class R2Storage:
 
     def public_url(self, key: str) -> str | None:
         return f"{self._public}/{key}" if self._public else None
+
+    def usage_bytes(self) -> int:
+        """バケット内の合計バイト数。一覧（ListObjectsV2）は Class A 操作だが 1000 件ごとに 1 回なので安い"""
+        total = 0
+        token = None
+        while True:
+            kw = {"Bucket": self.bucket, "MaxKeys": 1000}
+            if token:
+                kw["ContinuationToken"] = token
+            r = self._client.list_objects_v2(**kw)
+            total += sum(o.get("Size", 0) for o in r.get("Contents", []))
+            if not r.get("IsTruncated"):
+                return total
+            token = r.get("NextContinuationToken")
+
+
+# ---- 使用量の集計（10 分キャッシュ。保存のたびに加算するので、その間も上限判定がずれない） ----
+_usage_lock = threading.Lock()
+_usage: tuple[float, int] | None = None   # (取得時刻, バイト数)
+USAGE_CACHE_SEC = 600
+
+
+def usage_bytes(refresh: bool = False) -> int:
+    global _usage
+    with _usage_lock:
+        if not refresh and _usage and time.monotonic() - _usage[0] < USAGE_CACHE_SEC:
+            return _usage[1]
+        n = get_storage().usage_bytes()
+        _usage = (time.monotonic(), n)
+        return n
+
+
+def add_usage(n: int) -> None:
+    global _usage
+    with _usage_lock:
+        if _usage:
+            _usage = (_usage[0], _usage[1] + n)
 
 
 _storage: LocalStorage | R2Storage | None = None

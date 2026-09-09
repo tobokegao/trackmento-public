@@ -193,7 +193,8 @@ def layout(doc: GridDoc) -> Layout:
             W = rnd(H * ratio)
         else:
             H = rnd(W / ratio)
-    scale = min(1.0, MAX_SIDE / max(W, H))
+    from backend.config import max_side
+    scale = min(1.0, max_side() / max(W, H))
     return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
                   title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap)
 
