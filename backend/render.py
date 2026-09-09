@@ -107,6 +107,11 @@ def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
     return _font_cache[key]
 
 
+def _one_line(s: str | None) -> str:
+    """改行・タブを空白に。Pillow は改行入りの文字列を 1 行として測れない（ValueError）ので、描画前に必ず通す"""
+    return " ".join((s or "").split())
+
+
 def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
     if draw.textlength(text, font=f) <= max_w:
         return text
@@ -172,7 +177,7 @@ class Layout:
 def layout(doc: GridDoc) -> Layout:
     o = doc.options
     cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
-    title = doc.title.strip() if o.showTitle else ""
+    title = _one_line(doc.title) if o.showTitle else ""
     gw = cols * CELL_PX + (cols - 1) * g
     gh = rows * CELL_PX + (rows - 1) * g
     title_size = rnd(min(96, max(48, gw * 0.045)))
@@ -212,7 +217,7 @@ def _longest_line(doc: GridDoc, font_s: int) -> int:
     best = 0
     for t in doc.cells:
         if t:
-            best = max(best, nw + f_title.getlength(t.title) + f_artist.getlength(f"  {t.artist}"))
+            best = max(best, nw + f_title.getlength(_one_line(t.title)) + f_artist.getlength(f"  {_one_line(t.artist)}"))
     return int(math.ceil(best)) + 8
 
 
@@ -293,7 +298,7 @@ def render(doc: GridDoc) -> Image.Image:
             if not t:
                 continue
             max_w = col_w - nw
-            f_title, f_artist, title_s, artist_s = _fit_line(d, t.title, t.artist, L.font_s, max_w)
+            f_title, f_artist, title_s, artist_s = _fit_line(d, _one_line(t.title), _one_line(t.artist), L.font_s, max_w)
             d.text((x + nw, yy), title_s, font=f_title, fill=ink, anchor="lm")
             if artist_s:
                 d.text((x + nw + d.textlength(title_s, font=f_title), yy), artist_s, font=f_artist, fill=muted, anchor="lm")

@@ -87,7 +87,7 @@ class GridDoc(BaseModel):
     @field_validator("title", mode="before")
     @classmethod
     def _title(cls, v) -> str:
-        return (v if isinstance(v, str) else "")[:60]
+        return " ".join((v if isinstance(v, str) else "").split())[:60]   # 改行は空白に
 
     @field_validator("cells", "stash", mode="before")
     @classmethod
