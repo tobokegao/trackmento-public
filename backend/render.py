@@ -17,7 +17,7 @@ from pathlib import Path
 import httpx
 from PIL import Image, ImageDraw, ImageFont
 
-from backend import netguard, uploads
+from backend import imgtools, netguard, uploads
 from backend.cache import cache
 from backend.grids import GridDoc
 from backend.models import Track
@@ -142,7 +142,10 @@ def fetch_image_bytes(url: str) -> bytes:
 def load_cover(t: Track) -> Image.Image | None:
     try:
         data = fetch_image_bytes(t.image)
-        return Image.open(io.BytesIO(data)).convert("RGB")
+        im = Image.open(io.BytesIO(data)).convert("RGB")
+        if imgtools.is_video_thumb(t.image) or t.source in ("youtube", "nicovideo", "bilibili", "otodb"):
+            im = imgtools.trim_letterbox(im)   # 動画サムネイルの黒帯を落としてから切り抜く
+        return im
     except Exception as e:  # 1枚の失敗で全体を止めない
         print(f"[render] image failed: {t.title} / {t.artist}: {e!r}")
         return None

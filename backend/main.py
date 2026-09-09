@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, housekeeping, netguard, render, share, storage, uploads
+from backend import grids, housekeeping, imgtools, netguard, render, share, storage, uploads
 from backend.cache import cache
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
                             rate_limit_per_minute, share_budget_bytes, share_limits, trust_proxy)
@@ -283,6 +283,9 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL")
         ctype, data = hit
     else:
         ctype, data = await fetch_image(url)
+        if imgtools.is_video_thumb(url):
+            # 動画サムネイルの黒帯（レターボックス）を落とす。プレビューと書き出しで同じ見た目になる
+            data, ctype = await asyncio.to_thread(imgtools.trim_letterbox_bytes, data, ctype)
         await asyncio.to_thread(cache.set_image, url, ctype, data)
     return Response(content=data, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
