@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>トラックグリッド</title>
+<title>TRACKMENTO</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Sans+JP:wght@400;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <style>
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(95% 0.015 95) · accent: oklch(60% 0.14 235)
- * display: DotGothic16 (incl. wordmark) · body: IBM Plex Sans JP · outlier: Silkscreen (cell numbers + count badges only) · axes: light / risograph-bold / cool
+ * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
  * studied: no · context: user-provided (audience: self, J-POP · use: search → place → PNG · tone: utilitarian) · v1.1.0
  * Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4
  */
@@ -81,15 +81,11 @@ img { max-width: 100%; display: block; }
   background: var(--color-paper);
 }
 .wordmark {
-  display: flex; align-items: flex-end; gap: var(--space-2);
-  font-family: var(--font-display); font-weight: 400; font-size: var(--text-lg); letter-spacing: 0.06em;
+  font-family: var(--font-outlier); font-weight: 700; font-size: var(--text-lg); letter-spacing: 0.04em;
+  text-shadow: 3px 3px 0 var(--color-cerulean);
   white-space: nowrap;
 }
-.wordmark small { margin-bottom: 9px; } /* キャンバス下端の余白 3 ドット分に合わせる */
-/* 粗いドット文字: 16px で描いた DotGothic16 を最近傍で 3 倍に拡大（1ドット = 3px） */
-.wordmark canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
-.wordmark canvas + .wordmark-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.wordmark small { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); letter-spacing: 0; }
+.wordmark small { font-family: var(--font-display); font-size: var(--text-xs); text-shadow: none; color: var(--color-muted); margin-left: var(--space-2); letter-spacing: 0; }
 .bar-status { margin: 0 0 0 auto; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
 
 /* ---------- panes ---------- */
@@ -295,7 +291,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <body>
 
 <header class="bar">
-  <h1 class="wordmark" id="wordmark"><span class="wordmark-text">トラックグリッド</span> <small>local</small></h1>
+  <h1 class="wordmark">TRACKMENTO <small>local</small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite">起動中</p>
 </header>
 
@@ -359,7 +355,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </div>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="生成したグリッド画像のプレビュー">
-        <a class="btn dl" id="download" download="trackgrid.png" href="#">PNG を保存</a>
+        <a class="btn dl" id="download" download="trackmento.png" href="#">PNG を保存</a>
       </div>
     </div>
   </section>
@@ -379,7 +375,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 </main>
 
 <footer>
-  <span>トラックグリッド</span>
+  <span>TRACKMENTO</span>
   <a href="/health">/health</a>
   <span id="foot-sources"></span>
 </footer>
@@ -614,7 +610,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (els.download.href.startsWith("blob:")) URL.revokeObjectURL(els.download.href);
       const url = URL.createObjectURL(blob);
       els.outputImg.src = url; els.download.href = url;
-      els.download.download = (title || "trackgrid").replace(/[\\/:*?"<>|]/g, "_") + ".png";
+      els.download.download = (title || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
       els.output.hidden = false;
       setBtnState(els.renderBtn, null);
       say(els.gridMsg, `${W} × ${H} px の PNG ができました。`);
@@ -626,46 +622,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
   });
 
-  /* ---- wordmark: coarse pixel rendering ---- */
-  async function drawWordmark() {
-    const h1 = $("#wordmark"), textEl = h1.querySelector(".wordmark-text");
-    const text = textEl.textContent.trim();
-    const BASE = 16, SCALE = 3, OFFSET = 1; // DotGothic16 は 16px グリッド設計。1ドット=3px、版ズレ1ドット
-    try { await document.fonts.load(`${BASE}px "DotGothic16"`); } catch { return; }
-    if (!document.fonts.check(`${BASE}px "DotGothic16"`)) return;
-    const css = getComputedStyle(document.documentElement);
-    const ink = css.getPropertyValue("--color-ink").trim(), accent = css.getPropertyValue("--color-cerulean").trim();
-    // 1) 小さく描いて二値化
-    const small = document.createElement("canvas");
-    const sctx = small.getContext("2d");
-    sctx.font = `${BASE}px "DotGothic16"`;
-    const w = Math.ceil(sctx.measureText(text).width) + OFFSET + 1, h = BASE + OFFSET + 3;
-    small.width = w; small.height = h;
-    sctx.font = `${BASE}px "DotGothic16"`; sctx.textBaseline = "top"; sctx.fillStyle = "#000";
-    sctx.fillText(text, 0, 1);
-    const id = sctx.getImageData(0, 0, w, h), px = id.data;
-    const on = new Uint8Array(w * h);
-    for (let i = 0; i < w * h; i++) on[i] = px[i * 4 + 3] > 96 ? 1 : 0;
-    // 2) 拡大キャンバスにドットを打つ（先にアクセント版をずらして、次にインク版）
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    const big = document.createElement("canvas");
-    big.width = w * SCALE * dpr; big.height = h * SCALE * dpr;
-    big.style.width = `${w * SCALE}px`; big.style.height = `${h * SCALE}px`;
-    const bctx = big.getContext("2d");
-    bctx.scale(SCALE * dpr, SCALE * dpr);
-    const plot = (dx, dy, color) => {
-      bctx.fillStyle = color;
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (on[y * w + x]) bctx.fillRect(x + dx, y + dy, 1, 1);
-    };
-    plot(OFFSET, OFFSET, accent);
-    plot(0, 0, ink);
-    big.setAttribute("aria-hidden", "true");
-    h1.insertBefore(big, textEl);
-  }
-
   renderGrid();
   loadHealth();
-  drawWordmark();
 })();
 </script>
 </body>
