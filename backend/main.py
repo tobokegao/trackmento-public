@@ -287,6 +287,7 @@ class RenderBody(BaseModel):
     bg: str | None = None
     bgCustom: str | None = None
     margin: int | None = None
+    gap: int | None = None
 
 
 def apply_render_options(doc: GridDoc, body: RenderBody) -> bool:
@@ -304,7 +305,7 @@ def apply_render_options(doc: GridDoc, body: RenderBody) -> bool:
         doc.title = body.title[:60]
         changed = True
     opts = doc.options.model_dump()
-    for k in ("ratio", "sidebar", "showTitle", "numbers", "bg", "bgCustom", "margin"):
+    for k in ("ratio", "sidebar", "showTitle", "numbers", "bg", "bgCustom", "margin", "gap"):
         v = getattr(body, k)
         if v is not None and v != opts.get(k):
             opts[k] = v

@@ -27,9 +27,9 @@ claude --remote-control TRACKMENTO                                             #
 .venv/Scripts/python cli.py list   [--grid NAME]
 .venv/Scripts/python cli.py move   --from N --to M [--grid NAME]
 .venv/Scripts/python cli.py remove --index N [--grid NAME]
-.venv/Scripts/python cli.py render [--grid NAME] [--size 3x3] [--ratio 1:1|16:9|4:5|9:16|free] [--sidebar|--no-sidebar]
+.venv/Scripts/python cli.py render [--grid NAME] [--size 3x3] [--ratio 1:1|16:9|9:16|free] [--sidebar|--no-sidebar]
                                    [--title "…"] [--no-title] [--numbers|--no-numbers] [--bg paper|ink|mustard|cerulean|lavender|vermilion|mint|pink]
-                                   [--bg-custom "#rrggbb"] [--margin 48]
+                                   [--bg-custom "#rrggbb"] [--margin 48] [--gap 12]
 .venv/Scripts/python cli.py clear  [--grid NAME]
 .venv/Scripts/python cli.py grids
 ```

@@ -164,10 +164,10 @@ class Layout:
 
 def layout(doc: GridDoc) -> Layout:
     o = doc.options
-    cols, rows, n, m = doc.cols, doc.rows, doc.size, o.margin
+    cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
     title = doc.title.strip() if o.showTitle else ""
-    gw = cols * CELL_PX + (cols - 1) * GAP_PX
-    gh = rows * CELL_PX + (rows - 1) * GAP_PX
+    gw = cols * CELL_PX + (cols - 1) * g
+    gh = rows * CELL_PX + (rows - 1) * g
     title_size = rnd(min(96, max(48, gw * 0.045)))
     title_h = rnd(title_size * 1.9) if title else 0
     ratio = RATIOS[o.ratio]
@@ -221,7 +221,7 @@ def render(doc: GridDoc) -> Image.Image:
     num_font = font("pixel", 22)
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
-        x, y = L.ox + c * (CELL_PX + GAP_PX), y0 + r * (CELL_PX + GAP_PX)
+        x, y = L.ox + c * (CELL_PX + o.gap), y0 + r * (CELL_PX + o.gap)
         d.rectangle((x, y, x + CELL_PX - 1, y + CELL_PX - 1), fill=cell_bg)
         if t:
             cover = load_cover(t)

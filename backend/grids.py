@@ -33,6 +33,7 @@ class GridOptions(BaseModel):
     bg: str = "paper"
     bgCustom: Optional[str] = None
     margin: int = 48
+    gap: int = 12       # マスとマスの間隔（出力 px）
 
     @field_validator("bg")
     @classmethod
@@ -46,6 +47,14 @@ class GridOptions(BaseModel):
             return max(0, min(160, int(round(float(v)))))
         except (TypeError, ValueError):
             return 48
+
+    @field_validator("gap", mode="before")
+    @classmethod
+    def _gap(cls, v) -> int:
+        try:
+            return max(0, min(96, int(round(float(v)))))
+        except (TypeError, ValueError):
+            return 12
 
     @model_validator(mode="after")
     def _custom(self) -> "GridOptions":

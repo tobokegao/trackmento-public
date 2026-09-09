@@ -399,7 +399,9 @@ body.sheet-open { overflow: hidden; }
   background: var(--color-paper); border-top: var(--line) solid var(--color-ink);
   font-size: var(--text-xs); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.grid-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.grid-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); max-width: 32rem; }
+.grid-actions .btn { padding-inline: var(--space-2); }
+#find-btn { grid-column: 1 / -1; }
 
 /* ---------- options ---------- */
 .opts { display: grid; gap: var(--space-4); }
@@ -554,12 +556,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <div class="grid-actions">
         <button class="btn btn-primary" type="button" id="render-btn"><span class="label">画像を作る</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
-        <button class="btn" type="button" id="export-btn">JSON 書き出し</button>
-        <button class="btn" type="button" id="import-btn">JSON 読み込み</button>
+        <button class="btn" type="button" id="import-btn">JSON を読込</button>
+        <button class="btn" type="button" id="export-btn">JSON を出力</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
-        <button class="btn" type="button" id="find-btn">曲を探す</button>
-        <button class="btn" type="button" id="server-render-btn" title="サーバー（Pillow）で描いて outputs/ に保存し、URL を得る">サーバーで作る（URL）</button>
-        <button class="btn" type="button" id="reload-btn" title="CLI で更新した grids/default.json を読み直す">サーバーから読み直す</button>
+        <button class="btn" type="button" id="reload-btn" title="サーバーに保存されている並び（CLI／スマホで更新したもの）を読み直す">サーバーから読込</button>
+        <button class="btn" type="button" id="server-render-btn" title="サーバー側で PNG を作り、スマホから開ける URL を得る">URL を出力</button>
+        <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
       </div>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="生成したグリッド画像のプレビュー">
@@ -608,6 +610,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <label for="margin">余白 <output id="margin-out" for="margin">48</output> px</label>
         <input type="range" id="margin" min="0" max="160" step="8" value="48">
       </div>
+      <div class="field">
+        <label for="gap">マスの間隔 <output id="gap-out" for="gap">12</output> px</label>
+        <input type="range" id="gap" min="0" max="96" step="4" value="12">
+      </div>
 
       <dl class="spec">
         <dt>出力サイズ</dt><dd id="spec-out">—</dd>
@@ -647,7 +653,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
-    ratio: "1:1", showTitle: true, sidebar: false, numbers: true, bg: "paper", bgCustom: null, margin: 48,
+    ratio: "1:1", showTitle: true, sidebar: false, numbers: true, bg: "paper", bgCustom: null, margin: 48, gap: 12,
   };
   let available = [];
   let dragFrom = null;
@@ -667,7 +673,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"), optTitle: $("#opt-title"), optSidebar: $("#opt-sidebar"), optNumbers: $("#opt-numbers"),
-    swatches: $("#swatches"), bgCustom: $("#bg-custom"), margin: $("#margin"), marginOut: $("#margin-out"),
+    swatches: $("#swatches"), bgCustom: $("#bg-custom"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"),
   };
 
@@ -1008,6 +1014,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.optSidebar.addEventListener("change", () => { state.sidebar = els.optSidebar.checked; updateSpec(); });
   els.optNumbers.addEventListener("change", () => { state.numbers = els.optNumbers.checked; renderGrid(); });
   els.margin.addEventListener("input", () => { state.margin = Number(els.margin.value); els.marginOut.value = state.margin; updateSpec(); });
+  els.gap.addEventListener("input", () => { state.gap = Number(els.gap.value); els.gapOut.value = state.gap; updateSpec(); });
   els.bgCustom.addEventListener("input", () => {
     state.bg = "custom"; state.bgCustom = els.bgCustom.value;
     for (const i of els.swatches.querySelectorAll("input")) i.checked = false;
@@ -1061,7 +1068,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const m = state.margin;
     const title = state.showTitle ? state.title.trim() : "";
     const n = state.cells.length;
-    const gw = cols * CELL_PX + (cols - 1) * GAP_PX, gh = rows * CELL_PX + (rows - 1) * GAP_PX;
+    const g = state.gap;
+    const gw = cols * CELL_PX + (cols - 1) * g, gh = rows * CELL_PX + (rows - 1) * g;
     const titleSize = Math.round(Math.min(96, Math.max(48, gw * 0.045)));
     const titleH = title ? Math.round(titleSize * 1.9) : 0;
     const ratio = RATIOS[state.ratio];
@@ -1094,16 +1102,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function syncPreview() {
     const W = els.grid.getBoundingClientRect().width;
     if (!W) return;
-    const gw = state.cols * CELL_PX + (state.cols - 1) * GAP_PX;
+    const gw = state.cols * CELL_PX + (state.cols - 1) * state.gap;
     const k = W / (gw + state.margin * 2);
-    const pad = state.margin * k, gap = GAP_PX * k;
+    const pad = state.margin * k, gap = state.gap * k;
     els.grid.style.padding = `${pad}px`;
     els.grid.style.gap = `${gap}px`;
     els.grid.style.background = bgColor();
-    // スクロール枠の高さは 3 行分まで。4 行以上になるとスクロールバーが出る
-    const cell = (W - pad * 2 - gap * (state.cols - 1)) / state.cols;
-    const rows = Math.min(3, state.rows);
-    els.gridScroll.style.maxHeight = `${Math.ceil(cell * rows + gap * (rows - 1) + pad * 2) + 4}px`;
+    // 枠の大きさは列数・行数によらず 3×3 のときと同じ正方形に固定。行が列より多いとスクロールバーが出る
+    els.gridScroll.style.height = `${Math.round(W) + 4}px`;
   }
   new ResizeObserver(() => syncPreview()).observe(els.gridScroll);
 
@@ -1115,7 +1121,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return {
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash,
-      options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar, numbers: state.numbers, bg: state.bg, bgCustom: state.bgCustom, margin: state.margin },
+      options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar, numbers: state.numbers, bg: state.bg, bgCustom: state.bgCustom, margin: state.margin, gap: state.gap },
     };
   }
   function applyData(d) {
@@ -1134,6 +1140,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else { state.bg = bgKeys.includes(o.bg) ? o.bg : "paper"; }
     state.margin = clamp(o.margin, 0, 160, 48);
+    state.gap = clamp(o.gap, 0, 96, 12);
     selected = null; target = null;
     syncControls();
     renderGrid();
@@ -1146,6 +1153,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     for (const i of els.swatches.querySelectorAll("input")) i.checked = i.value === state.bg;
     if (state.bg === "custom" && state.bgCustom) els.bgCustom.value = state.bgCustom;
     els.margin.value = state.margin; els.marginOut.value = state.margin;
+    els.gap.value = state.gap; els.gapOut.value = state.gap;
   }
   /* 保存先は 2 つ。localStorage（即時）と grids/default.json（サーバー。CLI と共有）。
      サーバーへは内容が変わったときだけ PUT する（savedAt を除いて比較） */
@@ -1296,7 +1304,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const numFont = document.fonts.check(`700 20px "Silkscreen"`) ? `700 22px "Silkscreen", monospace` : `700 24px "IBM Plex Sans JP", sans-serif`;
       state.cells.forEach((t, i) => {
         const c = i % state.cols, r = Math.floor(i / state.cols);
-        const x = L.ox + c * (CELL_PX + GAP_PX), y = y0 + r * (CELL_PX + GAP_PX);
+        const x = L.ox + c * (CELL_PX + state.gap), y = y0 + r * (CELL_PX + state.gap);
         ctx.fillStyle = light ? token("paper-3") : token("ink-2"); ctx.fillRect(x, y, CELL_PX, CELL_PX);
         if (imgs[i]) drawCover(ctx, imgs[i], x, y, CELL_PX, CELL_PX);
         if (state.numbers) {

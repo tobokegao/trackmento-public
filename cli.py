@@ -292,7 +292,7 @@ def cmd_render(a: argparse.Namespace) -> int:
     opts = doc.options.model_dump()
     updates = {
         "ratio": a.ratio, "sidebar": a.sidebar, "showTitle": a.show_title, "numbers": a.numbers,
-        "bg": a.bg, "bgCustom": a.bg_custom, "margin": a.margin,
+        "bg": a.bg, "bgCustom": a.bg_custom, "margin": a.margin, "gap": a.gap,
     }
     if a.bg_custom and a.bg is None:
         updates["bg"] = "custom"
@@ -384,6 +384,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--bg", choices=["paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink"], help="背景色")
     sp.add_argument("--bg-custom", metavar="#RRGGBB", help="背景色を直接指定")
     sp.add_argument("--margin", type=int, help="余白 px（0〜160）")
+    sp.add_argument("--gap", type=int, help="マスとマスの間隔 px（0〜96、既定 12）")
     sp.set_defaults(fn=cmd_render)
 
     sp = sub.add_parser("clear", help="グリッドを空にする")
