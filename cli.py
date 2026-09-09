@@ -147,7 +147,14 @@ def cmd_add(a: argparse.Namespace) -> int:
     elif a.image:
         if not (a.title and a.artist is not None):
             raise CliError("--image には --title と --artist が必要です")
-        t = Track(source="manual", title=a.title, artist=a.artist or "", image=a.image, thumb=a.image)
+        image = a.image
+        if not image.lower().startswith(("http://", "https://", "/uploads/")):
+            # PC 上のファイルパスなら uploads/ に取り込む
+            from backend import uploads
+
+            image = uploads.import_file(image)
+            print(f"画像を取り込みました: {image}")
+        t = Track(source="manual", title=a.title, artist=a.artist or "", image=image, thumb=image)
     else:
         if not (a.title or a.artist):
             raise CliError("--title か --artist を指定してください")
@@ -332,7 +339,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--source", "-s", help="itunes | lastfm | mb | discogs（省略時は iTunes → Last.fm → MusicBrainz → Discogs の順）")
     sp.add_argument("--first", action="store_true", help="候補が複数でも先頭を採用する")
     sp.add_argument("--bandcamp", metavar="URL", help="Bandcamp のトラック／アルバム URL")
-    sp.add_argument("--image", metavar="URL", help="手入力: ジャケット画像の URL（--title --artist と併用）")
+    sp.add_argument("--image", metavar="URL|PATH", help="手入力: ジャケット画像の URL か PC 上のファイルパス（--title --artist と併用）")
     sp.set_defaults(fn=cmd_add)
 
     sp = sub.add_parser("pick", help="直前の候補から番号で選んで置く")

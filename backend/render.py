@@ -17,6 +17,7 @@ from pathlib import Path
 import httpx
 from PIL import Image, ImageDraw, ImageFont
 
+from backend import uploads
 from backend.cache import cache
 from backend.grids import GridDoc
 from backend.models import Track
@@ -117,6 +118,11 @@ def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, 
 
 # ---------- 画像取得（キャッシュ → HTTP） ----------
 def fetch_image_bytes(url: str) -> bytes:
+    if uploads.is_upload_url(url):
+        p = uploads.local_path(url)
+        if not p:
+            raise ValueError(f"アップロード画像がありません: {url}")
+        return p.read_bytes()
     hit = cache.get_image(url)
     if hit:
         return hit[1]

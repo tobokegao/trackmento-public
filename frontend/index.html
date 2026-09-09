@@ -443,7 +443,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <form class="pane-body search-form" id="manual-form" novalidate>
       <div class="field">
         <label for="m-image">手入力: ジャケット画像の URL</label>
-        <input class="input" id="m-image" name="image" type="url" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
+        <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
+        <div class="search-actions">
+          <button class="btn" type="button" id="m-file-btn"><span class="label">PC／スマホの画像を選ぶ</span></button>
+          <input type="file" id="m-file" accept="image/*" hidden>
+          <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶとサーバーの uploads/ に保存され、URL 欄に入ります。</p>
+        </div>
       </div>
       <div class="field">
         <label for="m-title">曲名</label>
@@ -586,6 +591,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     sources: $("#sources"), searchBtn: $("#search-btn"), searchMsg: $("#search-msg"),
     bcForm: $("#bandcamp-form"), bcUrl: $("#bc-url"), bcBtn: $("#bc-btn"), bcMsg: $("#bc-msg"),
     mForm: $("#manual-form"), mImage: $("#m-image"), mTitle: $("#m-title"), mArtist: $("#m-artist"), mBtn: $("#m-btn"), mMsg: $("#m-msg"),
+    mFileBtn: $("#m-file-btn"), mFile: $("#m-file"), mFileMsg: $("#m-file-msg"),
     exportBtn: $("#export-btn"), importBtn: $("#import-btn"), importFile: $("#import-file"),
     serverRenderBtn: $("#server-render-btn"), reloadBtn: $("#reload-btn"), outputUrl: $("#output-url"),
     results: $("#results"), resultsCount: $("#results-count"),
@@ -599,7 +605,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     specOut: $("#spec-out"), specCell: $("#spec-cell"),
   };
 
-  const proxied = (url) => `/image-proxy?url=${encodeURIComponent(url)}`;
+  // アップロード画像（/uploads/…）は同一オリジンなのでプロキシを通さない
+  const proxied = (url) => (url.startsWith("/uploads/") ? url : `/image-proxy?url=${encodeURIComponent(url)}`);
+  const isImageRef = (s) => /^https?:\/\//.test(s) || /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(s);
   const setBtnState = (btn, s) => { if (s) btn.dataset.state = s; else delete btn.dataset.state; btn.disabled = s === "loading"; };
   const say = (el, text, tone) => { el.textContent = text; if (tone) el.dataset.tone = tone; else delete el.dataset.tone; };
 
@@ -686,13 +694,37 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     e.preventDefault();
     const image = els.mImage.value.trim(), title = els.mTitle.value.trim(), artist = els.mArtist.value.trim();
     for (const el of [els.mImage, els.mTitle]) el.removeAttribute("aria-invalid");
-    if (!/^https?:\/\//.test(image)) { els.mImage.setAttribute("aria-invalid", "true"); say(els.mMsg, "画像の URL は https:// から始まる必要があります。", "error"); els.mImage.focus({ preventScroll: true }); return; }
+    if (!isImageRef(image)) { els.mImage.setAttribute("aria-invalid", "true"); say(els.mMsg, "画像は https:// の URL か、「画像を選ぶ」で取り込んだ /uploads/ の URL にしてください。", "error"); els.mImage.focus({ preventScroll: true }); return; }
     if (!title) { els.mTitle.setAttribute("aria-invalid", "true"); say(els.mMsg, "曲名を入れてください。", "error"); els.mTitle.focus({ preventScroll: true }); return; }
     const t = { source: "manual", title, artist, album: null, image, thumb: image, external_url: null };
     currentResults = [t, ...currentResults.filter(x => x.image !== image)];
     renderResults(currentResults);
     els.mImage.value = ""; els.mTitle.value = ""; els.mArtist.value = "";
     say(els.mMsg, `候補の先頭に「${title}」を入れました。クリックで配置します。`);
+  });
+
+  /* ---- ローカル画像のアップロード（手入力用） ---- */
+  els.mFileBtn.addEventListener("click", () => els.mFile.click());
+  els.mFile.addEventListener("change", async () => {
+    const f = els.mFile.files[0];
+    if (!f) return;
+    setBtnState(els.mFileBtn, "loading"); say(els.mFileMsg, `${f.name} を送っています…`);
+    try {
+      const fd = new FormData(); fd.append("file", f, f.name);
+      const r = await fetch("/upload", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+      els.mImage.value = d.url; els.mImage.removeAttribute("aria-invalid");
+      if (!els.mTitle.value) els.mTitle.value = f.name.replace(/\.[^.]+$/, "");
+      setBtnState(els.mFileBtn, null);
+      say(els.mFileMsg, `取り込みました（${d.url}）。曲名を確認して「手入力で追加」を押してください。`);
+      els.mTitle.focus({ preventScroll: true });
+    } catch (err) {
+      setBtnState(els.mFileBtn, "error");
+      say(els.mFileMsg, `取り込めませんでした。${err.message}`, "error");
+      setTimeout(() => setBtnState(els.mFileBtn, null), 2500);
+    }
+    els.mFile.value = "";
   });
 
   let currentResults = [];

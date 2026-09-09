@@ -11,13 +11,13 @@ from urllib.parse import urlparse
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, render
+from backend import grids, render, uploads
 from backend.cache import cache
 from backend.config import public_base_url
 from backend.grids import GridDoc, GridOptions
@@ -59,6 +59,7 @@ if discogs.enabled():
 async def lifespan(app: FastAPI):
     OUTPUTS.mkdir(exist_ok=True)
     GRIDS.mkdir(exist_ok=True)
+    uploads.UPLOADS.mkdir(exist_ok=True)
     pruned = await asyncio.to_thread(cache.prune)
     if any(pruned.values()):
         print(f"[cache] pruned {pruned}")
@@ -81,6 +82,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
 app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
+app.mount("/uploads", StaticFiles(directory=uploads.UPLOADS, check_dir=False), name="uploads")
 
 
 @app.get("/")
@@ -193,6 +195,11 @@ def _host_allowed(url: str) -> bool:
 @app.get("/image-proxy")
 async def image_proxy(url: str = Query(..., description="取得する画像URL")) -> Response:
     """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。取得結果は SQLite にキャッシュ。"""
+    if uploads.is_upload_url(url):
+        p = uploads.local_path(url)
+        if not p:
+            raise HTTPException(404, "アップロード画像が見つかりません")
+        return FileResponse(p, media_type=uploads.content_type(p), headers={"Cache-Control": "public, max-age=86400"})
     if not _host_allowed(url):
         raise HTTPException(403, "このホストの画像は取得できません（私設アドレスや解決できないホスト）")
     hit = await asyncio.to_thread(cache.get_image, url)
@@ -334,3 +341,19 @@ async def render_grid(body: RenderBody = Body(default_factory=RenderBody)) -> di
         "height": im.height,
         "grid": doc.model_dump(),
     }
+
+
+# ---------- 手入力用の画像アップロード ----------
+@app.post("/upload")
+async def upload_image(file: UploadFile = File(...)) -> dict:
+    """PC やスマホの画像ファイルを uploads/ に保存し、Track.image に入れる相対 URL を返す。"""
+    data = await file.read(uploads.MAX_BYTES + 1)
+    if len(data) > uploads.MAX_BYTES:
+        raise HTTPException(413, "画像が大きすぎます（15MB まで）")
+    if not data:
+        raise HTTPException(400, "ファイルが空です")
+    try:
+        url = await run_in_threadpool(uploads.save_image_bytes, data)
+    except ValueError as e:
+        raise HTTPException(415, str(e)) from e
+    return {"url": url, "absolute": f"{public_base_url()}{url}", "name": file.filename}
