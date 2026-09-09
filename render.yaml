@@ -1,6 +1,7 @@
 # Render (https://render.com) の Blueprint。ダッシュボードで "New → Blueprint" からこのリポジトリを選ぶと作成される。
+# Render 単体で公開する構成（フロントもこのサービスが / で配信する）。
 # 無料プランはアクセスが無いとスリープし、次のアクセスで 30〜60 秒かかる。ディスクは再デプロイで消える
-# （検索キャッシュ・共有 PNG・アップロード画像は消えてよい前提。残したければ有料の Disk を付ける）。
+# （検索キャッシュ・アップロード画像は消えてよい前提。共有 PNG は Cloudflare R2 に置く）。
 services:
   - type: web
     name: trackmento
@@ -10,25 +11,19 @@ services:
     envVars:
       - key: PUBLIC_MODE
         value: "1"
-      - key: CORS_ORIGINS
-        value: https://YOUR-GITHUB-USER.github.io     # ← GitHub Pages のオリジンに変える
-      - key: FRONTEND_URL
-        value: https://YOUR-GITHUB-USER.github.io/musicgrid-local   # ← Pages の URL に変える
-      - key: MB_USER_AGENT
-        value: trackmento/0.1 (your-email@example.com)             # ← 連絡先を入れる（MusicBrainz の要件）
-      - key: DISCOGS_TOKEN
-        sync: false   # ダッシュボードで値を入れる（リポジトリに書かない）
-      - key: RATE_LIMIT
-        value: "120"
       - key: TRUST_PROXY
         value: "1"
+      - key: MB_USER_AGENT
+        value: trackmento/0.1 (https://github.com/tobokegao/musicgrid-local)   # MusicBrainz の要件（連絡先入り）
+      - key: RATE_LIMIT
+        value: "120"
       - key: SHARE_BUDGET_GB
         value: "9.5"
       - key: SHARE_LIMIT_PER_IP_DAY
         value: "20"
       - key: SHARE_LIMIT_PER_DAY
         value: "200"
-      # 共有 PNG を Cloudflare R2 に置く（ダッシュボードで値を入れる）
+      # 共有 PNG を Cloudflare R2 に置く。値はダッシュボードで入れる（リポジトリに書かない）
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
@@ -39,3 +34,5 @@ services:
         sync: false
       - key: R2_PUBLIC_URL
         sync: false
+      # 公開版では Discogs を使わない（DISCOGS_TOKEN を入れなければソースに出ない）。
+      # GitHub Pages も使う場合だけ CORS_ORIGINS と FRONTEND_URL を追加する（README「公開する」B 参照）

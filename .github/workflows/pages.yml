@@ -3,11 +3,13 @@
 #          Settings → Secrets and variables → Actions → Variables に TRACKMENTO_API（バックエンドの URL）を登録する。
 name: Deploy frontend to GitHub Pages
 
+# 既定では手動実行のみ（Render 単体の構成では使わない）。Pages を使うときは Actions タブから Run workflow、
+# または下の push トリガーのコメントを外す。
 on:
-  push:
-    branches: [main, master]
-    paths: [frontend/**, fonts/**, scripts/build_pages.py, .github/workflows/pages.yml]
   workflow_dispatch:
+  # push:
+  #   branches: [main, master]
+  #   paths: [frontend/**, fonts/**, scripts/build_pages.py, .github/workflows/pages.yml]
 
 permissions:
   contents: read

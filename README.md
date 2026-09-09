@@ -53,10 +53,12 @@ copy .env.example .env          # 必要なら API キーを記入
 
 バックエンドは `/` でフロント（index.html）も配信するので、これ 1 つで完結します。
 
-1. Render（https://render.com）で "New → Blueprint" → このリポジトリを選ぶ（`render.yaml` を読んで作成される）
-2. 環境変数を入れる: `PUBLIC_MODE=1`、`MB_USER_AGENT`（連絡先入り）、`DISCOGS_TOKEN`（任意）
-   `CORS_ORIGINS` と `FRONTEND_URL` は同一オリジンなら不要
-3. できた URL（例 `https://trackmento.onrender.com`）を開く
+1. このリポジトリを GitHub に push する（`.env` は含めない）
+2. Render（https://render.com）に GitHub でサインアップ → "New → Blueprint" → このリポジトリを選ぶ（`render.yaml` を読んで作成される）
+3. 作成時に聞かれる環境変数（`sync: false` のもの）に R2 の 5 つの値を入れる。`PUBLIC_MODE` などは `render.yaml` に書いてある。
+   `DISCOGS_TOKEN` は入れない（公開版では Discogs を使わない）
+4. デプロイが終わったら、できた URL（例 `https://trackmento.onrender.com`）を開く。`/health` で `"public": true, "storage": "r2"` なら設定完了
+5. 以後は GitHub に push するたびに自動で再デプロイされる
 
 Docker が動くホスト（Fly.io / Railway / Koyeb / Hugging Face Spaces など）でも `Dockerfile` でそのまま動きます。
 無料プランは一定時間アクセスが無いとスリープし、次のアクセスで 30〜60 秒かかります。
