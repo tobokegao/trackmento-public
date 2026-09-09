@@ -199,6 +199,8 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - **色**: 地はクリーム＋黒インク。アクセントはマスタード／セルリアンブルー／ラベンダー／朱赤／ミント／ピンクの6色。
   全体は暖色に寄せない（主アクセントはセルリアン、暖色3色はバッジ等に限定）。ソース6種（iTunes / Last.fm / MusicBrainz / Discogs / Bandcamp / 手入力）にこの6色を1対1で割り当てる
 - **テーマルート**: Hallmark custom（tuned）。macrostructure は Workbench
+- **ワードマーク**: DotGothic16 を 16px で描き最近傍で 3 倍拡大（1ドット=3px）。フロントの `drawWordmark()`。Google Fonts の日本語ピクセルフォントは DotGothic16 のみのため
+- **横断検索のマージ鍵**: 曲名＋アーティスト＋アルバム名（「- Single」「- EP」接尾辞は無視）。同じ曲の別ジャケットを残すため
 
 ## 9. Remote Control 運用（スマホから曲を追加して画像を受け取る）
 

@@ -1,4 +1,8 @@
-"""横断検索の重複マージ。title+artist の正規化キーが同じものは1件にまとめる。"""
+"""横断検索の重複マージ。title+artist+album の正規化キーが同じものは1件にまとめる。
+
+アルバム名を鍵に含めるのは、同じ曲でもジャケットが違う盤（シングル／アルバム／ベスト）を
+別候補として残すため。アルバム名が無いソースの結果は空文字として扱う。
+"""
 from __future__ import annotations
 
 import re
@@ -7,16 +11,21 @@ import unicodedata
 from backend.models import Track
 
 _STRIP_RE = re.compile(r"[\s\W_]+", re.UNICODE)
+# よくある盤種の接尾辞は鍵から落とす（"Lemon - Single" と "Lemon" を同一視）
+_ALBUM_NOISE_RE = re.compile(r"\s*[-–—]\s*(single|ep)\s*$", re.IGNORECASE)
 # 同じ曲が複数ソースにあればこの順で残す
 PRIORITY = {"itunes": 0, "lastfm": 1, "musicbrainz": 2, "discogs": 3, "bandcamp": 4, "manual": 5}
 
 
-def norm_key(title: str, artist: str) -> str:
-    def n(s: str) -> str:
-        s = unicodedata.normalize("NFKC", s).casefold()
-        s = s.replace("featuring", "feat").replace("feat.", "feat")
-        return _STRIP_RE.sub("", s)
-    return f"{n(title)}|{n(artist)}"
+def _n(s: str | None) -> str:
+    s = unicodedata.normalize("NFKC", s or "").casefold()
+    s = s.replace("featuring", "feat").replace("feat.", "feat")
+    return _STRIP_RE.sub("", s)
+
+
+def norm_key(title: str, artist: str, album: str | None = None) -> str:
+    album = _ALBUM_NOISE_RE.sub("", album or "")
+    return f"{_n(title)}|{_n(artist)}|{_n(album)}"
 
 
 def merge(tracks: list[Track]) -> list[Track]:
@@ -24,7 +33,7 @@ def merge(tracks: list[Track]) -> list[Track]:
     best: dict[str, Track] = {}
     order: list[str] = []
     for t in tracks:
-        k = norm_key(t.title, t.artist)
+        k = norm_key(t.title, t.artist, t.album)
         if k not in best:
             best[k] = t
             order.append(k)

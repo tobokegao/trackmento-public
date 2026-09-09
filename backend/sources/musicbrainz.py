@@ -41,7 +41,12 @@ async def _mb_get(client: httpx.AsyncClient, params: dict) -> dict:
         if wait > 0:
             await asyncio.sleep(wait)
         _last_call = time.monotonic()
-        r = await client.get(MB_ENDPOINT, params=params, headers={"User-Agent": _user_agent(), "Accept": "application/json"})
+        headers = {"User-Agent": _user_agent(), "Accept": "application/json"}
+        r = await client.get(MB_ENDPOINT, params=params, headers=headers)
+        if r.status_code == 503:  # レート制限。1回だけ待って再試行
+            await asyncio.sleep(1.1)
+            _last_call = time.monotonic()
+            r = await client.get(MB_ENDPOINT, params=params, headers=headers)
     r.raise_for_status()
     return r.json()
 
