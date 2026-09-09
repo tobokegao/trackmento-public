@@ -14,7 +14,7 @@ services:
       - key: TRUST_PROXY
         value: "1"
       - key: MB_USER_AGENT
-        value: trackmento/0.1 (https://github.com/tobokegao/musicgrid-local)   # MusicBrainz の要件（連絡先入り）
+        value: trackmento/0.1 (https://github.com/tobokegao/trackmento-public)   # MusicBrainz の要件（連絡先入り）
       - key: RATE_LIMIT
         value: "120"
       - key: SHARE_BUDGET_GB
