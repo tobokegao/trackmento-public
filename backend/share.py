@@ -107,6 +107,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} — TRACKMENTO</title>
 <meta property="og:title" content="{title}"><meta property="og:image" content="{img_url}">
+<meta property="og:description" content="トラック共有サイト TRACKMENTO からシェア"><meta name="twitter:card" content="summary_large_image">
 <style>
 @font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; src: url("{base}/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
 @font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; src: url("{base}/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}

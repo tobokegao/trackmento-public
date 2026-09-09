@@ -203,15 +203,18 @@ async def index() -> FileResponse:
 
 @app.get("/health")
 async def health() -> dict:
+    if public_mode():
+        # 公開時は内部情報（キャッシュのパス、内部 IP、グリッド名）を出さない
+        return {"ok": True, "sources": sorted(SOURCES), "public": True, "frontend_url": frontend_url(), "storage": storage.get_storage().name}
     return {
         "ok": True,
         "sources": sorted(SOURCES),
         "cache": await asyncio.to_thread(cache.stats),
         "public_base_url": public_base_url(),
-        "public": public_mode(),
+        "public": False,
         "frontend_url": frontend_url(),
         "storage": storage.get_storage().name,
-        "grids": [] if public_mode() else grids.list_names(),   # 公開時は他人のグリッド名を見せない
+        "grids": grids.list_names(),
     }
 
 
