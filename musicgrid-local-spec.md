@@ -191,6 +191,14 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
   - 見出しはイタリック禁止、320/375/414/768px で横スクロールなし
 - ツール系 UI なので macrostructure は Workbench 系を第一候補にする（ランディングページ用の hero/footer 類型は使わない）
 
+#### デザインブリーフ（2026-09-09 決定・Hallmark 3質問ゲートの回答）
+- **Audience**: 自分用。日本の J-POP リスナー
+- **Use case**: 曲を検索してマスに置き、PNG を書き出す。1画面で完結するツール
+- **Tone**: utilitarian。リソグラフ風フラット、レトロ GUI／ドット絵を意識。角丸なし（`border-radius: 0`）
+- **色**: 地はクリーム＋黒インク。アクセントはマスタード／セルリアンブルー／ラベンダー／朱赤／ミント／ピンクの6色。
+  全体は暖色に寄せない（主アクセントはセルリアン、暖色3色はバッジ等に限定）。ソース6種（iTunes / Last.fm / MusicBrainz / Discogs / Bandcamp / 手入力）にこの6色を1対1で割り当てる
+- **テーマルート**: Hallmark custom（tuned）。macrostructure は Workbench
+
 ## 9. Remote Control 運用（スマホから曲を追加して画像を受け取る）
 
 ### 前提
