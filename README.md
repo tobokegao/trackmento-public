@@ -78,7 +78,8 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 1. Cloudflare ダッシュボード → R2 → **Create bucket**（例 `trackmento-shares`。ロケーションは Automatic でよい）
 2. バケットの Settings → **Public access** → 「R2.dev subdomain」を Allow にすると `https://pub-xxxx.r2.dev` が発行される
    （独自ドメインを付けてもよい）。これが `R2_PUBLIC_URL`
-3. Settings → **Object lifecycle rules** → ルールを追加し「Delete uploaded objects after **30** days」にする（共有の有効期限）
+3. Settings → **Object lifecycle rules** → ルールを追加し「Delete uploaded objects after **30** days」にする（共有の有効期限）。
+   見つからないときは、手順 4〜5 のあとに `python scripts/r2_setup.py` を実行すると API から同じルールを設定できる（`--days` で日数変更、`--check` で表示のみ）
 4. R2 → **Manage R2 API Tokens** → Create API token → 権限 "Object Read & Write"、対象バケットをこのバケットに限定
    → 表示される Access Key ID / Secret Access Key と、R2 の概要ページにある Account ID を控える
 5. バックエンドの環境変数に `R2_ACCOUNT_ID` `R2_ACCESS_KEY_ID` `R2_SECRET_ACCESS_KEY` `R2_BUCKET` `R2_PUBLIC_URL` を入れて再起動
