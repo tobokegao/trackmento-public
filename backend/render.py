@@ -11,6 +11,7 @@ import math
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -122,10 +123,10 @@ def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, 
 # ---------- 画像取得（キャッシュ → HTTP） ----------
 def fetch_image_bytes(url: str) -> bytes:
     if uploads.is_upload_url(url):
-        p = uploads.local_path(url)
-        if not p:
+        got = uploads.read_bytes(url)
+        if got is None:
             raise ValueError(f"アップロード画像がありません: {url}")
-        return p.read_bytes()
+        return got[0]
     hit = cache.get_image(url)
     if hit:
         return hit[1]
@@ -183,7 +184,9 @@ def layout(doc: GridDoc) -> Layout:
     sb_w = sb_h = 0
     sb_cols = 1
     if side == "right":
-        sb_w, sb_h = max(720, rnd(gw * 0.5)), gh
+        # 幅は「最長の行」に合わせる（最低 720px、最大でグリッド幅と同じ）。長い曲名が「…」で切れにくくなる
+        need = _longest_line(doc, font_s)
+        sb_w, sb_h = max(720, min(gw, need)), gh
     if side == "bottom":
         sb_cols = 2 if n > 12 else 1
         sb_w, sb_h = gw, math.ceil(n / sb_cols) * line_h
@@ -200,6 +203,33 @@ def layout(doc: GridDoc) -> Layout:
     scale = min(1.0, max_side() / max(W, H))
     return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
                   title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap)
+
+
+def _longest_line(doc: GridDoc, font_s: int) -> int:
+    """サイドバー 1 行（番号 + 曲名 + アーティスト）の最大幅（px）。"""
+    f_num, f_title, f_artist = font("pixel", rnd(font_s * 0.8)), font("bold", font_s), font("regular", font_s)
+    nw = f_num.getlength("00") + rnd(font_s * 0.8)
+    best = 0
+    for t in doc.cells:
+        if t:
+            best = max(best, nw + f_title.getlength(t.title) + f_artist.getlength(f"  {t.artist}"))
+    return int(math.ceil(best)) + 8
+
+
+def _fit_line(d: ImageDraw.ImageDraw, title: str, artist: str, font_s: int, max_w: float) -> tuple[ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, str, str]:
+    """1 行が max_w に収まるよう、フォントを 65% まで縮め、それでも入らなければアーティスト → 曲名の順に省略する。"""
+    for scale in (1.0, 0.92, 0.85, 0.78, 0.72, 0.65):
+        fs = max(12, rnd(font_s * scale))
+        ft, fa = font("bold", fs), font("regular", fs)
+        a = f"  {artist}" if artist else ""
+        if d.textlength(title, font=ft) + d.textlength(a, font=fa) <= max_w:
+            return ft, fa, title, a
+    ft, fa = font("bold", max(12, rnd(font_s * 0.65))), font("regular", max(12, rnd(font_s * 0.65)))
+    a = f"  {artist}" if artist else ""
+    tw = d.textlength(title, font=ft)
+    if tw <= max_w * 0.7:
+        return ft, fa, title, _ellipsize(d, a, fa, max_w - tw)
+    return ft, fa, _ellipsize(d, title, ft, max_w), ""
 
 
 # ---------- 描画 ----------
@@ -224,14 +254,16 @@ def render(doc: GridDoc) -> Image.Image:
         d.text((L.ox, y0 + L.title_h / 2), _ellipsize(d, L.title, f, max_w), font=f, fill=ink, anchor="lm")
         y0 += L.title_h
 
-    # グリッド
+    # グリッド（画像は並列に取得する。1 枚ずつだと CDN の往復が積み上がって遅い）
     num_font = font("pixel", 22)
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        covers = list(ex.map(lambda t: load_cover(t) if t else None, doc.cells))
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
         x, y = L.ox + c * (CELL_PX + o.gap), y0 + r * (CELL_PX + o.gap)
         d.rectangle((x, y, x + CELL_PX - 1, y + CELL_PX - 1), fill=cell_bg)
         if t:
-            cover = load_cover(t)
+            cover = covers[i]
             if cover:
                 im.paste(_cover_fit(cover, CELL_PX, CELL_PX), (x, y))
         if o.numbers:
@@ -249,8 +281,6 @@ def render(doc: GridDoc) -> Image.Image:
         col_w = L.sb_w if L.side == "right" else (L.sb_w - GAP_PX * 2 * (L.sb_cols - 1)) // L.sb_cols
         per_col = doc.size if L.side == "right" else math.ceil(doc.size / L.sb_cols)
         f_num = font("pixel", rnd(L.font_s * 0.8))
-        f_title = font("bold", L.font_s)
-        f_artist = font("regular", L.font_s)
         for i, t in enumerate(doc.cells):
             col, row = i // per_col, i % per_col
             x = sx + col * (col_w + GAP_PX * 2)
@@ -263,12 +293,10 @@ def render(doc: GridDoc) -> Image.Image:
             if not t:
                 continue
             max_w = col_w - nw
-            tw = d.textlength(t.title, font=f_title)
-            if tw >= max_w:
-                d.text((x + nw, yy), _ellipsize(d, t.title, f_title, max_w), font=f_title, fill=ink, anchor="lm")
-                continue
-            d.text((x + nw, yy), t.title, font=f_title, fill=ink, anchor="lm")
-            d.text((x + nw + tw, yy), _ellipsize(d, f"  {t.artist}", f_artist, max_w - tw), font=f_artist, fill=muted, anchor="lm")
+            f_title, f_artist, title_s, artist_s = _fit_line(d, t.title, t.artist, L.font_s, max_w)
+            d.text((x + nw, yy), title_s, font=f_title, fill=ink, anchor="lm")
+            if artist_s:
+                d.text((x + nw + d.textlength(title_s, font=f_title), yy), artist_s, font=f_artist, fill=muted, anchor="lm")
 
     if L.scale < 1:
         im = im.resize((rnd(L.W * L.scale), rnd(L.H * L.scale)), Image.LANCZOS)
@@ -312,6 +340,6 @@ def render_to_file(doc: GridDoc) -> tuple[Path, Image.Image]:
     while path.exists():
         n += 1
         path = OUTPUTS / f"{stem}-{time.strftime('%Y%m%d-%H%M%S')}-{n}.png"
-    im.save(path, "PNG", optimize=True)
+    im.save(path, "PNG", compress_level=6)   # optimize=True は 3 倍遅いわりに数 % しか縮まない
     prune_outputs()
     return path, im

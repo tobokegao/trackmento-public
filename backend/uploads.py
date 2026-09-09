@@ -12,6 +12,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from backend import storage
+
 Image.MAX_IMAGE_PIXELS = 40_000_000   # 展開爆弾対策
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,8 +40,23 @@ def local_path(url: str) -> Path | None:
     return p if p.is_file() else None
 
 
-def content_type(path: Path) -> str:
-    return _CTYPE.get(path.suffix.lstrip(".").lower(), "application/octet-stream")
+def content_type(path: Path | str) -> str:
+    return _CTYPE.get(str(path).rsplit(".", 1)[-1].lower(), "application/octet-stream")
+
+
+def read_bytes(url: str) -> tuple[bytes, str] | None:
+    """/uploads/<name> の中身と content-type。R2 を使っているときはそちらから、無ければローカルから。"""
+    if not is_upload_url(url):
+        return None
+    name = url[len(PREFIX):]
+    if not _NAME_RE.match(name):
+        return None
+    st = storage.get_storage()
+    if st.is_remote:
+        data = st.get(f"uploads/{name}")
+        return (data, content_type(name)) if data is not None else None
+    p = UPLOADS / name
+    return (p.read_bytes(), content_type(p)) if p.is_file() else None
 
 
 def save_image_bytes(data: bytes) -> str:
@@ -63,6 +80,12 @@ def save_image_bytes(data: bytes) -> str:
             raise ValueError("画像を変換できませんでした（大きすぎるか壊れています）") from e
         data, ext = buf.getvalue(), "png"
     name = f"{hashlib.sha1(data).hexdigest()[:16]}.{ext}"
+    st = storage.get_storage()
+    if st.is_remote:
+        # 公開サーバーのディスクは再デプロイで消えるので、R2 に置く（バケットのライフサイクルで期限管理）
+        if not st.exists(f"uploads/{name}"):
+            st.put(f"uploads/{name}", data, content_type(name))
+        return PREFIX + name
     UPLOADS.mkdir(exist_ok=True)
     p = UPLOADS / name
     if not p.exists():

@@ -660,7 +660,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
             <br>3. サーバー（uvicorn）を再起動する → ソースに Discogs が現れます
             <br>アーティスト名はローマ字表記のことが多いので、日本語で 0 件なら英語で試してください。曲名で見つからないときはそのアーティストのリリース一覧が出ます。</p>
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。キー不要。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
-          <p><b>組み合わせ</b>: ソースは複数選べます。結果は MusicBrainz → Discogs → iTunes → otoDB の順に並び、同じ曲はこの順で先のものを残します。選択は記憶されます。</p>
+          <p><b>組み合わせ</b>: ソースは複数選べます。結果は iTunes → MusicBrainz → Discogs → otoDB の順に並び、同じ曲はこの順で先のものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム。検索はキーが要るので URL のみ）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります（キー不要）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
     </div>
   </div>
@@ -751,7 +751,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   /* ソースは複数選択（チェックボックス）。選択は記憶し、既定は otoDB 以外を全部オン。
      検索時の順序は優先順（MusicBrainz → Discogs → iTunes → otoDB）で固定し、同じ曲は先のソースを残す */
-  const SOURCE_ORDER = ["musicbrainz", "discogs", "itunes", "otodb"];
+  const SOURCE_ORDER = ["itunes", "musicbrainz", "discogs", "otodb"];
   const SOURCES_KEY = "trackmento:sources";
   function loadSourceSelection() {
     try { const v = JSON.parse(localStorage.getItem(SOURCES_KEY) || "null"); if (Array.isArray(v)) return v; } catch { /* ignore */ }
@@ -1139,6 +1139,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return text.slice(0, lo) + "…";
   }
 
+  /* サイドバー 1 行の最大幅（番号 + 曲名 + アーティスト）。サーバー側描画の _longest_line と同じ考え方 */
+  function longestLine(fontS) {
+    const ctx = probe;
+    ctx.font = `700 ${Math.round(fontS * 0.8)}px "Silkscreen", monospace`;
+    const nw = ctx.measureText("00").width + Math.round(fontS * 0.8);
+    let best = 0;
+    for (const t of state.cells) {
+      if (!t) continue;
+      ctx.font = `700 ${fontS}px "IBM Plex Sans JP", sans-serif`; const tw = ctx.measureText(t.title).width;
+      ctx.font = `400 ${fontS}px "IBM Plex Sans JP", sans-serif`; const aw = ctx.measureText(`  ${t.artist}`).width;
+      best = Math.max(best, nw + tw + aw);
+    }
+    return Math.ceil(best) + 8;
+  }
   /* レイアウト計算。描画せずにサイズだけ求める（右ペインの「出力サイズ」表示にも使う） */
   function layout() {
     const { cols, rows } = state;
@@ -1157,7 +1171,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       : Math.round(Math.max(48, Math.min(96, gw * 0.045)));
     const fontS = Math.round(lineH * 0.5);
     let sbW = 0, sbH = 0, sbCols = 1;
-    if (side === "right") { sbW = Math.max(720, Math.round(gw * 0.5)); sbH = gh; }
+    if (side === "right") { sbW = Math.max(720, Math.min(gw, longestLine(fontS))); sbH = gh; }
     if (side === "bottom") { sbCols = n > 12 ? 2 : 1; sbW = gw; sbH = Math.ceil(n / sbCols) * lineH; }
     const sbGap = side === "none" ? 0 : GAP_PX * 4;
     const contentW = side === "right" ? gw + sbGap + sbW : gw;

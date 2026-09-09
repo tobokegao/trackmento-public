@@ -54,12 +54,13 @@ IMAGE_HOST_ALLOWLIST = (
     "bandcamp.com",
 )
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
+SOURCE_TIMEOUT = 20   # 1 ソースあたりの検索の上限秒。超えたソースは「失敗」扱いにして他の結果を返す
 
-# ALL（source 省略時）はこの順で並べ、重複は先のソースを残す: MusicBrainz > Discogs > iTunes
-SOURCES = {"musicbrainz": musicbrainz.search}
+# source 省略時はこの順で並べ、重複は先のソースを残す: iTunes > MusicBrainz > Discogs
+# （iTunes は速くて安定、MusicBrainz は 1 秒 1 回の制限を全員で共有するため混雑しやすい）
+SOURCES = {"itunes": itunes.search, "musicbrainz": musicbrainz.search}
 if discogs.enabled():
     SOURCES["discogs"] = discogs.search
-SOURCES["itunes"] = itunes.search
 DEFAULT_SOURCES = tuple(SOURCES)
 SOURCES["otodb"] = otodb.search   # 音MAD データベース。ALL には含めず、明示選択のときだけ
 
@@ -158,7 +159,15 @@ async def rate_limit(request: Request, call_next):
     return response
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
 app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
-app.mount("/uploads", StaticFiles(directory=uploads.UPLOADS, check_dir=False), name="uploads")
+if not storage.get_storage().is_remote:
+    app.mount("/uploads", StaticFiles(directory=uploads.UPLOADS, check_dir=False), name="uploads")
+else:
+    @app.get("/uploads/{fname}")
+    async def upload_file(fname: str) -> Response:
+        got = await run_in_threadpool(uploads.read_bytes, uploads.PREFIX + fname)
+        if got is None:
+            raise HTTPException(404, "アップロード画像が見つかりません（期限切れの可能性）")
+        return Response(content=got[0], media_type=got[1], headers={"Cache-Control": "public, max-age=86400"})
 if not storage.get_storage().is_remote:
     app.mount("/shares", StaticFiles(directory=share.SHARES, check_dir=False), name="shares")
 else:
@@ -236,14 +245,14 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
     if misses:
         client = app.state.http
         fetched = await asyncio.gather(
-            *(SOURCES[names[i]](q, artist, client=client) for i in misses), return_exceptions=True
+            *(asyncio.wait_for(SOURCES[names[i]](q, artist, client=client), timeout=SOURCE_TIMEOUT) for i in misses), return_exceptions=True
         )
         for i, res in zip(misses, fetched):
             if isinstance(res, BaseException):
                 # 1ソースの失敗で全体を落とさない。失敗はキャッシュしない
                 print(f"[search] {names[i]} failed: {res!r}")
                 results[i] = []
-                failed[names[i]] = "busy" if isinstance(res, musicbrainz.SourceBusy) or "503" in str(res) else "error"
+                failed[names[i]] = "busy" if isinstance(res, (musicbrainz.SourceBusy, asyncio.TimeoutError)) or "503" in str(res) else "error"
                 continue
             results[i] = res
             if res:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）
@@ -280,10 +289,10 @@ def _host_allowed(url: str) -> bool:
 async def image_proxy(url: str = Query(..., description="取得する画像URL")) -> Response:
     """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。取得結果は SQLite にキャッシュ。"""
     if uploads.is_upload_url(url):
-        p = uploads.local_path(url)
-        if not p:
-            raise HTTPException(404, "アップロード画像が見つかりません")
-        return FileResponse(p, media_type=uploads.content_type(p), headers={"Cache-Control": "public, max-age=86400"})
+        got = await run_in_threadpool(uploads.read_bytes, url)
+        if got is None:
+            raise HTTPException(404, "アップロード画像が見つかりません（期限切れの可能性）")
+        return Response(content=got[0], media_type=got[1], headers={"Cache-Control": "public, max-age=86400"})
     if not _host_allowed(url):
         raise HTTPException(403, "このホストの画像は取得できません（私設アドレスや解決できないホスト）")
     hit = await asyncio.to_thread(cache.get_image, url)
