@@ -196,9 +196,16 @@ else:
                         headers={"Cache-Control": "public, max-age=86400"})
 
 
-@app.get("/")
-async def index() -> FileResponse:
-    return FileResponse(FRONTEND / "index.html")
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request) -> HTMLResponse:
+    # OG タグの絶対 URL（__BASE__）をこのサーバーの URL に置き換えて配る
+    html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
+    return HTMLResponse(html)
+
+
+@app.get("/og.png")
+async def og_image() -> FileResponse:
+    return FileResponse(FRONTEND / "og.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/health")
