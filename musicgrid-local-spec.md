@@ -158,7 +158,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - [x] 2. `sources/itunes.py`（キー不要なので最初に動作確認）
 - [x] 3. `main.py` に `/search` と `/image-proxy` と静的配信
 - [x] 4. `frontend/index.html`: 検索→3×3グリッドに追加→PNG保存の最小動作
-- [ ] 5. `sources/musicbrainz.py`（1秒スリープ、User-Agent）
+- [x] 5. `sources/musicbrainz.py`（1秒スリープ、User-Agent）
 - [ ] 6. `sources/lastfm.py`
 - [ ] 7. `sources/bandcamp.py` + `/bandcamp`
 - [ ] 8. 横断検索の重複マージ

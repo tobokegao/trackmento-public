@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.models import Track
-from backend.sources import itunes
+from backend.sources import itunes, musicbrainz
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -38,8 +38,9 @@ IMAGE_MAX_BYTES = 15 * 1024 * 1024
 
 SOURCES = {
     "itunes": itunes.search,
+    "musicbrainz": musicbrainz.search,
 }
-DEFAULT_SOURCES = ("itunes",)
+DEFAULT_SOURCES = ("itunes", "musicbrainz")
 
 
 @asynccontextmanager
