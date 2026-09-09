@@ -4,10 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TRACKMENTO</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Sans+JP:wght@400;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <style>
+/* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
+@font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans JP"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/Silkscreen-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }
+@font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/DotGothic16-Regular.ttf") format("truetype"); }
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(95% 0.015 95) · accent: oklch(60% 0.14 235)
  * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
@@ -905,11 +908,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     setBtnState(els.renderBtn, "loading"); say(els.gridMsg, "");
     try {
       const L = layout();
-      await Promise.all([
+      // 同梱フォントを読み込んでから描く。読めなかったときは代替フォントで書き出し、その旨を伝える
+      await Promise.allSettled([
         document.fonts.load(`700 ${L.titleSize}px "IBM Plex Sans JP"`),
         document.fonts.load(`400 ${L.fontS}px "IBM Plex Sans JP"`),
         document.fonts.load(`700 20px "Silkscreen"`),
       ]);
+      const jpFontOK = document.fonts.check(`700 ${L.titleSize}px "IBM Plex Sans JP"`) && document.fonts.check(`400 ${L.fontS}px "IBM Plex Sans JP"`);
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(L.W * L.scale); canvas.height = Math.round(L.H * L.scale);
       const ctx = canvas.getContext("2d");
@@ -974,7 +979,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.download.download = (L.title || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
       els.output.hidden = false;
       setBtnState(els.renderBtn, null);
-      say(els.gridMsg, `${canvas.width} × ${canvas.height} px の PNG ができました。`);
+      say(els.gridMsg, jpFontOK
+        ? `${canvas.width} × ${canvas.height} px の PNG ができました。`
+        : `${canvas.width} × ${canvas.height} px の PNG ができました。同梱フォント（IBM Plex Sans JP）が読めなかったので代替フォントで書き出しています。/fonts/ が配信されているか確認してください。`,
+        jpFontOK ? null : "error");
       els.download.focus({ preventScroll: true });
     } catch (err) {
       setBtnState(els.renderBtn, "error");
