@@ -308,8 +308,13 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 /* ---------- grid ---------- */
 .grid-head { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
 /* 縦に長いグリッドはこの枠の中でスクロールする */
-.grid-scroll { max-height: 70dvh; overflow: auto; border: var(--line) solid var(--color-ink); }
-@media (min-width: 60rem) { .grid-scroll { max-height: calc(100dvh - 21rem); } }
+.grid-scroll { overflow: auto; scrollbar-gutter: stable; border: var(--line) solid var(--color-ink); }
+/* max-height は JS（syncPreview）が「3 行分の高さ」に設定する。4 行以上でスクロールバーが出る */
+/* スマホでは検索・候補ペインは常時表示せず、空マスのタップか「曲を探す」で出るシートの中だけに置く */
+@media (max-width: 59.99rem) {
+  .workbench > .pane-search, .workbench > .pane-results { display: none; }
+}
+@media (min-width: 60rem) { #find-btn { display: none; } }
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
@@ -552,6 +557,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn" type="button" id="export-btn">JSON 書き出し</button>
         <button class="btn" type="button" id="import-btn">JSON 読み込み</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
+        <button class="btn" type="button" id="find-btn">曲を探す</button>
         <button class="btn" type="button" id="server-render-btn" title="サーバー（Pillow）で描いて outputs/ に保存し、URL を得る">サーバーで作る（URL）</button>
         <button class="btn" type="button" id="reload-btn" title="CLI で更新した grids/default.json を読み直す">サーバーから読み直す</button>
       </div>
@@ -840,8 +846,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const sheet = $("#sheet"), sheetBody = $("#sheet-body"), sheetTitle = $("#sheet-title");
   const isMobile = () => !window.matchMedia("(min-width: 60rem)").matches;
   const sheetOpen = () => !sheet.hidden;
+  $("#find-btn").addEventListener("click", () => { target = null; renderGrid(); openSheet(null); });
   function openSheet(i) {
-    sheetTitle.textContent = `${String(i + 1).padStart(2, "0")} 番に入れる曲を探す`;
+    sheetTitle.textContent = i === null ? "曲を探す（次の空きマスに入ります）" : `${String(i + 1).padStart(2, "0")} 番に入れる曲を探す`;
     const search = $(".pane-search"), results = $(".pane-results");
     sheetBody.append(search, results);
     search.dataset.collapsed = "false"; results.dataset.collapsed = "false";
@@ -858,7 +865,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   $("#sheet-close").addEventListener("click", closeSheet);
   $("#sheet-backdrop").addEventListener("click", closeSheet);
-  window.matchMedia("(min-width: 60rem)").addEventListener("change", () => { if (!isMobile()) closeSheet(); });
+  function placeEditor() {
+    if (isMobile()) els.gridMsg.after(els.editor);
+    else $(".pane-search .pane-title").after(els.editor);
+  }
+  placeEditor();
+  window.matchMedia("(min-width: 60rem)").addEventListener("change", () => { if (!isMobile()) closeSheet(); placeEditor(); });
   function removeAt(i) {
     const t = state.cells[i]; state.cells[i] = null;
     if (selected === i) selected = null;
@@ -1084,9 +1096,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!W) return;
     const gw = state.cols * CELL_PX + (state.cols - 1) * GAP_PX;
     const k = W / (gw + state.margin * 2);
-    els.grid.style.padding = `${state.margin * k}px`;
-    els.grid.style.gap = `${GAP_PX * k}px`;
+    const pad = state.margin * k, gap = GAP_PX * k;
+    els.grid.style.padding = `${pad}px`;
+    els.grid.style.gap = `${gap}px`;
     els.grid.style.background = bgColor();
+    // スクロール枠の高さは 3 行分まで。4 行以上になるとスクロールバーが出る
+    const cell = (W - pad * 2 - gap * (state.cols - 1)) / state.cols;
+    const rows = Math.min(3, state.rows);
+    els.gridScroll.style.maxHeight = `${Math.ceil(cell * rows + gap * (rows - 1) + pad * 2) + 4}px`;
   }
   new ResizeObserver(() => syncPreview()).observe(els.gridScroll);
 
