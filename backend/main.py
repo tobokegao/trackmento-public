@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.cache import cache
 from backend.merge import merge
 from backend.models import Track
-from backend.sources import bandcamp, itunes, lastfm, musicbrainz
+from backend.sources import bandcamp, discogs, itunes, lastfm, musicbrainz
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -27,6 +27,7 @@ load_dotenv(ROOT / ".env")
 OUTPUTS = ROOT / "outputs"
 GRIDS = ROOT / "grids"
 FRONTEND = ROOT / "frontend"
+FONTS = ROOT / "fonts"
 
 # /image-proxy が取得を許可するホスト（末尾一致）
 IMAGE_HOST_ALLOWLIST = (
@@ -45,7 +46,9 @@ SOURCES = {"itunes": itunes.search}
 if lastfm.enabled():
     SOURCES["lastfm"] = lastfm.search
 SOURCES["musicbrainz"] = musicbrainz.search
-DEFAULT_SOURCES = tuple(SOURCES)  # source 省略時はこれらを並列で叩いてマージ
+DEFAULT_SOURCES = tuple(SOURCES)  # source 省略時はこれらを並列で叩いてマージ（Discogs は明示指定のみ）
+if discogs.enabled():
+    SOURCES["discogs"] = discogs.search
 
 
 @asynccontextmanager
@@ -69,6 +72,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
+app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
 
 
 @app.get("/")
