@@ -20,3 +20,5 @@ services:
         sync: false   # ダッシュボードで値を入れる（リポジトリに書かない）
       - key: RATE_LIMIT
         value: "120"
+      - key: TRUST_PROXY
+        value: "1"

@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import httpx
 from bs4 import BeautifulSoup
 
+from backend import netguard
 from backend.models import Track
 
 _IMG_SIZE_RE = re.compile(r"_(\d+)\.(jpg|png)$")
@@ -40,10 +41,13 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
     p = urlparse(url)
     if p.scheme not in ("http", "https") or not p.netloc:
         raise ValueError("URL の形式が正しくありません")
+    if not netguard.url_ok(url):
+        raise ValueError("この宛先のページは取得できません（公開されている http(s) の URL を貼ってください）")
     own = client is None
-    client = client or httpx.AsyncClient(timeout=15, follow_redirects=True)
+    client = client or httpx.AsyncClient(timeout=15)
     try:
-        r = await client.get(url, headers={"User-Agent": UA}, follow_redirects=True)
+        # 任意の URL を取りに行く入口なので、私設アドレス宛てとそこへのリダイレクトは netguard が拒否する
+        r = await netguard.safe_get(client, url, headers={"User-Agent": UA})
         r.raise_for_status()
     finally:
         if own:

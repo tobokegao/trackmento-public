@@ -20,6 +20,27 @@ DB_PATH = ROOT / "cache.sqlite3"
 
 SEARCH_TTL = 7 * 24 * 3600        # 検索結果は 1 週間
 IMAGE_TTL = 30 * 24 * 3600        # 画像は 30 日
+# ソース／ホストごとの短い期限（各サービスの利用条件に合わせる）
+#   Discogs: API Terms of Use で「6 時間より古い Content を表示しない」「必要以上にキャッシュしない」
+#   YouTube: API ポリシーでデータの保持は 30 日まで（サムネイルも同じ扱いにする）
+SEARCH_TTL_BY_SOURCE = {"discogs": 6 * 3600}
+IMAGE_TTL_BY_HOST = {"discogs.com": 6 * 3600, "ytimg.com": 24 * 3600}
+
+
+def _search_ttl(source: str) -> int:
+    return SEARCH_TTL_BY_SOURCE.get(source, SEARCH_TTL)
+
+
+def _image_ttl(url: str) -> int:
+    from urllib.parse import urlparse
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except ValueError:
+        return IMAGE_TTL
+    for suffix, ttl in IMAGE_TTL_BY_HOST.items():
+        if host == suffix or host.endswith("." + suffix):
+            return ttl
+    return IMAGE_TTL
 IMAGE_MAX_TOTAL = 300 * 1024 * 1024  # 画像テーブルの上限（古いものから削除）
 
 _SCHEMA = """
@@ -69,7 +90,7 @@ class Cache:
     def get_search(self, source: str, q: str, artist: str) -> list[dict[str, Any]] | None:
         with self._lock:
             row = self._db().execute("SELECT body, ts FROM search WHERE key=?", (_skey(source, q, artist),)).fetchone()
-        if not row or time.time() - row[1] > SEARCH_TTL:
+        if not row or time.time() - row[1] > _search_ttl(source):
             return None
         try:
             return json.loads(row[0])
@@ -90,7 +111,7 @@ class Cache:
             row = db.execute("SELECT ctype, data, ts FROM image WHERE url=?", (url,)).fetchone()
             if not row:
                 return None
-            if time.time() - row[2] > IMAGE_TTL:
+            if time.time() - row[2] > _image_ttl(url):
                 db.execute("DELETE FROM image WHERE url=?", (url,))
                 db.commit()
                 return None

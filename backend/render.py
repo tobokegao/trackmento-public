@@ -17,7 +17,7 @@ from pathlib import Path
 import httpx
 from PIL import Image, ImageDraw, ImageFont
 
-from backend import uploads
+from backend import netguard, uploads
 from backend.cache import cache
 from backend.grids import GridDoc
 from backend.models import Track
@@ -32,6 +32,9 @@ MAX_SIDE = 8000
 RATIOS: dict[str, float | None] = {"1:1": 1.0, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, "free": None}
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
 UA = "Mozilla/5.0 (compatible; trackmento/0.1)"
+Image.MAX_IMAGE_PIXELS = 40_000_000   # 展開爆弾対策（超えると DecompressionBombError）。ジャケット用途には十分
+IMAGE_HOSTS = ("mzstatic.com", "coverartarchive.org", "archive.org", "discogs.com", "bcbits.com", "bandcamp.com",
+               "sndcdn.com", "ytimg.com", "nimg.jp", "nicovideo.jp", "hdslb.com", "scdn.co", "spotifycdn.com", "otodb.net")
 
 
 def rnd(x: float) -> int:
@@ -126,8 +129,8 @@ def fetch_image_bytes(url: str) -> bytes:
     hit = cache.get_image(url)
     if hit:
         return hit[1]
-    with httpx.Client(timeout=20, follow_redirects=True) as c:
-        r = c.get(url, headers={"User-Agent": UA, "Accept": "image/*,*/*;q=0.8"})
+    # 私設アドレス宛てやリダイレクト先の内部ホストは netguard が拒否する（SSRF 対策）
+    r = netguard.safe_get_sync(url, allowlist=IMAGE_HOSTS, timeout=20, headers={"User-Agent": UA, "Accept": "image/*,*/*;q=0.8"})
     r.raise_for_status()
     ctype = r.headers.get("content-type", "").split(";")[0].strip()
     if not ctype.startswith("image/") or len(r.content) > IMAGE_MAX_BYTES:

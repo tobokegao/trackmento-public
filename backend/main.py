@@ -2,12 +2,9 @@
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import os
-import socket
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.parse import urlparse
 
 import httpx
 from dotenv import load_dotenv
@@ -22,9 +19,10 @@ from pydantic import BaseModel
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, housekeeping, render, share, uploads
+from backend import grids, housekeeping, netguard, render, share, uploads
 from backend.cache import cache
-from backend.config import app_url_for, base_url_for, cors_origins, frontend_url, public_base_url, public_mode, rate_limit_per_minute
+from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
+                            rate_limit_per_minute, trust_proxy)
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
@@ -110,7 +108,11 @@ _hits: dict[str, deque] = defaultdict(deque)
 async def rate_limit(request: Request, call_next):
     limit = rate_limit_per_minute()
     if limit and request.url.path.startswith(_RATE_PATHS):
-        ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "?")
+        ip = request.client.host if request.client else "?"
+        if trust_proxy():
+            xff = [v.strip() for v in (request.headers.get("x-forwarded-for") or "").split(",") if v.strip()]
+            if xff:
+                ip = xff[-1]   # 信頼できるプロキシが末尾に付けた値。先頭は偽装できる
         now = time.monotonic()
         q = _hits[ip]
         while q and now - q[0] > 60:
@@ -121,7 +123,11 @@ async def rate_limit(request: Request, call_next):
         if len(_hits) > 5000:  # メモリが膨らまないように古い IP を捨てる
             for k in [k for k, v in _hits.items() if not v or now - v[-1] > 60][:1000]:
                 _hits.pop(k, None)
-    return await call_next(request)
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    return response
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
 app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
 app.mount("/uploads", StaticFiles(directory=uploads.UPLOADS, check_dir=False), name="uploads")
@@ -215,30 +221,9 @@ async def from_url(body: BandcampBody) -> Track:
         raise HTTPException(502, f"取得失敗: {e}") from e
 
 
-def _is_public_host(host: str) -> bool:
-    """手入力の画像URL向け。私設・ループバック・リンクローカル宛て（SSRF）を拒否する。"""
-    try:
-        infos = socket.getaddrinfo(host, None)
-    except socket.gaierror:
-        return False
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
-            return False
-    return bool(infos)
-
-
 def _host_allowed(url: str) -> bool:
-    try:
-        p = urlparse(url)
-    except ValueError:
-        return False
-    if p.scheme not in ("http", "https") or not p.hostname:
-        return False
-    host = p.hostname.lower()
-    if any(host == d or host.endswith("." + d) for d in IMAGE_HOST_ALLOWLIST):
-        return True
-    return _is_public_host(host)
+    """許可ホスト（末尾一致）か公開アドレスだけ。私設・ループバック宛て（SSRF）は拒否。リダイレクト先も netguard が検査する。"""
+    return netguard.url_ok(url, IMAGE_HOST_ALLOWLIST)
 
 
 @app.get("/image-proxy")
@@ -264,8 +249,11 @@ async def fetch_image(url: str) -> tuple[str, bytes]:
     """画像を取得して (content-type, bytes) を返す。失敗は HTTPException。"""
     client: httpx.AsyncClient = app.state.http
     try:
-        # 画像 CDN の中には汎用 UA を弾くものがある（Wikimedia 等）ためブラウザ風にする
-        r = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; trackmento/0.1)", "Accept": "image/*,*/*;q=0.8"})
+        # 画像 CDN の中には汎用 UA を弾くものがある（Wikimedia 等）ためブラウザ風にする。リダイレクトは 1 ホップずつ宛先を検査
+        r = await netguard.safe_get(client, url, allowlist=IMAGE_HOST_ALLOWLIST,
+                                    headers={"User-Agent": "Mozilla/5.0 (compatible; trackmento/0.1)", "Accept": "image/*,*/*;q=0.8"})
+    except netguard.BlockedURL as e:
+        raise HTTPException(403, str(e)) from e
     except httpx.HTTPError as e:
         raise HTTPException(502, f"取得失敗: {e}") from e
     if r.status_code != 200:
@@ -317,6 +305,8 @@ async def grid_put(name: str, doc: GridDoc) -> GridDoc:
 
 @app.delete("/grids/{name}")
 async def grid_delete(name: str) -> dict:
+    if public_mode():
+        raise HTTPException(404, "公開モードでは削除できません")
     name = _grid_name(name)
     p = grids.path_for(name)
     if p.exists():
@@ -338,6 +328,12 @@ class RenderBody(BaseModel):
     bgCustom: str | None = None
     margin: int | None = None
     gap: int | None = None
+
+
+def _check_cells(doc: GridDoc) -> None:
+    limit = max_cells()
+    if limit and doc.size > limit:
+        raise HTTPException(400, f"公開サーバーでは 1 枚あたり {limit} マスまでです（今は {doc.cols}×{doc.rows}）")
 
 
 def apply_render_options(doc: GridDoc, body: RenderBody) -> bool:
@@ -382,6 +378,7 @@ async def render_grid(request: Request, body: RenderBody = Body(default_factory=
     if apply_render_options(doc, body):
         doc.touch()
         grids.save(doc)
+    _check_cells(doc)
     try:
         path, im = await run_in_threadpool(render.render_to_file, doc)
     except RuntimeError as e:  # フォント欠落など
@@ -424,6 +421,7 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
     if apply_render_options(doc, body):
         doc.touch()
         grids.save(doc)
+    _check_cells(doc)
     try:
         info = await run_in_threadpool(share.create, doc)
     except RuntimeError as e:

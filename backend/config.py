@@ -32,6 +32,21 @@ def cors_origins() -> list[str]:
     return ["*"] if public_mode() else []
 
 
+def trust_proxy() -> bool:
+    """リバースプロキシ（Render など）の後ろにいるとき 1。X-Forwarded-For の末尾（プロキシが付けた値）をクライアント IP とみなす。
+    直接公開しているのに 1 にすると、ヘッダを偽装してレートリミットを逃れられるので注意。"""
+    return _flag("TRUST_PROXY")
+
+
+def max_cells() -> int:
+    """1 枚に描けるマスの上限（公開モードでの重い描画対策。既定 64 = 8×8。ローカルは無制限）。"""
+    try:
+        v = int(os.getenv("MAX_CELLS", "64" if public_mode() else "0"))
+    except ValueError:
+        v = 64
+    return max(0, v)
+
+
 def rate_limit_per_minute() -> int:
     try:
         return max(0, int(os.getenv("RATE_LIMIT", "120")))

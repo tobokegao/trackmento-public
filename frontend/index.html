@@ -654,7 +654,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <div class="modal-body note">
           <p><b>iTunes</b>: キー不要。曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。</p>
           <p><b>MusicBrainz</b>: キー不要。画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
-          <p><b>Discogs</b>: 物理リリースに強い。無料のトークンが必要です。
+          <p><b>Discogs</b>: 物理リリースに強い。無料のトークンが必要です（Data provided by Discogs。Discogs の API 規約により、検索結果と画像のキャッシュは 6 時間まで）。
             <br>1. <a href="https://www.discogs.com/settings/developers" target="_blank" rel="noopener">discogs.com/settings/developers</a> を開き「Generate new token」を押す
             <br>2. 表示された文字列を <code>.env</code> の <code>DISCOGS_TOKEN=</code> の後ろに貼る
             <br>3. サーバー（uvicorn）を再起動する → ソースに Discogs が現れます
@@ -678,6 +678,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <span>TRACKMENTO</span>
   <a href="/health" id="health-link">/health</a>
   <span id="foot-sources"></span>
+  <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
 <script>
@@ -738,6 +739,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       isPublic = !!d.public;
       els.status.textContent = "接続OK";
       els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
+      $("#foot-discogs").hidden = !available.includes("discogs");
     } catch {
       available = [];
       els.status.textContent = "サーバーに接続できません";
@@ -886,6 +888,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const meta = document.createElement("div"); meta.className = "meta";
       const a = document.createElement("span"); a.className = "a"; a.textContent = t.artist + (t.album ? ` · ${t.album}` : "");
       const badge = document.createElement("span"); badge.className = "badge"; badge.dataset.source = t.source; badge.textContent = SOURCE_LABEL[t.source] || t.source;
+      if (t.source === "discogs") badge.title = "Data provided by Discogs";
       meta.append(badge, a); box.append(tt, meta); b.append(img, box); li.append(b);
       b.addEventListener("click", () => addTrack(t));
       els.results.append(li);
