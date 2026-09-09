@@ -91,7 +91,7 @@ img { max-width: 100%; display: block; }
   font-family: var(--font-outlier); font-weight: 700; font-size: var(--text-lg); letter-spacing: 0.04em;
   white-space: nowrap;
 }
-/* 版ズレはやめ、文字の下にリソの 6 色を等分に並べた太線（5px）。
+/* 版ズレはやめ、文字の下にリソの 6 色（マスタード／セルリアン／朱赤／ラベンダー／ミント／ピンク）を等分に並べた太線（5px）。
    Silkscreen 25px の大文字インクは 16px。行送りを 16px に固定すると
    インクは箱の 2px 下から始まるので、margin-top で吸収し、インク下端→線まで 3px（1ドット）空ける
    （padding 10px = 隙間 5px 相当 + 線 5px。線は背景グラデーションのハードストップで描く） */
@@ -101,8 +101,8 @@ img { max-width: 100%; display: block; }
   background: linear-gradient(to right,
     var(--color-mustard)   0 calc(100% / 6),
     var(--color-cerulean)  0 calc(200% / 6),
-    var(--color-lavender)  0 50%,
-    var(--color-vermilion) 0 calc(400% / 6),
+    var(--color-vermilion) 0 50%,
+    var(--color-lavender)  0 calc(400% / 6),
     var(--color-mint)      0 calc(500% / 6),
     var(--color-pink)      0) bottom / 100% 5px no-repeat;
 }
