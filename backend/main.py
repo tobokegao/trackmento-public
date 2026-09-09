@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, housekeeping, netguard, render, share, uploads
+from backend import grids, housekeeping, netguard, render, share, storage, uploads
 from backend.cache import cache
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
                             rate_limit_per_minute, trust_proxy)
@@ -75,6 +75,8 @@ async def lifespan(app: FastAPI):
         if any(cleaned.values()):
             print(f"[housekeeping] {cleaned}")
         print(f"[public] 公開モード: CORS={cors_origins()} FRONTEND_URL={frontend_url() or '(このサーバー)'} RATE_LIMIT={rate_limit_per_minute()}/min")
+    st = storage.get_storage()
+    print(f"[storage] 共有の保存先: {st.name}" + (f"（公開 URL: {st.public_url('') or '無し → バックエンドが中継'}）" if st.is_remote else ""))
     pruned = await asyncio.to_thread(cache.prune)
     if any(pruned.values()):
         print(f"[cache] pruned {pruned}")
@@ -131,7 +133,20 @@ async def rate_limit(request: Request, call_next):
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
 app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
 app.mount("/uploads", StaticFiles(directory=uploads.UPLOADS, check_dir=False), name="uploads")
-app.mount("/shares", StaticFiles(directory=share.SHARES, check_dir=False), name="shares")
+if not storage.get_storage().is_remote:
+    app.mount("/shares", StaticFiles(directory=share.SHARES, check_dir=False), name="shares")
+else:
+    # R2 のときはバックエンドが中継する（JSON は CORS を気にせず読めるように常にこちら。PNG は公開 URL があればそちらを案内）
+    @app.get("/shares/{fname}")
+    async def share_file(fname: str) -> Response:
+        sid, _, ext = fname.rpartition(".")
+        if ext not in ("png", "json") or not share.valid_id(sid):
+            raise HTTPException(404, "not found")
+        data = await run_in_threadpool(storage.get_storage().get, fname)
+        if data is None:
+            raise HTTPException(404, "この共有は見つかりません（期限切れの可能性）")
+        return Response(content=data, media_type="image/png" if ext == "png" else "application/json",
+                        headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/")
@@ -426,10 +441,11 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
         info = await run_in_threadpool(share.create, doc)
     except RuntimeError as e:
         raise HTTPException(500, str(e)) from e
-    if public_mode():
-        housekeeping.prune_shares()
+    if public_mode() and not storage.get_storage().is_remote:
+        housekeeping.prune_shares()   # R2 のときはバケットのライフサイクルルールに任せる
     base = base_url_for(request)
-    return {**info, "url": f"{base}/s/{info['id']}", "png_url": f"{base}{info['png']}"}
+    png_abs = info["png"] if info["png"].startswith("http") else f"{base}{info['png']}"
+    return {**info, "url": f"{base}/s/{info['id']}", "png_url": png_abs}
 
 
 @app.get("/s/{sid}", response_class=HTMLResponse)

@@ -14,7 +14,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend import render
+import io
+
+from backend import render, storage
 from backend.grids import GridDoc
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -29,16 +31,28 @@ def _new_id(doc: GridDoc) -> str:
     return f"{h}{t}"
 
 
+def png_url(sid: str) -> str:
+    """PNG の URL。R2 の公開 URL があればそれ（絶対 URL）、無ければバックエンドの /shares/<id>.png（相対）。"""
+    return storage.get_storage().public_url(f"{sid}.png") or f"/shares/{sid}.png"
+
+
 def create(doc: GridDoc) -> dict:
-    """PNG と JSON を保存して {id, png, json, width, height} を返す（パスは /shares/... の相対 URL）。"""
-    SHARES.mkdir(exist_ok=True)
+    """PNG と JSON を保存（ローカルの shares/ か Cloudflare R2）して {id, png, json, width, height} を返す。
+    png は公開 URL があれば絶対 URL、無ければ /shares/... の相対 URL。"""
+    st = storage.get_storage()
     sid = _new_id(doc)
     im = render.render(doc)
-    im.save(SHARES / f"{sid}.png", "PNG", optimize=True)
+    buf = io.BytesIO()
+    im.save(buf, "PNG", optimize=True)
     snap = doc.model_dump()
     snap.update({"id": sid, "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")})
-    (SHARES / f"{sid}.json").write_text(json.dumps(snap, ensure_ascii=False, indent=2), encoding="utf-8")
-    return {"id": sid, "png": f"/shares/{sid}.png", "json": f"/shares/{sid}.json", "width": im.width, "height": im.height}
+    st.put(f"{sid}.png", buf.getvalue(), "image/png")
+    st.put(f"{sid}.json", json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8"), "application/json")
+    return {"id": sid, "png": png_url(sid), "json": f"/shares/{sid}.json", "width": im.width, "height": im.height}
+
+
+def get_png(sid: str) -> bytes | None:
+    return storage.get_storage().get(f"{sid}.png") if valid_id(sid) else None
 
 
 def valid_id(sid: str) -> bool:
@@ -48,16 +62,22 @@ def valid_id(sid: str) -> bool:
 def load(sid: str) -> dict | None:
     if not valid_id(sid):
         return None
-    p = SHARES / f"{sid}.json"
-    if not p.is_file():
+    raw = storage.get_storage().get(f"{sid}.json")
+    if raw is None:
         return None
-    return json.loads(p.read_text(encoding="utf-8"))
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
 
 
 def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
     """共有ページ。依存なしの単一 HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
     app_url = (app_url or base).rstrip("/")
+    img_url = png_url(sid)   # R2 の公開 URL があればそこから直接（サーバーの転送量を節約）
+    if img_url.startswith("/"):
+        img_url = base + img_url
     title = html.escape(snap.get("title") or "TRACKMENTO")
     rows = []
     for i, c in enumerate(snap.get("cells") or [], 1):
@@ -67,7 +87,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
     return f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} — TRACKMENTO</title>
-<meta property="og:title" content="{title}"><meta property="og:image" content="{base}/shares/{sid}.png">
+<meta property="og:title" content="{title}"><meta property="og:image" content="{img_url}">
 <style>
 @font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; src: url("{base}/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
 @font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; src: url("{base}/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}
@@ -96,7 +116,7 @@ p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere;
 <header><span class="mark">TRACKMENTO</span><small>share</small></header>
 <main>
   <h1>{title}</h1>
-  <img src="/shares/{sid}.png" alt="{title}">
+  <img src="{img_url}" alt="{title}">
   <div class="btns">
     <a class="btn primary" href="/shares/{sid}.png" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.png">PNG を保存</a>
     <a class="btn" href="{app_url}/?share={sid}">TRACKMENTO で開く（この並びを読み込む）</a>

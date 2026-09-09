@@ -70,12 +70,30 @@ Docker が動くホスト（Fly.io / Railway / Koyeb / Hugging Face Spaces な�
 4. main / master に push すると `.github/workflows/pages.yml` がフロントを組み立てて公開する
    （手元で試すなら `python scripts/build_pages.py --api https://…` で `dist/` に出る）
 
+### 共有 PNG を Cloudflare R2 に置く（無料枠で共有 URL を長持ちさせる）
+
+無料ホストのディスクは再デプロイで消えるので、共有（PNG + 並びの JSON）は R2 に置くとよい。
+R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み出し 1,000 万回、転送量無料（PNG 1 枚 1〜3MB なら数千件分）。
+
+1. Cloudflare ダッシュボード → R2 → **Create bucket**（例 `trackmento-shares`。ロケーションは Automatic でよい）
+2. バケットの Settings → **Public access** → 「R2.dev subdomain」を Allow にすると `https://pub-xxxx.r2.dev` が発行される
+   （独自ドメインを付けてもよい）。これが `R2_PUBLIC_URL`
+3. Settings → **Object lifecycle rules** → ルールを追加し「Delete uploaded objects after **30** days」にする（共有の有効期限）
+4. R2 → **Manage R2 API Tokens** → Create API token → 権限 "Object Read & Write"、対象バケットをこのバケットに限定
+   → 表示される Access Key ID / Secret Access Key と、R2 の概要ページにある Account ID を控える
+5. バックエンドの環境変数に `R2_ACCOUNT_ID` `R2_ACCESS_KEY_ID` `R2_SECRET_ACCESS_KEY` `R2_BUCKET` `R2_PUBLIC_URL` を入れて再起動
+   → 起動ログに `[storage] 共有の保存先: r2` と出れば有効
+
+- PNG は `R2_PUBLIC_URL` から直接配信され、並びの JSON と「PNG を保存」はバックエンドが R2 から中継する
+- 手元（ローカル）でも `.env` に同じ変数を書けば R2 を使う。無ければ従来どおり `shares/` に保存
+- アップロード画像（手入力用）と検索キャッシュは R2 に置かない（消えてよいもの）
+
 ### 公開モード（PUBLIC_MODE=1）で変わること
 
 - グリッドの保存名がブラウザごとのランダム ID になり、利用者同士で混ざらない（`/grids` の一覧も出さない）
 - CORS を `CORS_ORIGINS` のオリジンに開く（未設定なら `*`）
 - API に IP ごとのレートリミット（既定 120 回/分。`RATE_LIMIT` で変更）
-- `shares/`（共有 PNG+JSON）と `uploads/` は新しい 2000 件だけ残し、`grids/` の 90 日更新の無いものは消す
+- `shares/`（共有 PNG+JSON。R2 を使わないとき）と `uploads/` は新しい 2000 件だけ残し、`grids/` の 90 日更新の無いものは消す
 - 共有ページの「TRACKMENTO で開く」は `FRONTEND_URL` に戻る
 
 ### 各サービスの利用条件（2026-09-09 に公式ページを確認。公開運用の前に必ず原文を読むこと）
