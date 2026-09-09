@@ -118,7 +118,7 @@ img { max-width: 100%; display: block; }
   padding: var(--space-4) var(--page-inline);
   align-content: start;
   width: 100%;
-  max-width: 90rem;          /* 大画面でグリッド欄が伸びすぎないよう全体を 1440px で止めて中央寄せ */
+  max-width: 96rem;          /* 大画面でグリッド欄が伸びすぎないよう全体を 1536px で止めて中央寄せ */
   margin-inline: auto;
 }
 /* スマホ（1 カラム）ではグリッドを先頭に出す */
@@ -142,6 +142,15 @@ img { max-width: 100%; display: block; }
   .pane-results { grid-area: results; }
   .pane-grid { grid-area: grid; }
   .pane-options { grid-area: options; }
+}
+/* 広い画面では 4 列: 検索 | 候補 | グリッド | オプション。オプションはグリッドサイズのボタン 5 個が 1 列に収まる幅 */
+@media (min-width: 80rem) {
+  .workbench {
+    grid-template-columns: minmax(0, 17rem) minmax(0, 17rem) minmax(0, 1fr) minmax(0, 20rem);
+    grid-template-areas: "search results grid options";
+    grid-template-rows: auto;
+  }
+  .results { max-height: calc(100dvh - 14rem); }
 }
 .pane {
   border: var(--line) solid var(--color-ink);
@@ -536,7 +545,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <label><input type="radio" name="size" value="4x6"><span>4×6</span></label>
           <label><input type="radio" name="size" value="3x8"><span>3×8</span></label>
           <label><input type="radio" name="size" value="5x5"><span>5×5</span></label>
-          <label><input type="radio" name="size" value="custom"><span>任意</span></label>
+          <label><input type="radio" name="size" value="custom"><span>カスタム</span></label>
         </div>
         <div class="custom-size" id="custom-size" hidden>
           <label>横 <input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="12" value="3" aria-label="横のマス数"></label>
@@ -599,7 +608,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
   const SWATCHES = [
     ["paper", "クリーム"], ["ink", "黒"], ["mustard", "マスタード"], ["cerulean", "セルリアン"],
-    ["lavender", "ラベンダー"], ["vermilion", "朱赤"], ["mint", "ミント"], ["pink", "ピンク"],
+    ["vermilion", "朱赤"], ["lavender", "ラベンダー"], ["mint", "ミント"], ["pink", "ピンク"],
   ];
 
   const state = {
@@ -651,7 +660,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function renderSources() {
     els.sources.innerHTML = "";
     const opts = [];
-    if (available.length > 1) opts.push({ v: "", label: "横断", on: true });
+    if (available.length > 1) opts.push({ v: "", label: "ALL", on: true });
     for (const s of ALL_SOURCES) opts.push({ v: s, label: SOURCE_LABEL[s], on: available.includes(s) });
     let checked = false;
     for (const o of opts) {
@@ -1276,6 +1285,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const st = loadFold();
     const id = foldId(el);
     st[id] = el.dataset.collapsed !== "true";
+    if (el.classList.contains("sub") && !st[id]) {
+      // Bandcamp と手入力は片方を開いたらもう片方を閉じる
+      for (const other of document.querySelectorAll(".sub")) if (other !== el) st[foldId(other)] = true;
+    }
     try { localStorage.setItem(foldKey(), JSON.stringify(st)); } catch { /* ignore */ }
     applyFold();
   }
