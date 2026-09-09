@@ -51,19 +51,22 @@ async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "J
     finally:
         if own:
             await client.aclose()
-    # iTunes の検索はあいまい（曲名の一部一致・カバー・オルゴール版まで返る）ので、
-    # 正規化した曲名／アーティスト名が完全に一致するものだけに絞る（空白・記号・大小・全角半角は無視）
+    # iTunes の検索はあいまい（アルバム名や作曲者にも当たり、関係ない曲まで返る）ので、
+    # 正規化した曲名にクエリを含み、かつアーティスト名にクエリのアーティストを含むものだけに絞る
+    # （空白・記号・大小・全角半角は無視）。完全一致を先頭に、それ以外はそのあとに並べる
     want_title, want_artist = _n(q), _n(artist)
-    out: list[Track] = []
+    exact: list[Track] = []
+    partial: list[Track] = []
     for item in data.get("results", []):
         if item.get("wrapperType") not in (None, "track"):
             continue
         t = _to_track(item)
         if not t:
             continue
-        if want_title and _n(t.title) != want_title:
+        nt, na = _n(t.title), _n(t.artist)
+        if want_title and want_title not in nt:
             continue
-        if want_artist and _n(t.artist) != want_artist:
+        if want_artist and want_artist not in na:
             continue
-        out.append(t)
-    return out
+        (exact if (not want_title or nt == want_title) and (not want_artist or na == want_artist) else partial).append(t)
+    return exact + partial

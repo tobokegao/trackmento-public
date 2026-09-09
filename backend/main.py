@@ -23,7 +23,7 @@ from backend.config import public_base_url
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
-from backend.sources import bandcamp, discogs, itunes, musicbrainz, soundcloud
+from backend.sources import discogs, fromurl, itunes, musicbrainz
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -37,6 +37,9 @@ FONTS = ROOT / "fonts"
 IMAGE_HOST_ALLOWLIST = (
     "mzstatic.com",            # iTunes
     "sndcdn.com",              # SoundCloud
+    "ytimg.com",               # YouTube サムネイル
+    "nimg.jp",                 # ニコニコ動画サムネイル（nicovideo.cdn.nimg.jp）
+    "nicovideo.jp",
     "coverartarchive.org",     # MusicBrainz CAA
     "archive.org",
     "discogs.com",             # Discogs
@@ -157,10 +160,9 @@ class BandcampBody(BaseModel):
 @app.post("/from-url", response_model=Track)
 @app.post("/bandcamp", response_model=Track)   # 旧名。互換のため残す
 async def from_url(body: BandcampBody) -> Track:
-    """Bandcamp（トラック／アルバムページ）または SoundCloud（トラック）の URL からジャケット・曲名・アーティストを取る。"""
+    """Bandcamp / SoundCloud / YouTube / ニコニコ動画の URL からジャケット（サムネイル）・曲名・アーティストを取る。"""
     url = body.url.strip()
-    fetch = soundcloud.fetch if soundcloud.is_soundcloud(url) else bandcamp.fetch
-    label = "SoundCloud" if fetch is soundcloud.fetch else "Bandcamp"
+    label, fetch = fromurl.resolve(url)
     try:
         return await fetch(url, client=app.state.http)
     except ValueError as e:

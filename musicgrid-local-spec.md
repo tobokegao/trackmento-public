@@ -175,14 +175,14 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 
 ### 実装メモ（2026-09-09 タスク11〜16 完了時）
 - キャッシュ: `cache.sqlite3` に検索結果（7日）と画像（30日・300MB 上限）。`/search?nocache=true` で取り直し
-- ALL（source 省略時）は MusicBrainz → Discogs（トークンがあるとき）→ iTunes の順。重複は先のソースを残す。iTunes は完全一致のみ
+- ALL（source 省略時）は MusicBrainz → Discogs（トークンがあるとき）→ iTunes の順。重複は先のソースを残す。iTunes は曲名・アーティストの部分一致（含む）のみ、完全一致が先頭
 - フォントは `fonts/` に IBM Plex Sans JP / Silkscreen / DotGothic16（OFL）を同梱し `/fonts/` で配信。Google Fonts 依存を外した
 - グリッド JSON: Web は localStorage とサーバー `grids/default.json` の両方に保存し、起動時に savedAt が新しい方を採用。
   `/render` と CLI の `render` は指定オプションをグリッド JSON に保存する
 - `backend/render.py` の layout はフロントの layout() と同じ式（丸めは JS の Math.round 相当）。寸法は一致する
 - Remote Control の起動コマンドは現行の Claude Code では `claude --remote-control <name>`（フラグ形式）
 - `PUBLIC_BASE_URL=auto` で LAN IP を自動検出。タスク16 のスマホ実機確認は未実施（手順は CLAUDE.md）
-- Last.fm は画像が iTunes と重なるため廃止。SoundCloud は公式 API が閉じているので oEmbed（キー不要）で URL 貼付のみ対応
+- Last.fm は画像が iTunes と重なるため廃止。SoundCloud（oEmbed）・YouTube（oEmbed + i.ytimg.com）・ニコニコ動画（getthumbinfo）は URL 貼付で対応（キー不要）
 - 「トラックを共有」: PNG と並びのスナップショットを shares/ に保存し、共有ページ /s/<id> と /?share=<id> で読み込み。JSON 入出力は廃止
 
 ---
