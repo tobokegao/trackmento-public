@@ -316,6 +316,7 @@ output { font-variant-numeric: tabular-nums; }
 
 /* ---------- output ---------- */
 .output { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: var(--line) solid var(--color-rule); }
+.output[hidden] { display: none; }
 .output img { width: auto; max-width: 100%; max-height: 70dvh; border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
 .output .dl { justify-self: start; }
 .spec { display: grid; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }
@@ -369,6 +370,24 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <p class="msg" id="bc-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
+    <form class="pane-body search-form sub-form" id="manual-form" novalidate>
+      <div class="field">
+        <label for="m-image">手入力: ジャケット画像の URL</label>
+        <input class="input" id="m-image" name="image" type="url" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
+      </div>
+      <div class="field">
+        <label for="m-title">曲名</label>
+        <input class="input" id="m-title" name="title" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="m-artist">アーティスト名</label>
+        <input class="input" id="m-artist" name="artist" type="text" autocomplete="off">
+      </div>
+      <div class="search-actions">
+        <button class="btn" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
+        <p class="msg" id="m-msg" role="status" aria-live="polite"></p>
+      </div>
+    </form>
   </section>
 
   <section class="pane pane-results" aria-labelledby="h-results">
@@ -394,6 +413,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <div class="grid-actions">
         <button class="btn btn-primary" type="button" id="render-btn"><span class="label">画像を作る</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
+        <button class="btn" type="button" id="export-btn">JSON 書き出し</button>
+        <button class="btn" type="button" id="import-btn">JSON 読み込み</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
       </div>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="生成したグリッド画像のプレビュー">
@@ -489,6 +511,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     status: $("#bar-status"), form: $("#search-form"), q: $("#q"), artist: $("#artist"),
     sources: $("#sources"), searchBtn: $("#search-btn"), searchMsg: $("#search-msg"),
     bcForm: $("#bandcamp-form"), bcUrl: $("#bc-url"), bcBtn: $("#bc-btn"), bcMsg: $("#bc-msg"),
+    mForm: $("#manual-form"), mImage: $("#m-image"), mTitle: $("#m-title"), mArtist: $("#m-artist"), mBtn: $("#m-btn"), mMsg: $("#m-msg"),
+    exportBtn: $("#export-btn"), importBtn: $("#import-btn"), importFile: $("#import-file"),
     results: $("#results"), resultsCount: $("#results-count"),
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
     renderBtn: $("#render-btn"), clearBtn: $("#clear-btn"),
@@ -579,6 +603,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       say(els.bcMsg, `取れませんでした。${err.message}`, "error");
       setTimeout(() => setBtnState(els.bcBtn, null), 2500);
     }
+  });
+
+  /* ---- manual entry ---- */
+  els.mForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const image = els.mImage.value.trim(), title = els.mTitle.value.trim(), artist = els.mArtist.value.trim();
+    for (const el of [els.mImage, els.mTitle]) el.removeAttribute("aria-invalid");
+    if (!/^https?:\/\//.test(image)) { els.mImage.setAttribute("aria-invalid", "true"); say(els.mMsg, "画像の URL は https:// から始まる必要があります。", "error"); els.mImage.focus({ preventScroll: true }); return; }
+    if (!title) { els.mTitle.setAttribute("aria-invalid", "true"); say(els.mMsg, "曲名を入れてください。", "error"); els.mTitle.focus({ preventScroll: true }); return; }
+    const t = { source: "manual", title, artist, album: null, image, thumb: image, external_url: null };
+    currentResults = [t, ...currentResults.filter(x => x.image !== image)];
+    renderResults(currentResults);
+    els.mImage.value = ""; els.mTitle.value = ""; els.mArtist.value = "";
+    say(els.mMsg, `候補の先頭に「${title}」を入れました。クリックで配置します。`);
   });
 
   let currentResults = [];
@@ -777,7 +815,86 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const L = layout();
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
     els.specCell.textContent = `${Math.round(CELL_PX * L.scale)} px`;
+    save();
   }
+
+  /* ---- persistence: localStorage + JSON ----
+     形式は CLI と共有する grids/<name>.json と同じにする */
+  const STORAGE_KEY = "trackmento:grid:default";
+  const isTrack = (t) => !!t && typeof t === "object" && typeof t.image === "string" && typeof t.title === "string";
+  function serialize() {
+    return {
+      app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
+      title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash,
+      options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar, numbers: state.numbers, bg: state.bg, bgCustom: state.bgCustom, margin: state.margin },
+    };
+  }
+  function applyData(d) {
+    if (!d || typeof d !== "object" || !Array.isArray(d.cells)) throw new Error("TRACKMENTO の JSON ではありません（cells がありません）。");
+    const clamp = (v, lo, hi, dflt) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, Math.round(+v))) : dflt;
+    const cols = clamp(d.cols, 1, 12, 3), rows = clamp(d.rows, 1, 12, 3);
+    const cells = d.cells.slice(0, cols * rows).map(t => (isTrack(t) ? t : null));
+    while (cells.length < cols * rows) cells.push(null);
+    state.cols = cols; state.rows = rows; state.cells = cells;
+    state.stash = Array.isArray(d.stash) ? d.stash.filter(isTrack) : [];
+    state.title = typeof d.title === "string" ? d.title.slice(0, 60) : "";
+    const o = d.options || {};
+    state.ratio = o.ratio in RATIOS ? o.ratio : "1:1";
+    state.showTitle = o.showTitle !== false; state.sidebar = o.sidebar === true; state.numbers = o.numbers !== false;
+    const bgKeys = SWATCHES.map(s => s[0]);
+    if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
+    else { state.bg = bgKeys.includes(o.bg) ? o.bg : "paper"; }
+    state.margin = clamp(o.margin, 0, 160, 48);
+    syncControls();
+    renderGrid();
+  }
+  function syncControls() {
+    els.title.value = state.title; els.title.disabled = !state.showTitle;
+    const preset = els.sizeSeg.querySelector(`input[value="${state.cols}x${state.rows}"]`);
+    (preset || els.sizeSeg.querySelector('input[value="custom"]')).checked = true;
+    els.customSize.hidden = !!preset;
+    els.cols.value = state.cols; els.rows.value = state.rows;
+    els.ratioSeg.querySelector(`input[value="${state.ratio}"]`).checked = true;
+    els.optTitle.checked = state.showTitle; els.optSidebar.checked = state.sidebar; els.optNumbers.checked = state.numbers;
+    for (const i of els.swatches.querySelectorAll("input")) i.checked = i.value === state.bg;
+    if (state.bg === "custom" && state.bgCustom) els.bgCustom.value = state.bgCustom;
+    els.margin.value = state.margin; els.marginOut.value = state.margin;
+  }
+  let saveTimer = null;
+  function save() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(serialize())); } catch { /* 容量超過や無効化は無視 */ } }, 150);
+  }
+  function restore() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      applyData(JSON.parse(raw));
+      return true;
+    } catch { return false; }
+  }
+  els.exportBtn.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(serialize(), null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".json";
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    say(els.gridMsg, `「${a.download}」を書き出しました。`);
+  });
+  els.importBtn.addEventListener("click", () => els.importFile.click());
+  els.importFile.addEventListener("change", async () => {
+    const f = els.importFile.files[0];
+    if (!f) return;
+    try {
+      applyData(JSON.parse(await f.text()));
+      els.output.hidden = true;
+      say(els.gridMsg, `「${f.name}」を読み込みました（${state.cells.filter(Boolean).length} 曲）。`);
+    } catch (err) {
+      say(els.gridMsg, `読み込めませんでした。${err.message}`, "error");
+    }
+    els.importFile.value = "";
+  });
 
   els.renderBtn.addEventListener("click", async () => {
     const bg = bgColor();
@@ -867,7 +984,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
 
   renderSwatches();
-  renderGrid();
+  if (!restore()) { syncControls(); renderGrid(); }
   loadHealth();
 })();
 </script>

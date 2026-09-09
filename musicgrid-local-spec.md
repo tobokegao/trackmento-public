@@ -163,7 +163,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - [x] 7. `sources/bandcamp.py` + `/bandcamp`
 - [x] 8. 横断検索の重複マージ
 - [x] 9. グリッドサイズ／比率プリセット／サイドバー／番号／背景色
-- [ ] 10. localStorage 保存、JSON 入出力、手入力追加
+- [x] 10. localStorage 保存、JSON 入出力、手入力追加
 - [ ] 11. SQLite キャッシュ
 - [ ] 12. `sources/discogs.py`（トークンありのときだけ有効）
 - [ ] 13. 日本語フォント同梱と PNG 書き出し時のフォント適用確認
@@ -201,6 +201,18 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - **テーマルート**: Hallmark custom（tuned）。macrostructure は Workbench
 - **ワードマーク**: Silkscreen 700 の大文字。版ズレは二重に見えて読みづらいため不採用、文字の下にセルリアンの太線（5px）。日本語ドット表示は粗さが出せず不採用
 - **横断検索のマージ鍵**: 曲名＋アーティスト＋アルバム名（「- Single」「- EP」接尾辞は無視）。同じ曲の別ジャケットを残すため
+
+### グリッド JSON の形式（タスク10で決定。localStorage / JSON 書き出し / grids/<name>.json で共通）
+```json
+{ "app": "trackmento", "version": 1, "name": "default", "savedAt": "ISO8601",
+  "title": "…", "cols": 3, "rows": 3,
+  "cells": [ <共通レスポンス型 Track> | null, ... ],   // cols*rows 個
+  "stash": [ <Track>, ... ],                            // 縮小時に退避した曲
+  "options": { "ratio": "1:1|16:9|4:5|9:16|free", "showTitle": true, "sidebar": false,
+               "numbers": true, "bg": "paper|ink|mustard|cerulean|lavender|vermilion|mint|pink|custom",
+               "bgCustom": "#rrggbb|null", "margin": 48 } }
+```
+- `/image-proxy` はホワイトリスト外でも公開ホストなら通す（私設IP・ループバック・解決不能は 403）。手入力の画像URL対応のため
 
 ## 9. Remote Control 運用（スマホから曲を追加して画像を受け取る）
 

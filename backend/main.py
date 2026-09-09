@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import os
+import socket
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse
@@ -121,6 +123,19 @@ async def bandcamp_lookup(body: BandcampBody) -> Track:
         raise HTTPException(502, f"取得失敗: {e}") from e
 
 
+def _is_public_host(host: str) -> bool:
+    """手入力の画像URL向け。私設・ループバック・リンクローカル宛て（SSRF）を拒否する。"""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        return False
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+            return False
+    return bool(infos)
+
+
 def _host_allowed(url: str) -> bool:
     try:
         p = urlparse(url)
@@ -129,21 +144,24 @@ def _host_allowed(url: str) -> bool:
     if p.scheme not in ("http", "https") or not p.hostname:
         return False
     host = p.hostname.lower()
-    return any(host == d or host.endswith("." + d) for d in IMAGE_HOST_ALLOWLIST)
+    if any(host == d or host.endswith("." + d) for d in IMAGE_HOST_ALLOWLIST):
+        return True
+    return _is_public_host(host)
 
 
 @app.get("/image-proxy")
 async def image_proxy(url: str = Query(..., description="取得する画像URL")) -> Response:
     """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。"""
     if not _host_allowed(url):
-        raise HTTPException(403, "許可されていないホストです")
+        raise HTTPException(403, "このホストの画像は取得できません（私設アドレスや解決できないホスト）")
     client: httpx.AsyncClient = app.state.http
     try:
-        r = await client.get(url)
+        # 画像 CDN の中には汎用 UA を弾くものがある（Wikimedia 等）ためブラウザ風にする
+        r = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; trackmento/0.1)", "Accept": "image/*,*/*;q=0.8"})
     except httpx.HTTPError as e:
         raise HTTPException(502, f"取得失敗: {e}") from e
     if r.status_code != 200:
-        raise HTTPException(r.status_code, "upstream error")
+        raise HTTPException(502, f"画像サーバーが {r.status_code} を返しました")
     ctype = r.headers.get("content-type", "")
     if not ctype.startswith("image/"):
         raise HTTPException(415, f"画像ではありません: {ctype}")
