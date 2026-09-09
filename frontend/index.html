@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TRACKMENTO</title>
-<meta name="description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなで好きなトラックを">
+<meta name="description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
-<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなで好きなトラックを">
+<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
 <meta property="og:url" content="__BASE__/"><meta property="og:image" content="__BASE__/og.png">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" href="favicon.png" sizes="64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 /* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
 @font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }
@@ -512,7 +514,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <input class="input" id="artist" name="artist" type="search" autocomplete="off" placeholder="例: 米津玄師" enterkeyhint="search">
       </div>
       <fieldset class="field">
-        <legend>ソース <button class="hint-btn" type="button" id="src-hint-btn" aria-haspopup="dialog" title="各ソースの接続方法・注意">?</button></legend>
+        <legend>ソース <button class="hint-btn" type="button" id="src-hint-btn" aria-haspopup="dialog" title="各ソースの説明">?</button></legend>
         <div class="seg" id="sources" role="group" aria-label="検索ソース（複数選択）"></div>
       </fieldset>
       <div class="search-actions">
@@ -542,7 +544,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <div class="search-actions">
           <button class="btn" type="button" id="m-file-btn"><span class="label">PC／スマホの画像を選ぶ</span></button>
           <input type="file" id="m-file" accept="image/*" hidden>
-          <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶとサーバーの uploads/ に保存され、URL 欄に入ります。</p>
+          <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶと画像が取り込まれ、URL 欄に入ります。</p>
         </div>
       </div>
       <div class="field">
@@ -655,18 +657,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <div class="modal" id="src-modal" hidden role="dialog" aria-modal="true" aria-labelledby="src-modal-title">
   <div class="sheet-backdrop" id="src-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="src-modal-title">ソースの接続方法と注意</h2><button class="btn" type="button" id="src-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2><button class="btn" type="button" id="src-modal-close">閉じる</button></div>
     <div class="modal-body note">
-          <p><b>iTunes</b>: キー不要。曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。</p>
-          <p><b>MusicBrainz</b>: キー不要。画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
-          <p><b>Discogs</b>: 物理リリースに強い。無料のトークンが必要です（Data provided by Discogs。Discogs の API 規約により、検索結果と画像のキャッシュは 6 時間まで）。
-            <br>1. <a href="https://www.discogs.com/settings/developers" target="_blank" rel="noopener">discogs.com/settings/developers</a> を開き「Generate new token」を押す
-            <br>2. 表示された文字列を <code>.env</code> の <code>DISCOGS_TOKEN=</code> の後ろに貼る
-            <br>3. サーバー（uvicorn）を再起動する → ソースに Discogs が現れます
-            <br>アーティスト名はローマ字表記のことが多いので、日本語で 0 件なら英語で試してください。曲名で見つからないときはそのアーティストのリリース一覧が出ます。</p>
-          <p><b>otoDB</b>: 音MAD データベース（otodb.net）。キー不要。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
-          <p><b>組み合わせ</b>: ソースは複数選べます。結果は iTunes → MusicBrainz → Discogs → otoDB の順に並び、同じ曲はこの順で先のものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
-          <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム。検索はキーが要るので URL のみ）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります（キー不要）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
+          <p><b>iTunes</b>: 曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。</p>
+          <p><b>MusicBrainz</b>: 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
+          <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
+          <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
+          <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
     </div>
   </div>
 </div>
@@ -755,8 +752,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     renderSources();
   }
-  /* ソースは複数選択（チェックボックス）。選択は記憶し、既定は otoDB 以外を全部オン。
-     検索時の順序は優先順（MusicBrainz → Discogs → iTunes → otoDB）で固定し、同じ曲は先のソースを残す */
+  /* ソースは複数選択（チェックボックス）。選択は記憶し、既定は iTunes だけオン。
+     検索時の順序は優先順（iTunes → MusicBrainz → Discogs → otoDB）で固定し、同じ曲は先のソースを残す */
   const SOURCE_ORDER = ["itunes", "musicbrainz", "discogs", "otodb"];
   const SOURCES_KEY = "trackmento:sources";
   function loadSourceSelection() {
@@ -772,9 +769,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const l = document.createElement("label");
       const i = document.createElement("input");
       i.type = "checkbox"; i.name = "source"; i.value = s; i.disabled = !on;
-      i.checked = on && (saved ? saved.includes(s) : s !== "otodb");
+      i.checked = on && (saved ? saved.includes(s) : s === "itunes");
       const sp = document.createElement("span"); sp.textContent = SOURCE_LABEL[s];
-      if (!on) l.title = "使えません（Discogs はトークンが必要です。「?」で接続方法を表示）";
+      if (!on) l.title = "このソースはサーバー側で無効です（README を参照）";
       i.addEventListener("change", () => { try { localStorage.setItem(SOURCES_KEY, JSON.stringify(selectedSources())); } catch { /* ignore */ } });
       l.append(i, sp); els.sources.append(l);
     }

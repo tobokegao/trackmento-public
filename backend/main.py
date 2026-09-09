@@ -208,6 +208,21 @@ async def og_image() -> FileResponse:
     return FileResponse(FRONTEND / "og.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
+@app.get("/favicon.ico")
+async def favicon_ico() -> FileResponse:
+    return FileResponse(FRONTEND / "favicon.ico", media_type="image/x-icon", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/favicon.png")
+async def favicon_png() -> FileResponse:
+    return FileResponse(FRONTEND / "favicon.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/apple-touch-icon.png")
+async def apple_touch_icon() -> FileResponse:
+    return FileResponse(FRONTEND / "apple-touch-icon.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/health")
 async def health() -> dict:
     if public_mode():

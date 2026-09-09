@@ -27,7 +27,8 @@ def build(api: str, out: Path) -> None:
     html = html.replace("__BASE__", api)   # OG 画像はバックエンドが配る /og.png を指す
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(html, encoding="utf-8")
-    shutil.copy2(ROOT / "frontend" / "og.png", out / "og.png")
+    for name in ("og.png", "favicon.ico", "favicon.png", "apple-touch-icon.png"):
+        shutil.copy2(ROOT / "frontend" / name, out / name)
     fonts_out = out / "fonts"
     fonts_out.mkdir(exist_ok=True)
     for p in (ROOT / "fonts").glob("*"):
