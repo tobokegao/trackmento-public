@@ -1,0 +1,13 @@
+.venv
+.git
+__pycache__
+*.pyc
+outputs/*
+grids/*
+uploads/*
+shares/*
+cache.sqlite3*
+.env
+docs
+dist
+.github

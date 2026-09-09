@@ -11,15 +11,20 @@ from urllib.parse import urlparse
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
+import time
+from collections import defaultdict, deque
+
+from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, render, share, uploads
+from backend import grids, housekeeping, render, share, uploads
 from backend.cache import cache
-from backend.config import public_base_url
+from backend.config import app_url_for, base_url_for, cors_origins, frontend_url, public_base_url, public_mode, rate_limit_per_minute
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
@@ -67,6 +72,11 @@ async def lifespan(app: FastAPI):
     GRIDS.mkdir(exist_ok=True)
     uploads.UPLOADS.mkdir(exist_ok=True)
     share.SHARES.mkdir(exist_ok=True)
+    if public_mode():
+        cleaned = housekeeping.run_all()
+        if any(cleaned.values()):
+            print(f"[housekeeping] {cleaned}")
+        print(f"[public] 公開モード: CORS={cors_origins()} FRONTEND_URL={frontend_url() or '(このサーバー)'} RATE_LIMIT={rate_limit_per_minute()}/min")
     pruned = await asyncio.to_thread(cache.prune)
     if any(pruned.values()):
         print(f"[cache] pruned {pruned}")
@@ -87,6 +97,31 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
+if cors_origins():
+    # GitHub Pages など別オリジンのフロントから呼べるようにする（Cookie は使わないので credentials は不要）
+    app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["*"], max_age=600)
+
+# ---------- 簡易レートリミット（IP ごと・1 分間の回数。公開時の連打・スクレイピング対策） ----------
+_RATE_PATHS = ("/search", "/from-url", "/bandcamp", "/upload", "/share", "/render", "/grids")
+_hits: dict[str, deque] = defaultdict(deque)
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    limit = rate_limit_per_minute()
+    if limit and request.url.path.startswith(_RATE_PATHS):
+        ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "?")
+        now = time.monotonic()
+        q = _hits[ip]
+        while q and now - q[0] > 60:
+            q.popleft()
+        if len(q) >= limit:
+            return JSONResponse({"detail": "リクエストが多すぎます。1 分ほど待ってからもう一度お試しください"}, status_code=429, headers={"Retry-After": "60"})
+        q.append(now)
+        if len(_hits) > 5000:  # メモリが膨らまないように古い IP を捨てる
+            for k in [k for k, v in _hits.items() if not v or now - v[-1] > 60][:1000]:
+                _hits.pop(k, None)
+    return await call_next(request)
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
 app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
 app.mount("/uploads", StaticFiles(directory=uploads.UPLOADS, check_dir=False), name="uploads")
@@ -105,7 +140,9 @@ async def health() -> dict:
         "sources": sorted(SOURCES),
         "cache": await asyncio.to_thread(cache.stats),
         "public_base_url": public_base_url(),
-        "grids": grids.list_names(),
+        "public": public_mode(),
+        "frontend_url": frontend_url(),
+        "grids": [] if public_mode() else grids.list_names(),   # 公開時は他人のグリッド名を見せない
     }
 
 
@@ -251,6 +288,8 @@ def _grid_name(name: str) -> str:
 
 @app.get("/grids")
 async def grids_index() -> dict:
+    if public_mode():
+        raise HTTPException(404, "公開モードでは一覧を出しません")
     return {"grids": grids.list_names()}
 
 
@@ -332,7 +371,7 @@ def apply_render_options(doc: GridDoc, body: RenderBody) -> bool:
 
 
 @app.post("/render")
-async def render_grid(body: RenderBody = Body(default_factory=RenderBody)) -> dict:
+async def render_grid(request: Request, body: RenderBody = Body(default_factory=RenderBody)) -> dict:
     name = _grid_name(body.grid)
     try:
         doc = grids.load(name)
@@ -348,7 +387,7 @@ async def render_grid(body: RenderBody = Body(default_factory=RenderBody)) -> di
     except RuntimeError as e:  # フォント欠落など
         raise HTTPException(500, str(e)) from e
     return {
-        "url": f"{public_base_url()}/outputs/{path.name}",
+        "url": f"{base_url_for(request)}/outputs/{path.name}",
         "file": path.name,
         "width": im.width,
         "height": im.height,
@@ -358,7 +397,7 @@ async def render_grid(body: RenderBody = Body(default_factory=RenderBody)) -> di
 
 # ---------- 手入力用の画像アップロード ----------
 @app.post("/upload")
-async def upload_image(file: UploadFile = File(...)) -> dict:
+async def upload_image(request: Request, file: UploadFile = File(...)) -> dict:
     """PC やスマホの画像ファイルを uploads/ に保存し、Track.image に入れる相対 URL を返す。"""
     data = await file.read(uploads.MAX_BYTES + 1)
     if len(data) > uploads.MAX_BYTES:
@@ -369,12 +408,12 @@ async def upload_image(file: UploadFile = File(...)) -> dict:
         url = await run_in_threadpool(uploads.save_image_bytes, data)
     except ValueError as e:
         raise HTTPException(415, str(e)) from e
-    return {"url": url, "absolute": f"{public_base_url()}{url}", "name": file.filename}
+    return {"url": url, "absolute": f"{base_url_for(request)}{url}", "name": file.filename}
 
 
 # ---------- トラックを共有（PNG + 並びのスナップショット + 共有ページ） ----------
 @app.post("/share")
-async def share_grid(body: RenderBody = Body(default_factory=RenderBody)) -> dict:
+async def share_grid(request: Request, body: RenderBody = Body(default_factory=RenderBody)) -> dict:
     name = _grid_name(body.grid)
     try:
         doc = grids.load(name)
@@ -389,13 +428,15 @@ async def share_grid(body: RenderBody = Body(default_factory=RenderBody)) -> dic
         info = await run_in_threadpool(share.create, doc)
     except RuntimeError as e:
         raise HTTPException(500, str(e)) from e
-    base = public_base_url()
+    if public_mode():
+        housekeeping.prune_shares()
+    base = base_url_for(request)
     return {**info, "url": f"{base}/s/{info['id']}", "png_url": f"{base}{info['png']}"}
 
 
 @app.get("/s/{sid}", response_class=HTMLResponse)
-async def share_page(sid: str) -> HTMLResponse:
+async def share_page(request: Request, sid: str) -> HTMLResponse:
     snap = share.load(sid)
     if not snap:
         raise HTTPException(404, "この共有は見つかりません")
-    return HTMLResponse(share.page_html(snap, public_base_url()))
+    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request)))

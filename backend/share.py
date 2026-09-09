@@ -54,9 +54,10 @@ def load(sid: str) -> dict | None:
     return json.loads(p.read_text(encoding="utf-8"))
 
 
-def page_html(snap: dict, base: str) -> str:
+def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
     """共有ページ。依存なしの単一 HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
+    app_url = (app_url or base).rstrip("/")
     title = html.escape(snap.get("title") or "TRACKMENTO")
     rows = []
     for i, c in enumerate(snap.get("cells") or [], 1):
@@ -68,10 +69,10 @@ def page_html(snap: dict, base: str) -> str:
 <title>{title} — TRACKMENTO</title>
 <meta property="og:title" content="{title}"><meta property="og:image" content="{base}/shares/{sid}.png">
 <style>
-@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; src: url("/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
-@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; src: url("/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}
-@font-face {{ font-family: "Silkscreen"; font-weight: 700; src: url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
-@font-face {{ font-family: "DotGothic16"; src: url("/fonts/DotGothic16-Regular.ttf") format("truetype"); }}
+@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; src: url("{base}/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
+@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; src: url("{base}/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}
+@font-face {{ font-family: "Silkscreen"; font-weight: 700; src: url("{base}/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
+@font-face {{ font-family: "DotGothic16"; src: url("{base}/fonts/DotGothic16-Regular.ttf") format("truetype"); }}
 * {{ box-sizing: border-box; border-radius: 0; }}
 body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "IBM Plex Sans JP", sans-serif; line-height: 1.55; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
@@ -98,7 +99,7 @@ p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere;
   <img src="/shares/{sid}.png" alt="{title}">
   <div class="btns">
     <a class="btn primary" href="/shares/{sid}.png" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.png">PNG を保存</a>
-    <a class="btn" href="/?share={sid}">TRACKMENTO で開く（この並びを読み込む）</a>
+    <a class="btn" href="{app_url}/?share={sid}">TRACKMENTO で開く（この並びを読み込む）</a>
   </div>
   <ol>{''.join(rows)}</ol>
   <p class="meta">{n} 曲 · {snap.get('cols')}×{snap.get('rows')} · 共有 ID {sid} · {html.escape(snap.get('createdAt') or '')}</p>

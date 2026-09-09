@@ -44,6 +44,47 @@ copy .env.example .env          # 必要なら API キーを記入
 グリッドの状態は `grids/<name>.json` に保存され、Web UI と共有されます（Web 側は自動保存＋「サーバーから読み直す」）。
 スマホからの運用手順は `CLAUDE.md` を参照。
 
+## 公開する（誰でも使えるようにする）
+
+このアプリは検索の中継・画像プロキシ・PNG 描画・共有をサーバー側（FastAPI）でやるので、
+**静的ホスティング（GitHub Pages）だけでは動きません**。次のどちらかで公開します。
+
+### A. バックエンドだけを公開する（いちばん簡単。おすすめ）
+
+バックエンドは `/` でフロント（index.html）も配信するので、これ 1 つで完結します。
+
+1. Render（https://render.com）で "New → Blueprint" → このリポジトリを選ぶ（`render.yaml` を読んで作成される）
+2. 環境変数を入れる: `PUBLIC_MODE=1`、`MB_USER_AGENT`（連絡先入り）、`DISCOGS_TOKEN`（任意）
+   `CORS_ORIGINS` と `FRONTEND_URL` は同一オリジンなら不要
+3. できた URL（例 `https://trackmento.onrender.com`）を開く
+
+Docker が動くホスト（Fly.io / Railway / Koyeb / Hugging Face Spaces など）でも `Dockerfile` でそのまま動きます。
+無料プランは一定時間アクセスが無いとスリープし、次のアクセスで 30〜60 秒かかります。
+
+### B. フロントを GitHub Pages に、バックエンドを別ホストに置く
+
+1. A の手順でバックエンドを公開し、環境変数に
+   `CORS_ORIGINS=https://<user>.github.io` と `FRONTEND_URL=https://<user>.github.io/<repo>` を追加する
+2. GitHub リポジトリの Settings → Pages → Source を **GitHub Actions** にする
+3. Settings → Secrets and variables → Actions → **Variables** に `TRACKMENTO_API`（バックエンドの URL）を登録する
+4. main / master に push すると `.github/workflows/pages.yml` がフロントを組み立てて公開する
+   （手元で試すなら `python scripts/build_pages.py --api https://…` で `dist/` に出る）
+
+### 公開モード（PUBLIC_MODE=1）で変わること
+
+- グリッドの保存名がブラウザごとのランダム ID になり、利用者同士で混ざらない（`/grids` の一覧も出さない）
+- CORS を `CORS_ORIGINS` のオリジンに開く（未設定なら `*`）
+- API に IP ごとのレートリミット（既定 120 回/分。`RATE_LIMIT` で変更）
+- `shares/`（共有 PNG+JSON）と `uploads/` は新しい 2000 件だけ残し、`grids/` の 90 日更新の無いものは消す
+- 共有ページの「TRACKMENTO で開く」は `FRONTEND_URL` に戻る
+
+### 公開前に知っておくこと
+
+- Discogs のトークンはサーバー側にだけ置く（フロントには出ない）。MusicBrainz は `MB_USER_AGENT` に連絡先を入れる決まり
+- 画像プロキシは外部の画像を中継する。私設アドレス宛ては拒否しているが、帯域は使う
+- 無料ホストのディスクは再デプロイで消える。検索キャッシュ・共有 PNG・アップロード画像が消えてよい前提。残すなら有料の永続ディスク
+- 利用規約上、各サービスの取得は「個人が手元で使う」範囲を想定している。多人数の公開運用では各 API の利用条件を確認すること
+
 ## 構成
 
 ```

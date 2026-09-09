@@ -6,11 +6,11 @@
 <title>TRACKMENTO</title>
 <style>
 /* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
-@font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }
-@font-face { font-family: "IBM Plex Sans JP"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }
-@font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/Silkscreen-Regular.ttf") format("truetype"); }
-@font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }
-@font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/DotGothic16-Regular.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans JP"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Bold.ttf") format("truetype"); }
+@font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/DotGothic16-Regular.ttf") format("truetype"); }
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(97% 0.003 95) · accent: oklch(60% 0.14 235)
  * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
@@ -676,7 +676,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
 <footer>
   <span>TRACKMENTO</span>
-  <a href="/health">/health</a>
+  <a href="/health" id="health-link">/health</a>
   <span id="foot-sources"></span>
 </footer>
 
@@ -684,6 +684,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
+  /* バックエンドの URL。同一オリジンなら空。GitHub Pages に置くときは build_pages.py が <meta name="trackmento-api"> を埋め込む */
+  const API = (((document.querySelector('meta[name="trackmento-api"]') || {}).content || window.TRACKMENTO_API || "") + "").replace(/\/+$/, "");
+  const api = (path) => API + path;
+  let isPublic = false;
   const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", manual: "手入力" };
   const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
@@ -719,7 +723,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   };
 
   // アップロード画像（/uploads/…）は同一オリジンなのでプロキシを通さない
-  const proxied = (url) => (url.startsWith("/uploads/") ? url : `/image-proxy?url=${encodeURIComponent(url)}`);
+  $("#health-link").href = api("/health");
+  const proxied = (url) => (url.startsWith("/uploads/") ? api(url) : api(`/image-proxy?url=${encodeURIComponent(url)}`));
   const isImageRef = (s) => /^https?:\/\//.test(s) || /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(s);
   const setBtnState = (btn, s) => { if (s) btn.dataset.state = s; else delete btn.dataset.state; btn.disabled = s === "loading"; };
   const say = (el, text, tone) => { el.textContent = text; if (tone) el.dataset.tone = tone; else delete el.dataset.tone; };
@@ -727,9 +732,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* ---- sources ---- */
   async function loadHealth() {
     try {
-      const r = await fetch("/health");
+      const r = await fetch(api("/health"));
       const d = await r.json();
       available = d.sources || [];
+      isPublic = !!d.public;
       els.status.textContent = "接続OK";
       els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
     } catch {
@@ -776,7 +782,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const params = new URLSearchParams({ q, artist, source: chosen.join(",") });
     setBtnState(els.searchBtn, "loading"); say(els.searchMsg, "");
     try {
-      const r = await fetch(`/search?${params}`);
+      const r = await fetch(api(`/search?${params}`));
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const tracks = await r.json();
       renderResults(tracks);
@@ -804,7 +810,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!/^https?:\/\//.test(url) && !/^(?:(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$/.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
     setBtnState(els.bcBtn, "loading"); say(els.bcMsg, "");
     try {
-      const r = await fetch("/from-url", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
+      const r = await fetch(api("/from-url"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
       currentResults = [d, ...currentResults.filter(t => t.image !== d.image)];
@@ -841,7 +847,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     setBtnState(els.mFileBtn, "loading"); say(els.mFileMsg, `${f.name} を送っています…`);
     try {
       const fd = new FormData(); fd.append("file", f, f.name);
-      const r = await fetch("/upload", { method: "POST", body: fd });
+      const r = await fetch(api("/upload"), { method: "POST", body: fd });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
       els.mImage.value = d.url; els.mImage.removeAttribute("aria-invalid");
@@ -1216,8 +1222,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   /* 保存先は 2 つ。localStorage（即時）と grids/default.json（サーバー。CLI と共有）。
      サーバーへは内容が変わったときだけ PUT する（savedAt を除いて比較） */
-  const GRID_NAME = "default";
-  const GRID_URL = `/grids/${GRID_NAME}`;
+  /* グリッドの保存名。ローカル運用は "default"（CLI と共有）。公開サーバーや別オリジンの API では
+     ブラウザごとのランダム ID にして、他の利用者と混ざらないようにする */
+  let GRID_NAME = "default";
+  const gridUrl = () => api(`/grids/${GRID_NAME}`);
+  function browserGridId() {
+    let id = null;
+    try { id = localStorage.getItem("trackmento:gridId"); } catch { /* ignore */ }
+    if (!/^u-[a-f0-9]{16}$/.test(id || "")) {
+      id = "u-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
+      try { localStorage.setItem("trackmento:gridId", id); } catch { /* ignore */ }
+    }
+    return id;
+  }
   const signature = (d) => JSON.stringify({ ...d, savedAt: null });
   let saveTimer = null, pushTimer = null, lastPushed = null, ready = false;
   function save() {
@@ -1238,14 +1255,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const sig = signature(d);
     if (sig === lastPushed) return true;
     try {
-      const r = await fetch(GRID_URL, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
+      const r = await fetch(gridUrl(), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
       if (r.ok) { lastPushed = sig; return true; }
     } catch { /* サーバー停止中は localStorage だけ */ }
     return false;
   }
   async function fetchServerGrid() {
     try {
-      const r = await fetch(GRID_URL, { cache: "no-store" });
+      const r = await fetch(gridUrl(), { cache: "no-store" });
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return await r.json();
@@ -1273,11 +1290,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     try {
       clearTimeout(saveTimer);
       if (!(await pushNow())) throw new Error("サーバーに保存できませんでした");
-      const r = await fetch("/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME }) });
+      const r = await fetch(api("/share"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
-      els.outputImg.src = d.png;
-      els.download.href = d.png; els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
+      els.outputImg.src = api(d.png);
+      els.download.href = api(d.png); els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
       els.shareUrl.value = d.url; els.openShare.href = d.url;
       els.nativeShareBtn.hidden = !navigator.share;
       els.output.hidden = false;
@@ -1340,7 +1357,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const sid = new URLSearchParams(location.search).get("share");
     if (!sid || !/^[a-z0-9]{6,16}$/.test(sid)) return false;
     try {
-      const r = await fetch(`/shares/${sid}.json`, { cache: "no-store" });
+      const r = await fetch(api(`/shares/${sid}.json`), { cache: "no-store" });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       applyData(await r.json());
       history.replaceState(null, "", location.pathname);
@@ -1351,7 +1368,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       return false;
     }
   }
-  restoreFromShare().then(ok => ok ? Promise.resolve() : restore()).finally(() => { ready = true; save(); loadHealth(); });
+  loadHealth()
+    .then(() => { if (isPublic || API) GRID_NAME = browserGridId(); })
+    .then(restoreFromShare).then(ok => ok ? Promise.resolve() : restore())
+    .finally(() => { ready = true; save(); });
 })();
 </script>
 </body>

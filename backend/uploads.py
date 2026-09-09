@@ -62,6 +62,10 @@ def save_image_bytes(data: bytes) -> str:
     p = UPLOADS / name
     if not p.exists():
         p.write_bytes(data)
+        from backend.config import public_mode
+        if public_mode():
+            from backend import housekeeping
+            housekeeping.prune_uploads()
     return PREFIX + name
 
 
