@@ -508,7 +508,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </div>
       <fieldset class="field">
         <legend>ソース <button class="hint-btn" type="button" id="src-hint-btn" aria-haspopup="dialog" title="各ソースの接続方法・注意">?</button></legend>
-        <div class="seg" id="sources" role="radiogroup" aria-label="検索ソース"></div>
+        <div class="seg" id="sources" role="group" aria-label="検索ソース（複数選択）"></div>
       </fieldset>
       <div class="search-actions">
         <button class="btn btn-primary" type="submit" id="search-btn"><span class="label">検索する</span></button>
@@ -659,8 +659,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
             <br>2. 表示された文字列を <code>.env</code> の <code>DISCOGS_TOKEN=</code> の後ろに貼る
             <br>3. サーバー（uvicorn）を再起動する → ソースに Discogs が現れます
             <br>アーティスト名はローマ字表記のことが多いので、日本語で 0 件なら英語で試してください。曲名で見つからないときはそのアーティストのリリース一覧が出ます。</p>
-          <p><b>otoDB</b>: 音MAD データベース（otodb.net）。キー不要。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。ALL には含めず、選んだときだけ検索します。</p>
-          <p><b>ALL</b>: MusicBrainz → Discogs → iTunes の順に並べ、同じ曲はこの順で先のものを残します。</p>
+          <p><b>otoDB</b>: 音MAD データベース（otodb.net）。キー不要。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
+          <p><b>組み合わせ</b>: ソースは複数選べます。結果は MusicBrainz → Discogs → iTunes → otoDB の順に並び、同じ曲はこの順で先のものを残します。選択は記憶されます。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム。検索はキーが要るので URL のみ）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります（キー不要）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
     </div>
   </div>
@@ -738,21 +738,31 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     renderSources();
   }
+  /* ソースは複数選択（チェックボックス）。選択は記憶し、既定は otoDB 以外を全部オン。
+     検索時の順序は優先順（MusicBrainz → Discogs → iTunes → otoDB）で固定し、同じ曲は先のソースを残す */
+  const SOURCE_ORDER = ["musicbrainz", "discogs", "itunes", "otodb"];
+  const SOURCES_KEY = "trackmento:sources";
+  function loadSourceSelection() {
+    try { const v = JSON.parse(localStorage.getItem(SOURCES_KEY) || "null"); if (Array.isArray(v)) return v; } catch { /* ignore */ }
+    return null;
+  }
   function renderSources() {
     els.sources.innerHTML = "";
-    const opts = [];
-    if (available.length > 1) opts.push({ v: "", label: "ALL", on: true });
-    for (const s of ALL_SOURCES) opts.push({ v: s, label: SOURCE_LABEL[s], on: available.includes(s) });
-    let checked = false;
-    for (const o of opts) {
+    const saved = loadSourceSelection();
+    for (const s of SOURCE_ORDER) {
+      const on = available.includes(s);
       const l = document.createElement("label");
       const i = document.createElement("input");
-      i.type = "radio"; i.name = "source"; i.value = o.v; i.disabled = !o.on;
-      if (o.on && !checked) { i.checked = true; checked = true; }
-      const sp = document.createElement("span"); sp.textContent = o.label;
-      if (!o.on) l.title = "使えません（Discogs はトークンが必要です。「?」で接続方法を表示）";
+      i.type = "checkbox"; i.name = "source"; i.value = s; i.disabled = !on;
+      i.checked = on && (saved ? saved.includes(s) : s !== "otodb");
+      const sp = document.createElement("span"); sp.textContent = SOURCE_LABEL[s];
+      if (!on) l.title = "使えません（Discogs はトークンが必要です。「?」で接続方法を表示）";
+      i.addEventListener("change", () => { try { localStorage.setItem(SOURCES_KEY, JSON.stringify(selectedSources())); } catch { /* ignore */ } });
       l.append(i, sp); els.sources.append(l);
     }
+  }
+  function selectedSources() {
+    return SOURCE_ORDER.filter(s => { const i = els.sources.querySelector(`input[value="${s}"]`); return i && i.checked && !i.disabled; });
   }
 
   /* ---- search ---- */
@@ -761,9 +771,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const q = els.q.value.trim(), artist = els.artist.value.trim();
     els.q.removeAttribute("aria-invalid");
     if (!q && !artist) { els.q.setAttribute("aria-invalid", "true"); say(els.searchMsg, "曲名かアーティスト名のどちらかは必要です。", "error"); els.q.focus({ preventScroll: true }); return; }
-    const source = new FormData(els.form).get("source") || "";
-    const params = new URLSearchParams({ q, artist });
-    if (source) params.set("source", source);
+    const chosen = selectedSources();
+    if (!chosen.length) { say(els.searchMsg, "ソースを 1 つ以上選んでください。", "error"); return; }
+    const params = new URLSearchParams({ q, artist, source: chosen.join(",") });
     setBtnState(els.searchBtn, "loading"); say(els.searchMsg, "");
     try {
       const r = await fetch(`/search?${params}`);

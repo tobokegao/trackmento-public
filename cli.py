@@ -95,10 +95,12 @@ async def _search(q: str, artist: str, sources: list[str]) -> tuple[list[Track],
 
 def search_candidates(title: str, artist: str, source: str | None) -> list[Track]:
     if source:
-        key = SOURCE_ALIAS.get(source.lower())
-        if not key:
-            raise CliError(f"未知のソース: {source}（itunes / mb / discogs / otodb）")
-        order = [key]
+        order = []
+        for name in source.split(","):
+            key = SOURCE_ALIAS.get(name.strip().lower())
+            if not key:
+                raise CliError(f"未知のソース: {name}（itunes / mb / discogs / otodb。カンマ区切りで複数可）")
+            order.append(key)
     else:
         order = ["musicbrainz", "discogs", "itunes"]
     tracks, _ = asyncio.run(_search(title, artist, order))
@@ -343,7 +345,7 @@ def build_parser() -> argparse.ArgumentParser:
     grid_arg(sp)
     sp.add_argument("--title", "-t", help="曲名")
     sp.add_argument("--artist", "-a", help="アーティスト名")
-    sp.add_argument("--source", "-s", help="itunes | mb | discogs | otodb（省略時は MusicBrainz → Discogs → iTunes の順。otodb は音MAD 用で明示指定のみ）")
+    sp.add_argument("--source", "-s", help="itunes | mb | discogs | otodb。カンマ区切りで複数可（省略時は MusicBrainz → Discogs → iTunes の順。otodb は音MAD 用で明示指定のみ）")
     sp.add_argument("--first", action="store_true", help="候補が複数でも先頭を採用する")
     sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL")
     sp.add_argument("--bandcamp", metavar="URL", help=argparse.SUPPRESS)  # 旧名

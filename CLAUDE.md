@@ -49,7 +49,7 @@ claude --remote-control TRACKMENTO                                             #
 ### 「○○の『△△』を追加して」
 1. `cli.py add --artist "○○" --title "△△"` を実行する
 2. 曲名＋アーティストが一致する候補があれば自動で次の空きマスに入る。出力の「NN 番に追加: …」をそのまま伝える
-   （検索順は MusicBrainz → Discogs → iTunes。iTunes は曲名・アーティスト名にクエリを含むものだけ返し、完全一致が先頭）
+   （検索順は MusicBrainz → Discogs → iTunes（--source mb,discogs のように絞れる）。iTunes は曲名・アーティスト名にクエリを含むものだけ返し、完全一致が先頭）
 3. **候補が複数出た場合は必ず番号付きで提示し、ユーザーが番号を返してから** `cli.py pick --index N` で確定する。勝手に選ばない
 4. 見つからない場合の順に: `--source discogs` / `--source mb`（音MAD なら `--source otodb`）→ Bandcamp / SoundCloud / Spotify / YouTube / ニコニコ動画 / bilibili なら URL をもらって `--url URL` → 画像 URL をもらって `--image URL --artist --title`
 5. 空きマスがないと言われたら、`remove --index N` で外すか `render --size 4x6` などで広げるかをユーザーに聞く
