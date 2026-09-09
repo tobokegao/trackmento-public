@@ -272,6 +272,17 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .seg input:disabled + span::after { display: none; }
 
 .search-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.hint-btn {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; margin-left: var(--space-1); vertical-align: text-bottom;
+  font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1;
+  background: var(--color-paper); border: var(--line) solid var(--color-ink); cursor: pointer;
+}
+.hint-btn[aria-expanded="true"] { background: var(--color-ink); color: var(--color-paper); }
+.note { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: var(--line) dashed var(--color-rule); background: var(--color-paper-2); font-size: var(--text-sm); }
+.note[hidden] { display: none; }
+.note p { margin: 0; overflow-wrap: anywhere; }
+.note a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.note code { font-family: ui-monospace, monospace; background: var(--color-paper); padding: 0 4px; border: 1px solid var(--color-rule); }
 .sub-form { border-top: var(--line) dashed var(--color-rule); }
 .search-actions { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
 .msg { font-size: var(--text-sm); color: var(--color-muted); margin: 0; min-height: 1.4em; overflow-wrap: anywhere; }
@@ -297,7 +308,7 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
   padding: 0 var(--space-1); border: var(--line) solid var(--color-ink); color: var(--color-ink); white-space: nowrap;
 }
 .badge[data-source="itunes"]      { background: var(--color-pink); }
-.badge[data-source="lastfm"]      { background: var(--color-vermilion); }
+.badge[data-source="soundcloud"]  { background: var(--color-vermilion); }
 .badge[data-source="musicbrainz"] { background: var(--color-lavender); }
 .badge[data-source="discogs"]     { background: var(--color-mustard); }
 .badge[data-source="bandcamp"]    { background: var(--color-mint); }
@@ -487,8 +498,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <input class="input" id="artist" name="artist" type="search" autocomplete="off" placeholder="例: Official髭男dism" enterkeyhint="search">
       </div>
       <fieldset class="field">
-        <legend>ソース</legend>
+        <legend>ソース <button class="hint-btn" type="button" id="src-hint-btn" aria-expanded="false" aria-controls="src-hint" title="各ソースの接続方法・注意">?</button></legend>
         <div class="seg" id="sources" role="radiogroup" aria-label="検索ソース"></div>
+        <div class="note" id="src-hint" hidden>
+          <p><b>iTunes</b>: キー不要。配信されている曲はほぼここで見つかります。</p>
+          <p><b>MusicBrainz</b>: キー不要。画像は Cover Art Archive に登録された盤だけ（インディーは少なめ）。1 秒 1 回の制限があり少し遅いです。</p>
+          <p><b>Discogs</b>: 物理リリースに強い（パンク／ノイズ／7 インチ）。無料のトークンが必要です。
+            <br>1. <a href="https://www.discogs.com/settings/developers" target="_blank" rel="noopener">discogs.com/settings/developers</a> を開き「Generate new token」を押す
+            <br>2. 表示された文字列を <code>.env</code> の <code>DISCOGS_TOKEN=</code> の後ろに貼る
+            <br>3. サーバー（uvicorn）を再起動する → ソースに Discogs が現れます
+            <br>アーティスト名はローマ字表記のことが多いので、日本語で 0 件なら英語で試してください。曲名で見つからないときはそのアーティストのリリース一覧が出ます。</p>
+          <p><b>URL から</b>: Bandcamp のトラック／アルバムページ、SoundCloud のトラックページの URL を貼ると、ジャケットと曲名・アーティストを取ります（キー不要）。</p>
+        </div>
       </fieldset>
       <div class="search-actions">
         <button class="btn btn-primary" type="submit" id="search-btn"><span class="label">検索する</span></button>
@@ -496,11 +517,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </div>
     </form>
     <div class="sub" id="sub-bandcamp">
-    <button class="sub-title" type="button" aria-expanded="true">Bandcamp の URL から</button>
+    <button class="sub-title" type="button" aria-expanded="true">URL から（Bandcamp / SoundCloud）</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp の URL（トラック／アルバムページ）</label>
-        <input class="input" id="bc-url" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…">
+        <label for="bc-url">Bandcamp のトラック／アルバムページ、または SoundCloud のトラックの URL</label>
+        <input class="input" id="bc-url" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/… / https://soundcloud.com/…">
       </div>
       <div class="search-actions">
         <button class="btn" type="submit" id="bc-btn"><span class="label">URL から取る</span></button>
@@ -645,8 +666,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
-  const SOURCE_LABEL = { itunes: "iTunes", lastfm: "Last.fm", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", manual: "手入力" };
-  const ALL_SOURCES = ["itunes", "lastfm", "musicbrainz", "discogs"];
+  const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", manual: "手入力" };
+  const ALL_SOURCES = ["itunes", "musicbrainz", "discogs"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, free: null };   // 4:5 は廃止。古い JSON の 4:5 は 1:1 に読み替える
   const SWATCHES = [
@@ -711,7 +732,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       i.type = "radio"; i.name = "source"; i.value = o.v; i.disabled = !o.on;
       if (o.on && !checked) { i.checked = true; checked = true; }
       const sp = document.createElement("span"); sp.textContent = o.label;
-      if (!o.on) l.title = "未実装";
+      if (!o.on) l.title = "使えません（Discogs はトークンが必要です。「?」で接続方法を表示）";
       l.append(i, sp); els.sources.append(l);
     }
   }
@@ -740,15 +761,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
   });
 
-  /* ---- bandcamp URL ---- */
+  $("#src-hint-btn").addEventListener("click", () => {
+    const b = $("#src-hint-btn"), n = $("#src-hint");
+    const open = n.hidden; n.hidden = !open; b.setAttribute("aria-expanded", String(open));
+  });
+
+  /* ---- Bandcamp / SoundCloud の URL ---- */
   els.bcForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const url = els.bcUrl.value.trim();
     els.bcUrl.removeAttribute("aria-invalid");
-    if (!/^https?:\/\//.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まる Bandcamp のページ URL を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
+    if (!/^https?:\/\//.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まる Bandcamp か SoundCloud のページ URL を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
     setBtnState(els.bcBtn, "loading"); say(els.bcMsg, "");
     try {
-      const r = await fetch("/bandcamp", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
+      const r = await fetch("/from-url", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
       currentResults = [d, ...currentResults.filter(t => t.image !== d.image)];

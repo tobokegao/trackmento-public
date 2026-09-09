@@ -23,7 +23,7 @@ from backend.config import public_base_url
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
-from backend.sources import bandcamp, discogs, itunes, lastfm, musicbrainz
+from backend.sources import bandcamp, discogs, itunes, musicbrainz, soundcloud
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -36,8 +36,7 @@ FONTS = ROOT / "fonts"
 # /image-proxy が取得を許可するホスト（末尾一致）
 IMAGE_HOST_ALLOWLIST = (
     "mzstatic.com",            # iTunes
-    "lastfm.freetls.fastly.net",  # Last.fm
-    "last.fm",
+    "sndcdn.com",              # SoundCloud
     "coverartarchive.org",     # MusicBrainz CAA
     "archive.org",
     "discogs.com",             # Discogs
@@ -46,10 +45,7 @@ IMAGE_HOST_ALLOWLIST = (
 )
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
 
-SOURCES = {"itunes": itunes.search}
-if lastfm.enabled():
-    SOURCES["lastfm"] = lastfm.search
-SOURCES["musicbrainz"] = musicbrainz.search
+SOURCES = {"itunes": itunes.search, "musicbrainz": musicbrainz.search}
 DEFAULT_SOURCES = tuple(SOURCES)  # source 省略時はこれらを並列で叩いてマージ（Discogs は明示指定のみ）
 if discogs.enabled():
     SOURCES["discogs"] = discogs.search
@@ -107,7 +103,7 @@ async def health() -> dict:
 async def search(
     q: str = Query("", description="曲名"),
     artist: str = Query("", description="アーティスト名"),
-    source: str | None = Query(None, description="itunes|lastfm|musicbrainz|discogs。省略時は横断"),
+    source: str | None = Query(None, description="itunes|musicbrainz|discogs。省略時は横断"),
     nocache: bool = Query(False, description="true でキャッシュを使わず取り直す"),
 ) -> list[Track]:
     if not (q.strip() or artist.strip()):
@@ -156,15 +152,19 @@ class BandcampBody(BaseModel):
     url: str
 
 
-@app.post("/bandcamp", response_model=Track)
-async def bandcamp_lookup(body: BandcampBody) -> Track:
-    """Bandcamp のトラック／アルバム URL からジャケット・曲名・アーティストを取る。"""
+@app.post("/from-url", response_model=Track)
+@app.post("/bandcamp", response_model=Track)   # 旧名。互換のため残す
+async def from_url(body: BandcampBody) -> Track:
+    """Bandcamp（トラック／アルバムページ）または SoundCloud（トラック）の URL からジャケット・曲名・アーティストを取る。"""
+    url = body.url.strip()
+    fetch = soundcloud.fetch if soundcloud.is_soundcloud(url) else bandcamp.fetch
+    label = "SoundCloud" if fetch is soundcloud.fetch else "Bandcamp"
     try:
-        return await bandcamp.fetch(body.url.strip(), client=app.state.http)
+        return await fetch(url, client=app.state.http)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     except httpx.HTTPStatusError as e:
-        raise HTTPException(502, f"Bandcamp が {e.response.status_code} を返しました") from e
+        raise HTTPException(502, f"{label} が {e.response.status_code} を返しました") from e
     except httpx.HTTPError as e:
         raise HTTPException(502, f"取得失敗: {e}") from e
 

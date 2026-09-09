@@ -159,7 +159,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - [x] 3. `main.py` に `/search` と `/image-proxy` と静的配信
 - [x] 4. `frontend/index.html`: 検索→3×3グリッドに追加→PNG保存の最小動作
 - [x] 5. `sources/musicbrainz.py`（1秒スリープ、User-Agent）
-- [x] 6. `sources/lastfm.py`
+- [x] 6. `sources/lastfm.py`（2026-09-09 に廃止。代わりに `sources/soundcloud.py`（oEmbed、URL 貼付）を追加）
 - [x] 7. `sources/bandcamp.py` + `/bandcamp`
 - [x] 8. 横断検索の重複マージ
 - [x] 9. グリッドサイズ／比率プリセット／サイドバー／番号／背景色
@@ -182,6 +182,8 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - `backend/render.py` の layout はフロントの layout() と同じ式（丸めは JS の Math.round 相当）。寸法は一致する
 - Remote Control の起動コマンドは現行の Claude Code では `claude --remote-control <name>`（フラグ形式）
 - `PUBLIC_BASE_URL=auto` で LAN IP を自動検出。タスク16 のスマホ実機確認は未実施（手順は CLAUDE.md）
+- Last.fm は画像が iTunes と重なるため廃止。SoundCloud は公式 API が閉じているので oEmbed（キー不要）で URL 貼付のみ対応
+- 「トラックを共有」: PNG と並びのスナップショットを shares/ に保存し、共有ページ /s/<id> と /?share=<id> で読み込み。JSON 入出力は廃止
 
 ---
 
