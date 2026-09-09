@@ -307,16 +307,18 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 
 /* ---------- grid ---------- */
 .grid-head { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+/* 縦に長いグリッドはこの枠の中でスクロールする */
+.grid-scroll { max-height: 70dvh; overflow: auto; border: var(--line) solid var(--color-ink); }
+@media (min-width: 60rem) { .grid-scroll { max-height: calc(100dvh - 21rem); } }
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  /* 余白・マスの間隔・背景色は出力と同じ比率で JS（syncPreview）が設定する */
   gap: var(--space-2);
   padding: var(--space-2);
-  border: var(--line) solid var(--color-ink);
-  background: var(--color-ink);
+  background: var(--color-paper);
   list-style: none; margin: 0;
-  /* ペインの幅いっぱいに使う（縦に長いグリッドはページをスクロールして見る。マスが小さくなるより見やすい） */
-  max-width: 100%;
+  width: 100%;
   min-width: min(100%, 16rem);
 }
 .grid[data-numbers="off"] .num { display: none; }
@@ -396,7 +398,7 @@ body.sheet-open { overflow: hidden; }
 
 /* ---------- options ---------- */
 .opts { display: grid; gap: var(--space-4); }
-.custom-size { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-sm); }
+.custom-size { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .custom-size label { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); }
 .input.num { width: 4.5rem; padding: var(--space-1) var(--space-2); font-variant-numeric: tabular-nums; }
 .check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; min-height: 28px; }
@@ -542,7 +544,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <input class="input" id="title" type="text" placeholder="例: 私を構成する9曲" maxlength="60">
         </div>
       </div>
-      <ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol>
+      <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックすると入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
       <div class="grid-actions">
         <button class="btn btn-primary" type="button" id="render-btn"><span class="label">画像を作る</span></button>
@@ -566,14 +568,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <div class="pane-body opts">
       <fieldset class="field">
         <legend>グリッド（横 × 縦）</legend>
-        <div class="seg" id="size-seg" role="radiogroup" aria-label="グリッドサイズ">
-          <label><input type="radio" name="size" value="3x3" checked><span>3×3</span></label>
-          <label><input type="radio" name="size" value="4x6"><span>4×6</span></label>
-          <label><input type="radio" name="size" value="3x8"><span>3×8</span></label>
-          <label><input type="radio" name="size" value="5x5"><span>5×5</span></label>
-          <label><input type="radio" name="size" value="custom"><span>カスタム</span></label>
-        </div>
-        <div class="custom-size" id="custom-size" hidden>
+        <div class="custom-size" id="custom-size">
           <label>横 <input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="12" value="3" aria-label="横のマス数"></label>
           <span aria-hidden="true">×</span>
           <label>縦 <input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="12" value="3" aria-label="縦のマス数"></label>
@@ -583,11 +578,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <fieldset class="field">
         <legend>比率</legend>
         <div class="seg" id="ratio-seg" role="radiogroup" aria-label="出力比率">
-          <label><input type="radio" name="ratio" value="1:1" checked><span>1:1</span></label>
-          <label><input type="radio" name="ratio" value="16:9"><span>16:9 X</span></label>
-          <label><input type="radio" name="ratio" value="4:5"><span>4:5 投稿</span></label>
+          <label><input type="radio" name="ratio" value="1:1" checked><span>1:1 インスタ</span></label>
+          <label><input type="radio" name="ratio" value="16:9"><span>16:9 ツイート</span></label>
           <label><input type="radio" name="ratio" value="9:16"><span>9:16 ストーリーズ</span></label>
-          <label><input type="radio" name="ratio" value="free"><span>なし</span></label>
+          <label><input type="radio" name="ratio" value="free"><span>設定なし</span></label>
         </div>
       </fieldset>
 
@@ -639,7 +633,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SOURCE_LABEL = { itunes: "iTunes", lastfm: "Last.fm", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", manual: "手入力" };
   const ALL_SOURCES = ["itunes", "lastfm", "musicbrainz", "discogs"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
-  const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
+  const RATIOS = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, free: null };   // 4:5 は廃止。古い JSON の 4:5 は 1:1 に読み替える
   const SWATCHES = [
     ["paper", "クリーム"], ["ink", "黒"], ["mustard", "マスタード"], ["cerulean", "セルリアン"],
     ["vermilion", "朱赤"], ["lavender", "ラベンダー"], ["mint", "ミント"], ["pink", "ピンク"],
@@ -665,7 +659,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     renderBtn: $("#render-btn"), clearBtn: $("#clear-btn"),
     editor: $("#editor"), eNum: $("#editor-num"), eTitle: $("#editor-title"), eSource: $("#editor-source"), eTitleIn: $("#e-title"), eArtistIn: $("#e-artist"), eMeta: $("#editor-meta"), eRemove: $("#e-remove"), eClose: $("#e-close"),
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
-    sizeSeg: $("#size-seg"), customSize: $("#custom-size"), cols: $("#cols"), rows: $("#rows"),
+    gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"), optTitle: $("#opt-title"), optSidebar: $("#opt-sidebar"), optNumbers: $("#opt-numbers"),
     swatches: $("#swatches"), bgCustom: $("#bg-custom"), margin: $("#margin"), marginOut: $("#margin-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"),
@@ -996,12 +990,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
 
   /* ---- options ---- */
-  els.sizeSeg.addEventListener("change", () => {
-    const picked = els.sizeSeg.querySelector("input:checked").value;
-    els.customSize.hidden = picked !== "custom";
-    if (picked !== "custom") { const [c, r] = picked.split("x").map(Number); resizeGrid(c, r); }
-    else resizeGrid(Number(els.cols.value), Number(els.rows.value));
-  });
   for (const inp of [els.cols, els.rows]) inp.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value)));
   els.ratioSeg.addEventListener("change", () => { state.ratio = els.ratioSeg.querySelector("input:checked").value; updateSpec(); });
   els.optTitle.addEventListener("change", () => { state.showTitle = els.optTitle.checked; els.title.disabled = !state.showTitle; updateSpec(); });
@@ -1087,8 +1075,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const L = layout();
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
     els.specCell.textContent = `${Math.round(CELL_PX * L.scale)} px`;
+    syncPreview();
     save();
   }
+  /* グリッドのプレビューを出力と同じ比率にする: 余白・マスの間隔を幅に合わせて縮尺し、背景色も反映 */
+  function syncPreview() {
+    const W = els.grid.getBoundingClientRect().width;
+    if (!W) return;
+    const gw = state.cols * CELL_PX + (state.cols - 1) * GAP_PX;
+    const k = W / (gw + state.margin * 2);
+    els.grid.style.padding = `${state.margin * k}px`;
+    els.grid.style.gap = `${GAP_PX * k}px`;
+    els.grid.style.background = bgColor();
+  }
+  new ResizeObserver(() => syncPreview()).observe(els.gridScroll);
 
   /* ---- persistence: localStorage + JSON ----
      形式は CLI と共有する grids/<name>.json と同じにする */
@@ -1123,9 +1123,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   function syncControls() {
     els.title.value = state.title; els.title.disabled = !state.showTitle;
-    const preset = els.sizeSeg.querySelector(`input[value="${state.cols}x${state.rows}"]`);
-    (preset || els.sizeSeg.querySelector('input[value="custom"]')).checked = true;
-    els.customSize.hidden = !!preset;
     els.cols.value = state.cols; els.rows.value = state.rows;
     els.ratioSeg.querySelector(`input[value="${state.ratio}"]`).checked = true;
     els.optTitle.checked = state.showTitle; els.optSidebar.checked = state.sidebar; els.optNumbers.checked = state.numbers;

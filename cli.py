@@ -373,7 +373,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("render", help="PNG を作って outputs/ に保存し URL を表示")
     grid_arg(sp)
     sp.add_argument("--size", help="3x3 / 4x6 / 3x8 / 5x5 / 任意 WxH")
-    sp.add_argument("--ratio", choices=["1:1", "16:9", "4:5", "9:16", "free"])
+    sp.add_argument("--ratio", choices=["1:1", "16:9", "9:16", "free"])
     sp.add_argument("--sidebar", dest="sidebar", action="store_true", default=None, help="曲名リストを付ける")
     sp.add_argument("--no-sidebar", dest="sidebar", action="store_false")
     sp.add_argument("--title", help="タイトル文字列（空文字で消す）")
