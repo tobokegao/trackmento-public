@@ -762,6 +762,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const saved = loadSourceSelection();
     for (const s of SOURCE_ORDER) {
       const on = available.includes(s);
+      if (!on && isPublic) continue;   // 公開サイトでは使えないソース（Discogs など）のボタン自体を出さない
       const l = document.createElement("label");
       const i = document.createElement("input");
       i.type = "checkbox"; i.name = "source"; i.value = s; i.disabled = !on;
