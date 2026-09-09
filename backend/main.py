@@ -11,12 +11,16 @@ from urllib.parse import urlparse
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from backend import grids, render
 from backend.cache import cache
+from backend.config import public_base_url
+from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
 from backend.sources import bandcamp, discogs, itunes, lastfm, musicbrainz
@@ -58,6 +62,10 @@ async def lifespan(app: FastAPI):
     pruned = await asyncio.to_thread(cache.prune)
     if any(pruned.values()):
         print(f"[cache] pruned {pruned}")
+    removed = render.prune_outputs()
+    if removed:
+        print(f"[outputs] removed {removed} old files")
+    print(f"[public] PNG の URL は {public_base_url()}/outputs/... で返します（.env の PUBLIC_BASE_URL）")
     app.state.http = httpx.AsyncClient(
         timeout=15,
         follow_redirects=True,
@@ -82,7 +90,13 @@ async def index() -> FileResponse:
 
 @app.get("/health")
 async def health() -> dict:
-    return {"ok": True, "sources": sorted(SOURCES), "cache": await asyncio.to_thread(cache.stats)}
+    return {
+        "ok": True,
+        "sources": sorted(SOURCES),
+        "cache": await asyncio.to_thread(cache.stats),
+        "public_base_url": public_base_url(),
+        "grids": grids.list_names(),
+    }
 
 
 @app.get("/search", response_model=list[Track])
@@ -206,3 +220,117 @@ async def fetch_image(url: str) -> tuple[str, bytes]:
     if len(r.content) > IMAGE_MAX_BYTES:
         raise HTTPException(413, "画像が大きすぎます")
     return ctype, r.content
+
+
+# ---------- グリッド JSON（CLI と Web で共有） ----------
+def _grid_name(name: str) -> str:
+    try:
+        return grids.validate_name(name)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@app.get("/grids")
+async def grids_index() -> dict:
+    return {"grids": grids.list_names()}
+
+
+@app.get("/grids/{name}", response_model=GridDoc)
+async def grid_get(name: str) -> GridDoc:
+    name = _grid_name(name)
+    if not grids.exists(name):
+        raise HTTPException(404, f"グリッド {name} はまだありません")
+    try:
+        return grids.load(name)
+    except ValueError as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.put("/grids/{name}", response_model=GridDoc)
+async def grid_put(name: str, doc: GridDoc) -> GridDoc:
+    """Web の自動保存と JSON 読み込みが呼ぶ。savedAt が無ければ今の時刻を入れる。"""
+    name = _grid_name(name)
+    doc.name = name
+    if not doc.savedAt:
+        doc.touch()
+    grids.save(doc)
+    return doc
+
+
+@app.delete("/grids/{name}")
+async def grid_delete(name: str) -> dict:
+    name = _grid_name(name)
+    p = grids.path_for(name)
+    if p.exists():
+        p.unlink()
+    return {"ok": True}
+
+
+# ---------- サーバー側描画 ----------
+class RenderBody(BaseModel):
+    grid: str = "default"
+    # 以下は省略可。指定したものだけグリッドのオプションを上書きし、グリッド JSON にも保存する
+    size: str | None = None          # "3x3"
+    ratio: str | None = None
+    sidebar: bool | None = None
+    title: str | None = None
+    showTitle: bool | None = None
+    numbers: bool | None = None
+    bg: str | None = None
+    bgCustom: str | None = None
+    margin: int | None = None
+
+
+def apply_render_options(doc: GridDoc, body: RenderBody) -> bool:
+    """body の指定を doc に反映。変更があれば True。"""
+    changed = False
+    if body.size:
+        try:
+            c, r = (int(v) for v in body.size.lower().split("x"))
+        except ValueError as e:
+            raise HTTPException(400, "size は 3x3 のように指定してください") from e
+        if (c, r) != (doc.cols, doc.rows):
+            doc.resize(max(1, min(grids.MAX_COLS, c)), max(1, min(grids.MAX_ROWS, r)))
+            changed = True
+    if body.title is not None and body.title != doc.title:
+        doc.title = body.title[:60]
+        changed = True
+    opts = doc.options.model_dump()
+    for k in ("ratio", "sidebar", "showTitle", "numbers", "bg", "bgCustom", "margin"):
+        v = getattr(body, k)
+        if v is not None and v != opts.get(k):
+            opts[k] = v
+            changed = True
+    if body.bgCustom and body.bg is None:
+        opts["bg"] = "custom"
+    if changed:
+        try:
+            doc.options = GridOptions.model_validate(opts)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from e
+    return changed
+
+
+@app.post("/render")
+async def render_grid(body: RenderBody = Body(default_factory=RenderBody)) -> dict:
+    name = _grid_name(body.grid)
+    try:
+        doc = grids.load(name)
+    except ValueError as e:
+        raise HTTPException(500, str(e)) from e
+    if not any(doc.cells):
+        raise HTTPException(400, f"グリッド {name} に曲がありません")
+    if apply_render_options(doc, body):
+        doc.touch()
+        grids.save(doc)
+    try:
+        path, im = await run_in_threadpool(render.render_to_file, doc)
+    except RuntimeError as e:  # フォント欠落など
+        raise HTTPException(500, str(e)) from e
+    return {
+        "url": f"{public_base_url()}/outputs/{path.name}",
+        "file": path.name,
+        "width": im.width,
+        "height": im.height,
+        "grid": doc.model_dump(),
+    }

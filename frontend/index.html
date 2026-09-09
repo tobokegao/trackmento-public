@@ -419,9 +419,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn" type="button" id="export-btn">JSON 書き出し</button>
         <button class="btn" type="button" id="import-btn">JSON 読み込み</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
+        <button class="btn" type="button" id="server-render-btn" title="サーバー（Pillow）で描いて outputs/ に保存し、URL を得る">サーバーで作る（URL）</button>
+        <button class="btn" type="button" id="reload-btn" title="CLI で更新した grids/default.json を読み直す">サーバーから読み直す</button>
       </div>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="生成したグリッド画像のプレビュー">
+        <p class="msg" id="output-url" hidden></p>
         <a class="btn dl" id="download" download="trackmento.png" href="#">PNG を保存</a>
       </div>
     </div>
@@ -516,6 +519,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     bcForm: $("#bandcamp-form"), bcUrl: $("#bc-url"), bcBtn: $("#bc-btn"), bcMsg: $("#bc-msg"),
     mForm: $("#manual-form"), mImage: $("#m-image"), mTitle: $("#m-title"), mArtist: $("#m-artist"), mBtn: $("#m-btn"), mMsg: $("#m-msg"),
     exportBtn: $("#export-btn"), importBtn: $("#import-btn"), importFile: $("#import-file"),
+    serverRenderBtn: $("#server-render-btn"), reloadBtn: $("#reload-btn"), outputUrl: $("#output-url"),
     results: $("#results"), resultsCount: $("#results-count"),
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
     renderBtn: $("#render-btn"), clearBtn: $("#clear-btn"),
@@ -863,19 +867,70 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (state.bg === "custom" && state.bgCustom) els.bgCustom.value = state.bgCustom;
     els.margin.value = state.margin; els.marginOut.value = state.margin;
   }
-  let saveTimer = null;
+  /* 保存先は 2 つ。localStorage（即時）と grids/default.json（サーバー。CLI と共有）。
+     サーバーへは内容が変わったときだけ PUT する（savedAt を除いて比較） */
+  const GRID_NAME = "default";
+  const GRID_URL = `/grids/${GRID_NAME}`;
+  const signature = (d) => JSON.stringify({ ...d, savedAt: null });
+  let saveTimer = null, pushTimer = null, lastPushed = null, ready = false;
   function save() {
+    if (!ready) return;   // 復元が終わる前の描画で空のグリッドを保存してしまわないように
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(serialize())); } catch { /* 容量超過や無効化は無視 */ } }, 150);
+    saveTimer = setTimeout(() => {
+      const d = serialize();
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch { /* 容量超過や無効化は無視 */ }
+      schedulePush(d);
+    }, 150);
   }
-  function restore() {
+  function schedulePush(d) {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => pushNow(d), 600);
+  }
+  async function pushNow(d = serialize()) {
+    clearTimeout(pushTimer);
+    const sig = signature(d);
+    if (sig === lastPushed) return true;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return false;
-      applyData(JSON.parse(raw));
+      const r = await fetch(GRID_URL, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
+      if (r.ok) { lastPushed = sig; return true; }
+    } catch { /* サーバー停止中は localStorage だけ */ }
+    return false;
+  }
+  async function fetchServerGrid() {
+    try {
+      const r = await fetch(GRID_URL, { cache: "no-store" });
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch { return null; }
+  }
+  /* 起動時: localStorage とサーバーの新しい方を採用する */
+  async function restore() {
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch { local = null; }
+    const server = await fetchServerGrid();
+    const ts = (d) => (d && d.savedAt ? Date.parse(d.savedAt) || 0 : 0);
+    const pick = server && (!local || ts(server) > ts(local)) ? server : local;
+    if (!pick) return false;
+    try {
+      if (pick === server) lastPushed = signature(server);
+      applyData(pick);
+      if (pick === server && local) say(els.gridMsg, "サーバー側の保存（CLI など）の方が新しいので、そちらを読み込みました。");
       return true;
     } catch { return false; }
   }
+  els.reloadBtn.addEventListener("click", async () => {
+    setBtnState(els.reloadBtn, "loading");
+    const server = await fetchServerGrid();
+    setBtnState(els.reloadBtn, null);
+    if (!server) { say(els.gridMsg, "サーバーにまだ保存されたグリッドがありません。", "error"); return; }
+    try {
+      lastPushed = signature(server);
+      applyData(server);
+      els.output.hidden = true;
+      say(els.gridMsg, `サーバーから読み直しました（${state.cells.filter(Boolean).length} 曲）。`);
+    } catch (err) { say(els.gridMsg, `読み直せませんでした。${err.message}`, "error"); }
+  });
   els.exportBtn.addEventListener("click", () => {
     const blob = new Blob([JSON.stringify(serialize(), null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -897,6 +952,32 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       say(els.gridMsg, `読み込めませんでした。${err.message}`, "error");
     }
     els.importFile.value = "";
+  });
+
+  /* サーバー（Pillow）で描く。CLI の render と同じ結果になる。URL は LAN 内のスマホから開ける */
+  els.serverRenderBtn.addEventListener("click", async () => {
+    if (!state.cells.some(Boolean)) { say(els.gridMsg, "曲を置いてから押してください。", "error"); return; }
+    setBtnState(els.serverRenderBtn, "loading"); say(els.gridMsg, "");
+    try {
+      clearTimeout(saveTimer);
+      if (!(await pushNow())) throw new Error("サーバーに保存できませんでした");
+      const r = await fetch("/render", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+      if (els.download.href.startsWith("blob:")) URL.revokeObjectURL(els.download.href);
+      els.outputImg.src = `/outputs/${d.file}`;
+      els.download.href = `/outputs/${d.file}`; els.download.download = d.file;
+      els.outputUrl.innerHTML = ""; const a = document.createElement("a"); a.href = d.url; a.textContent = d.url; a.target = "_blank"; a.rel = "noopener";
+      els.outputUrl.append("URL: ", a); els.outputUrl.hidden = false;
+      els.output.hidden = false;
+      setBtnState(els.serverRenderBtn, null);
+      say(els.gridMsg, `サーバーで ${d.width} × ${d.height} px の PNG を作りました。`);
+      els.download.focus({ preventScroll: true });
+    } catch (err) {
+      setBtnState(els.serverRenderBtn, "error");
+      say(els.gridMsg, `サーバーで作れませんでした（${err.message}）。`, "error");
+      setTimeout(() => setBtnState(els.serverRenderBtn, null), 2500);
+    }
   });
 
   els.renderBtn.addEventListener("click", async () => {
@@ -975,7 +1056,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
       if (els.download.href.startsWith("blob:")) URL.revokeObjectURL(els.download.href);
       const url = URL.createObjectURL(blob);
-      els.outputImg.src = url; els.download.href = url;
+      els.outputImg.src = url; els.download.href = url; els.outputUrl.hidden = true;
       els.download.download = (L.title || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
       els.output.hidden = false;
       setBtnState(els.renderBtn, null);
@@ -992,8 +1073,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
 
   renderSwatches();
-  if (!restore()) { syncControls(); renderGrid(); }
-  loadHealth();
+  syncControls(); renderGrid();
+  restore().finally(() => { ready = true; save(); loadHealth(); });
 })();
 </script>
 </body>
