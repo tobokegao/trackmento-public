@@ -1341,7 +1341,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     setTimeout(() => setBtnState(els.copyBtn, null), 1500);
   });
   /* SNS に共有: 文言 + 共有 URL。共有シートがある端末（スマホ）はそれを、無い PC は X の投稿画面を開く */
-  const shareText = () => { const t = state.title.trim(); return t ? `トラック共有サイト TRACKMENTO からシェア:「${t}」` : "トラック共有サイト TRACKMENTO からシェア"; };
+  const shareText = () => `トラック共有サイト #TRACKMENTO からシェア:「${state.title.trim() || "無題"}」`;
   els.nativeShareBtn.addEventListener("click", async () => {
     const url = els.shareUrl.value, text = shareText();
     if (navigator.share) {
