@@ -28,9 +28,22 @@ def is_public_host(host: str) -> bool:
             ip = ipaddress.ip_address(info[4][0])
         except ValueError:
             return False
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+        if not _ip_public(ip):
             return False
     return True
+
+
+def _ip_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if isinstance(ip, ipaddress.IPv6Address):
+        # ::ffff:a.b.c.d（IPv4 射影）や 64:ff9b::a.b.c.d（NAT64）は中の IPv4 で判定する
+        inner = ip.ipv4_mapped
+        if inner is None and ip in ipaddress.ip_network("64:ff9b::/96"):
+            inner = ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+        if inner is not None:
+            return _ip_public(inner)
+    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+        return False
+    return ip.is_global   # 100.64/10（CGNAT）や 192.0.0/24 なども外す
 
 
 def url_ok(url: str, allowlist: tuple[str, ...] = ()) -> bool:

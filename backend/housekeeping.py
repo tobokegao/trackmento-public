@@ -12,6 +12,7 @@ GRIDS = ROOT / "grids"
 KEEP_SHARES = 2000      # PNG + JSON のペア数
 KEEP_UPLOADS = 2000
 GRID_MAX_AGE_DAYS = 90
+KEEP_GRIDS = 5000       # ブラウザごとのグリッド JSON の上限件数（古い順に消す）
 
 
 def _prune_newest(dir_: Path, patterns: tuple[str, ...], keep: int) -> int:
@@ -35,6 +36,11 @@ def prune_shares(keep: int = KEEP_SHARES) -> int:
 
 def prune_uploads(keep: int = KEEP_UPLOADS) -> int:
     return _prune_newest(UPLOADS, ("*.jpg", "*.png", "*.webp", "*.gif"), keep)
+
+
+def prune_grids_count(keep: int = KEEP_GRIDS) -> int:
+    """u-… のグリッドを新しい順に keep 件だけ残す（default は数えない）"""
+    return _prune_newest(GRIDS, ("u-*.json",), keep)
 
 
 def prune_grids(max_age_days: int = GRID_MAX_AGE_DAYS) -> int:

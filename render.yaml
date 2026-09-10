@@ -13,6 +13,8 @@ services:
         value: "1"
       - key: TRUST_PROXY
         value: "1"
+      - key: PUBLIC_BASE_URL
+        value: https://trackmento.onrender.com   # OG タグ・共有 URL の基準。リクエストの Host ヘッダに頼らない
       - key: MB_USER_AGENT
         value: trackmento/0.1 (https://github.com/tobokegao/trackmento-public)   # MusicBrainz の要件（連絡先入り）
       - key: RATE_LIMIT

@@ -17,7 +17,7 @@ from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFi
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -155,8 +155,21 @@ def _count_share(request: Request) -> None:
     _share_day["total"] += 1
 
 
+_BODY_LIMIT_JSON = 1 * 1024 * 1024
+_BODY_LIMIT_UPLOAD = 16 * 1024 * 1024
+
+
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
+    # 大きすぎるボディは読む前に断る（メモリ・ディスク消費を抑える）。ブラウザの fetch は必ず Content-Length を付ける
+    if request.method in ("POST", "PUT"):
+        cap = _BODY_LIMIT_UPLOAD if request.url.path == "/upload" else _BODY_LIMIT_JSON
+        cl = request.headers.get("content-length")
+        if cl is None or not cl.isdigit():
+            return JSONResponse({"detail": "Content-Length が必要です"}, status_code=411)
+        if int(cl) > cap:
+            return JSONResponse({"detail": f"リクエストが大きすぎます（{cap // (1024*1024)}MB まで）"}, status_code=413)
+    request.state.csp_nonce = secrets.token_urlsafe(16)
     limit = rate_limit_per_minute()
     if limit and request.url.path.startswith(_RATE_PATHS):
         ip = _client_ip(request)   # プロキシを信頼するのは TRUST_PROXY=1 のときだけ（先頭は偽装できるので末尾）
@@ -174,6 +187,13 @@ async def rate_limit(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    # CSP: スクリプトはこのサーバーが埋めた nonce 付きのものだけ。画像は同一オリジン＋R2 の公開 URL（https:）＋Canvas の blob/data
+    response.headers.setdefault("Content-Security-Policy",
+        f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; "
+        "form-action 'self'; frame-ancestors 'self'")
+    if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     return response
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
 app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
@@ -206,6 +226,7 @@ else:
 async def index(request: Request) -> HTMLResponse:
     # OG タグの絶対 URL（__BASE__）をこのサーバーの URL に置き換えて配る
     html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
+    html = html.replace("<script>", f'<script nonce="{request.state.csp_nonce}">', 1)   # CSP（script-src 'nonce-…'）用
     return HTMLResponse(html)
 
 
@@ -248,11 +269,13 @@ async def health() -> dict:
 
 @app.get("/search")
 async def search(
-    q: str = Query("", description="曲名"),
-    artist: str = Query("", description="アーティスト名"),
+    q: str = Query("", description="曲名", max_length=200),
+    artist: str = Query("", description="アーティスト名", max_length=200),
     source: str | None = Query(None, description="itunes|musicbrainz|discogs|otodb。省略時は横断（otodb は含まない）"),
-    nocache: bool = Query(False, description="true でキャッシュを使わず取り直す"),
+    nocache: bool = Query(False, description="true でキャッシュを使わず取り直す（公開モードでは無視）"),
 ) -> JSONResponse:
+    if public_mode():
+        nocache = False
     if not (q.strip() or artist.strip()):
         raise HTTPException(400, "q または artist を指定してください")
     if source:
@@ -304,7 +327,7 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
 
 
 class BandcampBody(BaseModel):
-    url: str
+    url: str = Field(max_length=2048)
 
 
 @app.post("/from-url", response_model=Track)
@@ -329,7 +352,7 @@ def _host_allowed(url: str) -> bool:
 
 
 @app.get("/image-proxy")
-async def image_proxy(url: str = Query(..., description="取得する画像URL")) -> Response:
+async def image_proxy(url: str = Query(..., description="取得する画像URL", max_length=2048)) -> Response:
     """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。取得結果は SQLite にキャッシュ。"""
     if uploads.is_upload_url(url):
         got = await run_in_threadpool(uploads.read_bytes, url)
@@ -405,7 +428,14 @@ async def grid_put(name: str, doc: GridDoc) -> GridDoc:
     if not doc.savedAt:
         doc.touch()
     grids.save(doc)
+    if public_mode():
+        _grid_saves[0] += 1
+        if _grid_saves[0] % 50 == 0:
+            await run_in_threadpool(housekeeping.prune_grids_count)
     return doc
+
+
+_grid_saves = [0]
 
 
 @app.delete("/grids/{name}")
@@ -473,6 +503,8 @@ def apply_render_options(doc: GridDoc, body: RenderBody) -> bool:
 
 @app.post("/render")
 async def render_grid(request: Request, body: RenderBody = Body(default_factory=RenderBody)) -> dict:
+    if public_mode():
+        raise HTTPException(404, "公開モードでは /render は使えません（「トラックを共有」を使ってください）")
     name = _grid_name(body.grid)
     try:
         doc = grids.load(name)

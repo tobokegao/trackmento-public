@@ -12,7 +12,10 @@ COPY backend ./backend
 COPY frontend ./frontend
 COPY fonts ./fonts
 COPY cli.py .
-RUN mkdir -p outputs grids uploads shares
+RUN mkdir -p outputs grids uploads shares \
+    && useradd --system --no-create-home --uid 10001 app \
+    && chown -R app:app /app
+USER app
 
 EXPOSE 8000
 # ホスティング側が PORT を渡す（Render など）。無ければ 8000
