@@ -172,13 +172,13 @@ const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }>
   const sixteenth = barFrames / 16;
   let tx = 0, ty = 0, sc = 1, filter = "none";
   if (fx === "glitchOut") {
-    // 末尾 1 小節: 16 分音符 12 拍目で左上へ瞬時移動して拡大、14 拍目で右下へ瞬時移動して縮小、16 拍目で中央へ
+    // 末尾 1 小節: 16 分音符 12 拍目で右上へ瞬時移動して拡大（見切れるほど）、14 拍目で左下へ瞬時移動して縮小、16 拍目で中央へ
     const k = Math.floor(frame / sixteenth), f = (frame - k * sixteenth) / sixteenth;   // k: 0 始まりの 16 分音符番号、f: その中の進み
-    const dx = L.phone.w * 0.14, dy = L.phone.h * 0.14;
-    if (k === 11) { tx = -dx; ty = -dy; sc = 1 + 0.6 * Math.min(1, f * 1.15); }
-    else if (k === 12) { tx = -dx; ty = -dy; sc = 1.6; }
-    else if (k === 13) { tx = dx; ty = dy; sc = 1.6 - 1.1 * Math.min(1, f * 1.15); }
-    else if (k === 14) { tx = dx; ty = dy; sc = 0.5; }
+    const dx = L.phone.w * 0.32, dy = L.phone.h * 0.3;
+    if (k === 11) { tx = dx; ty = -dy; sc = 1 + 0.6 * Math.min(1, f * 1.15); }
+    else if (k === 12) { tx = dx; ty = -dy; sc = 1.6; }
+    else if (k === 13) { tx = -dx; ty = dy; sc = 1.6 - 1.1 * Math.min(1, f * 1.15); }
+    else if (k === 14) { tx = -dx; ty = dy; sc = 0.5; }
     else if (k >= 15) { tx = 0; ty = 0; sc = 1; }
   }
   return (
