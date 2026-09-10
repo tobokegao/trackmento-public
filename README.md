@@ -138,6 +138,13 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 - SSRF 対策は DNS ピンニング付き: 名前解決で得た公開 IP にそのまま接続し、Host ヘッダと TLS の SNI に元のホスト名を渡す（証明書もそのホスト名で検証）。検査と接続の間に DNS の答えを変える rebinding は効かない。リダイレクトは 1 ホップごとに再検査・再ピン
 - 依存パッケージは `requirements.txt` で固定し、Dependabot（`.github/dependabot.yml`）が毎週 pip / Docker ベースイメージ / Actions の更新 PR を出す。`audit.yml` が pip-audit（既知の脆弱性）と公開モードの起動テストを毎週と push / PR のたびに実行する。PR をマージすると Render が自動デプロイする
 
+### 定期点検（/site-safety-check）
+
+- Claude Code で `/site-safety-check` と打つと、`.claude/skills/site-safety-check/SKILL.md` の手順で点検する。自動部分は
+  `.venv/Scripts/python scripts/safety_check.py https://trackmento.onrender.com`（引数無しでローカル）。応答ヘッダ・SSRF・入力上限・XSS・
+  アップロードのメタデータ・共有 JSON・robots/sitemap を 36 項目見て、NG があれば終了コード 1
+- 検査で共有 1 件と画像 1 枚を作り、R2 の資格情報があれば最後に消す。検査用グリッド `u-safetycheck0000` はサーバー側に残るが 90 日で消える
+
 ### 利用者のプライバシー（何を保存し、何を保存しないか）
 
 - IP アドレスは保存しない。レートリミットと共有回数の集計はプロセス限りの乱数と混ぜたハッシュで数える。Docker（Render）では uvicorn のアクセスログ（IP と検索語入り URL）を出さない（`--no-access-log`）
