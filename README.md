@@ -167,4 +167,12 @@ grids/            作業中グリッド JSON（CLI と Web で共有）
 ## 環境変数
 
 `.env.example` を参照。`DISCOGS_TOKEN` は任意（Discogs を使うなら必須）、`MB_USER_AGENT` は MusicBrainz を使うなら必須。
+
+### 検索エンジンに載せる（公開サイト）
+
+- `/robots.txt`（トップだけ許可、API・画像・共有は除外）と `/sitemap.xml` を配る。共有ページ `/s/…` は 30 日で消えるので `noindex`
+- Google に載せるには [Search Console](https://search.google.com/search-console) で URL プレフィックス型のプロパティ（`https://trackmento.onrender.com/`）を追加し、
+  所有権の確認方法に「HTML タグ」を選ぶ。表示される `content="…"` の値を環境変数 `GOOGLE_SITE_VERIFICATION` に入れて再デプロイすると、
+  トップページに確認タグが出る。確認後、「URL 検査」→「インデックス登録をリクエスト」でクロールを頼める（反映は数日〜数週間）
+- 新しいサイトは、外部からリンクされるまで検索結果に出にくい。自分のサイト（tobokegao.github.io）や SNS のプロフィールからリンクを張ると早い
 `PUBLIC_BASE_URL` は生成 PNG の URL のベース。`auto` にすると LAN IP を自動検出する（スマホから開くならこれ）。

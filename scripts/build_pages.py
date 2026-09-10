@@ -25,6 +25,7 @@ def build(api: str, out: Path) -> None:
         raise SystemExit("frontend/index.html に viewport meta が見つかりません")
     html = html.replace(marker, marker + f'\n<meta name="trackmento-api" content="{api}">', 1)
     html = html.replace("__BASE__", api)   # OG 画像はバックエンドが配る /og.png を指す
+    html = html.replace("<!--__VERIFY__-->", "")
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(html, encoding="utf-8")
     for name in ("og.png", "favicon.ico", "favicon.png", "apple-touch-icon.png"):

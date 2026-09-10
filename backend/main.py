@@ -227,7 +227,31 @@ async def index(request: Request) -> HTMLResponse:
     # OG タグの絶対 URL（__BASE__）をこのサーバーの URL に置き換えて配る
     html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
     html = html.replace("<script>", f'<script nonce="{request.state.csp_nonce}">', 1)   # CSP（script-src 'nonce-…'）用
+    # Google Search Console の所有権確認（HTML タグ方式）。GOOGLE_SITE_VERIFICATION が無ければタグごと消す
+    token = os.getenv("GOOGLE_SITE_VERIFICATION", "").strip()
+    html = html.replace("<!--__VERIFY__-->", f'<meta name="google-site-verification" content="{token}">' if token else "", 1)
     return HTMLResponse(html)
+
+
+@app.get("/robots.txt")
+async def robots(request: Request) -> Response:
+    """トップは索引してよい。API・画像・共有の中身はクロール対象から外す"""
+    body = "\n".join([
+        "User-agent: *",
+        "Allow: /$",
+        "Disallow: /search", "Disallow: /from-url", "Disallow: /image-proxy", "Disallow: /grids", "Disallow: /shares",
+        "Disallow: /uploads", "Disallow: /outputs", "Disallow: /health", "Disallow: /render", "Disallow: /upload", "Disallow: /share",
+        f"Sitemap: {base_url_for(request)}/sitemap.xml", "",
+    ])
+    return Response(body, media_type="text/plain", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/sitemap.xml")
+async def sitemap(request: Request) -> Response:
+    base = base_url_for(request)
+    body = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            f"<url><loc>{base}/</loc><changefreq>weekly</changefreq></url></urlset>\n")
+    return Response(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/og.png")

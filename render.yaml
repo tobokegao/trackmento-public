@@ -36,5 +36,7 @@ services:
         sync: false
       - key: R2_PUBLIC_URL
         sync: false
+      - key: GOOGLE_SITE_VERIFICATION   # Search Console の「HTML タグ」の content 値。未設定ならタグは出ない
+        sync: false
       # 公開版では Discogs を使わない（DISCOGS_TOKEN を入れなければソースに出ない）。
       # GitHub Pages も使う場合だけ CORS_ORIGINS と FRONTEND_URL を追加する（README「公開する」B 参照）

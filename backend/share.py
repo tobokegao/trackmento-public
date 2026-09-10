@@ -108,6 +108,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} — TRACKMENTO</title>
 <link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="robots" content="noindex">
 <meta property="og:title" content="{title}"><meta property="og:image" content="{img_url}">
 <meta property="og:description" content="トラック共有サイト #TRACKMENTO からシェア:「{html.escape(snap.get('title') or '無題')}」"><meta name="twitter:card" content="summary_large_image">
 <style>
