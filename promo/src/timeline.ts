@@ -62,9 +62,9 @@ export type Shot = {
 export const SHOTS: Shot[] = [
   // 3〜7 小節目: トップ画面の説明（5 小節）
   { beat: bar(3), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "トップ画面はこれだけ", en: "This is the whole app" },
-  { beat: bar(4), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.02, y: 0.112, w: 0.96, h: 0.072 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
-  { beat: bar(5), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.02, y: 0.178, w: 0.96, h: 0.532 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
-  { beat: bar(6), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索のボタン", en: "Share and search below", hl: { x: 0.02, y: 0.738, w: 0.96, h: 0.148 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
+  { beat: bar(4), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.027, y: 0.116, w: 0.946, h: 0.065 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
+  { beat: bar(5), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.031, y: 0.179, w: 0.938, h: 0.528 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
+  { beat: bar(6), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索のボタン", en: "Share and search below", hl: { x: 0.027, y: 0.747, w: 0.946, h: 0.12 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
   { beat: bar(7), len: 4, ev: "title-focus", off: -0.2, jp: "まずはタイトルを入力", en: "Start with a title" },
   // 8 小節目: カウントダウン（映像はタイトル入力後のまま）
   { beat: bar(8), len: 4, ev: "title-done", off: 0.0, still: true, jp: "", en: "" },
