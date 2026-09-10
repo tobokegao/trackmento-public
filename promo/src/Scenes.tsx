@@ -105,10 +105,13 @@ const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.Re
   const box = L.kind === "tall"
     ? { position: "absolute" as const, left: 60, right: 60, top: 70, display: "flex", flexDirection: "column" as const, alignItems: "flex-start" }
     : { position: "absolute" as const, left: 222, right: 222, top: 36, display: "flex", flexDirection: "column" as const, alignItems: "flex-start" };
+  const tall = L.kind === "tall";
   return (
-    <div style={box}>
-      {jp && <div style={{ alignSelf: "flex-start", background: C.ink, color: C.paper, fontFamily: "Plex", fontWeight: 700, fontSize: L.jp, lineHeight: 1.15, padding: L.kind === "tall" ? "10px 26px" : "12px 34px", transform: slide, opacity: s }}>{jp}</div>}
-      {en && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: 14, letterSpacing: "0.03em", transform: slide, opacity: s }}>{en}</div>}
+    <div style={{ ...box, flexDirection: tall ? "column" : "row", alignItems: tall ? "flex-start" : "flex-end", gap: tall ? 0 : 40 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+        {jp && <div style={{ background: C.ink, color: C.paper, fontFamily: "Plex", fontWeight: 700, fontSize: L.jp, lineHeight: 1.15, padding: tall ? "10px 26px" : "12px 34px", transform: slide, opacity: s }}>{jp}</div>}
+        {en && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: 14, letterSpacing: "0.03em", transform: slide, opacity: s }}>{en}</div>}
+      </div>
       {children}
     </div>
   );
@@ -120,11 +123,11 @@ const SiteBadges: React.FC<{ L: Layout; startBeat: number }> = ({ L, startBeat }
   const { fps } = useVideoConfig();
   const step = (beatTime(startBeat + 1) - beatTime(startBeat)) / 3;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 18, maxWidth: L.kind === "tall" ? 960 : 1400 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: L.kind === "tall" ? 16 : 0, marginBottom: L.kind === "tall" ? 0 : 6, maxWidth: L.kind === "tall" ? 960 : 1000 }}>
       {SITES.map((name, i) => {
         const at = Math.round(step * i * fps);   // Sequence 内の相対フレーム
         const s = spring({ frame: frame - at, fps, config: { damping: 9, stiffness: 260 } });
-        return <span key={name} style={{ fontFamily: "Plex", fontWeight: 700, fontSize: L.kind === "tall" ? 34 : 38, color: C.ink, border: `3px solid ${C.ink}`, background: STRIPE[i % 6], padding: "4px 16px", display: "inline-block", transform: `scale(${s})`, opacity: s }}>{name}</span>;
+        return <span key={name} style={{ fontFamily: "Plex", fontWeight: 700, fontSize: L.kind === "tall" ? 23 : 26, color: C.ink, border: `3px solid ${C.ink}`, background: STRIPE[i % 6], padding: "2px 10px", display: "inline-block", transform: `scale(${s})`, opacity: s }}>{name}</span>;
       })}
     </div>
   );

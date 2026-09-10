@@ -167,7 +167,8 @@ if (PC) {   // PC では出力オプションは常に開いている。見出�
   await wait(120); await mark("open-options");
 } else await tap(".pane-options .fold", "open-options");
 await wait(600);
-for (const r of ["16:9", "9:16", "free", "9:16"]) { await tap(`#ratio-seg input[value="${r}"] + span`, `ratio:${r}`); await wait(380); }
+// 比率を 4 種類順にタップ。最後の比率はスマホ版 9:16、PC 版 16:9
+for (const r of (PC ? ["9:16", "16:9", "free", "16:9"] : ["16:9", "9:16", "free", "9:16"])) { await tap(`#ratio-seg input[value="${r}"] + span`, `ratio:${r}`); await wait(380); }
 await wait(400);
 for (const c of ["cerulean", "pink", "mustard"]) { await tap(`#swatches input[value="${c}"]`, `bg:${c}`); await wait(450); }
 await wait(400);
