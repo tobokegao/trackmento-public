@@ -167,8 +167,10 @@ def load_cover(t: Track, size: int = CELL_PX) -> Image.Image | None:
 def _cover_fit(img: Image.Image, w: int, h: int) -> Image.Image:
     """CSS object-fit: cover 相当（中央トリミング）。"""
     s = max(w / img.width, h / img.height)
-    sw, sh = w / s, h / s
-    sx, sy = (img.width - sw) / 2, (img.height - sh) / 2
+    # 浮動小数の誤差で sw/sh が画像より僅かに大きくなり、box の座標が負になって
+    # "box offset can't be negative" で落ちることがある（ほぼ正方形の JPEG を draft で縮小したとき）。画像内に収める
+    sw, sh = min(w / s, img.width), min(h / s, img.height)
+    sx, sy = max((img.width - sw) / 2, 0.0), max((img.height - sh) / 2, 0.0)
     return img.resize((w, h), Image.LANCZOS, box=(sx, sy, sx + sw, sy + sh))
 
 
