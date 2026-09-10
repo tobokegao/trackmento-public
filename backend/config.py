@@ -33,8 +33,8 @@ def cors_origins() -> list[str]:
 
 
 def trust_proxy() -> bool:
-    """リバースプロキシ（Render など）の後ろにいるとき 1。X-Forwarded-For の末尾（プロキシが付けた値）をクライアント IP とみなす。
-    直接公開しているのに 1 にすると、ヘッダを偽装してレートリミットを逃れられるので注意。"""
+    """リバースプロキシ（Render など）の後ろにいるとき 1。CF-Connecting-IP（Cloudflare）、無ければ X-Forwarded-For の先頭を
+    クライアント IP とみなす。直接公開しているのに 1 にすると、ヘッダを偽装してレートリミットを逃れられるので注意。"""
     return _flag("TRUST_PROXY")
 
 

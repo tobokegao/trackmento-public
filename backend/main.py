@@ -127,12 +127,22 @@ _IP_SALT = secrets.token_bytes(16)   # 起動ごとに変わる。IP を復元�
 
 
 def _client_ip(request: Request) -> str:
-    """回数制限のキー。生の IP は保持せず、プロセス限りの乱数と混ぜたハッシュにする"""
+    """回数制限のキー。生の IP は保持せず、プロセス限りの乱数と混ぜたハッシュにする。
+    TRUST_PROXY=1 のときはプロキシが付けたヘッダから利用者の IP を取る。
+    Render は Cloudflare の後ろにいるので、X-Forwarded-For の末尾は Cloudflare のエッジ IP になる。
+    末尾を使うと利用者全員が数個のキーに集約され、初めての人でも「1 日 20 回」に当たってしまう。
+    そこで Cloudflare が必ず付け直す CF-Connecting-IP（無ければ True-Client-IP）を優先し、
+    どちらも無ければ X-Forwarded-For の先頭（Render の仕様: 先頭が利用者の IP）を使う。
+    先頭は利用者が偽装できるが、影響は自分の回数制限を逃れられる程度（他人の枠は減らせない）"""
     ip = request.client.host if request.client else "?"
     if trust_proxy():
-        xff = [v.strip() for v in (request.headers.get("x-forwarded-for") or "").split(",") if v.strip()]
-        if xff:
-            ip = xff[-1]
+        forwarded = (request.headers.get("cf-connecting-ip") or request.headers.get("true-client-ip") or "").strip()
+        if not forwarded:
+            xff = [v.strip() for v in (request.headers.get("x-forwarded-for") or "").split(",") if v.strip()]
+            if xff:
+                forwarded = xff[0]
+        if forwarded:
+            ip = forwarded[:64]
     return hashlib.sha256(_IP_SALT + ip.encode("utf-8", "replace")).hexdigest()[:24]
 
 
@@ -172,7 +182,7 @@ async def rate_limit(request: Request, call_next):
     request.state.csp_nonce = secrets.token_urlsafe(16)
     limit = rate_limit_per_minute()
     if limit and request.url.path.startswith(_RATE_PATHS):
-        ip = _client_ip(request)   # プロキシを信頼するのは TRUST_PROXY=1 のときだけ（先頭は偽装できるので末尾）
+        ip = _client_ip(request)   # プロキシのヘッダを信頼するのは TRUST_PROXY=1 のときだけ
         now = time.monotonic()
         q = _hits[ip]
         while q and now - q[0] > 60:
