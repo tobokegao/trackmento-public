@@ -205,8 +205,9 @@ async def rate_limit(request: Request, call_next):
     # CSP: スクリプトはこのサーバーが埋めた nonce 付きのものだけ。画像は同一オリジン＋R2 の公開 URL（https:）＋Canvas の blob/data
     response.headers.setdefault("Content-Security-Policy",
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'; "
-        # connect-src: iTunes の検索はブラウザから直接叩く（サーバーの共有 IP が Apple に遮断されるため）
-        "img-src 'self' data: blob: https:; connect-src 'self' https://itunes.apple.com; font-src 'self'; object-src 'none'; base-uri 'self'; "
+        # connect-src: iTunes と MusicBrainz（＋Cover Art Archive → archive.org へリダイレクト）の検索はブラウザから直接叩く
+        # （サーバーの共有 IP が Apple に遮断され、MusicBrainz にはレート制限されるため）
+        "img-src 'self' data: blob: https:; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org; font-src 'self'; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'self'")
     if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")

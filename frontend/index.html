@@ -829,6 +829,52 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     return exact.concat(partial);
   }
+  /* MusicBrainz もブラウザから直接（CORS 許可あり）。サーバー経由は共有 IP がレート制限されて 503／タイムアウトが続くため。
+     検索式・リリースの選び方は backend/sources/musicbrainz.py と同じ。ジャケットの有無は Cover Art Archive の
+     JSON（archive.org へリダイレクト、CORS 許可あり）で確かめ、無いリリースは次の候補へ */
+  const MB_ENDPOINT = "https://musicbrainz.org/ws/2/recording";
+  const CAA = (mbid, size) => `https://coverartarchive.org/release/${mbid}/front-${size}`;
+  const lucene = (s) => s.replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, (m) => "\\" + m);
+  const releaseKey = (rel) => `${rel.status !== "Official" ? 1 : 0}${rel.country !== "JP" ? 1 : 0}${rel.date || "9999"}`;   // Official → 日本盤 → 日付順
+  async function caaHasFront(mbid, signal) {
+    try {
+      const r = await fetch(`https://coverartarchive.org/release/${mbid}`, { signal, headers: { Accept: "application/json" } });
+      if (!r.ok) return false;
+      const j = await r.json();
+      return (j.images || []).some(i => i.front);
+    } catch { return false; }
+  }
+  async function mbSearch(q, artist) {
+    const terms = [];
+    if (q) terms.push(`recording:"${lucene(q)}"`);
+    if (artist) terms.push(`artist:"${lucene(artist)}"`);
+    if (!terms.length) return [];
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const r = await fetch(`${MB_ENDPOINT}?${new URLSearchParams({ query: terms.join(" AND "), fmt: "json", limit: "8" })}`, { signal: ctrl.signal, headers: { Accept: "application/json" } });
+      if (r.status === 503) { const e = new Error("busy"); e.busy = true; throw e; }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      const found = await Promise.all((data.recordings || []).map(async (rec) => {
+        const rels = (rec.releases || []).slice().sort((a, b) => releaseKey(a) < releaseKey(b) ? -1 : 1).slice(0, 2);
+        for (const rel of rels) {
+          if (rel.id && await caaHasFront(rel.id, ctrl.signal)) {
+            const artistName = (rec["artist-credit"] || []).map(c => (c.name || "") + (c.joinphrase || "")).join("") || artist;
+            const title = rec.title || q;
+            return { source: "musicbrainz", title, artist: artistName, album: rel.title || null,
+                     image: CAA(rel.id, 1200), thumb: CAA(rel.id, 250),
+                     external_url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(`${artistName} ${title}`.trim()) };
+          }
+        }
+        return null;
+      }));
+      const seen = new Set(), out = [];
+      for (const t of found) { if (t && !seen.has(t.image)) { seen.add(t.image); out.push(t); } }   // 同じジャケット（同じ release）は 1 件に
+      return out;
+    } finally { clearTimeout(timer); }
+  }
+  const CLIENT_SEARCH = { itunes: itunesSearch, musicbrainz: mbSearch };
   /* backend/merge.py と同じ鍵で重複をまとめる。先に並んだもの（iTunes）を残す */
   const albumKey = (a) => (a || "").replace(/\s*[-–—]\s*(single|ep)\s*$/i, "");
   function mergeTracks(tracks) {
@@ -867,21 +913,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!chosen.length) { say(els.searchMsg, "ソースを 1 つ以上選んでください。", "error"); return; }
     setBtnState(els.searchBtn, "loading"); say(els.searchMsg, "");
     try {
-      const rest = chosen.filter(s => s !== "itunes");
-      const [itunesRes, serverRes] = await Promise.all([
-        chosen.includes("itunes") ? itunesSearch(q, artist).then(t => ({ tracks: t })).catch(err => ({ error: err })) : Promise.resolve(null),
+      // iTunes と MusicBrainz はブラウザから直接、それ以外（Discogs / otoDB）はサーバー経由。並列に取って SOURCE_ORDER の順に並べる
+      const direct = chosen.filter(s => CLIENT_SEARCH[s]), rest = chosen.filter(s => !CLIENT_SEARCH[s]);
+      const [directRes, serverRes] = await Promise.all([
+        Promise.all(direct.map(s => CLIENT_SEARCH[s](q, artist).then(t => ({ tracks: t })).catch(err => ({ error: err })))),
         rest.length ? serverSearch(q, artist, rest) : Promise.resolve({ tracks: [], failed: [] }),
       ]);
-      let itunesTracks = itunesRes ? itunesRes.tracks : null;
       let failed = serverRes.failed;
-      if (itunesRes && itunesRes.error) {
-        // ブラウザから届かなかったので、サーバー側の iTunes（キャッシュがあれば返る）に任せる
+      const ordered = [];
+      for (let i = 0; i < direct.length; i++) {
+        const res = directRes[i];
+        if (!res.error) { ordered.push(...res.tracks); continue; }
+        if (res.error.busy) { failed = failed.concat([[direct[i], "busy"]]); continue; }
+        // ブラウザから届かなかった（広告ブロッカーなど）ので、サーバー側（キャッシュがあれば返る）に任せる
         try {
-          const fb = await serverSearch(q, artist, ["itunes"]);
-          itunesTracks = fb.tracks; failed = failed.concat(fb.failed);
-        } catch { failed = failed.concat([["itunes", "error"]]); }
+          const fb = await serverSearch(q, artist, [direct[i]]);
+          ordered.push(...fb.tracks); failed = failed.concat(fb.failed);
+        } catch { failed = failed.concat([[direct[i], "error"]]); }
       }
-      const tracks = mergeTracks((itunesTracks || []).concat(serverRes.tracks));
+      const tracks = mergeTracks(ordered.concat(serverRes.tracks));
       renderResults(tracks);
       setBtnState(els.searchBtn, null);
       // 一部のソースが失敗していたら、その旨を添える（MusicBrainz の混雑など）

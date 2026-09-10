@@ -211,6 +211,11 @@ def _load_cover_from(url: str, t: Track, size: int) -> Image.Image:
     return fitted
 
 
+def _mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+    """a を b の方へ t（0〜1）だけ寄せた色。"""
+    return tuple(rnd(x + (y - x) * t) for x, y in zip(a, b))   # type: ignore[return-value]
+
+
 def _cover_fit(img: Image.Image, w: int, h: int) -> Image.Image:
     """CSS object-fit: cover 相当（中央トリミング）。"""
     s = max(w / img.width, h / img.height)
@@ -305,7 +310,9 @@ def render(doc: GridDoc) -> Image.Image:
     light = _is_light(bg)
     ink = _hex_to_rgb(TOKENS["ink" if light else "paper"])
     badge_bg = _hex_to_rgb(TOKENS["paper" if light else "ink"])
-    muted = _hex_to_rgb(TOKENS["muted" if light else "rule"])
+    # 番号・アーティスト名は文字色を背景へ 30% 寄せた色。固定トークン（muted / rule）だとセルリアンなどの
+    # 中間の明るさの背景で埋もれるため、背景との差を常に文字色の 70% に保つ
+    muted = _mix(ink, bg, 0.30)
     cell_bg = _hex_to_rgb(TOKENS["paper-3" if light else "ink-2"])
 
     im = Image.new("RGB", (sc(L.W), sc(L.H)), bg)
