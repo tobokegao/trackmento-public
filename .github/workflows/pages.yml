@@ -30,7 +30,7 @@ jobs:
           python-version: "3.12"
       - name: Build static site
         run: python scripts/build_pages.py --api "${{ vars.TRACKMENTO_API }}" --out dist
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
   deploy:
