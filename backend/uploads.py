@@ -14,7 +14,7 @@ from PIL import Image
 
 from backend import storage
 
-Image.MAX_IMAGE_PIXELS = 40_000_000   # 展開爆弾対策
+Image.MAX_IMAGE_PIXELS = 24_000_000   # 展開爆弾対策（render.py と同じ値）
 
 ROOT = Path(__file__).resolve().parent.parent
 UPLOADS = ROOT / "uploads"
@@ -65,6 +65,8 @@ def _reencode(data: bytes) -> tuple[bytes, str]:
     try:
         im = Image.open(io.BytesIO(data))
         fmt = im.format or ""
+        if fmt == "JPEG":
+            im.draft("RGB", (MAX_SIDE, MAX_SIDE))   # 縮小デコード（原寸を展開しない）。MAX_SIDE 以上の最小スケールになる
         im.load()
     except Exception as e:
         raise ValueError("画像として読めませんでした（JPEG / PNG / WebP / GIF に対応）") from e

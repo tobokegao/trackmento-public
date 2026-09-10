@@ -33,7 +33,7 @@ MAX_SIDE = 8000
 RATIOS: dict[str, float | None] = {"1:1": 1.0, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, "free": None}
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
 UA = "Mozilla/5.0 (compatible; trackmento/0.1)"
-Image.MAX_IMAGE_PIXELS = 40_000_000   # 展開爆弾対策（超えると DecompressionBombError）。ジャケット用途には十分
+Image.MAX_IMAGE_PIXELS = 24_000_000   # 展開爆弾対策（超えると DecompressionBombError。約 4900×4900）。ジャケット用途には十分
 IMAGE_HOSTS = ("mzstatic.com", "coverartarchive.org", "archive.org", "discogs.com", "bcbits.com", "bandcamp.com",
                "sndcdn.com", "ytimg.com", "nimg.jp", "nicovideo.jp", "hdslb.com", "scdn.co", "spotifycdn.com", "otodb.net")
 
@@ -145,13 +145,20 @@ def fetch_image_bytes(url: str) -> bytes:
     return r.content
 
 
-def load_cover(t: Track) -> Image.Image | None:
+def load_cover(t: Track, size: int = CELL_PX) -> Image.Image | None:
+    """ジャケットを取得し、マスの大きさ（CELL_PX 角）に切り抜いて返す。
+    原寸の画像を持ち続けないこと（64 枚 × 数千 px で GB 単位になる）。JPEG は draft で縮小デコードする。"""
     try:
         data = fetch_image_bytes(t.image)
-        im = Image.open(io.BytesIO(data)).convert("RGB")
+        with Image.open(io.BytesIO(data)) as src:
+            if src.format == "JPEG":
+                src.draft("RGB", (size * 2, size * 2))   # 1/2・1/4・1/8 スケールでデコード（メモリと時間を大きく節約）
+            im = src.convert("RGB")
         if imgtools.is_video_thumb(t.image) or t.source in ("youtube", "nicovideo", "bilibili", "otodb"):
             im = imgtools.trim_letterbox(im)   # 動画サムネイルの黒帯を落としてから切り抜く
-        return im
+        fitted = _cover_fit(im, size, size)
+        im.close()
+        return fitted
     except Exception as e:  # 1枚の失敗で全体を止めない
         print(f"[render] image failed: {t.title} / {t.artist}: {e!r}")
         return None
@@ -239,8 +246,12 @@ def _fit_line(d: ImageDraw.ImageDraw, title: str, artist: str, font_s: int, max_
 
 # ---------- 描画 ----------
 def render(doc: GridDoc) -> Image.Image:
+    """レイアウト（論理 px。CELL_PX=600 基準）を計算し、最終サイズ（max_side 以内）で直接描く。
+    以前は原寸で描いてから縮小していたが、8×8 だと原寸キャンバスだけで 140MB になり、無料ホストのメモリ上限を超えた。"""
     o = doc.options
     L = layout(doc)
+    S = L.scale                       # 1.0 か、max_side に収めるための縮小率
+    sc = lambda v: rnd(v * S)         # 論理 px → 出力 px
     bg = _hex_to_rgb(o.bgCustom if o.bg == "custom" and o.bgCustom else TOKENS[o.bg])
     light = _is_light(bg)
     ink = _hex_to_rgb(TOKENS["ink" if light else "paper"])
@@ -248,36 +259,40 @@ def render(doc: GridDoc) -> Image.Image:
     muted = _hex_to_rgb(TOKENS["muted" if light else "rule"])
     cell_bg = _hex_to_rgb(TOKENS["paper-3" if light else "ink-2"])
 
-    im = Image.new("RGB", (L.W, L.H), bg)
+    im = Image.new("RGB", (sc(L.W), sc(L.H)), bg)
     d = ImageDraw.Draw(im)
 
     # タイトル
     y0 = L.oy
     if L.title:
-        f = font("bold", L.title_size)
+        f = font("bold", max(8, sc(L.title_size)))
         max_w = L.gw + (L.sb_gap + L.sb_w if L.side == "right" else 0)
-        d.text((L.ox, y0 + L.title_h / 2), _ellipsize(d, L.title, f, max_w), font=f, fill=ink, anchor="lm")
+        d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f, max_w * S), font=f, fill=ink, anchor="lm")
         y0 += L.title_h
 
-    # グリッド（画像は並列に取得する。1 枚ずつだと CDN の往復が積み上がって遅い）
-    num_font = font("pixel", 22)
-    with ThreadPoolExecutor(max_workers=6) as ex:
-        covers = list(ex.map(lambda t: load_cover(t) if t else None, doc.cells))
+    # グリッド（画像は並列に取得し、取得スレッドの中でマスの大きさに切り抜く。原寸を抱えない）
+    cell = sc(CELL_PX)
+    num_font = font("pixel", max(8, sc(22)))
+    from backend.config import public_mode
+    with ThreadPoolExecutor(max_workers=3 if public_mode() else 6) as ex:
+        covers = list(ex.map(lambda t: load_cover(t, cell) if t else None, doc.cells))
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
-        x, y = L.ox + c * (CELL_PX + o.gap), y0 + r * (CELL_PX + o.gap)
-        d.rectangle((x, y, x + CELL_PX - 1, y + CELL_PX - 1), fill=cell_bg)
+        x, y = sc(L.ox + c * (CELL_PX + o.gap)), sc(y0 + r * (CELL_PX + o.gap))
+        d.rectangle((x, y, x + cell - 1, y + cell - 1), fill=cell_bg)
         if t:
             cover = covers[i]
             if cover:
-                im.paste(_cover_fit(cover, CELL_PX, CELL_PX), (x, y))
+                im.paste(cover, (x, y))
+                covers[i] = None
         if o.numbers:
             label = f"{i + 1:02d}"
-            bw, bh = math.ceil(d.textlength(label, font=num_font)) + 24, 40
+            bw, bh = math.ceil(d.textlength(label, font=num_font)) + sc(24), sc(40)
             d.rectangle((x, y, x + bw - 1, y + bh - 1), fill=badge_bg)
-            d.rectangle((x + bw, y, x + bw + 3, y + bh - 1), fill=ink)
-            d.rectangle((x, y + bh, x + bw + 3, y + bh + 3), fill=ink)
-            d.text((x + 12, y + bh / 2 + 1), label, font=num_font, fill=ink, anchor="lm")
+            d.rectangle((x + bw, y, x + bw + sc(3), y + bh - 1), fill=ink)
+            d.rectangle((x, y + bh, x + bw + sc(3), y + bh + sc(3)), fill=ink)
+            d.text((x + sc(12), y + bh / 2 + 1), label, font=num_font, fill=ink, anchor="lm")
+    covers = None
 
     # サイドバー（曲名リスト）
     if L.side != "none":
@@ -285,27 +300,38 @@ def render(doc: GridDoc) -> Image.Image:
         sy = y0 if L.side == "right" else y0 + L.gh + L.sb_gap
         col_w = L.sb_w if L.side == "right" else (L.sb_w - GAP_PX * 2 * (L.sb_cols - 1)) // L.sb_cols
         per_col = doc.size if L.side == "right" else math.ceil(doc.size / L.sb_cols)
-        f_num = font("pixel", rnd(L.font_s * 0.8))
+        font_s = max(8, sc(L.font_s))
+        f_num = font("pixel", max(8, sc(L.font_s * 0.8)))
         for i, t in enumerate(doc.cells):
             col, row = i // per_col, i % per_col
-            x = sx + col * (col_w + GAP_PX * 2)
-            yy = sy + row * L.line_h + L.line_h / 2
+            x = sc(sx + col * (col_w + GAP_PX * 2))
+            yy = sc(sy + row * L.line_h + L.line_h / 2)
             num = f"{i + 1:02d}"
             # ピクセルフォントは em ボックス内で字面が上に寄るので、字面（インク）の中心を行の中心に置く
             _, top, _, bottom = f_num.getbbox(num, anchor="ls")
             d.text((x, rnd(yy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
-            nw = d.textlength(num, font=f_num) + rnd(L.font_s * 0.8)
+            nw = d.textlength(num, font=f_num) + sc(L.font_s * 0.8)
             if not t:
                 continue
-            max_w = col_w - nw
-            f_title, f_artist, title_s, artist_s = _fit_line(d, _one_line(t.title), _one_line(t.artist), L.font_s, max_w)
+            max_w = col_w * S - nw
+            f_title, f_artist, title_s, artist_s = _fit_line(d, _one_line(t.title), _one_line(t.artist), font_s, max_w)
             d.text((x + nw, yy), title_s, font=f_title, fill=ink, anchor="lm")
             if artist_s:
                 d.text((x + nw + d.textlength(title_s, font=f_title), yy), artist_s, font=f_artist, fill=muted, anchor="lm")
 
-    if L.scale < 1:
-        im = im.resize((rnd(L.W * L.scale), rnd(L.H * L.scale)), Image.LANCZOS)
+    _release_memory()
     return im
+
+
+def _release_memory() -> None:
+    """描画で使った大きなバッファを OS に返す（glibc は解放済みでも抱え込み、RSS が下がらないことがある）"""
+    import gc
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):
+        pass   # Linux 以外
 
 
 # ---------- 保存と世代管理 ----------
