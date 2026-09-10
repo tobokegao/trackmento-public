@@ -10,6 +10,7 @@ from collections.abc import Awaitable, Callable
 import httpx
 
 from backend.models import Track
+from backend.logutil import brief
 from backend.sources import bandcamp, otodb, soundcloud, spotify, video
 
 Fetcher = Callable[..., Awaitable[Track]]
@@ -44,6 +45,6 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         try:
             t = await otodb.roxy_fetch(url, client=client)
         except (ValueError, httpx.HTTPError) as e2:
-            print(f"[from-url] {label} 失敗 → roxy も失敗: {e2!r}")
+            print(f"[from-url] {label} 失敗（{brief(e)}）→ roxy も失敗（{brief(e2)}）")
             raise e from None
         return t

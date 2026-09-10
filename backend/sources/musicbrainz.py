@@ -95,7 +95,7 @@ def _release_order(rel: dict) -> tuple:
     )
 
 
-async def search(q: str, artist: str = "", *, limit: int = 12, client: httpx.AsyncClient | None = None) -> list[Track]:
+async def search(q: str, artist: str = "", *, limit: int = 8, client: httpx.AsyncClient | None = None) -> list[Track]:
     terms = []
     if q.strip():
         terms.append(f'recording:"{_lucene_escape(q.strip())}"')
@@ -112,7 +112,7 @@ async def search(q: str, artist: str = "", *, limit: int = 12, client: httpx.Asy
         # 各 recording について候補 release を並べ、CAA を確認
         async def resolve(rec: dict) -> Track | None:
             rels = sorted(rec.get("releases") or [], key=_release_order)
-            for rel in rels[:3]:  # 1曲あたり最大3リリースまで確認
+            for rel in rels[:2]:  # 1曲あたり最大2リリースまで確認（CAA への HEAD が検索の重さの主因）
                 mbid = rel.get("id")
                 if mbid and await _caa_exists(client, mbid):
                     credits = rec.get("artist-credit") or []

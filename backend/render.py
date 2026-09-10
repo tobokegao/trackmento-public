@@ -21,6 +21,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from backend import imgtools, netguard, uploads
 from backend.cache import cache
+from backend.logutil import brief
 from backend.grids import GridDoc
 from backend.models import Track
 
@@ -180,21 +181,28 @@ def fetch_image_bytes(url: str) -> bytes:
 
 def load_cover(t: Track, size: int = CELL_PX) -> Image.Image | None:
     """ジャケットを取得し、マスの大きさ（CELL_PX 角）に切り抜いて返す。
-    原寸の画像を持ち続けないこと（64 枚 × 数千 px で GB 単位になる）。JPEG は draft で縮小デコードする。"""
-    try:
-        data = fetch_image_bytes(t.image)
-        with Image.open(io.BytesIO(data)) as src:
-            if src.format == "JPEG":
-                src.draft("RGB", (size * 2, size * 2))   # 1/2・1/4・1/8 スケールでデコード（メモリと時間を大きく節約）
-            im = src.convert("RGB")
-        if imgtools.is_video_thumb(t.image) or t.source in ("youtube", "nicovideo", "bilibili", "otodb"):
-            im = imgtools.trim_letterbox(im)   # 動画サムネイルの黒帯を落としてから切り抜く
-        fitted = _cover_fit(im, size, size)
-        im.close()
-        return fitted
-    except Exception as e:  # 1枚の失敗で全体を止めない
-        print(f"[render] image failed: {t.title} / {t.artist}: {e!r}")
-        return None
+    原寸の画像を持ち続けないこと（64 枚 × 数千 px で GB 単位になる）。JPEG は draft で縮小デコードする。
+    高解像度（image）が取れないときはサムネイル（thumb）で代用する（Cover Art Archive の 500、YouTube の maxres 欠落など）。"""
+    urls = [t.image] + ([t.thumb] if t.thumb and t.thumb != t.image else [])
+    for url in urls:
+        try:
+            return _load_cover_from(url, t, size)
+        except Exception as e:  # 1枚の失敗で全体を止めない
+            print(f"[render] image failed ({brief(e)}): {t.title} / {t.artist}" + ("（サムネイルで再試行）" if url != urls[-1] else ""))
+    return None
+
+
+def _load_cover_from(url: str, t: Track, size: int) -> Image.Image:
+    data = fetch_image_bytes(url)
+    with Image.open(io.BytesIO(data)) as src:
+        if src.format == "JPEG":
+            src.draft("RGB", (size * 2, size * 2))   # 1/2・1/4・1/8 スケールでデコード（メモリと時間を大きく節約）
+        im = src.convert("RGB")
+    if imgtools.is_video_thumb(url) or t.source in ("youtube", "nicovideo", "bilibili", "otodb"):
+        im = imgtools.trim_letterbox(im)   # 動画サムネイルの黒帯を落としてから切り抜く
+    fitted = _cover_fit(im, size, size)
+    im.close()
+    return fitted
 
 
 def _cover_fit(img: Image.Image, w: int, h: int) -> Image.Image:

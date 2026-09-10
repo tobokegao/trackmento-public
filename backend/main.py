@@ -11,6 +11,7 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 import time
+from datetime import datetime, timezone
 from collections import defaultdict, deque
 
 from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
@@ -23,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend import grids, housekeeping, imgtools, netguard, render, share, storage, uploads
 from backend.cache import cache
+from backend.logutil import brief
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
                             rate_limit_per_minute, share_budget_bytes, share_limits, trust_proxy)
 from backend.grids import GridDoc, GridOptions
@@ -57,6 +59,8 @@ IMAGE_HOST_ALLOWLIST = (
 )
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
 SOURCE_TIMEOUT = 20   # 1 ソースあたりの検索の上限秒。超えたソースは「失敗」扱いにして他の結果を返す
+FAIL_TTL = 60         # 失敗した検索を覚えておく秒数（同じ検索の連打を外部に流さない）
+_recent_fail: dict[tuple[str, str, str], tuple[float, str]] = {}   # (source, q, artist) → (時刻, busy|error)
 
 # source 省略時はこの順で並べ、重複は先のソースを残す: iTunes > MusicBrainz > Discogs
 # （iTunes は速くて安定、MusicBrainz は 1 秒 1 回の制限を全員で共有するため混雑しやすい）
@@ -87,6 +91,7 @@ async def lifespan(app: FastAPI):
     if removed:
         print(f"[outputs] removed {removed} old files")
     print(f"[public] PNG の URL は {public_base_url()}/outputs/... で返します（.env の PUBLIC_BASE_URL）")
+    app.state.started_at = time.time()
     app.state.http = httpx.AsyncClient(
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
@@ -287,17 +292,25 @@ async def apple_touch_icon() -> FileResponse:
 
 @app.get("/health")
 async def health() -> dict:
-    if public_mode():
-        # 公開時は内部情報（キャッシュのパス、内部 IP、グリッド名）を出さない
-        return {"ok": True, "sources": sorted(SOURCES), "public": True, "frontend_url": frontend_url(), "storage": storage.get_storage().name}
-    return {
+    # started_at / uptime_s: デプロイ無しの再起動（ディスク初期化）をログ無しで切り分けるため
+    # itunes_server: サーバー経由の iTunes が Apple に制限されているか（Web はブラウザから直接叩くので参考情報）
+    common = {
         "ok": True,
         "sources": sorted(SOURCES),
+        "started_at": datetime.fromtimestamp(app.state.started_at, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "uptime_s": int(time.time() - app.state.started_at),
+        "itunes_server": "blocked" if itunes.is_blocked() else "ok",
+        "frontend_url": frontend_url(),
+        "storage": storage.get_storage().name,
+    }
+    if public_mode():
+        # 公開時は内部情報（キャッシュのパス、内部 IP、グリッド名）を出さない
+        return {**common, "public": True}
+    return {
+        **common,
         "cache": await asyncio.to_thread(cache.stats),
         "public_base_url": public_base_url(),
         "public": False,
-        "frontend_url": frontend_url(),
-        "storage": storage.get_storage().name,
         "grids": grids.list_names(),
     }
 
@@ -337,11 +350,18 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
     """ソースごとにキャッシュを引き、無いものだけ並列で取りに行く。失敗したソースは空扱いにし、名前と理由（busy/error）を返す。"""
     failed: dict[str, str] = {}
     results: list[list[Track] | None] = [None] * len(names)
+    now = time.monotonic()
     if not nocache:
         for i, name in enumerate(names):
             hit = await asyncio.to_thread(cache.get_search, name, q, artist)
             if hit is not None:
                 results[i] = [Track.model_validate(t) for t in hit]
+                continue
+            # 直前に失敗した同じ検索は外部に聞き直さない（同じ検索の連打で iTunes / MusicBrainz を叩き続けないため）
+            recent = _recent_fail.get((name, q, artist))
+            if recent and now - recent[0] < FAIL_TTL:
+                results[i] = []
+                failed[name] = recent[1]
     misses = [i for i, r in enumerate(results) if r is None]
     if misses:
         client = app.state.http
@@ -350,10 +370,14 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
         )
         for i, res in zip(misses, fetched):
             if isinstance(res, BaseException):
-                # 1ソースの失敗で全体を落とさない。失敗はキャッシュしない
-                print(f"[search] {names[i]} failed: {res!r}")
+                # 1ソースの失敗で全体を落とさない。失敗は永続キャッシュには入れず、FAIL_TTL 秒だけ覚える
+                print(f"[search] {names[i]} failed: {brief(res)}")
                 results[i] = []
                 failed[names[i]] = "busy" if isinstance(res, (musicbrainz.SourceBusy, itunes.SourceBlocked, asyncio.TimeoutError)) or "503" in str(res) else "error"
+                _recent_fail[(names[i], q, artist)] = (now, failed[names[i]])
+                if len(_recent_fail) > 500:
+                    for k in [k for k, v in _recent_fail.items() if now - v[0] >= FAIL_TTL]:
+                        del _recent_fail[k]
                 continue
             results[i] = res
             if res:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）

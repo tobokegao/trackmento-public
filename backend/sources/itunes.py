@@ -18,6 +18,10 @@ BLOCK_SECONDS = 600   # 403/429 を受けたあと iTunes を叩かない秒数
 _blocked_until = 0.0
 
 
+def is_blocked() -> bool:
+    return time.monotonic() < _blocked_until
+
+
 class SourceBlocked(Exception):
     """Apple にこのサーバーの IP が拒否（403）または制限（429）されている。しばらく呼ばない。"""
 _SIZE_RE = re.compile(r"/\d+x\d+(bb)?\.(jpg|png)$")

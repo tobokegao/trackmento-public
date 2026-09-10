@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from backend import netguard
 from backend.models import Track
 
 OEMBED = "https://soundcloud.com/oembed"
@@ -41,9 +42,15 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
     own = client is None
     client = client or httpx.AsyncClient(timeout=15, follow_redirects=True)
     try:
+        if (p.hostname or "").lower() == "on.soundcloud.com":
+            # アプリの共有で出る短縮 URL。oEmbed は受け付けないので、検査付きでリダイレクト先（soundcloud.com/…）に直す
+            r0 = await netguard.safe_get(client, url, headers={"User-Agent": UA})
+            url = getattr(r0, "final_url", url).split("?", 1)[0]
         r = await client.get(OEMBED, params={"url": url, "format": "json"}, headers={"User-Agent": UA})
         if r.status_code == 404:
             raise ValueError("SoundCloud にそのページがありません（非公開トラックや削除済みの可能性）")
+        if r.status_code == 403:
+            raise ValueError("このトラックは SoundCloud 側で埋め込みが許可されていません（アートワークを取れません）。手入力で画像 URL を指定してください")
         r.raise_for_status()
         d = r.json()
         thumb = d.get("thumbnail_url") or ""

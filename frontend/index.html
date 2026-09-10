@@ -746,7 +746,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // ローカル運用では「local」と接続状態を出す。公開サイトでは出さない（利用者には意味が無い）
       $("#wordmark-tag").textContent = isPublic ? "" : "local";
       $("#health-link").hidden = isPublic;   // 診断用リンクは公開サイトでは出さない
-      els.status.textContent = isPublic ? "" : "接続OK";
+      // サーバー経由の iTunes が Apple に制限されているとき（Web はブラウザから直接検索するので影響は小さい）
+      els.status.textContent = isPublic ? (d.itunes_server === "blocked" ? "iTunes: サーバー経由は制限中（ブラウザから直接検索）" : "") : "接続OK";
       els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
       $("#foot-discogs").hidden = !available.includes("discogs");
     } catch {
@@ -840,6 +841,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const q = els.q.value.trim(), artist = els.artist.value.trim();
     els.q.removeAttribute("aria-invalid");
     if (!q && !artist) { els.q.setAttribute("aria-invalid", "true"); say(els.searchMsg, "曲名かアーティスト名のどちらかは必要です。", "error"); els.q.focus({ preventScroll: true }); return; }
+    // 曲名欄にページの URL を貼った人は「URL を貼る」に回す（iTunes に URL を検索させても何も出ない）
+    const pasted = [q, artist].find(v => /^https?:\/\//i.test(v));
+    if (pasted) {
+      els.bcUrl.value = pasted;
+      const sub = els.bcForm.closest(".sub");
+      if (sub && sub.dataset.collapsed === "true") toggleFold(sub);
+      say(els.searchMsg, "URL だったので「URL を貼る」から取り込みます。");
+      els.bcForm.requestSubmit();
+      return;
+    }
     const chosen = selectedSources();
     if (!chosen.length) { say(els.searchMsg, "ソースを 1 つ以上選んでください。", "error"); return; }
     setBtnState(els.searchBtn, "loading"); say(els.searchMsg, "");
