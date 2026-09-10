@@ -157,7 +157,7 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 - アップロード画像は再エンコードして保存する。EXIF（位置情報・撮影日時・機種）、ICC、コメント、PNG のテキストは残さない。長辺 2048px まで縮め、名前はランダム
 - 共有 JSON にはブラウザごとのグリッド ID（`name`）と `savedAt` を入れない（同じ人の共有を突き合わせたり、そのグリッドを読み書きされたりしないため）
 - 貼られた URL の `?si=…` などのクエリは外して保存する（SoundCloud / Bandcamp）。YouTube・ニコニコ・bilibili・Spotify は正規 URL に直す
-- ジャケット画像は `/image-proxy` 経由で配るので、利用者のブラウザが iTunes や YouTube に直接つながることはない。共有 PNG だけは R2 の公開 URL から配る（Cloudflare が閲覧者の IP を見る）
+- ジャケット画像は `/image-proxy` 経由で配るので、利用者のブラウザが YouTube などに直接つながることはない。例外は iTunes の**検索**で、これはブラウザから iTunes Search API を直接叩く（サーバーの共有 IP が Apple に遮断されるため）。検索語と利用者の IP が Apple に渡る。共有 PNG は R2 の公開 URL から配る（Cloudflare が閲覧者の IP を見る）
 - 検索キャッシュ（`cache.sqlite3`）には検索語と結果を保存するが、誰が検索したかは持たない
 
 ## 構成

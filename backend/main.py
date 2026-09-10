@@ -200,7 +200,8 @@ async def rate_limit(request: Request, call_next):
     # CSP: スクリプトはこのサーバーが埋めた nonce 付きのものだけ。画像は同一オリジン＋R2 の公開 URL（https:）＋Canvas の blob/data
     response.headers.setdefault("Content-Security-Policy",
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; "
+        # connect-src: iTunes の検索はブラウザから直接叩く（サーバーの共有 IP が Apple に遮断されるため）
+        "img-src 'self' data: blob: https:; connect-src 'self' https://itunes.apple.com; font-src 'self'; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'self'")
     if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
@@ -352,7 +353,7 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
                 # 1ソースの失敗で全体を落とさない。失敗はキャッシュしない
                 print(f"[search] {names[i]} failed: {res!r}")
                 results[i] = []
-                failed[names[i]] = "busy" if isinstance(res, (musicbrainz.SourceBusy, asyncio.TimeoutError)) or "503" in str(res) else "error"
+                failed[names[i]] = "busy" if isinstance(res, (musicbrainz.SourceBusy, itunes.SourceBlocked, asyncio.TimeoutError)) or "503" in str(res) else "error"
                 continue
             results[i] = res
             if res:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）

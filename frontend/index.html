@@ -784,6 +784,57 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
 
   /* ---- search ---- */
+  /* iTunes はブラウザから iTunes Search API を直接叩く（CORS 許可あり、キー不要）。
+     サーバー経由だと Render などの共有 IP が Apple に 403/429 で遮断されるため。絞り込み・並び順は backend/sources/itunes.py と同じ規則。
+     直接叩けないとき（広告ブロッカー・ネットワーク）はサーバー側に任せる */
+  const ITUNES_ENDPOINT = "https://itunes.apple.com/search";
+  const nkey = (v) => (v || "").normalize("NFKC").toLowerCase().replace(/featuring/g, "feat").replace(/feat\./g, "feat").replace(/[^\p{L}\p{N}]+/gu, "");
+  const hiresArt = (url) => url.replace(/\/\d+x\d+(bb)?\.(jpg|png)$/, (m, bb, ext) => `/1000x1000${bb || ""}.${ext}`);
+  async function itunesSearch(q, artist) {
+    const term = `${artist} ${q}`.trim();
+    if (!term) return [];
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    let data;
+    try {
+      const r = await fetch(`${ITUNES_ENDPOINT}?${new URLSearchParams({ term, entity: "song", country: "JP", limit: "25" })}`, { signal: ctrl.signal });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      data = await r.json();
+    } finally { clearTimeout(timer); }
+    const wantTitle = nkey(q), wantArtist = nkey(artist);
+    const exact = [], partial = [];
+    for (const item of data.results || []) {
+      if (item.wrapperType && item.wrapperType !== "track") continue;
+      const art = item.artworkUrl100 || item.artworkUrl60;
+      if (!art) continue;
+      const t = { source: "itunes", title: item.trackName || "", artist: item.artistName || "", album: item.collectionName || null,
+                  image: hiresArt(art), thumb: art, external_url: item.trackViewUrl || null };
+      const nt = nkey(t.title), na = nkey(t.artist);
+      if (wantTitle && !nt.includes(wantTitle)) continue;
+      if (wantArtist && !na.includes(wantArtist)) continue;
+      ((!wantTitle || nt === wantTitle) && (!wantArtist || na === wantArtist) ? exact : partial).push(t);
+    }
+    return exact.concat(partial);
+  }
+  /* backend/merge.py と同じ鍵で重複をまとめる。先に並んだもの（iTunes）を残す */
+  const albumKey = (a) => (a || "").replace(/\s*[-–—]\s*(single|ep)\s*$/i, "");
+  function mergeTracks(tracks) {
+    const seen = new Set(), out = [];
+    for (const t of tracks) {
+      const k = `${nkey(t.title)}|${nkey(t.artist)}|${nkey(albumKey(t.album))}`;
+      if (seen.has(k)) continue;
+      seen.add(k); out.push(t);
+    }
+    return out;
+  }
+  async function serverSearch(q, artist, sources) {
+    const params = new URLSearchParams({ q, artist, source: sources.join(",") });
+    const r = await fetch(api(`/search?${params}`));
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const tracks = await r.json();
+    const failed = (r.headers.get("X-Search-Failed") || "").split(",").filter(Boolean).map(s => s.split("="));
+    return { tracks, failed };
+  }
   els.form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = els.q.value.trim(), artist = els.artist.value.trim();
@@ -791,16 +842,26 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!q && !artist) { els.q.setAttribute("aria-invalid", "true"); say(els.searchMsg, "曲名かアーティスト名のどちらかは必要です。", "error"); els.q.focus({ preventScroll: true }); return; }
     const chosen = selectedSources();
     if (!chosen.length) { say(els.searchMsg, "ソースを 1 つ以上選んでください。", "error"); return; }
-    const params = new URLSearchParams({ q, artist, source: chosen.join(",") });
     setBtnState(els.searchBtn, "loading"); say(els.searchMsg, "");
     try {
-      const r = await fetch(api(`/search?${params}`));
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const tracks = await r.json();
+      const rest = chosen.filter(s => s !== "itunes");
+      const [itunesRes, serverRes] = await Promise.all([
+        chosen.includes("itunes") ? itunesSearch(q, artist).then(t => ({ tracks: t })).catch(err => ({ error: err })) : Promise.resolve(null),
+        rest.length ? serverSearch(q, artist, rest) : Promise.resolve({ tracks: [], failed: [] }),
+      ]);
+      let itunesTracks = itunesRes ? itunesRes.tracks : null;
+      let failed = serverRes.failed;
+      if (itunesRes && itunesRes.error) {
+        // ブラウザから届かなかったので、サーバー側の iTunes（キャッシュがあれば返る）に任せる
+        try {
+          const fb = await serverSearch(q, artist, ["itunes"]);
+          itunesTracks = fb.tracks; failed = failed.concat(fb.failed);
+        } catch { failed = failed.concat([["itunes", "error"]]); }
+      }
+      const tracks = mergeTracks((itunesTracks || []).concat(serverRes.tracks));
       renderResults(tracks);
       setBtnState(els.searchBtn, null);
       // 一部のソースが失敗していたら、その旨を添える（MusicBrainz の混雑など）
-      const failed = (r.headers.get("X-Search-Failed") || "").split(",").filter(Boolean).map(s => s.split("="));
       const failNote = failed.length
         ? " " + failed.map(([n, k]) => `${SOURCE_LABEL[n] || n} は${k === "busy" ? "混雑中で応答しませんでした（少し待って再検索）" : "エラーで取得できませんでした"}。`).join("")
         : "";

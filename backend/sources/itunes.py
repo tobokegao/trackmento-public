@@ -6,6 +6,7 @@ artworkUrl100 の "100x100" を "1000x1000" に置き換えると高解像度が
 from __future__ import annotations
 
 import re
+import time
 
 import httpx
 
@@ -13,6 +14,12 @@ from backend.merge import _n
 from backend.models import Track
 
 ENDPOINT = "https://itunes.apple.com/search"
+BLOCK_SECONDS = 600   # 403/429 を受けたあと iTunes を叩かない秒数
+_blocked_until = 0.0
+
+
+class SourceBlocked(Exception):
+    """Apple にこのサーバーの IP が拒否（403）または制限（429）されている。しばらく呼ばない。"""
 _SIZE_RE = re.compile(r"/\d+x\d+(bb)?\.(jpg|png)$")
 
 
@@ -42,10 +49,18 @@ async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "J
     if not term:
         return []
     params = {"term": term, "entity": "song", "country": country, "limit": limit}
+    global _blocked_until
+    if time.monotonic() < _blocked_until:
+        raise SourceBlocked("iTunes がこのサーバーからのアクセスを制限しています（しばらく待ってから再検索）")
     own = client is None
     client = client or httpx.AsyncClient(timeout=10)
     try:
         r = await client.get(ENDPOINT, params=params)
+        if r.status_code in (403, 429):
+            # 共有 IP（Render など）が Apple に拒否されている。叩き続けると悪化するので一定時間止める
+            _blocked_until = time.monotonic() + BLOCK_SECONDS
+            print(f"[itunes] {r.status_code} → {BLOCK_SECONDS}s 停止")
+            raise SourceBlocked(f"iTunes がこのサーバーからのアクセスを制限しています（{r.status_code}）")
         r.raise_for_status()
         data = r.json()
     finally:

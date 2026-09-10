@@ -26,6 +26,9 @@ class SourceBusy(Exception):
     """一時的に使えない（混雑・レート制限）。検索全体は続け、利用者にその旨を知らせる"""
 CAA = "https://coverartarchive.org/release/{mbid}/front-{size}"
 _lock = asyncio.Lock()
+_waiting = 0          # _lock を待っている（または握っている）呼び出しの数
+MAX_QUEUE = 6         # これ以上並んでいたら待たずに SourceBusy（1 req/秒なので 6 件 ≒ 6 秒以上の待ち）
+REQUEST_TIMEOUT = 8   # 1 回の HTTP 呼び出しの上限秒。ロックを握ったまま長く待たない
 _last_call = 0.0
 _caa_sem = asyncio.Semaphore(8)
 
@@ -45,21 +48,28 @@ def _lucene_escape(s: str) -> str:
 
 async def _mb_get(client: httpx.AsyncClient, params: dict) -> dict:
     """1 req/秒をプロセス全体で守る。"""
-    global _last_call
-    async with _lock:
-        wait = 1.0 - (time.monotonic() - _last_call)
-        if wait > 0:
-            await asyncio.sleep(wait)
-        _last_call = time.monotonic()
-        headers = {"User-Agent": _user_agent(), "Accept": "application/json"}
-        r = await client.get(MB_ENDPOINT, params=params, headers=headers)
-        # 503 = 混雑かレート制限。間隔を広げながら最大 3 回まで再試行（1 回では通らないことが多い）
-        for wait in (1.5, 3.0, 5.0):
-            if r.status_code != 503:
-                break
-            await asyncio.sleep(wait)
+    global _last_call, _waiting
+    if _waiting >= MAX_QUEUE:
+        # 利用者が重なると 1 req/秒の列が伸び、全員が SOURCE_TIMEOUT でタイムアウトする。並びすぎなら早めに諦める
+        raise SourceBusy("MusicBrainz が混雑しています（順番待ち）。少し待ってから再検索してください")
+    _waiting += 1
+    try:
+        async with _lock:
+            wait = 1.0 - (time.monotonic() - _last_call)
+            if wait > 0:
+                await asyncio.sleep(wait)
             _last_call = time.monotonic()
-            r = await client.get(MB_ENDPOINT, params=params, headers=headers)
+            headers = {"User-Agent": _user_agent(), "Accept": "application/json"}
+            r = await client.get(MB_ENDPOINT, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
+            # 503 = 混雑かレート制限。間隔を広げながら最大 2 回まで再試行（1 回では通らないことが多い）
+            for wait in (1.5, 3.0):
+                if r.status_code != 503:
+                    break
+                await asyncio.sleep(wait)
+                _last_call = time.monotonic()
+                r = await client.get(MB_ENDPOINT, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
+    finally:
+        _waiting -= 1
     if r.status_code == 503:
         raise SourceBusy("MusicBrainz が混雑しています（503）。少し待ってから再検索してください")
     r.raise_for_status()
