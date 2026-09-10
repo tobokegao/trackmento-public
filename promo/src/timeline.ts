@@ -66,24 +66,24 @@ export const SHOTS: Shot[] = [
   // 8 小節目: カウントダウン（映像はタイトル入力後のまま）
   { beat: bar(8), len: 4, ev: "title-done", off: 0.0, jp: "", en: "" },
   // 9〜12 小節目: 曲の追加方法
-  { beat: bar(9), len: 4, ev: "cell-tap", off: -0.5, jp: "枠をタップ", en: "Tap a cell" },
-  { beat: bar(10), len: 4, ev: "search:chikamichi", off: -1.6, speed: 2, jp: "曲を探す", en: "Find tracks" },
-  { beat: bar(11), len: 4, ev: "src:musicbrainz", off: -0.4, jp: "検索ソースは3種類", en: "Three search sources", zoom: { x: 0.5, y: 0.62, s: 1.4 }, zoomPc: { x: 0.12, y: 0.45, s: 1.5 } },
-  { beat: bar(12), len: 2, ev: "url:talk", off: -1.2, speed: 1.5, jp: "URL検索も対応", en: "Or paste a URL" },
-  { beat: bar(12) + 2, len: 2, ev: "manual:mitsuami", off: -1.0, speed: 1.5, jp: "手入力も可能", en: "Or add your own" },
+  { beat: bar(9), len: 4, ev: "cell-tap", off: -0.5, jp: "枠をタップ", en: "Tap a cell", zoomPc: { x: 0.52, y: 0.36, s: 1.8 } },
+  { beat: bar(10), len: 4, ev: "search:chikamichi", off: -1.6, speed: 2, jp: "曲を探す", en: "Find tracks", zoomPc: { x: 0.12, y: 0.32, s: 1.7 } },
+  { beat: bar(11), len: 4, ev: "src:musicbrainz", off: -0.4, jp: "検索ソースは3種類", en: "Three search sources", zoom: { x: 0.5, y: 0.62, s: 1.4 }, zoomPc: { x: 0.12, y: 0.43, s: 1.9 } },
+  { beat: bar(12), len: 2, ev: "url:talk", off: -1.2, speed: 1.5, jp: "URL検索も対応", en: "Or paste a URL", zoomPc: { x: 0.12, y: 0.74, s: 1.7 } },
+  { beat: bar(12) + 2, len: 2, ev: "manual:mitsuami", off: -1.0, speed: 1.5, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0.12, y: 0.9, s: 1.7 } },
   // 13〜16 小節目
-  { beat: bar(13), len: 4, ev: "add:ilovelove", off: -0.4, jp: "枠が全部埋まったら", en: "All nine in" },
-  { beat: bar(14), len: 4, ev: "select:1", off: -0.2, speed: 1.2, jp: "タップで入れ替え", en: "Tap two cells to swap" },
-  { beat: bar(15), len: 4, ev: "reorder-done", off: -0.3, jp: "並べ終わったら", en: "Once you're done" },
-  { beat: bar(16), len: 4, ev: "reorder-done", off: 0.6, jp: "ほぼ完成です", en: "Almost there", zoom: { x: 0.5, y: 0.45, s: 1.2 }, zoomPc: { x: 0.5, y: 0.5, s: 1.15 } },
+  { beat: bar(13), len: 4, ev: "add:ilovelove", off: -0.4, jp: "枠が全部埋まったら", en: "All nine in", zoomPc: { x: 0.6, y: 0.45, s: 1.5 } },
+  { beat: bar(14), len: 4, ev: "select:1", off: -0.2, speed: 1.2, jp: "タップで入れ替え", en: "Tap two cells to swap", zoomPc: { x: 0.6, y: 0.45, s: 1.6 } },
+  { beat: bar(15), len: 4, ev: "reorder-done", off: -0.3, jp: "並べ終わったら", en: "Once you're done", zoomPc: { x: 0.6, y: 0.45, s: 1.4 } },
+  { beat: bar(16), len: 4, ev: "reorder-done", off: 0.6, jp: "ほぼ完成です", en: "Almost there", zoom: { x: 0.5, y: 0.45, s: 1.2 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
   // 17〜20 小節目: 出力オプション
-  { beat: bar(17), len: 4, ev: "open-options", off: -0.3, jp: "出力方法を設定", en: "Output settings" },
-  { beat: bar(18), len: 4, ev: "ratio:16:9", off: -0.3, speed: 1.1, jp: "解像度は4種類", en: "Four aspect ratios" },
-  { beat: bar(19), len: 4, ev: "bg:cerulean", off: -0.3, jp: "選べる背景色", en: "Pick a background" },
-  { beat: bar(20), len: 4, ev: "bg:custom", off: -0.4, jp: "カスタム色も", en: "Or any color" },
+  { beat: bar(17), len: 4, ev: "open-options", off: -0.3, jp: "出力方法を設定", en: "Output settings", zoomPc: { x: 0.87, y: 0.42, s: 1.5 } },
+  { beat: bar(18), len: 4, ev: "ratio:16:9", off: -0.3, speed: 1.1, jp: "解像度は4種類", en: "Four aspect ratios", zoomPc: { x: 0.87, y: 0.3, s: 1.9 } },
+  { beat: bar(19), len: 4, ev: "bg:cerulean", off: -0.3, jp: "選べる背景色", en: "Pick a background", zoomPc: { x: 0.87, y: 0.62, s: 1.9 } },
+  { beat: bar(20), len: 4, ev: "bg:custom", off: -0.4, jp: "カスタム色も", en: "Or any color", zoomPc: { x: 0.87, y: 0.67, s: 2.0 } },
   // 21〜23 小節目: 共有
-  { beat: bar(21), len: 4, ev: "share", off: -0.4, jp: "トラックを共有", en: "Share" },
-  { beat: bar(22), len: 4, ev: "share-ready", off: -0.2, jp: "PNG と共有 URL", en: "A PNG and a link" },
+  { beat: bar(21), len: 4, ev: "share", off: -0.4, jp: "トラックを共有", en: "Share", zoomPc: { x: 0.55, y: 0.7, s: 1.8 } },
+  { beat: bar(22), len: 4, ev: "share-ready", off: -0.2, jp: "PNG と共有 URL", en: "A PNG and a link", zoomPc: { x: 0.6, y: 0.5, s: 1.3 } },
   { beat: bar(23), len: 4, ev: "share-page", off: 0.0, speed: 1.5, jp: "共有ページ", en: "Open the share page" },
 ];
 
