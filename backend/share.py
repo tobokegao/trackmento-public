@@ -102,7 +102,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
     rows = []
     for i, c in enumerate(snap.get("cells") or [], 1):
         if c:
-            rows.append(f"<li><span class=n>{i:02d}</span><b>{html.escape(c.get('title') or '')}</b> <span class=a>{html.escape(c.get('artist') or '')}</span></li>")
+            rows.append(f"<li><span class=n>{i:02d}</span><span class=t><b>{html.escape(c.get('title') or '')}</b> <span class=a>{html.escape(c.get('artist') or '')}</span></span></li>")
     n = len(rows)
     return f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -131,6 +131,8 @@ img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b;
 .btn.primary {{ background: #12171b; color: #f6f5f3; }}
 ol {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }}
 li {{ display: flex; gap: 10px; align-items: baseline; }}
+/* 曲名とアーティスト名は 1 つの流し込み。別々の flex 項目にすると狭い画面でアーティスト名だけ細長く折り返る */
+.t {{ min-width: 0; overflow-wrap: anywhere; }}
 .n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
 .a {{ color: #53595f; }}
 p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere; }}

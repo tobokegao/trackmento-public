@@ -10,3 +10,4 @@ beautifulsoup4==4.15.0
 lxml==6.1.3
 python-multipart==0.0.32
 boto3==1.43.90          # Cloudflare R2（S3 互換）に共有 PNG を置くとき
+fonttools==4.64.0       # 描画時にフォントに無い文字（豆腐）を落とすため cmap を読む

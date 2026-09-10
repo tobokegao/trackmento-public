@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import math
+import unicodedata
 import os
 import re
 import time
@@ -107,9 +108,41 @@ def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
     return _font_cache[key]
 
 
+_cmap_cache: set[int] | None = None
+
+
+def _cmap() -> set[int]:
+    """サイドバー用フォント（IBM Plex Sans JP）が持つコードポイント。無い文字は豆腐（□）になるので描画前に落とす"""
+    global _cmap_cache
+    if _cmap_cache is None:
+        from fontTools.ttLib import TTFont
+        cps: set[int] = set()
+        for name in ("IBMPlexSansJP-Regular.ttf", "IBMPlexSansJP-Bold.ttf"):
+            with TTFont(str(FONTS / name), lazy=True) as tt:
+                cps |= set(tt.getBestCmap().keys())
+        _cmap_cache = cps
+    return _cmap_cache
+
+
+def _drawable(s: str) -> str:
+    """フォントに無い文字を、互換分解（NFKC: 𝓒→C、㈱→(株) など）で置き換え、それでも無ければ落とす。
+    装飾文字や私用領域（キャリア絵文字）が入ったアーティスト名が豆腐で並ぶのを防ぐ"""
+    cmap = _cmap()
+    out: list[str] = []
+    for ch in s:
+        if ord(ch) in cmap or ch == " ":
+            out.append(ch)
+            continue
+        alt = unicodedata.normalize("NFKC", ch)
+        if alt != ch and all(ord(c) in cmap for c in alt):
+            out.append(alt)
+    return "".join(out)
+
+
 def _one_line(s: str | None) -> str:
-    """改行・タブを空白に。Pillow は改行入りの文字列を 1 行として測れない（ValueError）ので、描画前に必ず通す"""
-    return " ".join((s or "").split())
+    """改行・タブを空白に。Pillow は改行入りの文字列を 1 行として測れない（ValueError）ので、描画前に必ず通す。
+    フォントに無い文字もここで落とす"""
+    return " ".join(_drawable(s or "").split())
 
 
 def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:

@@ -12,3 +12,9 @@ uploads/*
 shares/*
 !shares/.gitkeep
 dist/
+
+# 紹介動画（promo/）: 依存・出力・録画・音源はリポジトリに入れない
+*.mp3
+promo/node_modules/
+promo/out/
+promo/public/recordings/
