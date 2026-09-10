@@ -497,6 +497,8 @@ class RenderBody(BaseModel):
     bgCustom: str | None = None
     margin: int | None = None
     gap: int | None = None
+    # Web が /share で並びをそのまま送る用。サーバーのディスクが消えていても（Render の再起動など）共有できるようにする
+    doc: GridDoc | None = None
 
 
 def _check_cells(doc: GridDoc) -> None:
@@ -583,10 +585,18 @@ async def upload_image(request: Request, file: UploadFile = File(...)) -> dict:
 @app.post("/share")
 async def share_grid(request: Request, body: RenderBody = Body(default_factory=RenderBody)) -> dict:
     name = _grid_name(body.grid)
-    try:
-        doc = grids.load(name)
-    except ValueError as e:
-        raise HTTPException(500, str(e)) from e
+    if body.doc is not None:
+        # ブラウザが持っている並びを正とする（サーバー側の JSON は再起動で消えていることがある）
+        doc = body.doc
+        doc.name = name
+        if not doc.savedAt:
+            doc.touch()
+        grids.save(doc)
+    else:
+        try:
+            doc = grids.load(name)
+        except ValueError as e:
+            raise HTTPException(500, str(e)) from e
     if not any(doc.cells):
         raise HTTPException(400, f"グリッド {name} に曲がありません")
     if apply_render_options(doc, body):

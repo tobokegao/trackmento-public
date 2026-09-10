@@ -1320,11 +1320,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!state.cells.some(Boolean)) { say(els.gridMsg, "曲を置いてから押してください。", "error"); return; }
     setBtnState(els.shareBtn, "loading"); say(els.gridMsg, "");
     try {
-      clearTimeout(saveTimer);
-      if (!(await pushNow())) throw new Error("サーバーに保存できませんでした");
-      const r = await fetch(api("/share"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME }) });
+      /* 並びは /share に同梱する。サーバーの grids/ は再起動で消えることがあり（Render）、
+         「前回と同じ内容だから PUT しない」判定のままだと「曲がありません」になるため */
+      const snap = serialize();
+      clearTimeout(pushTimer);
+      const r = await fetch(api("/share"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME, doc: snap }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+      lastPushed = signature(snap);
       const pngUrl = /^https?:\/\//.test(d.png) ? d.png : api(d.png);
       els.outputImg.src = pngUrl;
       els.download.href = api(`/shares/${d.id}.png`);   // 保存はバックエンド経由（別オリジンの download 属性は効かないため） els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
