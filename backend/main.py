@@ -664,7 +664,9 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
 
 @app.get("/s/{sid}", response_class=HTMLResponse)
 async def share_page(request: Request, sid: str) -> HTMLResponse:
-    snap = share.load(sid)
+    # share.load は R2 への同期 GET。ループ内で呼ぶと閲覧が重なったときにサーバー全体が止まり、
+    # Render のヘルスチェック（5 秒）に落ちて再起動される
+    snap = await run_in_threadpool(share.load, sid)
     if not snap:
         raise HTTPException(404, "この共有は見つかりません")
     return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request)))
