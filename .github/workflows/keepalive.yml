@@ -1,0 +1,23 @@
+# Render 無料プランはアクセスが 15 分無いとサーバーが眠り、次の 1 回目に 30〜60 秒かかる。
+# 10 分おきに /health を叩いて眠らせない（Googlebot の取得失敗・利用者の初回待ちを防ぐ）。
+# 注意: GitHub の cron は混雑時に数分〜十数分遅れることがある。リポジトリに 60 日間 push が無いと schedule は自動停止する
+#       （Actions タブで再有効化できる。Dependabot の PR をマージしていれば止まらない）。
+name: Keep Render awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: GET /health（眠っていれば起こす。最大 90 秒待つ）
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 90 --retry 2 --retry-delay 10 https://trackmento.onrender.com/health || true)
+          echo "health: $code"
+          test "$code" = "200"
