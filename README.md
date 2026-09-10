@@ -141,6 +141,7 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 ### サーバーを眠らせない（Render 無料プラン）
 
 - 無料プランは 15 分アクセスが無いと眠り、次の 1 回目に 30〜60 秒かかる。`.github/workflows/keepalive.yml` が 10 分おきに `/health` を叩いて起こしておく
+- `/health` は Render のヘルスチェックと keepalive 用。Web の接続確認は `/status`（同じ内容）。EasyPrivacy（Vivaldi・uBlock Origin・Brave などの遮断リスト）に `||onrender.com/health` があり、`/health` への fetch は広告ブロッカーに遮断される
 - ディスクはデプロイ・再起動のたびに初期化される（`grids/`・`cache.sqlite3`・`uploads/` が消える）。検索キャッシュが消えると全検索が外部 API に向かい、iTunes の遮断や MusicBrainz の混雑を招くので、**小さな修正はまとめて push する**（1 日 20 回のデプロイは多すぎる）。`/health` の `started_at` で最後の初期化時刻が分かる
   （公開リポジトリなので Actions の実行時間は無料。無料プランの 750 時間/月には 1 サービス常時稼働で収まる）
 - GitHub の cron は遅れることがあり、リポジトリに 60 日間 push が無いと schedule は止まる。止まったら Actions タブの「Keep Render awake」から再有効化する

@@ -62,7 +62,9 @@ def main() -> int:
         public = bool(hl.json().get("public"))
     except Exception:
         public = False
-    allowed = {"ok", "public", "sources", "storage", "frontend_url"}   # 公開してよい項目だけ（キー・パス・バージョンは出さない）
+    allowed = {"ok", "public", "sources", "storage", "frontend_url", "started_at", "uptime_s", "itunes_server"}   # 公開してよい項目だけ（キー・パス・バージョンは出さない）
+    st = c.get("/status")
+    check("/status（Web が使う接続確認。/health は EasyPrivacy に遮断される）が 200", st.status_code == 200, str(st.status_code))
     extra = set(hl.json().keys()) - allowed
     leak = any(k in json.dumps(hl.json()).lower() for k in ("secret", "token", "access_key", "/app/", "c:\\"))
     rec("OK" if not public or (not extra and not leak) else "NG", "公開モードの /health は最小限", ",".join(sorted(hl.json().keys())) + (f" 余分: {sorted(extra)}" if extra else ""))

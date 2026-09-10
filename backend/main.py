@@ -243,6 +243,7 @@ else:
 async def index(request: Request) -> HTMLResponse:
     # OG タグの絶対 URL（__BASE__）をこのサーバーの URL に置き換えて配る
     html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
+    html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
     html = html.replace("<script>", f'<script nonce="{request.state.csp_nonce}">', 1)   # CSP（script-src 'nonce-…'）用
     # Google Search Console の所有権確認（HTML タグ方式）。GOOGLE_SITE_VERIFICATION が無ければタグごと消す
     token = os.getenv("GOOGLE_SITE_VERIFICATION", "").strip()
@@ -292,6 +293,7 @@ async def apple_touch_icon() -> FileResponse:
 
 
 @app.get("/health")
+@app.get("/status")   # Web はこちらを使う。EasyPrivacy に「||onrender.com/health」があり、広告ブロッカー入りのブラウザ（Vivaldi など）は /health を遮断する
 async def health() -> dict:
     # started_at / uptime_s: デプロイ無しの再起動（ディスク初期化）をログ無しで切り分けるため
     # itunes_server: サーバー経由の iTunes が Apple に制限されているか（Web はブラウザから直接叩くので参考情報）

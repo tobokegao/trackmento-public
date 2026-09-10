@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="trackmento-public" content="__PUBLIC__">
 <title>TRACKMENTO</title>
 <meta name="description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
@@ -706,7 +707,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   const isGatewayError = (r) => r.status === 502 || r.status === 503 || r.status === 504;
   const sleep = (ms) => new Promise(res => setTimeout(res, ms));
-  let isPublic = false;
+  // 公開モードかはサーバーが HTML に埋める（/status が広告ブロッカーに遮断されても分かるように）。GitHub Pages 配信では置換されず "__PUBLIC__" のまま
+  let isPublic = ((document.querySelector('meta[name="trackmento-public"]') || {}).content || "") === "1";
   const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", manual: "手入力" };
   const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
@@ -749,9 +751,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const say = (el, text, tone) => { el.textContent = text; if (tone) el.dataset.tone = tone; else delete el.dataset.tone; };
 
   /* ---- sources ---- */
+  /* 接続確認は /status（内容は /health と同じ）。/health は EasyPrivacy（Vivaldi・uBlock Origin・Brave などが使う遮断リスト）に
+     「onrender.com/health」の規則があり、公開サイトでは fetch が失敗して「サーバーに接続できません」になっていた */
+  const DIRECT_SOURCES = ["itunes", "musicbrainz"];   // ブラウザから直接検索できるソース（サーバーに届かなくても使える）
   async function loadHealth() {
     try {
-      const r = await fetch(api("/health"));
+      const r = await fetch(api("/status"));
       const d = await readJson(r);
       available = d.sources || [];
       isPublic = !!d.public;
@@ -763,8 +768,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
       $("#foot-discogs").hidden = !available.includes("discogs");
     } catch {
-      available = [];
-      els.status.textContent = "サーバーに接続できません";
+      // サーバーに届かなくても iTunes / MusicBrainz はブラウザから直接検索できるので、その 2 つは使えるままにする
+      available = DIRECT_SOURCES.slice();
+      $("#health-link").hidden = isPublic;
+      els.status.textContent = isPublic ? "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）" : "サーバーに接続できません";
+      els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
     }
     renderSources();
   }
