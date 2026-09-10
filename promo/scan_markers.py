@@ -6,7 +6,7 @@ from PIL import Image
 mp4, ev_path, ffmpeg = sys.argv[1], sys.argv[2], sys.argv[3]
 d = os.path.join(os.environ["TMP"], "mk"); os.makedirs(d, exist_ok=True)
 for f in glob.glob(os.path.join(d, "*.png")): os.remove(f)
-r = subprocess.run([ffmpeg, "-y", "-v", "error", "-i", mp4, "-vf", "crop=20:20:1056:1896", os.path.join(d, "%05d.png")], capture_output=True)
+r = subprocess.run([ffmpeg, "-y", "-v", "error", "-i", mp4, "-vf", sys.argv[4] if len(sys.argv) > 4 else "crop=20:20:1056:1896", os.path.join(d, "%05d.png")], capture_output=True)
 if r.returncode: print(r.stderr.decode(errors="replace")); sys.exit(1)
 files = sorted(glob.glob(os.path.join(d, "*.png")))
 fps = 25.0

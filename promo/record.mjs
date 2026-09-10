@@ -5,24 +5,34 @@ import fs from "node:fs";
 import path from "node:path";
 
 const BASE = process.env.TRACKMENTO_URL || "http://localhost:8000";
-const OUT = path.resolve("public/recordings");
+// MODE=pc で PC 表示（1280×720 を 1.5 倍で録って 1920×1080）。既定はスマホ表示（540×960 を 2 倍で 1080×1920）
+const PC = process.env.MODE === "pc";
+const OUT = path.resolve(PC ? "public/recordings-pc" : "public/recordings");
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
 // 画面の実ピクセルで録るため DPR を 2 に固定（Playwright の deviceScaleFactor だと 540×960 で録られて余白が灰色になる）
-const browser = await chromium.launch({ args: ["--force-device-scale-factor=2"] });
-const ctx = await browser.newContext({
-  viewport: { width: 540, height: 960 }, isMobile: true, hasTouch: true, locale: "ja-JP",
+const browser = await chromium.launch({ args: [PC ? "--force-device-scale-factor=1.5" : "--force-device-scale-factor=2", "--hide-scrollbars"] });
+const ctx = await browser.newContext(PC ? {
+  viewport: { width: 1280, height: 720 }, locale: "ja-JP", bypassCSP: true,
+  recordVideo: { dir: OUT, size: { width: 1920, height: 1080 } },
+} : {
+  viewport: { width: 540, height: 960 }, isMobile: true, hasTouch: true, locale: "ja-JP", bypassCSP: true,
   recordVideo: { dir: OUT, size: { width: 1080, height: 1920 } },
 });
 // タップ位置に波紋を出す（動画で操作が分かるように）
-await ctx.addInitScript(() => {
+await ctx.addInitScript((PC_MODE) => {
   window.__mark = (i) => {
     let d = document.getElementById("__mk");
     if (!d) { d = document.createElement("div"); d.id = "__mk"; d.style.cssText = "position:fixed;right:0;bottom:0;width:16px;height:16px;z-index:99999;pointer-events:none"; document.body.append(d); }
     d.style.background = `rgb(${(i % 6) * 51},${(Math.floor(i / 6) % 6) * 51},${(Math.floor(i / 36) % 6) * 51})`;
   };
   window.__tap = (x, y) => {
+    if (PC_MODE) {
+      let c = document.getElementById("__cur");
+      if (!c) { c = document.createElement("div"); c.id = "__cur"; c.style.cssText = "position:fixed;width:22px;height:30px;z-index:99998;pointer-events:none;transition:left .25s ease-out,top .25s ease-out"; c.innerHTML = '<svg width="22" height="30" viewBox="0 0 22 30"><path d="M2 2 L2 24 L8 18 L12 28 L16 26 L12 17 L20 17 Z" fill="#1b1d24" stroke="#f5f4f0" stroke-width="2"/></svg>'; document.body.append(c); }
+      c.style.left = x - 2 + "px"; c.style.top = y - 2 + "px";
+    }
     const d = document.createElement("div");
     d.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:56px;height:56px;margin:-28px 0 0 -28px;border:3px solid #1b1d24;border-radius:50%;background:rgba(27,29,36,.18);pointer-events:none;z-index:9999;animation:__tapAnim .45s ease-out forwards`;
     document.body.append(d); setTimeout(() => d.remove(), 500);
@@ -30,7 +40,7 @@ await ctx.addInitScript(() => {
   const s = document.createElement("style");
   s.textContent = "@keyframes __tapAnim{from{transform:scale(.4);opacity:1}to{transform:scale(1.6);opacity:0}}";
   document.addEventListener("DOMContentLoaded", () => document.head.append(s));
-});
+}, PC);
 const page = await ctx.newPage();
 const t0 = Date.now();
 const events = [];
@@ -54,17 +64,24 @@ async function type(sel, text) {
   await loc.fill("");
   await loc.pressSequentially(text, { delay: 55 });
 }
-async function openSheet() { await tap("#find-btn", "open-sheet"); await page.waitForSelector("#sheet:not([hidden])"); await wait(500); }
-async function pickFirstResult(label, source) {
-  const sel = source ? `#results .result:has(.badge[data-source="${source}"])` : "#results .result";
+async function openSheet() { if (PC) { await wait(300); return; } await tap("#find-btn", "open-sheet"); await page.waitForSelector("#sheet:not([hidden])"); await wait(500); }
+async function pickFirstResult(label, source, match) {   // match: 候補のテキスト（アルバム名など）で絞る
+  let sel = source ? `#results .result:has(.badge[data-source="${source}"])` : "#results .result";
+  if (match) sel += `:has-text("${match}")`;
   await page.waitForSelector(sel, { timeout: 60000 });
   await wait(700);
   await tap(sel, `add:${label}`);
   await page.waitForSelector("#sheet[hidden]", { state: "attached" });
   await wait(600);
 }
-async function searchAdd(title, artist, label, source) {
-  await openSheet();
+async function searchAdd(title, artist, label, source, opts = {}) {   // opts.match: 選ぶ候補のテキスト
+  if (opts.viaCell) { await tap(cell(opts.viaCell), "cell-tap"); if (!PC) await page.waitForSelector("#sheet:not([hidden])"); await wait(700); }
+  else await openSheet();
+  if (opts.tour) {   // 検索ソースの切り替えを見せる（オン→オン→オフ→オフで元に戻す）
+    for (const k of ["musicbrainz", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await wait(350); }
+    for (const k of ["musicbrainz", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src-off:${k}`); await wait(300); }
+    await wait(300);
+  }
   if (source) {
     const cb = page.locator(`#sources input[value="${source}"]`);
     if (!(await cb.isChecked())) await tap(page.locator(`#sources input[value="${source}"] + span`), `source:${source}`);
@@ -72,7 +89,7 @@ async function searchAdd(title, artist, label, source) {
   await type("#q", title);
   if (artist) await type("#artist", artist);
   await tap("#search-btn", `search:${label}`);
-  await pickFirstResult(label, source);
+  await pickFirstResult(label, source, opts.match);
 }
 async function urlAdd(url, label, source) {
   await openSheet();
@@ -119,15 +136,15 @@ await page.locator("#title").pressSequentially("私を構成する9選", { delay
 await wait(600); await mark("title-done");
 
 // 追加（並びは後で入れ替える）
-await searchAdd("近道したい", "須賀響子", "chikamichi");
-await searchAdd("天才ヴァガボンド", "COIL", "vagabond");
+await searchAdd("近道したい", "須賀響子", "chikamichi", undefined, { viaCell: 1, tour: true });
+await searchAdd("天才ヴァガボンド", "COIL", "vagabond", undefined, { match: "天才ヴァガボンド - Single" });
 await urlAdd("https://www.youtube.com/watch?v=x2Uj_ILuNw0", "talk", "youtube");
 await urlAdd("https://www.nicovideo.jp/watch/sm44887188", "10-10-10", "nicovideo");
 await manualAdd("/uploads/ca3a841b8281ff38.jpg", "みつあみ引っ張って", "くま井ゆう子", "mitsuami");
 await urlAdd("https://jamiepaige.bandcamp.com/track/birdbrain-with-ok-glass-2", "birdbrain", "bandcamp");
 await urlAdd("https://on.soundcloud.com/QSnj7ttO5W4ErGhJ7U", "worldwidesuperstar", "soundcloud");
 await manualAdd("/uploads/78b3b5f5be01fa10.jpg", "(tike)2 runaway", "サラダ", "runaway");
-await searchAdd("I Love Love You", "Guitar Vader", "ilovelove", "musicbrainz");
+await searchAdd("I Love Love You", "Guitar Vader", "ilovelove", "musicbrainz", { match: "Remixes GVR" });
 await mark("grid-full");
 await wait(800);
 
@@ -144,12 +161,25 @@ await mark("reorder-done");
 await wait(800);
 
 // 出力オプション: 比率と背景色
-await tap(".pane-options .fold", "open-options");
+if (PC) {   // PC では出力オプションは常に開いている。見出しをクリックすると畳まれるので、波紋だけ出して印を付ける
+  const b = await page.locator(".pane-options .pane-title").boundingBox();
+  await page.evaluate(([x, y]) => window.__tap(x, y), [b.x + 80, b.y + b.height / 2]);
+  await wait(120); await mark("open-options");
+} else await tap(".pane-options .fold", "open-options");
 await wait(600);
-await tap('#ratio-seg input[value="9:16"] + span', "ratio:9:16");
-await wait(500);
+for (const r of ["16:9", "9:16", "free", "9:16"]) { await tap(`#ratio-seg input[value="${r}"] + span`, `ratio:${r}`); await wait(380); }
+await wait(400);
 for (const c of ["cerulean", "pink", "mustard"]) { await tap(`#swatches input[value="${c}"]`, `bg:${c}`); await wait(450); }
-await wait(500);
+await wait(400);
+await page.locator("#bg-custom").scrollIntoViewIfNeeded();
+{ const box = await page.locator("#bg-custom").boundingBox(); await page.evaluate(([x, y]) => window.__tap(x, y), [box.x + box.width / 2, box.y + box.height / 2]); }
+await wait(120); await mark("bg:custom");
+await page.locator("#bg-custom").fill("#7c5cff");
+await wait(700);
+await page.locator("#bg-custom").fill("#ff7a59");
+await wait(700);
+await tap(`#swatches input[value="mustard"]`, "bg:mustard2");
+await wait(400);
 
 // 共有
 await page.locator("#share-btn").scrollIntoViewIfNeeded();
