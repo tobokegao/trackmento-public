@@ -43,9 +43,9 @@ export const COUNTDOWN_BEAT = bar(8);       // 3, 2, 1, GO（8 小節目）
 export const FLOW_BEAT = bar(9);            // 操作の流れはここから
 export const TIMELAPSE_BEAT = bar(24);
 export const SHOWCASE_BEAT = bar(25);       // できあがり（2 小節）
-export const END_BEAT = bar(27);            // エンドカード（あなたの 9 曲は？ 2 小節 → URL 1 小節 → 無料 1 小節）
-export const URL_BEAT = bar(29);
-export const FREE_BEAT = bar(30);
+export const END_BEAT = bar(27);            // エンドカード（あなたの 9 曲は？ 1 小節 → URL 1 小節 → 無料 2 小節）
+export const URL_BEAT = bar(28);
+export const FREE_BEAT = bar(29);
 export const LAST_BEAT = bar(31);
 export const FADE_FROM = END_BEAT;          // 音楽のフェードアウト開始
 export const DURATION_FRAMES = beatFrame(LAST_BEAT) + 12;
@@ -55,30 +55,32 @@ export type Shot = {
   beat: number; len: number; ev: string; off: number; speed?: number; jp: string; en: string;
   zoom?: { x: number; y: number; s: number }; zoomPc?: { x: number; y: number; s: number };   // zoom = スマホ録画、zoomPc = PC 録画
   hl?: { x: number; y: number; w: number; h: number };                                           // スマホ録画で枠線で強調する範囲（割合）
+  still?: boolean;                                                                                // 録画を最初のコマで止める（裏で操作が進まないように）
+  fx?: "glitchOut" | "flashIn";                                                                   // glitchOut: 末尾 1 小節のジャンプ演出、flashIn: 冒頭 1 拍の反転
 };
 
 export const SHOTS: Shot[] = [
   // 3〜7 小節目: トップ画面の説明（5 小節）
   { beat: bar(3), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "トップ画面はこれだけ", en: "This is the whole app" },
-  { beat: bar(4), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.05, y: 0.128, w: 0.9, h: 0.058 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
-  { beat: bar(5), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.05, y: 0.19, w: 0.9, h: 0.5 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
-  { beat: bar(6), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索のボタン", en: "Share and search below", hl: { x: 0.05, y: 0.735, w: 0.9, h: 0.125 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
+  { beat: bar(4), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.02, y: 0.112, w: 0.96, h: 0.072 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
+  { beat: bar(5), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.02, y: 0.178, w: 0.96, h: 0.532 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
+  { beat: bar(6), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索のボタン", en: "Share and search below", hl: { x: 0.02, y: 0.738, w: 0.96, h: 0.148 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
   { beat: bar(7), len: 4, ev: "title-focus", off: -0.2, jp: "まずはタイトルを入力", en: "Start with a title" },
   // 8 小節目: カウントダウン（映像はタイトル入力後のまま）
-  { beat: bar(8), len: 4, ev: "title-done", off: 0.0, jp: "", en: "" },
+  { beat: bar(8), len: 4, ev: "title-done", off: 0.0, still: true, jp: "", en: "" },
   // 9〜12 小節目: 曲の追加方法
   { beat: bar(9), len: 4, ev: "cell-tap", off: -0.5, jp: "枠をタップ", en: "Tap a cell", zoomPc: { x: 0.52, y: 0.36, s: 1.8 } },
   { beat: bar(10), len: 4, ev: "search:chikamichi", off: -1.6, speed: 2, jp: "曲を探す", en: "Find tracks", zoomPc: { x: 0, y: 0.3, s: 1.7 } },
-  { beat: bar(11), len: 4, ev: "src:musicbrainz", off: -0.4, jp: "検索ソースは3種類", en: "Three search sources", zoom: { x: 0.5, y: 0.7, s: 1.35 }, zoomPc: { x: 0, y: 0.43, s: 1.9 } },
+  { beat: bar(11), len: 4, ev: "src:musicbrainz", off: -0.4, jp: "検索ソースは3種類", en: "Three search sources", zoom: { x: 0.3, y: 0.6, s: 1.3 }, zoomPc: { x: 0, y: 0.43, s: 1.9 } },
   { beat: bar(12), len: 4, ev: "url:talk", off: -1.6, speed: 1.4, jp: "URL検索も対応", en: "Or paste a URL", zoomPc: { x: 0, y: 0.74, s: 1.7 } },
-  { beat: bar(13), len: 1, ev: "manual:mitsuami", off: -0.3, speed: 1.2, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
+  { beat: bar(13), len: 2, ev: "manual:mitsuami", off: -0.6, speed: 1.2, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
   // 13〜16 小節目
-  { beat: bar(13) + 1, len: 3, ev: "add:ilovelove", off: -0.4, jp: "枠が全部埋まったら", en: "All nine in", zoomPc: { x: 0.6, y: 0.45, s: 1.5 } },
+  { beat: bar(13) + 2, len: 2, ev: "add:ilovelove", off: -0.4, jp: "枠が全部埋まったら", en: "All nine in", zoomPc: { x: 0.6, y: 0.45, s: 1.5 } },
   { beat: bar(14), len: 4, ev: "select:1", off: -0.2, speed: 1.2, jp: "タップで入れ替え", en: "Tap two cells to swap", zoomPc: { x: 0.6, y: 0.45, s: 1.6 } },
   { beat: bar(15), len: 4, ev: "reorder-done", off: -0.3, jp: "並べ終わったら", en: "Once you're done", zoomPc: { x: 0.6, y: 0.45, s: 1.4 } },
-  { beat: bar(16), len: 4, ev: "reorder-done", off: 0.6, jp: "ほぼ完成です", en: "Almost there", zoom: { x: 0.5, y: 0.45, s: 1.2 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
+  { beat: bar(16), len: 4, ev: "reorder-done", off: 0.6, still: true, fx: "glitchOut", jp: "ほぼ完成です", en: "Almost there", zoom: { x: 0.5, y: 0.45, s: 1.3 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
   // 17〜20 小節目: 出力オプション
-  { beat: bar(17), len: 4, ev: "open-options", off: -0.3, jp: "出力方法を設定", en: "Output settings", zoomPc: { x: 1, y: 0.42, s: 1.5 } },
+  { beat: bar(17), len: 4, ev: "open-options", off: -0.3, fx: "flashIn", jp: "出力方法を設定", en: "Output settings", zoomPc: { x: 1, y: 0.42, s: 1.5 } },
   { beat: bar(18), len: 4, ev: "ratio:16:9", off: -0.3, speed: 1.1, jp: "解像度は4種類", en: "Four aspect ratios", zoomPc: { x: 1, y: 0.3, s: 1.9 } },
   { beat: bar(19), len: 4, ev: "bg:cerulean", off: -0.3, jp: "選べる背景色", en: "Pick a background", zoomPc: { x: 1, y: 0.62, s: 1.9 } },
   { beat: bar(20), len: 4, ev: "bg:custom", off: -0.4, jp: "カスタム色も", en: "Or any color", zoomPc: { x: 1, y: 0.67, s: 2.0 } },

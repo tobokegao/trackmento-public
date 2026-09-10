@@ -1,7 +1,7 @@
 // TRACKMENTO 紹介動画。9:16（tall）と 16:9（wide）を同じ部品・同じ拍割りで描く。拍割りは timeline.ts
 import React from "react";
 import {
-  AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig, Easing,
+  AbsoluteFill, Audio, Freeze, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig, Easing,
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
 import {
@@ -99,10 +99,11 @@ const Intro: React.FC<{ L: Layout }> = ({ L }) => {
 };
 
 // ---- 字幕（上段 日本語・下段 英語） ----
-const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.ReactNode }> = ({ L, jp, en, children }) => {
+const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.ReactNode; delay?: number }> = ({ L, jp, en, children, delay = 0 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ frame, fps, config: { damping: 12, stiffness: 170 } });
+  const s = spring({ frame: frame - delay, fps, config: { damping: 12, stiffness: 170 } });
+  if (frame < delay) return null;
   const slide = `translateX(${(1 - s) * -40}px)`;
   const box = L.kind === "tall"
     ? { position: "absolute" as const, left: 60, right: 60, top: 70, display: "flex", flexDirection: "column" as const, alignItems: "flex-start" }
@@ -154,11 +155,29 @@ const Countdown: React.FC<{ L: Layout }> = ({ L }) => {
   );
 };
 
-/** スマホ枠。子に録画（OffthreadVideo）を入れる */
-const Phone: React.FC<{ L: Layout; children: React.ReactNode }> = ({ L, children }) => {
+/** スマホ枠。子に録画（OffthreadVideo）を入れる。fx でシーン頭／末尾の演出 */
+const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }> = ({ L, fx, children }) => {
+  const frame = useCurrentFrame();
   const { pulse } = useBeatPulse(0.6);
+  const barFrames = beatFrame(BAR) - beatFrame(0);
+  const sixteenth = barFrames / 16;
+  let tx = 0, ty = 0, sc = 1, filter = "none";
+  if (fx === "glitchOut") {
+    // 末尾 1 小節: 16 分音符 12 拍目で左上へ瞬時移動して拡大、14 拍目で右下へ瞬時移動して縮小、16 拍目で中央へ
+    const k = Math.floor(frame / sixteenth), f = (frame - k * sixteenth) / sixteenth;   // k: 0 始まりの 16 分音符番号、f: その中の進み
+    const dx = L.phone.w * 0.14, dy = L.phone.h * 0.14;
+    if (k === 11) { tx = -dx; ty = -dy; sc = 1 + 0.25 * Math.min(1, f * 1.15); }
+    else if (k === 12) { tx = -dx; ty = -dy; sc = 1.25; }
+    else if (k === 13) { tx = dx; ty = dy; sc = 1.25 - 0.45 * Math.min(1, f * 1.15); }
+    else if (k === 14) { tx = dx; ty = dy; sc = 0.8; }
+    else if (k >= 15) { tx = 0; ty = 0; sc = 1; }
+  } else if (fx === "flashIn") {
+    // 冒頭 1 拍: 16 分音符で反転→通常を 2 往復
+    const k = Math.floor(frame / sixteenth);
+    if (k < 4 && k % 2 === 0) filter = "invert(1)";
+  }
   return (
-    <div style={{ position: "absolute", left: L.phone.x, top: L.phone.y, width: L.phone.w, height: L.phone.h, border: `${L.kind === "tall" ? 6 : 5}px solid ${C.ink}`, boxShadow: `${L.kind === "tall" ? 14 : 12}px ${L.kind === "tall" ? 14 : 12}px 0 ${C.ink}`, background: C.paper, overflow: "hidden", transform: `scale(${1 + pulse * 0.012})`, transformOrigin: "50% 45%" }}>
+    <div style={{ position: "absolute", left: L.phone.x, top: L.phone.y, width: L.phone.w, height: L.phone.h, border: `${L.kind === "tall" ? 6 : 5}px solid ${C.ink}`, boxShadow: `${L.kind === "tall" ? 14 : 12}px ${L.kind === "tall" ? 14 : 12}px 0 ${C.ink}`, background: C.paper, overflow: "hidden", transform: `translate(${tx}px, ${ty}px) scale(${sc * (1 + pulse * 0.012)})`, transformOrigin: "50% 45%", filter }}>
       {children}
     </div>
   );
@@ -177,12 +196,17 @@ const Highlight: React.FC<{ L: Layout; hl: NonNullable<Shot["hl"]> }> = ({ L, hl
   );
 };
 
-const Clip: React.FC<{ kind: Kind; from: number; speed?: number; zoom?: Shot["zoom"] }> = ({ kind, from, speed = 1, zoom }) => {
+const Clip: React.FC<{ kind: Kind; from: number; speed?: number; zoom?: Shot["zoom"]; still?: boolean }> = ({ kind, from, speed = 1, zoom, still }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const z = zoom ? interpolate(frame, [0, fps * 0.5], [1.03, zoom.s], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }) : 1.03;
   const origin = zoom ? `${zoom.x * 100}% ${zoom.y * 100}%` : "50% 50%";
-  return <OffthreadVideo src={staticFile(RECORDINGS[kind].src)} startFrom={sec(from)} playbackRate={rate(kind) * speed} muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${z})`, transformOrigin: origin }} />;
+  const video = <OffthreadVideo src={staticFile(RECORDINGS[kind].src)} startFrom={sec(from)} playbackRate={rate(kind) * speed} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
+  return (
+    <div style={{ width: "100%", height: "100%", transform: `scale(${z})`, transformOrigin: origin }}>
+      {still ? <Freeze frame={0}>{video}</Freeze> : video}
+    </div>
+  );
 };
 
 // ---- タイムラプス（1 小節に 16 コマ） ----
@@ -279,9 +303,9 @@ export const Promo: React.FC<{ layout: LayoutKind }> = ({ layout }) => {
             const next = SHOTS[i + 1]?.beat ?? TIMELAPSE_BEAT;
             return (
               <Sequence key={s.beat} from={beatFrame(s.beat) - beatFrame(INTRO_END)} durationInFrames={beatFrame(next) - beatFrame(s.beat)} name={s.jp || "countdown"}>
-                <Caption L={L} jp={s.jp} en={s.en}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>
-                <Phone L={L}>
-                  <Clip kind={L.kind} from={evTime(L.kind, s.ev) + s.off * rate(L.kind)} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} />
+                <Caption L={L} jp={s.jp} en={s.en} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>
+                <Phone L={L} fx={s.fx}>
+                  <Clip kind={L.kind} from={evTime(L.kind, s.ev) + s.off * rate(L.kind)} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
                   {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
                 </Phone>
               </Sequence>
