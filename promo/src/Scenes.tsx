@@ -155,7 +155,16 @@ const Countdown: React.FC<{ L: Layout }> = ({ L }) => {
   );
 };
 
-/** スマホ枠。子に録画（OffthreadVideo）を入れる。fx でシーン頭／末尾の演出 */
+/** シーン冒頭 1 拍: 16 分音符で画面全体を反転→通常に 2 往復 */
+const FlashIn: React.FC = () => {
+  const frame = useCurrentFrame();
+  const sixteenth = (beatFrame(BAR) - beatFrame(0)) / 16;
+  const k = Math.floor(frame / sixteenth);
+  if (!(k < 4 && k % 2 === 0)) return null;
+  return <AbsoluteFill style={{ background: "#fff", mixBlendMode: "difference", pointerEvents: "none" }} />;
+};
+
+/** スマホ枠。子に録画（OffthreadVideo）を入れる。fx でシーン末尾の演出 */
 const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }> = ({ L, fx, children }) => {
   const frame = useCurrentFrame();
   const { pulse } = useBeatPulse(0.6);
@@ -171,10 +180,6 @@ const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }>
     else if (k === 13) { tx = dx; ty = dy; sc = 1.25 - 0.45 * Math.min(1, f * 1.15); }
     else if (k === 14) { tx = dx; ty = dy; sc = 0.8; }
     else if (k >= 15) { tx = 0; ty = 0; sc = 1; }
-  } else if (fx === "flashIn") {
-    // 冒頭 1 拍: 16 分音符で反転→通常を 2 往復
-    const k = Math.floor(frame / sixteenth);
-    if (k < 4 && k % 2 === 0) filter = "invert(1)";
   }
   return (
     <div style={{ position: "absolute", left: L.phone.x, top: L.phone.y, width: L.phone.w, height: L.phone.h, border: `${L.kind === "tall" ? 6 : 5}px solid ${C.ink}`, boxShadow: `${L.kind === "tall" ? 14 : 12}px ${L.kind === "tall" ? 14 : 12}px 0 ${C.ink}`, background: C.paper, overflow: "hidden", transform: `translate(${tx}px, ${ty}px) scale(${sc * (1 + pulse * 0.012)})`, transformOrigin: "50% 45%", filter }}>
@@ -308,6 +313,7 @@ export const Promo: React.FC<{ layout: LayoutKind }> = ({ layout }) => {
                   <Clip kind={L.kind} from={evTime(L.kind, s.ev) + s.off * rate(L.kind)} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
                   {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
                 </Phone>
+                {s.fx === "flashIn" && <FlashIn />}
               </Sequence>
             );
           })}
