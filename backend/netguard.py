@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import time
+import asyncio
 from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
@@ -31,8 +33,26 @@ def _ip_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     return ip.is_global   # 100.64/10（CGNAT）や 192.0.0/24 なども外す
 
 
+_RESOLVE_TTL = 60.0        # 名前解決の結果を覚える秒数（サムネイル 1 枚ごとに DNS を引かない）
+_RESOLVE_FAIL_TTL = 10.0   # 解決できなかった／非公開だったホストを覚える秒数
+_resolve_cache: dict[str, tuple[float, str | None]] = {}
+
+
 def resolve_public(host: str) -> str | None:
-    """名前解決し、全アドレスが公開アドレスなら接続に使う 1 つ（IPv4 優先）を返す。1 つでも駄目なら None。"""
+    """名前解決し、全アドレスが公開アドレスなら接続に使う 1 つ（IPv4 優先）を返す。1 つでも駄目なら None。
+    同期呼び出し（getaddrinfo は数秒かかることがある）。async から呼ぶときは safe_get のようにスレッドへ逃がす。"""
+    now = time.monotonic()
+    hit = _resolve_cache.get(host)
+    if hit and hit[0] > now:
+        return hit[1]
+    ip = _resolve_public_uncached(host)
+    if len(_resolve_cache) > 1000:
+        _resolve_cache.clear()
+    _resolve_cache[host] = (now + (_RESOLVE_TTL if ip else _RESOLVE_FAIL_TTL), ip)
+    return ip
+
+
+def _resolve_public_uncached(host: str) -> str | None:
     try:
         infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
     except socket.gaierror:
@@ -107,7 +127,8 @@ async def safe_get(client: httpx.AsyncClient, url: str, *, allowlist: tuple[str,
     kw.pop("follow_redirects", None)
     headers = dict(kw.pop("headers", None) or {})
     for _ in range(MAX_REDIRECTS + 1):
-        pinned, extra, ext = _plan(url, allowlist)
+        # _plan の名前解決は同期（getaddrinfo）。イベントループを止めないようスレッドで行う
+        pinned, extra, ext = await asyncio.to_thread(_plan, url, allowlist)
         r = await client.get(pinned, follow_redirects=False, headers={**headers, **extra}, extensions=ext or None, **kw)
         nxt = _next(url, r)
         if nxt is None:

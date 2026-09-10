@@ -304,7 +304,11 @@ async def health() -> dict:
         "storage": storage.get_storage().name,
     }
     if public_mode():
-        # 公開時は内部情報（キャッシュのパス、内部 IP、グリッド名）を出さない
+        # 公開時は内部情報（キャッシュのパス、内部 IP、グリッド名）を出さない。
+        # 常駐メモリはログにだけ出す（keepalive が 10 分おきに叩くので、Render のログで推移が追える）
+        rss = _rss_mb()
+        if rss is not None:
+            print(f"[health] rss={rss:.0f}MB uptime={common['uptime_s']}s")
         return {**common, "public": True}
     return {
         **common,
@@ -495,6 +499,16 @@ async def grid_put(name: str, doc: GridDoc) -> GridDoc:
 
 
 _grid_saves = [0]
+
+
+def _rss_mb() -> float | None:
+    """このプロセスの常駐メモリ（MB）。Linux 以外は None。"""
+    try:
+        with open("/proc/self/statm") as f:
+            pages = int(f.read().split()[1])
+        return pages * os.sysconf("SC_PAGE_SIZE") / (1024 * 1024)
+    except (OSError, ValueError, AttributeError, IndexError):
+        return None
 
 
 @app.delete("/grids/{name}")

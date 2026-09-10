@@ -170,7 +170,9 @@ def fetch_image_bytes(url: str) -> bytes:
     if hit:
         return hit[1]
     # 私設アドレス宛てやリダイレクト先の内部ホストは netguard が拒否する（SSRF 対策）
-    r = netguard.safe_get_sync(url, allowlist=IMAGE_HOSTS, timeout=20, headers={"User-Agent": UA, "Accept": "image/*,*/*;q=0.8"})
+    # 上限は短め。共有は 1 リクエストで全マスを取りに行くので、遅い配信元（archive.org など）で長く待つと
+    # プロキシ側のタイムアウト（HTML の 502/504 が返り、ブラウザが JSON として読めない）になる
+    r = netguard.safe_get_sync(url, allowlist=IMAGE_HOSTS, timeout=12, headers={"User-Agent": UA, "Accept": "image/*,*/*;q=0.8"})
     r.raise_for_status()
     ctype = r.headers.get("content-type", "").split(";")[0].strip()
     if not ctype.startswith("image/") or len(r.content) > IMAGE_MAX_BYTES:
@@ -188,7 +190,11 @@ def load_cover(t: Track, size: int = CELL_PX) -> Image.Image | None:
         try:
             return _load_cover_from(url, t, size)
         except Exception as e:  # 1枚の失敗で全体を止めない
-            print(f"[render] image failed ({brief(e)}): {t.title} / {t.artist}" + ("（サムネイルで再試行）" if url != urls[-1] else ""))
+            timed_out = isinstance(e, httpx.TimeoutException)
+            retry = url != urls[-1] and not timed_out   # 配信元が応答しないときはサムネイルも同じ配信元なので待たない
+            print(f"[render] image failed ({brief(e)}): {t.title} / {t.artist}" + ("（サムネイルで再試行）" if retry else ""))
+            if not retry:
+                break
     return None
 
 
@@ -317,7 +323,7 @@ def render(doc: GridDoc) -> Image.Image:
     cell = sc(CELL_PX)
     num_font = font("pixel", max(8, sc(22)))
     from backend.config import public_mode
-    with ThreadPoolExecutor(max_workers=3 if public_mode() else 6) as ex:
+    with ThreadPoolExecutor(max_workers=4 if public_mode() else 6) as ex:
         covers = list(ex.map(lambda t: load_cover(t, cell) if t else None, doc.cells))
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
