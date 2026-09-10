@@ -8,10 +8,16 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from urllib.parse import quote_plus
 
 import httpx
 
 from backend.models import Track
+
+
+def youtube_search_url(artist: str, title: str) -> str:
+    """曲を YouTube で検索する URL。MusicBrainz には音源が無いので、元リンクはこれにする"""
+    return "https://www.youtube.com/results?search_query=" + quote_plus(f"{artist} {title}".strip())
 
 MB_ENDPOINT = "https://musicbrainz.org/ws/2/recording"
 
@@ -108,7 +114,8 @@ async def search(q: str, artist: str = "", *, limit: int = 12, client: httpx.Asy
                         album=rel.get("title"),
                         image=CAA.format(mbid=mbid, size=1200),
                         thumb=CAA.format(mbid=mbid, size=250),
-                        external_url=f"https://musicbrainz.org/recording/{rec.get('id')}",
+                        # 元リンクは MusicBrainz のページではなく、その曲を YouTube で検索した結果にする（試聴しやすい）
+                        external_url=youtube_search_url(artist_name, rec.get("title") or q),
                     )
             return None
 
