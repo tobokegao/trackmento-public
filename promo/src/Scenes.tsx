@@ -73,7 +73,9 @@ const Intro: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const letters = "TRACKMENTO".split("");
-  // 文字は 1 小節目の中で 1 文字ずつ、タグラインは 2 小節目の頭で
+  // ロゴは最初の拍の頭（音の出だし）から 1 拍以内に全文字。帯はロゴと一緒に。タグラインは 2 小節目の頭で
+  const beat0 = beatFrame(0), beatLen = beatFrame(1) - beatFrame(0);
+  const logoIn = spring({ frame: frame - beat0, fps, config: { damping: 14, stiffness: 200 } });
   const taglineIn = spring({ frame: frame - beatFrame(BAR), fps, config: { damping: 14, stiffness: 140 } });
   const out = interpolate(frame, [beatFrame(INTRO_END) - 8, beatFrame(INTRO_END)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.cubic) });
   const stripeW = L.kind === "tall" ? 1000 : 1400;
@@ -81,11 +83,11 @@ const Intro: React.FC<{ L: Layout }> = ({ L }) => {
     <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", transform: `translateY(${-out * 600}px)`, opacity: 1 - out }}>
       <div style={{ display: "flex", gap: L.kind === "tall" ? 6 : 8 }}>
         {letters.map((ch, i) => {
-          const s = spring({ frame: frame - Math.round((i / letters.length) * beatFrame(BAR)), fps, config: { damping: 10, stiffness: 180 } });
-          return <span key={i} style={{ fontFamily: "Silk", fontWeight: 700, fontSize: L.kind === "tall" ? 118 : 150, color: C.ink, lineHeight: 1, display: "inline-block", transform: `translateY(${(1 - s) * 60}px) scale(${s})`, opacity: s }}>{ch}</span>;
+          const s = spring({ frame: frame - beat0 - Math.round((i / letters.length) * beatLen * 0.35), fps, config: { damping: 14, stiffness: 420 } });   // 全文字が 1 拍以内に出る
+          return <span key={i} style={{ fontFamily: "Silk", fontWeight: 700, fontSize: L.kind === "tall" ? 118 : 150, color: C.ink, lineHeight: 1, display: "inline-block", transform: `translateY(${(1 - s) * 60}px)`, opacity: s }}>{ch}</span>;
         })}
       </div>
-      <div style={{ marginTop: 24 }}><Stripe h={18} width={stripeW} /></div>
+      <div style={{ marginTop: 24, opacity: logoIn, transform: `scaleX(${logoIn})` }}><Stripe h={18} width={stripeW} /></div>
       <div style={{ marginTop: L.kind === "tall" ? 80 : 56, textAlign: "center", transform: `translateY(${(1 - taglineIn) * 40}px)`, opacity: taglineIn }}>
         <div style={{ fontFamily: "Plex", fontWeight: 700, fontSize: L.tag, color: C.ink, lineHeight: 1.3 }}>
           {L.kind === "tall" ? <>好きな曲で、<br />ジャケットのグリッドを。</> : "好きな曲で、ジャケットのグリッドを。"}
@@ -159,6 +161,19 @@ const Phone: React.FC<{ L: Layout; children: React.ReactNode }> = ({ L, children
     <div style={{ position: "absolute", left: L.phone.x, top: L.phone.y, width: L.phone.w, height: L.phone.h, border: `${L.kind === "tall" ? 6 : 5}px solid ${C.ink}`, boxShadow: `${L.kind === "tall" ? 14 : 12}px ${L.kind === "tall" ? 14 : 12}px 0 ${C.ink}`, background: C.paper, overflow: "hidden", transform: `scale(${1 + pulse * 0.012})`, transformOrigin: "50% 45%" }}>
       {children}
     </div>
+  );
+};
+
+/** 録画の一部を枠線で強調（拍で脈打つ） */
+const Highlight: React.FC<{ L: Layout; hl: NonNullable<Shot["hl"]> }> = ({ L, hl }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const { pulse } = useBeatPulse(0.8);
+  const s = spring({ frame, fps, config: { damping: 12, stiffness: 160 } });
+  const pad = 6 + pulse * 6;
+  return (
+    <div style={{ position: "absolute", left: `${hl.x * 100}%`, top: `${hl.y * 100}%`, width: `${hl.w * 100}%`, height: `${hl.h * 100}%`, boxSizing: "border-box",
+      border: `8px solid ${C.vermilion}`, boxShadow: `0 0 0 ${pad}px ${C.vermilion}55`, transform: `scale(${0.9 + s * 0.1})`, opacity: s, pointerEvents: "none" }} />
   );
 };
 
@@ -265,7 +280,10 @@ export const Promo: React.FC<{ layout: LayoutKind }> = ({ layout }) => {
             return (
               <Sequence key={s.beat} from={beatFrame(s.beat) - beatFrame(INTRO_END)} durationInFrames={beatFrame(next) - beatFrame(s.beat)} name={s.jp || "countdown"}>
                 <Caption L={L} jp={s.jp} en={s.en}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>
-                <Phone L={L}><Clip kind={L.kind} from={evTime(L.kind, s.ev) + s.off * rate(L.kind)} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} /></Phone>
+                <Phone L={L}>
+                  <Clip kind={L.kind} from={evTime(L.kind, s.ev) + s.off * rate(L.kind)} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} />
+                  {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
+                </Phone>
               </Sequence>
             );
           })}

@@ -49,7 +49,8 @@ const wait = (ms) => page.waitForTimeout(ms);
 
 async function tap(sel, name) {
   const loc = typeof sel === "string" ? page.locator(sel).first() : sel;
-  await loc.scrollIntoViewIfNeeded();
+  if (PC) await loc.scrollIntoViewIfNeeded();
+  else { await loc.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest" })); await wait(250); }   // スマホ版は見切れないよう中央へ
   const box = await loc.boundingBox();
   if (!box) throw new Error(`no box: ${sel}`);
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
