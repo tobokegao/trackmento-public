@@ -17,6 +17,13 @@ _IMG_SIZE_RE = re.compile(r"_(\d+)\.(jpg|png)$")
 UA = "Mozilla/5.0 (compatible; musicgrid-local/0.1)"
 
 
+def _canonical(url: str) -> str:
+    """クエリ（?from=… などの追跡パラメータ）とフラグメントを落とす（共有 JSON に載るため）"""
+    from urllib.parse import urlsplit, urlunsplit
+    p = urlsplit(url)
+    return urlunsplit((p.scheme, p.netloc, p.path, "", ""))
+
+
 def _sized(url: str, size: int) -> str:
     """bcbits の画像は末尾 _NN で解像度が変わる。_0 = 原寸, _16 = 700px, _10 = 1200px。"""
     return _IMG_SIZE_RE.sub(lambda m: f"_{size}.{m.group(2)}", url)
@@ -89,5 +96,5 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         album=album,
         image=_sized(og_image, 0),
         thumb=_sized(og_image, 16),
-        external_url=url,
+        external_url=_canonical(url),
     )

@@ -19,6 +19,13 @@ UA = "trackmento/0.1 (+https://github.com/local/musicgrid-local)"
 _BY_RE = re.compile(r"^(?P<title>.+?)\s+by\s+(?P<artist>.+)$", re.IGNORECASE)
 
 
+def _canonical(url: str) -> str:
+    """?si=… や utm_* などの追跡パラメータとフラグメントを落とす（共有 JSON に載るため）"""
+    from urllib.parse import urlsplit, urlunsplit
+    p = urlsplit(url)
+    return urlunsplit((p.scheme, p.netloc, p.path, "", ""))
+
+
 def is_soundcloud(url: str) -> bool:
     try:
         host = (urlparse(url).hostname or "").lower()
@@ -69,5 +76,5 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         album=None,
         image=image,
         thumb=thumb,
-        external_url=url,
+        external_url=_canonical(url),
     )

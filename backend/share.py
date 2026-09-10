@@ -54,7 +54,8 @@ def create(doc: GridDoc, budget: int = 0) -> dict:
     buf = io.BytesIO()
     im.save(buf, "PNG", compress_level=6)
     png = buf.getvalue()
-    snap = doc.model_dump()
+    # name はブラウザごとの固有 ID（u-…）。公開 JSON に載せると同じ人の共有を突き合わせたり、そのグリッドを読み書きされたりするので外す
+    snap = doc.model_dump(exclude={"name", "savedAt"})
     snap.update({"id": sid, "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")})
     js = json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8")
     need = len(png) + len(js)

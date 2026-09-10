@@ -16,4 +16,4 @@ RUN mkdir -p outputs grids uploads shares
 
 EXPOSE 8000
 # ホスティング側が PORT を渡す（Render など）。無ければ 8000
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-access-log"]

@@ -5,9 +5,9 @@
 """
 from __future__ import annotations
 
-import hashlib
 import io
 import re
+import secrets
 from pathlib import Path
 
 from PIL import Image
@@ -21,7 +21,7 @@ UPLOADS = ROOT / "uploads"
 PREFIX = "/uploads/"
 MAX_BYTES = 15 * 1024 * 1024
 _NAME_RE = re.compile(r"^[a-f0-9]{16}\.(jpg|png|webp|gif)$")
-_EXT = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp", "GIF": "gif"}
+MAX_SIDE = 2048   # これより大きい画像は縮めて保存する（マスの描画には十分。元画像の情報量も減らす）
 _CTYPE = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp", "gif": "image/gif"}
 
 
@@ -59,41 +59,51 @@ def read_bytes(url: str) -> tuple[bytes, str] | None:
     return (p.read_bytes(), content_type(p)) if p.is_file() else None
 
 
-def save_image_bytes(data: bytes) -> str:
-    """画像として開けることを確認して保存し、/uploads/<name> を返す。同じ内容なら同じ名前になる。"""
-    if len(data) > MAX_BYTES:
-        raise ValueError("画像が大きすぎます（15MB まで）")
+def _reencode(data: bytes) -> tuple[bytes, str]:
+    """画素だけを取り出して保存し直す。EXIF（撮影日時・位置情報・機種）や埋め込みプロファイル、コメントは残さない。
+    写真（JPEG）は JPEG、それ以外は PNG（透明を保つ）。GIF は最初のコマだけ。長辺は MAX_SIDE まで縮める。"""
     try:
         im = Image.open(io.BytesIO(data))
         fmt = im.format or ""
-        im.verify()
+        im.load()
     except Exception as e:
         raise ValueError("画像として読めませんでした（JPEG / PNG / WebP / GIF に対応）") from e
-    ext = _EXT.get(fmt)
-    if ext is None:
-        # 対応外の形式（BMP, TIFF, HEIC が Pillow で読めた場合など）は PNG に変換して保存
-        try:
-            im = Image.open(io.BytesIO(data)).convert("RGB")
-            buf = io.BytesIO()
-            im.save(buf, "PNG", optimize=True)
-        except Exception as e:
-            raise ValueError("画像を変換できませんでした（大きすぎるか壊れています）") from e
-        data, ext = buf.getvalue(), "png"
-    name = f"{hashlib.sha1(data).hexdigest()[:16]}.{ext}"
+    try:
+        if fmt == "JPEG":
+            from PIL import ImageOps
+            im = ImageOps.exif_transpose(im)   # 向きだけは反映してから EXIF を捨てる
+        im.thumbnail((MAX_SIDE, MAX_SIDE))
+        im = Image.frombytes(im.mode, im.size, im.tobytes())   # 画素だけを新しい画像に写す（info のコメント・ICC・EXIF を持ち越さない）
+        buf = io.BytesIO()
+        if fmt == "JPEG":
+            im.convert("RGB").save(buf, "JPEG", quality=90, optimize=True)
+            return buf.getvalue(), "jpg"
+        if im.mode not in ("RGB", "RGBA"):
+            im = im.convert("RGBA" if "transparency" in im.info or im.mode in ("LA", "P") else "RGB")
+        im.save(buf, "PNG", optimize=True)
+        return buf.getvalue(), "png"
+    except Exception as e:
+        raise ValueError("画像を変換できませんでした（大きすぎるか壊れています）") from e
+
+
+def save_image_bytes(data: bytes) -> str:
+    """画像として開けることを確認し、メタデータを落として保存し、/uploads/<name> を返す。名前はランダム。"""
+    if len(data) > MAX_BYTES:
+        raise ValueError("画像が大きすぎます（15MB まで）")
+    data, ext = _reencode(data)
+    name = f"{secrets.token_hex(8)}.{ext}"
     st = storage.get_storage()
     if st.is_remote:
         # 公開サーバーのディスクは再デプロイで消えるので、R2 に置く（バケットのライフサイクルで期限管理）
-        if not st.exists(f"uploads/{name}"):
-            st.put(f"uploads/{name}", data, content_type(name))
+        st.put(f"uploads/{name}", data, content_type(name))
         return PREFIX + name
     UPLOADS.mkdir(exist_ok=True)
     p = UPLOADS / name
-    if not p.exists():
-        p.write_bytes(data)
-        from backend.config import public_mode
-        if public_mode():
-            from backend import housekeeping
-            housekeeping.prune_uploads()
+    p.write_bytes(data)
+    from backend.config import public_mode
+    if public_mode():
+        from backend import housekeeping
+        housekeeping.prune_uploads()
     return PREFIX + name
 
 

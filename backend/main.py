@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -121,13 +123,17 @@ _hits: dict[str, deque] = defaultdict(deque)
 _share_day = {"date": "", "per_ip": defaultdict(int), "total": 0}
 
 
+_IP_SALT = secrets.token_bytes(16)   # 起動ごとに変わる。IP を復元できない形で数えるためだけに使う
+
+
 def _client_ip(request: Request) -> str:
+    """回数制限のキー。生の IP は保持せず、プロセス限りの乱数と混ぜたハッシュにする"""
     ip = request.client.host if request.client else "?"
     if trust_proxy():
         xff = [v.strip() for v in (request.headers.get("x-forwarded-for") or "").split(",") if v.strip()]
         if xff:
             ip = xff[-1]
-    return ip
+    return hashlib.sha256(_IP_SALT + ip.encode("utf-8", "replace")).hexdigest()[:24]
 
 
 def _check_share_quota(request: Request) -> None:
@@ -504,7 +510,7 @@ async def upload_image(request: Request, file: UploadFile = File(...)) -> dict:
         url = await run_in_threadpool(uploads.save_image_bytes, data)
     except ValueError as e:
         raise HTTPException(415, str(e)) from e
-    return {"url": url, "absolute": f"{base_url_for(request)}{url}", "name": file.filename}
+    return {"url": url, "absolute": f"{base_url_for(request)}{url}"}
 
 
 # ---------- トラックを共有（PNG + 並びのスナップショット + 共有ページ） ----------
