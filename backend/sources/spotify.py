@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 
 import httpx
 
+from backend import netguard
+
 from backend.models import Track
 
 CRAWLER_UA = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php) trackmento/0.1"
@@ -54,8 +56,8 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
     try:
         m = _URI_RE.match(url)
         if not m and (urlparse(url).hostname or "").lower() == "spotify.link":
-            r0 = await client.get(url, headers={"User-Agent": BROWSER_UA})
-            url = str(r0.url)
+            r0 = await netguard.safe_get(client, url, headers={"User-Agent": BROWSER_UA})   # 短縮 URL の展開も検査付きで
+            url = getattr(r0, "final_url", str(r0.url))
         if not m:
             m = _ID_RE.search(urlparse(url).path)
         if not m:

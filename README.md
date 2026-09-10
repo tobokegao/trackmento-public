@@ -135,7 +135,8 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 - 入力の上限: JSON ボディ 1MB・アップロード 16MB（Content-Length 必須）、検索語 200 文字、URL 2048 文字、曲名など 300 文字、控え（stash）200 曲。公開モードでは `nocache` を無視し、`/render` を閉じる（`/share` を使う）
 - Track の `image` は https?:// か /uploads/ だけ、`external_url` / `thumb` は https?:// だけ受け付ける（共有を読み込んだ他人のブラウザで `javascript:` が開かないように）
 - グリッド JSON は 90 日更新の無いものに加えて件数（5,000）でも古い順に消す。Docker は非 root ユーザーで動かす。`PUBLIC_BASE_URL` を固定して Host ヘッダに依存しない
-- 残る前提: DNS の再解決（検査時と接続時で答えが変わる rebinding）は完全には防げない。依存パッケージは下限指定なので、公開運用では定期的に更新すること
+- SSRF 対策は DNS ピンニング付き: 名前解決で得た公開 IP にそのまま接続し、Host ヘッダと TLS の SNI に元のホスト名を渡す（証明書もそのホスト名で検証）。検査と接続の間に DNS の答えを変える rebinding は効かない。リダイレクトは 1 ホップごとに再検査・再ピン
+- 依存パッケージは `requirements.txt` で固定し、Dependabot（`.github/dependabot.yml`）が毎週 pip / Docker ベースイメージ / Actions の更新 PR を出す。`audit.yml` が pip-audit（既知の脆弱性）と公開モードの起動テストを毎週と push / PR のたびに実行する。PR をマージすると Render が自動デプロイする
 
 ### 利用者のプライバシー（何を保存し、何を保存しないか）
 

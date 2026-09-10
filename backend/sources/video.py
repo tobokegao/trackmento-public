@@ -18,6 +18,8 @@ from xml.etree import ElementTree
 
 import httpx
 
+from backend import netguard
+
 from backend.models import Track
 
 UA = "trackmento/0.1 (+https://github.com/local/musicgrid-local)"
@@ -64,8 +66,8 @@ async def fetch_bilibili(url: str, *, client: httpx.AsyncClient | None = None) -
     headers = {"User-Agent": BROWSER_UA, "Accept": "text/html", "Accept-Language": "ja,en;q=0.8"}
     try:
         if _host(url) == "b23.tv":
-            r0 = await client.get(url, headers=headers, follow_redirects=False)
-            url = r0.headers.get("location") or url
+            r0 = await netguard.safe_get(client, url, headers=headers)   # 短縮 URL の展開も検査付きで
+            url = getattr(r0, "final_url", url)
         m = _BILI_ID_RE.search(urlparse(url).path)
         if not m:
             raise ValueError("bilibili の動画 URL（bilibili.com/video/BV… または av…）を貼ってください")
