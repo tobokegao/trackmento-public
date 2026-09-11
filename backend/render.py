@@ -177,8 +177,13 @@ def fetch_image_bytes(url: str) -> bytes:
     ctype = r.headers.get("content-type", "").split(";")[0].strip()
     if not ctype.startswith("image/") or len(r.content) > IMAGE_MAX_BYTES:
         raise ValueError(f"画像として扱えません: {ctype} {len(r.content)} bytes")
-    cache.set_image(url, ctype, r.content)
-    return r.content
+    data = r.content
+    if imgtools.is_video_thumb(url):
+        # 動画のサムネイルは黒帯を切ってから保存する。/image-proxy も同じキャッシュを返すので、
+        # どちらの経路が先に保存しても内容が同じになる（ブラウザ描画とサーバー描画の切り抜きが揃う）
+        data, ctype = imgtools.trim_letterbox_bytes(data, ctype)
+    cache.set_image(url, ctype, data)
+    return data
 
 
 def load_cover(t: Track, size: int = CELL_PX) -> Image.Image | None:

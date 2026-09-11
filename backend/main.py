@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import hashlib
+import json
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -15,7 +16,7 @@ import time
 from datetime import datetime, timezone
 from collections import defaultdict, deque
 
-from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -172,7 +173,7 @@ if cors_origins():
     app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["*"], max_age=600)
 
 # ---------- 簡易レートリミット（IP ごと・1 分間の回数。公開時の連打・スクレイピング対策） ----------
-_RATE_PATHS = ("/search", "/from-url", "/bandcamp", "/upload", "/share", "/render", "/grids")
+_RATE_PATHS = ("/search", "/from-url", "/bandcamp", "/upload", "/share", "/share/upload", "/render", "/grids")
 _hits: dict[str, deque] = defaultdict(deque)
 # 共有の 1 日あたり回数（IP ごと／全体）。プロセス内カウンタ。日付が変わるとリセット
 _share_day = {"date": "", "per_ip": defaultdict(int), "total": 0}
@@ -248,7 +249,7 @@ async def request_stats(request: Request, call_next):
 async def rate_limit(request: Request, call_next):
     # 大きすぎるボディは読む前に断る（メモリ・ディスク消費を抑える）。ブラウザの fetch は必ず Content-Length を付ける
     if request.method in ("POST", "PUT"):
-        cap = _BODY_LIMIT_UPLOAD if request.url.path == "/upload" else _BODY_LIMIT_JSON
+        cap = _BODY_LIMIT_UPLOAD if request.url.path in ("/upload", "/share/upload") else _BODY_LIMIT_JSON
         cl = request.headers.get("content-length")
         if cl is None or not cl.isdigit():
             return JSONResponse({"detail": "Content-Length が必要です"}, status_code=411)
@@ -698,8 +699,8 @@ async def upload_image(request: Request, file: UploadFile = File(...)) -> dict:
 
 
 # ---------- トラックを共有（PNG + 並びのスナップショット + 共有ページ） ----------
-@app.post("/share")
-async def share_grid(request: Request, body: RenderBody = Body(default_factory=RenderBody)) -> dict:
+def _doc_for_share(body: RenderBody) -> GridDoc:
+    """共有する並びを決める。ブラウザが持っている並び（doc）を正とし、無ければサーバーの JSON を読む。"""
     name = _grid_name(body.grid)
     if body.doc is not None:
         # ブラウザが持っている並びを正とする（サーバー側の JSON は再起動で消えていることがある）
@@ -719,9 +720,13 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
         doc.touch()
         grids.save(doc)
     _check_cells(doc)
-    _check_share_quota(request)
+    return doc
+
+
+async def _finish_share(request: Request, coro) -> dict:
+    """保存処理（coroutine）を実行し、回数を数え、共有 URL を付けて返す。失敗の扱いは共通。"""
     try:
-        info = await run_render(share.create, doc, share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0)
+        info = await coro
     except HTTPException:
         raise   # 待ち行列の上限（503）など
     except share.BudgetExceeded as e:
@@ -739,6 +744,36 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
     base = base_url_for(request)
     png_abs = info["png"] if info["png"].startswith("http") else f"{base}{info['png']}"
     return {**info, "url": f"{base}/s/{info['id']}", "png_url": png_abs}
+
+
+@app.post("/share")
+async def share_grid(request: Request, body: RenderBody = Body(default_factory=RenderBody)) -> dict:
+    """サーバーで描いて共有する（CLI と、ブラウザ描画ができない端末のフォールバック）。"""
+    doc = _doc_for_share(body)
+    _check_share_quota(request)
+    budget = share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0
+    return await _finish_share(request, run_render(share.create, doc, budget))
+
+
+@app.post("/share/upload")
+async def share_upload(request: Request, doc: str = Form(...), png: UploadFile = File(...), og: UploadFile = File(...)) -> dict:
+    """ブラウザで描いた PNG（本体）とカード用 JPEG を受け取って共有する。サーバーはヘッダ検査と保存だけ
+    （無料ホストの 0.1 vCPU では描画がヘルスチェックを止めるため、描画は端末側で行う）。"""
+    try:
+        raw = json.loads(doc)   # {"grid": "u-…", "doc": {...}}（/share の JSON ボディと同じ形）
+        body = RenderBody(grid=raw.get("grid", "default"), doc=GridDoc.model_validate(raw["doc"]))
+    except Exception as e:
+        raise HTTPException(400, f"並びの JSON が不正です（{type(e).__name__}）") from e
+    gdoc = _doc_for_share(body)
+    png_b = await png.read(share.MAX_UPLOAD_PNG + 1)
+    og_b = await og.read(share.MAX_UPLOAD_OG + 1)
+    try:
+        w, h = await asyncio.to_thread(share.check_uploaded, png_b, og_b)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    _check_share_quota(request)
+    budget = share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0
+    return await _finish_share(request, run_in_threadpool(share.store, gdoc, png_b, og_b, w, h, budget))
 
 
 @app.get("/s/{sid}", response_class=HTMLResponse)

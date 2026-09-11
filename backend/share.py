@@ -83,13 +83,18 @@ def create(doc: GridDoc, budget: int = 0) -> dict:
     """PNG と JSON を保存（ローカルの shares/ か Cloudflare R2）して {id, png, json, width, height, bytes} を返す。
     png は公開 URL があれば絶対 URL、無ければ /shares/... の相対 URL。
     budget > 0 のときは、保存後の合計がそれを超えるなら保存せず BudgetExceeded を投げる（実バイト数で判定）。"""
-    st = storage.get_storage()
-    sid = _new_id(doc)
     im = render.render(doc)
     o = doc.options
     bg = render._hex_to_rgb(o.bgCustom if o.bg == "custom" and o.bgCustom else render.TOKENS[o.bg])
     og = _og_jpeg(im, bg)
     png, im = _encode_png(im, MAX_PNG_BYTES if public_mode() else 0)
+    return store(doc, png, og, im.width, im.height, budget)
+
+
+def store(doc: GridDoc, png: bytes, og: bytes, width: int, height: int, budget: int = 0) -> dict:
+    """描画済みの PNG（本体）とカード用 JPEG を保存する。ブラウザで描いたものもサーバーで描いたものもここを通る。"""
+    st = storage.get_storage()
+    sid = _new_id(doc)
     # name はブラウザごとの固有 ID（u-…）。公開 JSON に載せると同じ人の共有を突き合わせたり、そのグリッドを読み書きされたりするので外す
     snap = doc.model_dump(exclude={"name", "savedAt"})
     snap.update({"id": sid, "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -106,7 +111,34 @@ def create(doc: GridDoc, budget: int = 0) -> dict:
     st.put(f"{sid}-og.jpg", og, "image/jpeg")
     st.put(f"{sid}.json", js, "application/json")
     storage.add_usage(need)
-    return {"id": sid, "png": png_url(sid), "og": og_url(sid), "json": f"/shares/{sid}.json", "width": im.width, "height": im.height, "bytes": need}
+    return {"id": sid, "png": png_url(sid), "og": og_url(sid), "json": f"/shares/{sid}.json", "width": width, "height": height, "bytes": need}
+
+
+MAX_UPLOAD_PNG = MAX_PNG_BYTES + 200_000   # ブラウザ側の縮小判定の誤差ぶんだけ許す
+MAX_UPLOAD_OG = 600_000
+MAX_UPLOAD_SIDE = 4096
+
+
+def check_uploaded(png: bytes, og: bytes) -> tuple[int, int]:
+    """ブラウザが描いた PNG / JPEG のヘッダだけ確かめる（デコードはしない。CPU を使わないのがこの経路の目的）。
+    (幅, 高さ) を返す。不正なら ValueError。"""
+    if not png or len(png) > MAX_UPLOAD_PNG:
+        raise ValueError(f"PNG が空か大きすぎます（{len(png) / 1e6:.1f} MB）")
+    if not og or len(og) > MAX_UPLOAD_OG:
+        raise ValueError("カード用の JPEG が空か大きすぎます")
+    try:
+        with Image.open(io.BytesIO(png)) as im:
+            if im.format != "PNG":
+                raise ValueError("本体が PNG ではありません")
+            w, h = im.size
+        with Image.open(io.BytesIO(og)) as im2:
+            if im2.format != "JPEG" or im2.size != (OG_W, OG_H):
+                raise ValueError("カード用の画像が 1200×630 の JPEG ではありません")
+    except Image.UnidentifiedImageError as e:
+        raise ValueError("画像として読めません") from e
+    if not (100 <= w <= MAX_UPLOAD_SIDE and 100 <= h <= MAX_UPLOAD_SIDE):
+        raise ValueError(f"PNG の大きさが範囲外です（{w}×{h}）")
+    return w, h
 
 
 def get_png(sid: str) -> bytes | None:

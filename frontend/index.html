@@ -1302,7 +1302,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return Math.ceil(best) + 8;
   }
   /* レイアウト計算。描画せずにサイズだけ求める（右ペインの「出力サイズ」表示にも使う） */
-  function layout() {
+  function layout(maxSide = MAX_SIDE) {
     const { cols, rows } = state;
     const m = state.margin;
     const title = state.showTitle ? state.title.trim() : "";
@@ -1326,7 +1326,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const contentH = titleH + gh + (side === "bottom" ? sbGap + sbH : 0);
     let W = contentW + m * 2, H = contentH + m * 2;
     if (ratio !== null) { if (W / H < ratio) W = Math.round(H * ratio); else H = Math.round(W / ratio); }
-    const scale = Math.min(1, MAX_SIDE / Math.max(W, H));
+    const scale = Math.min(1, maxSide / Math.max(W, H));
     const ox = Math.round((W - contentW) / 2), oy = Math.round((H - contentH) / 2);
     return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap };
   }
@@ -1458,23 +1458,204 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     } catch { return false; }
   }
   /* ---- トラックを共有: サーバーで PNG を作り、並びのスナップショットと共有ページ URL を得る ---- */
+  /* ================================================================
+     ブラウザ描画（Canvas）。公開サーバー（0.1 vCPU）では描画がヘルスチェックを止めて再起動を招くため、
+     PNG 本体とカード用 JPEG は端末で描いて /share/upload に送る。規則は backend/render.py と同じ
+     （論理座標はマス 600px 基準、色は同じ oklch トークン、文字の省略・縮小も同じ手順）。
+     描けない端末（アプリ内ブラウザ、フォント未読込、例外）はサーバー描画（/share）に戻す。
+     ================================================================ */
+  function oklchToRgb(L, C, H) {
+    const a = C * Math.cos(H * Math.PI / 180), b = C * Math.sin(H * Math.PI / 180);
+    const l_ = L + 0.3963377774 * a + 0.2158037573 * b, m_ = L - 0.1055613458 * a - 0.0638541728 * b, s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+    const l = l_ ** 3, m = m_ ** 3, s3 = s_ ** 3;
+    const lin = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s3, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s3, -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s3];
+    return lin.map(x => { x = Math.max(0, Math.min(1, x)); x = x > 0.0031308 ? 1.055 * x ** (1 / 2.4) - 0.055 : 12.92 * x; return Math.max(0, Math.min(255, Math.round(x * 255))); });
+  }
+  const TOKENS_RGB = {
+    "paper": oklchToRgb(0.97, 0.003, 95), "paper-2": oklchToRgb(0.93, 0.004, 95), "paper-3": oklchToRgb(0.89, 0.005, 95),
+    "ink": oklchToRgb(0.20, 0.012, 250), "ink-2": oklchToRgb(0.28, 0.012, 250), "muted": oklchToRgb(0.46, 0.012, 250), "rule": oklchToRgb(0.76, 0.012, 250),
+    "mustard": oklchToRgb(0.80, 0.150, 88), "cerulean": oklchToRgb(0.60, 0.140, 235), "lavender": oklchToRgb(0.74, 0.100, 295),
+    "vermilion": oklchToRgb(0.62, 0.200, 32), "mint": oklchToRgb(0.84, 0.110, 165), "pink": oklchToRgb(0.78, 0.130, 350),
+  };
+  const hexToRgb = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const isLightRgb = ([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55;
+  const mixRgb = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
+  const cssRgb = ([r, g, b]) => `rgb(${r},${g},${b})`;
+  // backend/render.py の _drawable 相当: 絵文字・私用領域・異体字セレクタは落とし、数学用の装飾文字は普通の文字に
+  const STRIP_RE = /[\p{Extended_Pictographic}\u{E000}-\u{F8FF}\u{F0000}-\u{10FFFF}\uFE0F\u200D]/gu;
+  const MATH_RE = /[\u{1D400}-\u{1D7FF}]/gu;
+  const oneLine = (v) => (v || "").replace(MATH_RE, (c) => c.normalize("NFKC")).replace(STRIP_RE, "").split(/\s+/).join(" ").trim();
+  function ellipsizeText(ctx, text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    let lo = 0, hi = text.length;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ctx.measureText(text.slice(0, mid) + "…").width <= maxW) lo = mid; else hi = mid - 1; }
+    return text.slice(0, lo) + "…";
+  }
+  const fontBold = (px) => `700 ${px}px "IBM Plex Sans JP"`, fontRegular = (px) => `400 ${px}px "IBM Plex Sans JP"`, fontPixel = (px) => `700 ${px}px "Silkscreen"`;
+  function fitLine(ctx, title, artist, fontS, maxW) {
+    for (const k of [1.0, 0.92, 0.85, 0.78, 0.72, 0.65]) {
+      const fs = Math.max(12, Math.round(fontS * k)), ft = fontBold(fs), fa = fontRegular(fs), a = artist ? `  ${artist}` : "";
+      ctx.font = ft; const tw = ctx.measureText(title).width; ctx.font = fa; const aw = ctx.measureText(a).width;
+      if (tw + aw <= maxW) return [ft, fa, title, a];
+    }
+    const fs = Math.max(12, Math.round(fontS * 0.65)), ft = fontBold(fs), fa = fontRegular(fs), a = artist ? `  ${artist}` : "";
+    ctx.font = ft; const tw = ctx.measureText(title).width;
+    if (tw <= maxW * 0.7) { ctx.font = fa; return [ft, fa, title, ellipsizeText(ctx, a, maxW - tw)]; }
+    return [ft, fa, ellipsizeText(ctx, title, maxW), ""];
+  }
+  /* 端末階層: 出力の最大辺だけ変える（配置は同じ）。Safari は deviceMemory を出さないのでスマホ扱い */
+  function shareMaxSide() {
+    const mem = navigator.deviceMemory, cores = navigator.hardwareConcurrency || 2;
+    const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && innerWidth < 900);
+    if (mem !== undefined && mem <= 2) return 2000;
+    if (!mobile && (mem === undefined || mem >= 4) && cores >= 4) return 3200;
+    return 2400;
+  }
+  const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent);
+  async function loadShareFonts() {
+    const specs = [fontBold(24), fontRegular(24), fontPixel(24)];
+    const ok = await Promise.race([Promise.all(specs.map(f => document.fonts.load(f, "TRACKMENTO 龍 01"))).then(() => true), sleep(10000).then(() => false)]);
+    if (!ok || !specs.every(f => document.fonts.check(f))) throw new Error("fonts not ready");
+  }
+  const yieldToUI = () => new Promise(res => setTimeout(res, 0));
+  async function fetchBitmap(url) {
+    const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const r = await fetch(proxied(url), { signal: ctrl.signal });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const blob = await r.blob();
+      return await createImageBitmap(blob);
+    } finally { clearTimeout(timer); }
+  }
+  async function loadCover(t) {
+    // 高解像度 → 取れなければサムネイル（サーバー描画と同じ順）
+    for (const url of [t.image, t.thumb].filter((u, i, a) => u && a.indexOf(u) === i)) {
+      try { return await fetchBitmap(url); } catch (err) { console.warn("cover failed", err.message); }
+    }
+    return null;
+  }
+  function drawCover(ctx, bmp, x, y, cell) {
+    // CSS object-fit: cover 相当（中央トリミング）。backend/render.py の _cover_fit と同じ式
+    const w = bmp.width, h = bmp.height, s = Math.max(cell / w, cell / h);
+    const sw = Math.min(cell / s, w), sh = Math.min(cell / s, h), sx = Math.max((w - sw) / 2, 0), sy = Math.max((h - sh) / 2, 0);
+    ctx.drawImage(bmp, sx, sy, sw, sh, x, y, cell, cell);
+  }
+  async function renderShareCanvas(maxSide, onProgress) {
+    const L = layout(maxSide), S = L.scale, sc = (v) => Math.round(v * S);
+    const n = state.cells.length;
+    const bg = state.bg === "custom" && state.bgCustom ? hexToRgb(state.bgCustom) : TOKENS_RGB[state.bg] || TOKENS_RGB.paper;
+    const light = isLightRgb(bg);
+    const ink = TOKENS_RGB[light ? "ink" : "paper"], badgeBg = TOKENS_RGB[light ? "paper" : "ink"], muted = mixRgb(ink, bg, 0.30), cellBg = TOKENS_RGB[light ? "paper-3" : "ink-2"];
+    const canvas = document.createElement("canvas"); canvas.width = sc(L.W); canvas.height = sc(L.H);
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) throw new Error("canvas unavailable");
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.textAlign = "left";
+    ctx.fillStyle = cssRgb(bg); ctx.fillRect(0, 0, canvas.width, canvas.height);
+    let y0 = L.oy;
+    if (L.title) {
+      ctx.font = fontBold(Math.max(8, sc(L.titleSize))); ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
+      const maxW = (L.gw + (L.side === "right" ? L.sbGap + L.sbW : 0)) * S;
+      ctx.fillText(ellipsizeText(ctx, oneLine(L.title), maxW), sc(L.ox), sc(y0 + L.titleH / 2));
+      y0 += L.titleH;
+    }
+    const cell = sc(CELL_PX), numF = fontPixel(Math.max(8, sc(22)));
+    for (let i = 0; i < n; i++) {
+      const t = state.cells[i], c = i % state.cols, r = Math.floor(i / state.cols);
+      const x = sc(L.ox + c * (CELL_PX + state.gap)), y = sc(y0 + r * (CELL_PX + state.gap));
+      ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cell, cell);
+      if (t) {
+        const bmp = await loadCover(t);
+        if (bmp) { drawCover(ctx, bmp, x, y, cell); if (bmp.close) bmp.close(); }
+        onProgress(i + 1, n);
+        await yieldToUI();
+      }
+      if (state.numbers) {
+        const label = String(i + 1).padStart(2, "0");
+        ctx.font = numF; const bw = Math.ceil(ctx.measureText(label).width) + sc(24), bh = sc(40);
+        ctx.fillStyle = cssRgb(badgeBg); ctx.fillRect(x, y, bw, bh);
+        ctx.fillStyle = cssRgb(ink); ctx.fillRect(x + bw, y, sc(3) + 1, bh); ctx.fillRect(x, y + bh, bw + sc(3) + 1, sc(3) + 1);
+        ctx.textBaseline = "middle"; ctx.fillText(label, x + sc(12), y + bh / 2 + 1);
+      }
+    }
+    if (L.side !== "none") {
+      const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox, sy = L.side === "right" ? y0 : y0 + L.gh + L.sbGap;
+      const colW = L.side === "right" ? L.sbW : Math.floor((L.sbW - GAP_PX * 2 * (L.sbCols - 1)) / L.sbCols);
+      const perCol = L.side === "right" ? n : Math.ceil(n / L.sbCols);
+      const fontS = Math.max(8, sc(L.fontS)), numFont = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
+      for (let i = 0; i < n; i++) {
+        const t = state.cells[i], col = Math.floor(i / perCol), row = i % perCol;
+        const x = sc(sx + col * (colW + GAP_PX * 2)), yy = sc(sy + row * L.lineH + L.lineH / 2);
+        const num = String(i + 1).padStart(2, "0");
+        ctx.font = numFont; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(muted);
+        const m = ctx.measureText(num), top = -m.actualBoundingBoxAscent, bottom = m.actualBoundingBoxDescent;   // 字面の中心を行の中心に
+        ctx.fillText(num, x, Math.round(yy - (top + bottom) / 2));
+        const nw = m.width + sc(L.fontS * 0.8);
+        if (!t) continue;
+        const [ft, fa, titleS, artistS] = fitLine(ctx, oneLine(t.title), oneLine(t.artist), fontS, colW * S - nw);
+        ctx.textBaseline = "middle"; ctx.font = ft; ctx.fillStyle = cssRgb(ink); ctx.fillText(titleS, x + nw, yy);
+        if (artistS) { const tw = ctx.measureText(titleS).width; ctx.font = fa; ctx.fillStyle = cssRgb(muted); ctx.fillText(artistS, x + nw + tw, yy); }
+      }
+    }
+    return { canvas, bg };
+  }
+  const canvasToBlob = (c, type, q) => new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error("toBlob failed"))), type, q));
+  function scaledCanvas(src, f) {
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(src.width * f)); c.height = Math.max(1, Math.round(src.height * f));
+    const g = c.getContext("2d", { alpha: false }); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high"; g.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  }
+  async function encodeShare(canvas, bg) {
+    const LIMIT = 4900000;   // X の画像添付は 5 MB まで（サーバー描画と同じ判定）
+    let c = canvas, png = await canvasToBlob(c, "image/png");
+    for (let i = 0; i < 3 && png.size > LIMIT; i++) { c = scaledCanvas(c, Math.max(0.6, Math.sqrt(LIMIT / png.size) * 0.97)); png = await canvasToBlob(c, "image/png"); }
+    const og = document.createElement("canvas"); og.width = 1200; og.height = 630;   // カード用: 全体を収め、余白は背景色
+    const g = og.getContext("2d", { alpha: false }); g.fillStyle = cssRgb(bg); g.fillRect(0, 0, 1200, 630);
+    const f = Math.min(1200 / c.width, 630 / c.height), w = Math.max(1, Math.round(c.width * f)), h = Math.max(1, Math.round(c.height * f));
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high"; g.drawImage(c, Math.floor((1200 - w) / 2), Math.floor((630 - h) / 2), w, h);
+    return { png, og: await canvasToBlob(og, "image/jpeg", 0.85), width: c.width, height: c.height };
+  }
+  async function postShare(path, init) {
+    let r = await fetch(api(path), init);
+    if (isGatewayError(r)) {   // サーバーの再起動直後など。少し待って 1 回だけやり直す
+      say(els.gridMsg, "サーバーが応答しません。少し待ってもう一度試しています…");
+      await sleep(5000);
+      r = await fetch(api(path), init);
+    }
+    const d = await readJson(r);
+    if (!r.ok) { const e = new Error(d.detail || `HTTP ${r.status}`); e.status = r.status; throw e; }
+    return d;
+  }
+  async function shareViaBrowser(snap) {
+    if (!("createImageBitmap" in window) || !document.fonts || inAppBrowser()) throw new Error("unsupported");
+    await loadShareFonts();
+    say(els.gridMsg, "画像を作成中…");
+    const { canvas, bg } = await renderShareCanvas(shareMaxSide(), (i, n) => say(els.gridMsg, `画像を作成中… ${i}/${n}`));
+    const enc = await encodeShare(canvas, bg);
+    say(els.gridMsg, `アップロード中…（${(enc.png.size / 1e6).toFixed(1)} MB）`);
+    const fd = new FormData();
+    fd.append("doc", JSON.stringify({ grid: GRID_NAME, doc: snap }));
+    fd.append("png", enc.png, "trackmento.png");
+    fd.append("og", enc.og, "card.jpg");
+    return postShare("/share/upload", { method: "POST", body: fd });
+  }
+  const shareViaServer = (snap) => postShare("/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME, doc: snap }) });
   els.shareBtn.addEventListener("click", async () => {
     if (!state.cells.some(Boolean)) { say(els.gridMsg, "曲を置いてから押してください。", "error"); return; }
     setBtnState(els.shareBtn, "loading"); say(els.gridMsg, "");
     try {
-      /* 並びは /share に同梱する。サーバーの grids/ は再起動で消えることがあり（Render）、
+      /* 並びは同梱する。サーバーの grids/ は再起動で消えることがあり（Render）、
          「前回と同じ内容だから PUT しない」判定のままだと「曲がありません」になるため */
       const snap = serialize();
       clearTimeout(pushTimer);
-      const body = JSON.stringify({ grid: GRID_NAME, doc: snap });
-      let r = await fetch(api("/share"), { method: "POST", headers: { "content-type": "application/json" }, body });
-      if (isGatewayError(r)) {   // サーバーの再起動直後など。少し待って 1 回だけやり直す
-        say(els.gridMsg, "サーバーが応答しません。少し待ってもう一度試しています…");
-        await sleep(5000);
-        r = await fetch(api("/share"), { method: "POST", headers: { "content-type": "application/json" }, body });
+      let d;
+      try {
+        d = await shareViaBrowser(snap);   // 端末で描いて送る（サーバーの CPU を使わない）
+      } catch (err) {
+        if (err.status === 429 || err.status === 507) throw err;   // 回数・容量の上限はサーバーで描いても同じ
+        console.warn("browser render failed → server render:", err);
+        say(els.gridMsg, "この端末では画像を作れなかったので、サーバーで作成します…");
+        d = await shareViaServer(snap);
       }
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
       lastPushed = signature(snap);
       const pngUrl = /^https?:\/\//.test(d.png) ? d.png : api(d.png);
       els.outputImg.src = pngUrl;

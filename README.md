@@ -169,7 +169,7 @@ backend/          FastAPI (/search, /bandcamp, /image-proxy, /render, /grids, /h
 backend/sources/  iTunes / MusicBrainz / Discogs / otoDB（音MAD） / URL 貼付（Bandcamp / SoundCloud / Spotify / YouTube / ニコニコ動画 / bilibili）
 backend/cache.py  SQLite キャッシュ（検索結果・画像）→ cache.sqlite3
 backend/grids.py  グリッド JSON の読み書き
-backend/render.py Pillow による PNG 描画
+backend/render.py Pillow による PNG 描画（CLI と、ブラウザで描けない端末のフォールバック。Web は端末の Canvas で描いて /share/upload に送る）
 backend/share.py  トラックを共有（PNG + 並びのスナップショット + 共有ページ）→ shares/
 backend/uploads.py 手入力用の画像アップロード → uploads/
 cli.py            add / pick / search / list / move / remove / share / render / clear / grids
