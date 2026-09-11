@@ -452,8 +452,8 @@ body.sheet-open { overflow: hidden; }
 .check input:checked { background: var(--color-ink); box-shadow: none; }
 .check input:checked::after { content: ""; width: 8px; height: 8px; background: var(--color-paper); }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
-.swatches { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
-.swatches label { position: relative; flex: 1 1 28px; max-width: 40px; aspect-ratio: 1; }   /* 見本は 28〜40px に広がり、余りは間隔に配る。右に空きが残らない */
+.swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
+.swatches label { position: relative; flex: 1 1 28px; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに広がる（PC の列幅では 28px）。右に空きが残らない */
 .swatches input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .swatches span { display: block; width: 100%; height: 100%; border: var(--line) solid var(--color-ink); background: var(--sw); }
 .swatches input:checked + span { outline: 3px solid var(--color-ink); outline-offset: 2px; }
@@ -464,6 +464,7 @@ body.sheet-open { overflow: hidden; }
 .custom-color button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 /* カスタムカラーの色相・彩度・明度スライダー。つまみの位置が色で分かるよう、溝に色の帯を敷く */
 .hsv { display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-1); border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
+.hsv[hidden] { display: none; }   /* display: grid が hidden 属性の display: none に勝ってしまうため明示 */
 .hsv label { display: flex; justify-content: space-between; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
 .hsv input[type="range"]::-webkit-slider-runnable-track { height: 16px; border: var(--line) solid var(--color-ink); background: var(--track); box-sizing: border-box; }
 .hsv input[type="range"]::-webkit-slider-thumb { margin-top: -2px; }
@@ -1287,10 +1288,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     h = Math.round(h * 60); if (h < 0) h += 360;
     return [h, Math.round(max ? (d / max) * 100 : 0), Math.round(max * 100)];
   }
+  function showCustomPanel(open) { els.bgCustomPanel.hidden = !open; els.bgCustomBtn.setAttribute("aria-expanded", String(open)); }
   function syncCustomColor() {
     const hex = state.bgCustom || CUSTOM_DEFAULT, on = state.bg === "custom";
     els.bgCustomBtn.style.setProperty("--sw", hex); els.bgCustomBtn.classList.toggle("is-on", on);
-    if (!on) { els.bgCustomPanel.hidden = true; els.bgCustomBtn.setAttribute("aria-expanded", "false"); }
+    if (!on) showCustomPanel(false);   // パネルは見本ボタンを押したときだけ開く。プリセットを選んだら閉じる
     const [h, sat, v] = hexToHsv(hex);
     els.hsvH.value = h; els.hsvS.value = sat; els.hsvV.value = v;
     els.hsvHOut.value = h; els.hsvSOut.value = sat; els.hsvVOut.value = v; els.hsvHex.textContent = hex;
@@ -1304,7 +1306,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       for (const i of els.swatches.querySelectorAll("input")) i.checked = false;
       updateSpec();
     }
-    els.bgCustomPanel.hidden = !open; els.bgCustomBtn.setAttribute("aria-expanded", String(open));
+    showCustomPanel(open);
     syncCustomColor();
   });
   for (const el of [els.hsvH, els.hsvS, els.hsvV]) el.addEventListener("input", () => {
@@ -1317,7 +1319,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const l = document.createElement("label"); l.title = label;
       const i = document.createElement("input"); i.type = "radio"; i.name = "bg"; i.value = key; i.checked = key === state.bg; i.setAttribute("aria-label", label);
       const sp = document.createElement("span"); sp.style.setProperty("--sw", `var(--color-${key})`);
-      i.addEventListener("change", () => { state.bg = key; updateSpec(); syncCustomColor(); });
+      i.addEventListener("change", () => { state.bg = key; syncCustomColor(); updateSpec(); });
       l.append(i, sp); els.swatches.append(l);
     }
   }
