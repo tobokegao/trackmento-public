@@ -1,6 +1,6 @@
 """Cloudflare R2 の初期設定を S3 互換 API で行う（ダッシュボードで見つからないときの代替）。
 
-  python scripts/r2_setup.py            # .env の R2_* を使う。バケットが無ければ作り、30 日で削除するライフサイクルルールを設定
+  python scripts/r2_setup.py            # .env の R2_* を使う。バケットが無ければ作り、7 日で削除するライフサイクルルールを設定（API トークンにバケット設定権限が要る。無ければダッシュボードで）
   python scripts/r2_setup.py --days 60  # 期限を変える
   python scripts/r2_setup.py --check    # 設定を表示するだけ
 
@@ -25,7 +25,7 @@ from backend import storage  # noqa: E402
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--days", type=int, default=30, help="共有ファイルを削除するまでの日数（既定 30）")
+    ap.add_argument("--days", type=int, default=7, help="共有ファイルを削除するまでの日数（既定 7）")
     ap.add_argument("--check", action="store_true", help="設定を表示するだけ")
     a = ap.parse_args()
     for s in (sys.stdout, sys.stderr):

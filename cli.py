@@ -315,7 +315,8 @@ def cmd_render(a: argparse.Namespace) -> int:
     if a.cmd == "share":
         info = share.create(doc)
         print(f"共有: {info['id']}  {info['width']}×{info['height']}px  比率 {o.ratio}  サイドバー {'あり' if o.sidebar else 'なし'}  背景 {o.bg}")
-        print(f"PNG: {base}{info['png']}")
+        img = info["image"]
+        print(f"画像: {img if img.startswith('http') else base + img}")
         print(f"URL: {base}/s/{info['id']}")
         return 0
     path, im = render.render_to_file(doc)

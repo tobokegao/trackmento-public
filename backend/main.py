@@ -16,7 +16,8 @@ import time
 from datetime import datetime, timezone
 from collections import defaultdict, deque
 
-from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
+from starlette.datastructures import UploadFile as StarletteUploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -28,7 +29,7 @@ from backend import grids, housekeeping, imgtools, netguard, render, share, stor
 from backend.cache import cache
 from backend.logutil import brief
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
-                            rate_limit_per_minute, share_budget_bytes, share_limits, trust_proxy)
+                            rate_limit_per_minute, share_budget_bytes, share_limits, share_retention_days, trust_proxy)
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
@@ -95,6 +96,7 @@ async def lifespan(app: FastAPI):
     print(f"[public] PNG の URL は {public_base_url()}/outputs/... で返します（.env の PUBLIC_BASE_URL）")
     app.state.started_at = time.time()
     monitor = asyncio.create_task(_load_monitor()) if public_mode() else None
+    seed = asyncio.create_task(_seed_share_count()) if public_mode() and st.is_remote else None
     app.state.http = httpx.AsyncClient(
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
@@ -105,6 +107,8 @@ async def lifespan(app: FastAPI):
     finally:
         if monitor:
             monitor.cancel()
+        if seed:
+            seed.cancel()
         await app.state.http.aclose()
         cache.close()
 
@@ -211,9 +215,26 @@ def _check_share_quota(request: Request) -> None:
         _share_day.update(date=today, per_ip=defaultdict(int), total=0)
     ip = _client_ip(request)
     if per_ip and _share_day["per_ip"][ip] >= per_ip:
+        print(f"[share] quota: 端末の上限 {per_ip} 回 → 429")
         raise HTTPException(429, f"この端末からの共有は 1 日 {per_ip} 回までです。明日またお試しください")
     if per_day and _share_day["total"] >= per_day:
+        print(f"[share] quota: 全体の上限 {per_day} 回（本日 {_share_day['total']} 件）→ 429")
         raise HTTPException(429, f"本日の共有回数がサーバー全体の上限（{per_day} 回）に達しました。明日またお試しください")
+
+
+async def _seed_share_count() -> None:
+    """起動時に今日の共有数を保存先の一覧から数え、全体カウンタに入れる（プロセス内カウンタはデプロイ・再起動で 0 に戻るため。
+    端末ごとの回数は復元しない）。一覧は数秒かかるのでスレッドで。"""
+    try:
+        n = await asyncio.to_thread(share.count_today)
+    except Exception as e:
+        print(f"[share] 今日の共有数の復元に失敗: {e!r}")
+        return
+    today = time.strftime("%Y-%m-%d")
+    if _share_day["date"] != today:
+        _share_day.update(date=today, per_ip=defaultdict(int), total=0)
+    _share_day["total"] = max(_share_day["total"], n)
+    print(f"[share] 本日の共有数を復元: {_share_day['total']} 件（上限 {share_limits()[1] or '無制限'}）")
 
 
 def _count_share(request: Request) -> None:
@@ -320,6 +341,7 @@ async def index(request: Request) -> HTMLResponse:
     # OG タグの絶対 URL（__BASE__）をこのサーバーの URL に置き換えて配る
     html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
     html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
+    html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
     html = html.replace("<script>", f'<script nonce="{request.state.csp_nonce}">', 1)   # CSP（script-src 'nonce-…'）用
     # Google Search Console の所有権確認（HTML タグ方式）。GOOGLE_SITE_VERIFICATION が無ければタグごと消す
     token = os.getenv("GOOGLE_SITE_VERIFICATION", "").strip()
@@ -507,12 +529,23 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     if hit:
         ctype, data = hit
     else:
-        ctype, data = await fetch_image(url)
-        if imgtools.is_video_thumb(url):
-            # 動画サムネイルの黒帯（レターボックス）を落とす。プレビューと書き出しで同じ見た目になる
-            data, ctype = await asyncio.to_thread(imgtools.trim_letterbox_bytes, data, ctype)
-        await asyncio.to_thread(cache.set_image, url, ctype, data)
+        # 配信元からの取得は同時 8 本まで。0.1 vCPU で 30 本が同時に流れると全応答が遅れ、ヘルスチェック（5 秒）に落ちる
+        try:
+            await asyncio.wait_for(_PROXY_SEM.acquire(), timeout=20)
+        except asyncio.TimeoutError:
+            raise HTTPException(503, "画像の取得が混み合っています", headers={"Retry-After": "5"})
+        try:
+            ctype, data = await fetch_image(url)
+            if imgtools.is_video_thumb(url):
+                # 動画サムネイルの黒帯（レターボックス）を落とす。プレビューと書き出しで同じ見た目になる
+                data, ctype = await asyncio.to_thread(imgtools.trim_letterbox_bytes, data, ctype)
+            await asyncio.to_thread(cache.set_image, url, ctype, data)
+        finally:
+            _PROXY_SEM.release()
     return Response(content=data, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
+
+
+_PROXY_SEM = asyncio.Semaphore(8)
 
 
 async def fetch_image(url: str) -> tuple[str, bytes]:
@@ -745,8 +778,8 @@ async def _finish_share(request: Request, coro) -> dict:
     if public_mode() and not storage.get_storage().is_remote:
         housekeeping.prune_shares()   # R2 のときはバケットのライフサイクルルールに任せる
     base = base_url_for(request)
-    png_abs = info["png"] if info["png"].startswith("http") else f"{base}{info['png']}"
-    return {**info, "url": f"{base}/s/{info['id']}", "png_url": png_abs}
+    img_abs = info["image"] if info["image"].startswith("http") else f"{base}{info['image']}"
+    return {**info, "url": f"{base}/s/{info['id']}", "image_url": img_abs, "png_url": img_abs}   # png_url は旧キー
 
 
 @app.post("/share")
@@ -758,25 +791,37 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
     return await _finish_share(request, run_render(share.create, doc, budget))
 
 
+_UPLOAD_SEM = asyncio.Semaphore(3)   # 同時に受け付ける共有アップロード。超えたら待たせず 503（本文を抱えたまま並ぶとメモリが膨らむ）
+
+
 @app.post("/share/upload")
-async def share_upload(request: Request, doc: str = Form(...), png: UploadFile = File(...), og: UploadFile = File(...)) -> dict:
-    """ブラウザで描いた PNG（本体）とカード用 JPEG を受け取って共有する。サーバーはヘッダ検査と保存だけ
-    （無料ホストの 0.1 vCPU では描画がヘルスチェックを止めるため、描画は端末側で行う）。"""
-    try:
-        raw = json.loads(doc)   # {"grid": "u-…", "doc": {...}}（/share の JSON ボディと同じ形）
-        body = RenderBody(grid=raw.get("grid", "default"), doc=GridDoc.model_validate(raw["doc"]))
-    except Exception as e:
-        raise HTTPException(400, f"並びの JSON が不正です（{type(e).__name__}）") from e
-    gdoc = _doc_for_share(body)
-    png_b = await png.read(share.MAX_UPLOAD_PNG + 1)
-    og_b = await og.read(share.MAX_UPLOAD_OG + 1)
-    try:
-        w, h = await asyncio.to_thread(share.check_uploaded, png_b, og_b)
-    except ValueError as e:
-        raise HTTPException(400, str(e)) from e
-    _check_share_quota(request)
-    budget = share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0
-    return await _finish_share(request, run_in_threadpool(share.store, gdoc, png_b, og_b, w, h, budget))
+async def share_upload(request: Request) -> dict:
+    """ブラウザで描いた本体画像（JPEG。古いタブからは PNG）とカード用 JPEG を受け取って共有する。サーバーはヘッダ検査と保存だけ
+    （無料ホストの 0.1 vCPU では描画がヘルスチェックを止めるため、描画は端末側で行う）。
+    フォーム: doc（JSON 文字列）, image（旧名 png）, og"""
+    _check_share_quota(request)   # 本文（数 MB）を読む前に断る。上限到達中に受け取ってから 429 にしない
+    if _UPLOAD_SEM.locked():
+        raise HTTPException(503, "共有が混み合っています。10 秒ほど待ってからもう一度お試しください", headers={"Retry-After": "10"})
+    async with _UPLOAD_SEM:
+        form = await request.form()
+        doc, image, og = form.get("doc"), form.get("image") or form.get("png"), form.get("og")
+        if not isinstance(doc, str) or not isinstance(image, StarletteUploadFile) or not isinstance(og, StarletteUploadFile):   # request.form() が返すのは starlette の UploadFile
+            raise HTTPException(400, "並び（doc）と画像（image, og）が必要です")
+        try:
+            raw = json.loads(doc)   # {"grid": "u-…", "doc": {...}}（/share の JSON ボディと同じ形）
+            body = RenderBody(grid=raw.get("grid", "default"), doc=GridDoc.model_validate(raw["doc"]))
+        except Exception as e:
+            raise HTTPException(400, f"並びの JSON が不正です（{type(e).__name__}）") from e
+        gdoc = _doc_for_share(body)
+        img_b = await image.read(share.MAX_UPLOAD_IMAGE + 1)
+        og_b = await og.read(share.MAX_UPLOAD_OG + 1)
+        try:
+            w, h, ext = await asyncio.to_thread(share.check_uploaded, img_b, og_b)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from e
+        _check_share_quota(request)
+        budget = share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0
+        return await _finish_share(request, run_in_threadpool(share.store, gdoc, img_b, og_b, w, h, budget, ext))
 
 
 @app.get("/s/{sid}", response_class=HTMLResponse)

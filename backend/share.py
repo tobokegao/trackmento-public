@@ -1,5 +1,5 @@
-"""「トラックを共有」。その時点の並びを PNG と JSON のスナップショットとして shares/<id>.{png,json} に保存し、
-共有 URL（/s/<id>）で PNG・曲リスト・「TRACKMENTO で開く」（/?share=<id>）をまとめて見られるようにする。
+"""「トラックを共有」。その時点の並びを画像（JPEG。古い共有は PNG）と JSON のスナップショットとして
+shares/<id>.{jpg,json} に保存し、共有 URL（/s/<id>）で画像・曲リスト・「TRACKMENTO で開く」（/?share=<id>）をまとめて見られるようにする。
 
 - id は内容のハッシュ 6 桁 + 時刻 4 桁 + 乱数 2 桁（同じ並びでも押すたびに別 id。過去の共有は消えない）
 - outputs/ と違って世代管理で消さない（共有 URL が死なないように）
@@ -37,20 +37,23 @@ def _new_id(doc: GridDoc) -> str:
 
 
 OG_W, OG_H = 1200, 630            # リンクカード（X の summary_large_image、Discord・LINE も同じ 1.91:1）
-MAX_PNG_BYTES = 4_900_000         # X の画像添付は 5 MB まで。公開モードではこれに収まるまで縮小する
+MAX_IMAGE_BYTES = 4_900_000       # X の画像添付は 5 MB まで。公開モードではこれに収まるまで縮小する
+MAX_PNG_BYTES = MAX_IMAGE_BYTES   # 旧名
+IMAGE_EXT = "jpg"                 # 本体は JPEG（品質 90、色差は間引かない）。PNG の 1/6 程度で、X は投稿時に再圧縮するので見た目は変わらない
+JPEG_QUALITY = 90
 
 
-def _encode_png(im: Image.Image, limit: int) -> tuple[bytes, Image.Image]:
-    """PNG に書き出す。limit > 0 で超えるときは、収まるまで（最大 4 回）縮小して書き直す。"""
+def _encode_image(im: Image.Image, limit: int) -> tuple[bytes, Image.Image]:
+    """JPEG に書き出す。limit > 0 で超えるときは、収まるまで（最大 4 回）縮小して書き直す。"""
     for _ in range(4):
         buf = io.BytesIO()
-        im.save(buf, "PNG", compress_level=6)
-        png = buf.getvalue()
-        if not limit or len(png) <= limit:
-            return png, im
-        f = max(0.6, (limit / len(png)) ** 0.5 * 0.97)   # PNG の容量は概ね画素数に比例
+        im.save(buf, "JPEG", quality=JPEG_QUALITY, subsampling=0, optimize=True, progressive=True)
+        data = buf.getvalue()
+        if not limit or len(data) <= limit:
+            return data, im
+        f = max(0.6, (limit / len(data)) ** 0.5 * 0.97)   # 容量は概ね画素数に比例
         im = im.resize((max(1, round(im.width * f)), max(1, round(im.height * f))), Image.LANCZOS)
-    return png, im
+    return data, im
 
 
 def _og_jpeg(im: Image.Image, bg: tuple[int, int, int]) -> bytes:
@@ -68,9 +71,13 @@ def og_url(sid: str) -> str:
     return storage.get_storage().public_url(f"{sid}-og.jpg") or f"/shares/{sid}-og.jpg"
 
 
+def image_url(sid: str, ext: str = IMAGE_EXT) -> str:
+    """本体画像の URL。R2 の公開 URL があればそれ（絶対 URL）、無ければバックエンドの /shares/<id>.<ext>（相対）。"""
+    return storage.get_storage().public_url(f"{sid}.{ext}") or f"/shares/{sid}.{ext}"
+
+
 def png_url(sid: str) -> str:
-    """PNG の URL。R2 の公開 URL があればそれ（絶対 URL）、無ければバックエンドの /shares/<id>.png（相対）。"""
-    return storage.get_storage().public_url(f"{sid}.png") or f"/shares/{sid}.png"
+    return image_url(sid, "png")
 
 
 class BudgetExceeded(Exception):
@@ -80,69 +87,96 @@ class BudgetExceeded(Exception):
 
 
 def create(doc: GridDoc, budget: int = 0) -> dict:
-    """PNG と JSON を保存（ローカルの shares/ か Cloudflare R2）して {id, png, json, width, height, bytes} を返す。
-    png は公開 URL があれば絶対 URL、無ければ /shares/... の相対 URL。
+    """画像と JSON を保存（ローカルの shares/ か Cloudflare R2）して {id, image, json, width, height, bytes} を返す。
+    image は公開 URL があれば絶対 URL、無ければ /shares/... の相対 URL。
     budget > 0 のときは、保存後の合計がそれを超えるなら保存せず BudgetExceeded を投げる（実バイト数で判定）。"""
     im = render.render(doc)
     o = doc.options
     bg = render._hex_to_rgb(o.bgCustom if o.bg == "custom" and o.bgCustom else render.TOKENS[o.bg])
     og = _og_jpeg(im, bg)
-    png, im = _encode_png(im, MAX_PNG_BYTES if public_mode() else 0)
-    return store(doc, png, og, im.width, im.height, budget)
+    data, im = _encode_image(im, MAX_IMAGE_BYTES if public_mode() else 0)
+    return store(doc, data, og, im.width, im.height, budget, IMAGE_EXT)
 
 
-def store(doc: GridDoc, png: bytes, og: bytes, width: int, height: int, budget: int = 0) -> dict:
-    """描画済みの PNG（本体）とカード用 JPEG を保存する。ブラウザで描いたものもサーバーで描いたものもここを通る。"""
+_over_budget_at = 0.0   # 上限超過を最後に確かめた時刻（monotonic）
+
+
+def _check_budget(need: int, budget: int) -> None:
+    """保存後の合計が budget を超えるなら BudgetExceeded。超過中は一覧の取り直しを 60 秒に 1 回に抑える
+    （上限到達中に共有のたび全件一覧（数秒）を回すと、保存が全部その後ろに並んでサーバーが詰まる）。"""
+    global _over_budget_at
+    used = storage.usage_bytes()
+    if used + need <= budget:
+        return
+    if time.monotonic() - _over_budget_at > 60:
+        used = storage.usage_bytes(refresh=True)   # キャッシュが古い可能性があるので取り直してから最終判断
+        if used + need <= budget:
+            return
+        _over_budget_at = time.monotonic()
+    print(f"[share] budget: 使用 {used / 1024**3:.2f} GB / 上限 {budget / 1024**3:.2f} GB → 507")
+    raise BudgetExceeded(used, budget, need)
+
+
+def store(doc: GridDoc, image: bytes, og: bytes, width: int, height: int, budget: int = 0, ext: str = IMAGE_EXT) -> dict:
+    """描画済みの本体画像（JPEG。古いブラウザのタブからは PNG）とカード用 JPEG を保存する。ブラウザで描いたものもサーバーで描いたものもここを通る。"""
     st = storage.get_storage()
     sid = _new_id(doc)
     # name はブラウザごとの固有 ID（u-…）。公開 JSON に載せると同じ人の共有を突き合わせたり、そのグリッドを読み書きされたりするので外す
     snap = doc.model_dump(exclude={"name", "savedAt"})
     snap.update({"id": sid, "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-                 "og": True})   # カード用 JPEG がある印（古い共有には無い）
+                 "og": True,    # カード用 JPEG がある印（古い共有には無い）
+                 "ext": ext})   # 本体画像の拡張子（無ければ png）
     js = json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8")
-    need = len(png) + len(js) + len(og)
+    need = len(image) + len(js) + len(og)
     if budget > 0:
-        used = storage.usage_bytes()
-        if used + need > budget:
-            used = storage.usage_bytes(refresh=True)   # キャッシュが古い可能性があるので取り直してから最終判断
-            if used + need > budget:
-                raise BudgetExceeded(used, budget, need)
-    st.put(f"{sid}.png", png, "image/png")
+        _check_budget(need, budget)
+    st.put(f"{sid}.{ext}", image, "image/jpeg" if ext == "jpg" else "image/png")
     st.put(f"{sid}-og.jpg", og, "image/jpeg")
     st.put(f"{sid}.json", js, "application/json")
     storage.add_usage(need)
-    return {"id": sid, "png": png_url(sid), "og": og_url(sid), "json": f"/shares/{sid}.json", "width": width, "height": height, "bytes": need}
+    url = image_url(sid, ext)
+    return {"id": sid, "image": url, "png": url, "ext": ext, "og": og_url(sid), "json": f"/shares/{sid}.json",
+            "width": width, "height": height, "bytes": need}   # png は旧キー（古いタブ・CLI 互換）
 
 
-MAX_UPLOAD_PNG = MAX_PNG_BYTES + 200_000   # ブラウザ側の縮小判定の誤差ぶんだけ許す
+MAX_UPLOAD_IMAGE = MAX_IMAGE_BYTES + 200_000   # ブラウザ側の縮小判定の誤差ぶんだけ許す
+MAX_UPLOAD_PNG = MAX_UPLOAD_IMAGE
 MAX_UPLOAD_OG = 600_000
 MAX_UPLOAD_SIDE = 4096
 
 
-def check_uploaded(png: bytes, og: bytes) -> tuple[int, int]:
-    """ブラウザが描いた PNG / JPEG のヘッダだけ確かめる（デコードはしない。CPU を使わないのがこの経路の目的）。
-    (幅, 高さ) を返す。不正なら ValueError。"""
-    if not png or len(png) > MAX_UPLOAD_PNG:
-        raise ValueError(f"PNG が空か大きすぎます（{len(png) / 1e6:.1f} MB）")
+def check_uploaded(image: bytes, og: bytes) -> tuple[int, int, str]:
+    """ブラウザが描いた本体（JPEG か PNG）とカード用 JPEG のヘッダだけ確かめる（デコードはしない。CPU を使わないのがこの経路の目的）。
+    (幅, 高さ, 拡張子) を返す。不正なら ValueError。"""
+    if not image or len(image) > MAX_UPLOAD_IMAGE:
+        raise ValueError(f"画像が空か大きすぎます（{len(image) / 1e6:.1f} MB）")
     if not og or len(og) > MAX_UPLOAD_OG:
         raise ValueError("カード用の JPEG が空か大きすぎます")
     try:
-        with Image.open(io.BytesIO(png)) as im:
-            if im.format != "PNG":
-                raise ValueError("本体が PNG ではありません")
+        with Image.open(io.BytesIO(image)) as im:
+            if im.format not in ("JPEG", "PNG"):
+                raise ValueError("本体が JPEG でも PNG でもありません")
             w, h = im.size
+            ext = "jpg" if im.format == "JPEG" else "png"
         with Image.open(io.BytesIO(og)) as im2:
             if im2.format != "JPEG" or im2.size != (OG_W, OG_H):
                 raise ValueError("カード用の画像が 1200×630 の JPEG ではありません")
     except Image.UnidentifiedImageError as e:
         raise ValueError("画像として読めません") from e
     if not (100 <= w <= MAX_UPLOAD_SIDE and 100 <= h <= MAX_UPLOAD_SIDE):
-        raise ValueError(f"PNG の大きさが範囲外です（{w}×{h}）")
-    return w, h
+        raise ValueError(f"画像の大きさが範囲外です（{w}×{h}）")
+    return w, h, ext
 
 
-def get_png(sid: str) -> bytes | None:
-    return storage.get_storage().get(f"{sid}.png") if valid_id(sid) else None
+def count_today() -> int:
+    """今日（UTC）保存した共有の数。本体画像（.jpg / .png、カード用 -og.jpg を除く）を数える。
+    起動時に 1 日の回数カウンタをここから復元する（プロセス内カウンタはデプロイ・再起動で 0 に戻るため）。"""
+    today = datetime.now(timezone.utc).date()
+    n = 0
+    for key, _, modified in storage.get_storage().list_objects():
+        if modified.date() == today and (key.endswith(".jpg") or key.endswith(".png")) and not key.endswith("-og.jpg"):
+            n += 1
+    return n
 
 
 def valid_id(sid: str) -> bool:
@@ -165,7 +199,8 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
     """共有ページ。依存なしの単一 HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
     app_url = (app_url or base).rstrip("/")
-    img_url = png_url(sid)   # R2 の公開 URL があればそこから直接（サーバーの転送量を節約）
+    ext = snap.get("ext") or "png"   # 古い共有は PNG
+    img_url = image_url(sid, ext)   # R2 の公開 URL があればそこから直接（サーバーの転送量を節約）
     if img_url.startswith("/"):
         img_url = base + img_url
     # カード画像は 1200×630 の JPEG（X は 5 MB 超・2:1 以外を切り取るので PNG 本体は使わない）。古い共有は PNG のまま
@@ -220,7 +255,7 @@ p.meta a {{ color: #12171b; }}
   <h1>{title}</h1>
   <img src="{img_url}" alt="{title}">
   <div class="btns">
-    <a class="btn primary" href="/shares/{sid}.png" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.png">PNG を保存</a>
+    <a class="btn primary" href="/shares/{sid}.{ext}" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.{ext}">画像を保存</a>
     <a class="btn" href="{app_url}/?share={sid}">TRACKMENTO で開く（この並びを読み込む）</a>
   </div>
   <ol>{''.join(rows)}</ol>

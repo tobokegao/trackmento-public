@@ -610,7 +610,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <button class="btn" type="button" id="copy-btn">URL をコピー</button>
           <button class="btn" type="button" id="native-share-btn">SNS に共有</button>
           <a class="btn" id="open-share" href="#" target="_blank" rel="noopener">共有ページを開く</a>
-          <a class="btn dl" id="download" download="trackmento.png" href="#">PNG を保存</a>
+          <a class="btn dl" id="download" download="trackmento.jpg" href="#">画像を保存</a>
         </div>
       </div>
     </div>
@@ -690,7 +690,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った PNG と曲リストは、URL を知っている人なら誰でも見られます（30 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有データに載せることはありません。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有データに載せることはありません。</p>
     </div>
   </div>
 </div>
@@ -1238,7 +1238,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (t) {
         li.draggable = true;
         li.setAttribute("aria-label", `${i + 1} 番: ${t.title} / ${t.artist}`);
-        const img = document.createElement("img"); img.src = proxied(t.image); img.alt = ""; img.draggable = false;
+        const img = document.createElement("img"); img.src = proxied(t.thumb || t.image); img.alt = ""; img.draggable = false;   // 表示は小さい方（転送量）。フル解像度は共有画像を描くときだけ
         const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.setAttribute("aria-label", `${i + 1} 番の ${t.title} を外す`);
         rm.addEventListener("click", (e) => { e.stopPropagation(); removeAt(i); });
         const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `${t.title} / ${t.artist}`;
@@ -1594,13 +1594,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (tw <= maxW * 0.7) { ctx.font = fa; return [ft, fa, title, ellipsizeText(ctx, a, maxW - tw)]; }
     return [ft, fa, ellipsizeText(ctx, title, maxW), ""];
   }
-  /* 端末階層: 出力の最大辺だけ変える（配置は同じ）。Safari は deviceMemory を出さないのでスマホ扱い */
+  /* 出力の最大辺。既定 2400（X のタイムライン表示は最大 約1200px 幅なので十分。保存容量は 3200 の約 0.56 倍）。
+     メモリの少ない端末は 2000。Safari は deviceMemory を出さないので 2400 */
   function shareMaxSide() {
-    const mem = navigator.deviceMemory, cores = navigator.hardwareConcurrency || 2;
-    const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && innerWidth < 900);
-    if (mem !== undefined && mem <= 2) return 2000;
-    if (!mobile && (mem === undefined || mem >= 4) && cores >= 4) return 3200;
-    return 2400;
+    const mem = navigator.deviceMemory;
+    return mem !== undefined && mem <= 2 ? 2000 : 2400;
   }
   const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent);
   async function loadShareFonts() {
@@ -1712,9 +1710,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return c;
   }
   async function encodeShare(canvas, bg) {
+    // 本体は JPEG 品質 0.9（PNG の 1/6 程度。X は投稿時に再圧縮するので見た目は変わらない。保存容量と転送量のため）
     const LIMIT = 4900000;   // X の画像添付は 5 MB まで（サーバー描画と同じ判定）
-    let c = canvas, png = await canvasToBlob(c, "image/png");
-    for (let i = 0; i < 3 && png.size > LIMIT; i++) { c = scaledCanvas(c, Math.max(0.6, Math.sqrt(LIMIT / png.size) * 0.97)); png = await canvasToBlob(c, "image/png"); }
+    let c = canvas, png = await canvasToBlob(c, "image/jpeg", 0.9);
+    for (let i = 0; i < 3 && png.size > LIMIT; i++) { c = scaledCanvas(c, Math.max(0.6, Math.sqrt(LIMIT / png.size) * 0.97)); png = await canvasToBlob(c, "image/jpeg", 0.9); }
     const og = document.createElement("canvas"); og.width = 1200; og.height = 630;   // カード用: 全体を収め、余白は背景色
     const g = og.getContext("2d", { alpha: false }); g.fillStyle = cssRgb(bg); g.fillRect(0, 0, 1200, 630);
     const f = Math.min(1200 / c.width, 630 / c.height), w = Math.max(1, Math.round(c.width * f)), h = Math.max(1, Math.round(c.height * f));
@@ -1741,7 +1740,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     say(els.gridMsg, `アップロード中…（${(enc.png.size / 1e6).toFixed(1)} MB）`);
     const fd = new FormData();
     fd.append("doc", JSON.stringify({ grid: GRID_NAME, doc: snap }));
-    fd.append("png", enc.png, "trackmento.png");
+    fd.append("image", enc.png, "trackmento.jpg");
     fd.append("og", enc.og, "card.jpg");
     return postShare("/share/upload", { method: "POST", body: fd });
   }
@@ -1764,14 +1763,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         d = await shareViaServer(snap);
       }
       lastPushed = signature(snap);
-      const pngUrl = /^https?:\/\//.test(d.png) ? d.png : api(d.png);
-      els.outputImg.src = pngUrl;
-      els.download.href = api(`/shares/${d.id}.png`);   // 保存はバックエンド経由（別オリジンの download 属性は効かないため） els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
+      const imgSrc = d.image || d.png, ext = d.ext || "png";
+      els.outputImg.src = /^https?:\/\//.test(imgSrc) ? imgSrc : api(imgSrc);
+      els.download.href = api(`/shares/${d.id}.${ext}`);   // 保存はバックエンド経由（別オリジンの download 属性は効かないため）
+      els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + "." + ext;
       els.shareUrl.value = d.url; els.openShare.href = d.url;
       els.nativeShareBtn.hidden = false;
       els.output.hidden = false;
       setBtnState(els.shareBtn, null);
-      say(els.gridMsg, `${d.width} × ${d.height} px の PNG と共有 URL ができました。`);
+      say(els.gridMsg, `${d.width} × ${d.height} px の画像と共有 URL ができました。`);
       els.shareUrl.focus({ preventScroll: true }); els.shareUrl.select();
     } catch (err) {
       setBtnState(els.shareBtn, "error");

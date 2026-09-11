@@ -39,8 +39,8 @@ claude --remote-control TRACKMENTO                                             #
 - 既定グリッド `default`。状態は `grids/<NAME>.json` 保存、Web UI と共有
   （Web は起動時 localStorage とサーバーの新しい方を読込。開いたままの Web には「サーバーから読み直す」ボタン）
 - `share` / `render` は指定オプションをグリッド JSON にも保存。次回以降省略可
-- `share` は PNG と並びスナップショットを `shares/<id>.{png,json}` 保存、共有ページ `http://…/s/<id>` の URL 出力。
-  共有ページ内容: PNG・曲リスト・「TRACKMENTO で開く」（`/?share=<id>` でその並びを Web 読込）
+- `share` は画像（JPEG 品質 90）と並びスナップショットを `shares/<id>.{jpg,json}` 保存、共有ページ `http://…/s/<id>` の URL 出力。
+  共有ページ内容: 画像・曲リスト・「TRACKMENTO で開く」（`/?share=<id>` でその並びを Web 読込）
 - `share` / `render` 最終行は必ず `URL: http://...`
 - 検索結果・画像は `cache.sqlite3` にキャッシュ。再取得は Web の `/search?...&nocache=true`
 
@@ -63,7 +63,7 @@ claude --remote-control TRACKMENTO                                             #
 ### 「画像にして」「共有して」「16:9 で曲名リスト付きにして」
 1. 指定あれば `cli.py share --ratio 16:9 --sidebar --title "…"`。なければ `cli.py share`
 2. 出力の並び一覧と **`URL:` 行を省略せずそのまま返却**。スマホ側はその URL（共有ページ）で PNG 保存や
-   「TRACKMENTO で開く」で並び読込可。PNG のみ要望時は `PNG:` 行も添付
+   「TRACKMENTO で開く」で並び読込可。画像のみ要望時は `画像:` 行も添付
 3. `注意: サーバーが応答しません` 出力時、uvicorn 起動後に URL 伝達
 
 ### 「全部消して」

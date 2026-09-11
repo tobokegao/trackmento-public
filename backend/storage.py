@@ -48,6 +48,21 @@ class LocalStorage:
     def usage_bytes(self) -> int:
         return sum(p.stat().st_size for p in SHARES.glob("*") if p.is_file()) if SHARES.exists() else 0
 
+    def list_objects(self):
+        """(キー, バイト数, 最終更新 UTC) を順に返す。"""
+        from datetime import datetime, timezone
+        if not SHARES.exists():
+            return
+        for p in SHARES.glob("*"):
+            if p.is_file():
+                st = p.stat()
+                yield p.name, st.st_size, datetime.fromtimestamp(st.st_mtime, timezone.utc)
+
+    def delete_many(self, keys: list[str]) -> int:
+        for k in keys:
+            self.delete(k)
+        return len(keys)
+
 
 class R2Storage:
     is_remote = True
@@ -99,17 +114,30 @@ class R2Storage:
 
     def usage_bytes(self) -> int:
         """バケット内の合計バイト数。一覧（ListObjectsV2）は Class A 操作だが 1000 件ごとに 1 回なので安い"""
-        total = 0
+        return sum(size for _, size, _ in self.list_objects())
+
+    def list_objects(self):
+        """(キー, バイト数, 最終更新 UTC) を順に返す。1000 件ごとに 1 回の一覧呼び出し（7,000 件で 8 回・数秒）。"""
         token = None
         while True:
             kw = {"Bucket": self.bucket, "MaxKeys": 1000}
             if token:
                 kw["ContinuationToken"] = token
             r = self._client.list_objects_v2(**kw)
-            total += sum(o.get("Size", 0) for o in r.get("Contents", []))
+            for o in r.get("Contents", []):
+                yield o["Key"], o.get("Size", 0), o["LastModified"]
             if not r.get("IsTruncated"):
-                return total
+                return
             token = r.get("NextContinuationToken")
+
+    def delete_many(self, keys: list[str]) -> int:
+        """まとめて削除（1 回 1000 件まで）。削除できた件数を返す。"""
+        done = 0
+        for i in range(0, len(keys), 1000):
+            chunk = keys[i:i + 1000]
+            r = self._client.delete_objects(Bucket=self.bucket, Delete={"Objects": [{"Key": k} for k in chunk], "Quiet": True})
+            done += len(chunk) - len(r.get("Errors", []))
+        return done
 
 
 # ---- 使用量の集計（10 分キャッシュ。保存のたびに加算するので、その間も上限判定がずれない） ----
@@ -118,14 +146,25 @@ _usage: tuple[float, int] | None = None   # (取得時刻, バイト数)
 USAGE_CACHE_SEC = 600
 
 
+_listing = False   # 一覧取得中（重複して回さない）
+
+
 def usage_bytes(refresh: bool = False) -> int:
-    global _usage
+    """合計バイト数。R2 の一覧は数秒かかるのでロックの外で行う（握ったままだと共有の保存が全部その後ろに並び、
+    上限到達時に共有のたび一覧が走ってサーバーが詰まる）。取得中に別スレッドが来たら手元の値で代用する。"""
+    global _usage, _listing
     with _usage_lock:
-        if not refresh and _usage and time.monotonic() - _usage[0] < USAGE_CACHE_SEC:
+        if _usage and (not refresh and time.monotonic() - _usage[0] < USAGE_CACHE_SEC or _listing):
             return _usage[1]
+        _listing = True
+    try:
         n = get_storage().usage_bytes()
+    finally:
+        with _usage_lock:
+            _listing = False
+    with _usage_lock:
         _usage = (time.monotonic(), n)
-        return n
+    return n
 
 
 def add_usage(n: int) -> None:
