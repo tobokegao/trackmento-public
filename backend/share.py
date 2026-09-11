@@ -12,7 +12,7 @@ import secrets
 import json
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import io
@@ -20,7 +20,7 @@ import io
 from PIL import Image
 
 from backend import render, storage
-from backend.config import public_mode
+from backend.config import public_mode, share_retention_days
 from backend.grids import GridDoc
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -195,6 +195,76 @@ def load(sid: str) -> dict | None:
         return None
 
 
+def _page_css(base: str) -> str:
+    return f"""
+@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; src: url("{base}/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
+@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; src: url("{base}/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}
+@font-face {{ font-family: "Silkscreen"; font-weight: 700; src: url("{base}/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
+@font-face {{ font-family: "DotGothic16"; src: url("{base}/fonts/DotGothic16-Regular.ttf") format("truetype"); }}
+* {{ box-sizing: border-box; border-radius: 0; }}
+body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "IBM Plex Sans JP", sans-serif; line-height: 1.55; }}
+header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
+.mark {{ font-family: "Silkscreen", monospace; font-weight: 700; font-size: 20px; letter-spacing: .04em; padding-bottom: 10px;
+  background: linear-gradient(to right, #e6b731 0 16.66%, #008bc7 0 33.33%, #e5462c 0 50%, #af9ee4 0 66.66%, #80e2b9 0 83.33%, #f594c3 0) bottom / 100% 5px no-repeat; }}
+small {{ font-family: "DotGothic16", sans-serif; color: #53595f; }}
+main {{ max-width: 56rem; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }}
+h1 {{ font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 1.25rem; margin: 0; }}
+img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b; }}
+.btns {{ display: flex; flex-wrap: wrap; gap: 8px; }}
+.btn {{ display: inline-flex; align-items: center; min-height: 44px; padding: 4px 16px; border: 2px solid #12171b; background: #f6f5f3; color: #12171b;
+  font-family: "DotGothic16", sans-serif; text-decoration: none; box-shadow: 2px 2px 0 #12171b; }}
+.btn.primary {{ background: #12171b; color: #f6f5f3; }}
+ol {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }}
+li {{ display: flex; gap: 10px; align-items: baseline; }}
+/* 曲名とアーティスト名は 1 つの流し込み。別々の flex 項目にすると狭い画面でアーティスト名だけ細長く折り返る */
+.t {{ min-width: 0; overflow-wrap: anywhere; }}
+.n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
+.a {{ color: #53595f; }}
+p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere; }}
+p.meta a {{ color: #12171b; }}
+p.note {{ margin: 0; padding: 12px 16px; border: 2px solid #12171b; background: #fff; overflow-wrap: anywhere; }}
+"""
+
+
+def _expires_text(created_at: str | None) -> str:
+    """「有効期限: 2026-09-18 まで（作成から 7 日）」。createdAt が読めなければ日数だけ。"""
+    days = share_retention_days()
+    try:
+        created = datetime.fromisoformat((created_at or "").replace("Z", "+00:00"))
+        until = (created + timedelta(days=days)).astimezone(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
+        return f"有効期限: {until} まで（作成から {days} 日）"
+    except ValueError:
+        return f"有効期限: 作成から {days} 日"
+
+
+def expired_html(sid: str, base: str, app_url: str | None = None) -> str:
+    """共有が見つからないときの案内ページ（404）。JSON を返すと X から開いた人に何が起きたか伝わらない。
+    リンクカードはサイト既定の画像にして、再共有されても壊れた表示にならないようにする。"""
+    app_url = (app_url or base).rstrip("/")
+    days = share_retention_days()
+    sid_s = html.escape(sid)[:16]
+    return f"""<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>この共有は見つかりません — TRACKMENTO</title>
+<link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="robots" content="noindex">
+<meta property="og:title" content="TRACKMENTO"><meta property="og:image" content="{base}/og.png"><meta name="twitter:image" content="{base}/og.png">
+<meta property="og:description" content="この共有は期限切れです。TRACKMENTO で作り直せます"><meta name="twitter:card" content="summary_large_image">
+<style>{_page_css(base)}</style></head>
+<body>
+<header><span class="mark">TRACKMENTO</span><small>share</small></header>
+<main>
+  <h1>この共有は見つかりません</h1>
+  <p class="note">共有 URL は作成から {days} 日で消えます。この共有（ID {sid_s}）は期限切れか、2026-09-11 の障害対応（保存容量の上限到達）で削除されたものです。
+  X などに投稿済みの画像はそのまま残っています。お手数ですが、TRACKMENTO で作り直してください。</p>
+  <div class="btns">
+    <a class="btn primary" href="{app_url}/">TRACKMENTO で作る</a>
+  </div>
+  <p class="meta">連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
+</main>
+</body></html>"""
+
+
 def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
     """共有ページ。依存なしの単一 HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
@@ -222,33 +292,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
 <meta name="robots" content="noindex">
 <meta property="og:title" content="{title}"><meta property="og:image" content="{card_url}">{card_meta}<meta name="twitter:image" content="{card_url}">
 <meta property="og:description" content="トラック共有サイト #TRACKMENTO からシェア:「{html.escape(snap.get('title') or '無題')}」"><meta name="twitter:card" content="summary_large_image">
-<style>
-@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; src: url("{base}/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
-@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; src: url("{base}/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}
-@font-face {{ font-family: "Silkscreen"; font-weight: 700; src: url("{base}/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
-@font-face {{ font-family: "DotGothic16"; src: url("{base}/fonts/DotGothic16-Regular.ttf") format("truetype"); }}
-* {{ box-sizing: border-box; border-radius: 0; }}
-body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "IBM Plex Sans JP", sans-serif; line-height: 1.55; }}
-header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
-.mark {{ font-family: "Silkscreen", monospace; font-weight: 700; font-size: 20px; letter-spacing: .04em; padding-bottom: 10px;
-  background: linear-gradient(to right, #e6b731 0 16.66%, #008bc7 0 33.33%, #e5462c 0 50%, #af9ee4 0 66.66%, #80e2b9 0 83.33%, #f594c3 0) bottom / 100% 5px no-repeat; }}
-small {{ font-family: "DotGothic16", sans-serif; color: #53595f; }}
-main {{ max-width: 56rem; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }}
-h1 {{ font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 1.25rem; margin: 0; }}
-img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b; }}
-.btns {{ display: flex; flex-wrap: wrap; gap: 8px; }}
-.btn {{ display: inline-flex; align-items: center; min-height: 44px; padding: 4px 16px; border: 2px solid #12171b; background: #f6f5f3; color: #12171b;
-  font-family: "DotGothic16", sans-serif; text-decoration: none; box-shadow: 2px 2px 0 #12171b; }}
-.btn.primary {{ background: #12171b; color: #f6f5f3; }}
-ol {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }}
-li {{ display: flex; gap: 10px; align-items: baseline; }}
-/* 曲名とアーティスト名は 1 つの流し込み。別々の flex 項目にすると狭い画面でアーティスト名だけ細長く折り返る */
-.t {{ min-width: 0; overflow-wrap: anywhere; }}
-.n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
-.a {{ color: #53595f; }}
-p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere; }}
-p.meta a {{ color: #12171b; }}
-</style></head>
+<style>{_page_css(base)}</style></head>
 <body>
 <header><span class="mark">TRACKMENTO</span><small>share</small></header>
 <main>
@@ -260,7 +304,7 @@ p.meta a {{ color: #12171b; }}
   </div>
   <ol>{''.join(rows)}</ol>
   <p class="meta">{n} 曲 · {snap.get('cols')}×{snap.get('rows')} · 共有 ID {sid} · {html.escape(snap.get('createdAt') or '')}</p>
-  <p class="meta">この URL: {base}/s/{sid}</p>
+  <p class="meta">この URL: {base}/s/{sid} · {_expires_text(snap.get('createdAt'))}。画像を保存すれば手元に残ります</p>
   <p class="meta">連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""
