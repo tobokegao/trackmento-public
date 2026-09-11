@@ -202,13 +202,22 @@ def _load_cover_from(url: str, t: Track, size: int) -> Image.Image:
     data = fetch_image_bytes(url)
     with Image.open(io.BytesIO(data)) as src:
         if src.format == "JPEG":
-            src.draft("RGB", (size * 2, size * 2))   # 1/2・1/4・1/8 スケールでデコード（メモリと時間を大きく節約）
+            src.draft("RGB", (size, size))   # マスの大きさ以上で最も小さい 1/2・1/4・1/8 スケールでデコード（デコードが描画 CPU の大半）
         im = src.convert("RGB")
     if imgtools.is_video_thumb(url) or t.source in ("youtube", "nicovideo", "bilibili", "otodb"):
         im = imgtools.trim_letterbox(im)   # 動画サムネイルの黒帯を落としてから切り抜く
     fitted = _cover_fit(im, size, size)
     im.close()
     return fitted
+
+
+def lower_thread_priority() -> None:
+    """呼び出したスレッドの優先度を下げる（Linux のみ）。0.1 vCPU の無料ホストでは描画中に他の処理（/health）が
+    CPU を取れず再起動されるため、描画スレッドはイベントループより後回しにする。"""
+    try:
+        os.setpriority(os.PRIO_PROCESS, 0, 10)   # Linux では who=0 が呼び出しスレッド自身
+    except (AttributeError, OSError):
+        pass
 
 
 def _mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
@@ -330,7 +339,7 @@ def render(doc: GridDoc) -> Image.Image:
     cell = sc(CELL_PX)
     num_font = font("pixel", max(8, sc(22)))
     from backend.config import public_mode
-    with ThreadPoolExecutor(max_workers=4 if public_mode() else 6) as ex:
+    with ThreadPoolExecutor(max_workers=4 if public_mode() else 6, initializer=lower_thread_priority) as ex:
         covers = list(ex.map(lambda t: load_cover(t, cell) if t else None, doc.cells))
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import hashlib
 import os
 import secrets
@@ -92,6 +93,7 @@ async def lifespan(app: FastAPI):
         print(f"[outputs] removed {removed} old files")
     print(f"[public] PNG の URL は {public_base_url()}/outputs/... で返します（.env の PUBLIC_BASE_URL）")
     app.state.started_at = time.time()
+    monitor = asyncio.create_task(_load_monitor()) if public_mode() else None
     app.state.http = httpx.AsyncClient(
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
@@ -100,11 +102,59 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if monitor:
+            monitor.cancel()
         await app.state.http.aclose()
         cache.close()
 
 
 app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
+
+# ---------- 描画は専用の 1 本の低優先度スレッドで直列に ----------
+# 無料ホスト（0.1 vCPU）では描画（画像デコード・PNG 圧縮）が重なるとイベントループが CPU を取れず、
+# Render のヘルスチェック（5 秒）に落ちて再起動される。同時に 1 件だけ描き、待ちが多ければ 503 で断る
+from concurrent.futures import ThreadPoolExecutor
+
+_RENDER_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="render", initializer=render.lower_thread_priority)
+MAX_RENDER_QUEUE = 3
+_render_waiting = [0]
+
+
+async def run_render(fn, *args):
+    if _render_waiting[0] >= MAX_RENDER_QUEUE:
+        raise HTTPException(503, "共有の生成が混み合っています。30 秒ほど待ってからもう一度お試しください", headers={"Retry-After": "30"})
+    _render_waiting[0] += 1
+    try:
+        return await asyncio.get_running_loop().run_in_executor(_RENDER_POOL, functools.partial(fn, *args))
+    finally:
+        _render_waiting[0] -= 1
+
+
+# ---------- 負荷の診断ログ（公開モード）。IP・検索語は含めない ----------
+_stats: dict[str, list] = {}   # パス種別 → [件数, 合計秒, 最大秒, 5xx 件数]
+
+
+def _stat_key(path: str) -> str:
+    for prefix in ("/grids/", "/s/", "/shares/", "/uploads/", "/outputs/"):
+        if path.startswith(prefix):
+            return prefix + "*"
+    return path
+
+
+async def _load_monitor():
+    """1 秒ごとにループの遅れを測り（0.5 秒超なら記録）、60 秒ごとにリクエスト集計を出す。"""
+    tick = 0
+    while True:
+        t0 = time.monotonic()
+        await asyncio.sleep(1.0)
+        lag = time.monotonic() - t0 - 1.0
+        if lag > 0.5:
+            print(f"[loop] lag={lag:.1f}s render_queue={_render_waiting[0]}")
+        tick += 1
+        if tick % 60 == 0 and _stats:
+            items = sorted(_stats.items(), key=lambda kv: -kv[1][1])
+            print("[stats] " + " ".join(f"{k}:{v[0]}件/{v[1]:.1f}s/max{v[2]:.1f}s" + (f"/5xx{v[3]}" if v[3] else "") for k, v in items[:10]))
+            _stats.clear()
 
 
 @app.exception_handler(Exception)
@@ -172,6 +222,26 @@ def _count_share(request: Request) -> None:
 
 _BODY_LIMIT_JSON = 1 * 1024 * 1024
 _BODY_LIMIT_UPLOAD = 16 * 1024 * 1024
+
+
+@app.middleware("http")
+async def request_stats(request: Request, call_next):
+    if not public_mode():
+        return await call_next(request)
+    t0 = time.monotonic()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    finally:
+        dt = time.monotonic() - t0
+        s = _stats.setdefault(_stat_key(request.url.path), [0, 0.0, 0.0, 0])
+        s[0] += 1
+        s[1] += dt
+        s[2] = max(s[2], dt)
+        if status >= 500:
+            s[3] += 1
 
 
 @app.middleware("http")
@@ -597,7 +667,9 @@ async def render_grid(request: Request, body: RenderBody = Body(default_factory=
         grids.save(doc)
     _check_cells(doc)
     try:
-        path, im = await run_in_threadpool(render.render_to_file, doc)
+        path, im = await run_render(render.render_to_file, doc)
+    except HTTPException:
+        raise
     except RuntimeError as e:  # フォント欠落など
         raise HTTPException(500, str(e)) from e
     return {
@@ -649,7 +721,9 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
     _check_cells(doc)
     _check_share_quota(request)
     try:
-        info = await run_in_threadpool(share.create, doc, share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0)
+        info = await run_render(share.create, doc, share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0)
+    except HTTPException:
+        raise   # 待ち行列の上限（503）など
     except share.BudgetExceeded as e:
         raise HTTPException(507, str(e)) from e
     except RuntimeError as e:
