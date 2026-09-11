@@ -259,30 +259,48 @@ def layout(doc: GridDoc) -> Layout:
     title_h = rnd(title_size * 1.9) if title else 0
     ratio = RATIOS[o.ratio]
     side = ("right" if ratio is None or ratio >= 1 else "bottom") if o.sidebar else "none"
-    line_h = max(30, min(84, gh // n)) if side == "right" else rnd(max(48, min(96, gw * 0.045)))
+    # 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）に置く。グリッドの上に置くと内容が縦長になり、
+    # 横長の比率（16:9）で左右の余白ばかり広がるため
+    title_top_h = 0 if side == "right" else title_h
+    line_h = max(30, min(84, (gh - title_h) // n)) if side == "right" else rnd(max(48, min(96, gw * 0.045)))
     font_s = rnd(line_h * 0.5)
     sb_w = sb_h = 0
     sb_cols = 1
     if side == "right":
         # 幅は「最長の行」に合わせる（最低 720px、最大でグリッド幅と同じ）。長い曲名が「…」で切れにくくなる
-        need = _longest_line(doc, font_s)
+        need = max(_longest_line(doc, font_s), _title_width(title, title_size))
         sb_w, sb_h = max(720, min(gw, need)), gh
     if side == "bottom":
         sb_cols = 2 if n > 12 else 1
         sb_w, sb_h = gw, math.ceil(n / sb_cols) * line_h
     sb_gap = 0 if side == "none" else GAP_PX * 4
     content_w = gw + sb_gap + sb_w if side == "right" else gw
-    content_h = title_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
-    W, H = content_w + m * 2, content_h + m * 2
+    content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
+    W, H = _fit(content_w, content_h, m, ratio)
+    if ratio is not None and (W, H) != (content_w + m * 2, content_h + m * 2):
+        # 比率合わせで余りが出る辺は余白が広がる。反対の辺が指定値（既定 16px）のままだと上下（縦長なら左右）だけ
+        # 極端に狭く見えるため、余りが出るときは指定値と「内容の短辺の 4%」の大きい方を四辺の最小余白にする
+        W, H = _fit(content_w, content_h, max(m, rnd(min(content_w, content_h) * 0.04)), ratio)
+    from backend.config import max_side
+    scale = min(1.0, max_side() / max(W, H))
+    return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
+                  title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap)
+
+
+def _fit(content_w: int, content_h: int, pad: int, ratio: float | None) -> tuple[int, int]:
+    """内容に四辺 pad の余白を足し、比率が指定なら短い方の辺を伸ばして合わせる。"""
+    W, H = content_w + pad * 2, content_h + pad * 2
     if ratio is not None:
         if W / H < ratio:
             W = rnd(H * ratio)
         else:
             H = rnd(W / ratio)
-    from backend.config import max_side
-    scale = min(1.0, max_side() / max(W, H))
-    return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
-                  title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap)
+    return W, H
+
+
+def _title_width(title: str, title_size: int) -> int:
+    """タイトル 1 行の幅（px）。右サイドバーの幅をこれ以上にして、タイトルが「…」で切れにくくする。"""
+    return int(math.ceil(font("bold", title_size).getlength(title))) + 8 if title else 0
 
 
 def _longest_line(doc: GridDoc, font_s: int) -> int:
@@ -332,12 +350,11 @@ def render(doc: GridDoc) -> Image.Image:
     im = Image.new("RGB", (sc(L.W), sc(L.H)), bg)
     d = ImageDraw.Draw(im)
 
-    # タイトル
+    # タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
     y0 = L.oy
-    if L.title:
-        f = font("bold", max(8, sc(L.title_size)))
-        max_w = L.gw + (L.sb_gap + L.sb_w if L.side == "right" else 0)
-        d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f, max_w * S), font=f, fill=ink, anchor="lm")
+    f_title = font("bold", max(8, sc(L.title_size)))
+    if L.title and L.side != "right":
+        d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f_title, L.gw * S), font=f_title, fill=ink, anchor="lm")
         y0 += L.title_h
 
     # グリッド（画像は並列に取得し、取得スレッドの中でマスの大きさに切り抜く。原寸を抱えない）
@@ -369,6 +386,10 @@ def render(doc: GridDoc) -> Image.Image:
         sx = L.ox + L.gw + L.sb_gap if L.side == "right" else L.ox
         sy = y0 if L.side == "right" else y0 + L.gh + L.sb_gap
         col_w = L.sb_w if L.side == "right" else (L.sb_w - GAP_PX * 2 * (L.sb_cols - 1)) // L.sb_cols
+        if L.title and L.side == "right":
+            # 字面の上端がグリッドの上端とそろうよう、行の中心でなく上寄せ（中心を上から 0.55 文字分）に置く
+            d.text((sc(sx), sc(sy + L.title_size * 0.55)), _ellipsize(d, L.title, f_title, L.sb_w * S), font=f_title, fill=ink, anchor="lm")
+            sy += L.title_h
         per_col = doc.size if L.side == "right" else math.ceil(doc.size / L.sb_cols)
         font_s = max(8, sc(L.font_s))
         f_num = font("pixel", max(8, sc(L.font_s * 0.8)))

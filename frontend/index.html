@@ -653,6 +653,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <dl class="spec">
         <dt>出力サイズ</dt><dd id="spec-out">—</dd>
         <dt>マスの大きさ</dt><dd id="spec-cell">600 px</dd>
+        <dt>余白</dt><dd id="spec-margin">—</dd>
       </dl>
     </div>
   </aside>
@@ -742,7 +743,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"), optTitle: $("#opt-title"), optSidebar: $("#opt-sidebar"), optNumbers: $("#opt-numbers"),
     swatches: $("#swatches"), bgCustom: $("#bg-custom"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
-    specOut: $("#spec-out"), specCell: $("#spec-cell"),
+    specOut: $("#spec-out"), specCell: $("#spec-cell"), specMargin: $("#spec-margin"),
   };
 
   // アップロード画像（/uploads/…）は同一オリジンなのでプロキシを通さない
@@ -1300,6 +1301,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return text.slice(0, lo) + "…";
   }
 
+  /* タイトル 1 行の幅。右サイドバーの幅をこれ以上にして「…」で切れにくくする。サーバー側の _title_width と同じ */
+  function titleWidth(title, titleSize) {
+    if (!title) return 0;
+    probe.font = `700 ${titleSize}px "IBM Plex Sans JP", sans-serif`;
+    return Math.ceil(probe.measureText(oneLine(title)).width) + 8;
+  }
   /* サイドバー 1 行の最大幅（番号 + 曲名 + アーティスト）。サーバー側描画の _longest_line と同じ考え方 */
   function longestLine(fontS) {
     const ctx = probe;
@@ -1314,6 +1321,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     return Math.ceil(best) + 8;
   }
+  /* 内容に四辺 pad の余白を足し、比率が指定なら短い方の辺を伸ばして合わせる */
+  function fit(contentW, contentH, pad, ratio) {
+    let W = contentW + pad * 2, H = contentH + pad * 2;
+    if (ratio !== null) { if (W / H < ratio) W = Math.round(H * ratio); else H = Math.round(W / ratio); }
+    return [W, H];
+  }
   /* レイアウト計算。描画せずにサイズだけ求める（右ペインの「出力サイズ」表示にも使う） */
   function layout(maxSide = MAX_SIDE) {
     const { cols, rows } = state;
@@ -1327,18 +1340,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const ratio = RATIOS[state.ratio];
     // サイドバー: 横長・正方形なら右、縦長ならグリッドの下
     const side = state.sidebar ? (ratio === null || ratio >= 1 ? "right" : "bottom") : "none";
+    // 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）。グリッドの上に置くと内容が縦長になり、
+    // 横長の比率（16:9）で左右の余白ばかり広がるため
+    const titleTopH = side === "right" ? 0 : titleH;
     const lineH = side === "right"
-      ? Math.max(30, Math.min(84, Math.floor(gh / n)))
+      ? Math.max(30, Math.min(84, Math.floor((gh - titleH) / n)))
       : Math.round(Math.max(48, Math.min(96, gw * 0.045)));
     const fontS = Math.round(lineH * 0.5);
     let sbW = 0, sbH = 0, sbCols = 1;
-    if (side === "right") { sbW = Math.max(720, Math.min(gw, longestLine(fontS))); sbH = gh; }
+    if (side === "right") { sbW = Math.max(720, Math.min(gw, Math.max(longestLine(fontS), titleWidth(title, titleSize)))); sbH = gh; }
     if (side === "bottom") { sbCols = n > 12 ? 2 : 1; sbW = gw; sbH = Math.ceil(n / sbCols) * lineH; }
     const sbGap = side === "none" ? 0 : GAP_PX * 4;
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
-    const contentH = titleH + gh + (side === "bottom" ? sbGap + sbH : 0);
-    let W = contentW + m * 2, H = contentH + m * 2;
-    if (ratio !== null) { if (W / H < ratio) W = Math.round(H * ratio); else H = Math.round(W / ratio); }
+    const contentH = titleTopH + gh + (side === "bottom" ? sbGap + sbH : 0);
+    let [W, H] = fit(contentW, contentH, m, ratio);
+    if (ratio !== null && (W !== contentW + m * 2 || H !== contentH + m * 2)) {
+      // 比率合わせで余りが出る辺は余白が広がる。反対の辺が指定値（既定 16px）のままだと上下（縦長なら左右）だけ
+      // 極端に狭く見えるため、余りが出るときは指定値と「内容の短辺の 4%」の大きい方を四辺の最小余白にする
+      [W, H] = fit(contentW, contentH, Math.max(m, Math.round(Math.min(contentW, contentH) * 0.04)), ratio);
+    }
     const scale = Math.min(1, maxSide / Math.max(W, H));
     const ox = Math.round((W - contentW) / 2), oy = Math.round((H - contentH) / 2);
     return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap };
@@ -1347,6 +1367,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const L = layout();
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
     els.specCell.textContent = `${Math.round(CELL_PX * L.scale)} px`;
+    els.specMargin.textContent = `上下 ${Math.round(L.oy * L.scale)} / 左右 ${Math.round(L.ox * L.scale)} px`;
     syncPreview();
     save();
   }
@@ -1572,11 +1593,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!ctx) throw new Error("canvas unavailable");
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.textAlign = "left";
     ctx.fillStyle = cssRgb(bg); ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
     let y0 = L.oy;
-    if (L.title) {
-      ctx.font = fontBold(Math.max(8, sc(L.titleSize))); ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
-      const maxW = (L.gw + (L.side === "right" ? L.sbGap + L.sbW : 0)) * S;
-      ctx.fillText(ellipsizeText(ctx, oneLine(L.title), maxW), sc(L.ox), sc(y0 + L.titleH / 2));
+    const titleFont = fontBold(Math.max(8, sc(L.titleSize)));
+    if (L.title && L.side !== "right") {
+      ctx.font = titleFont; ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
+      ctx.fillText(ellipsizeText(ctx, oneLine(L.title), L.gw * S), sc(L.ox), sc(y0 + L.titleH / 2));
       y0 += L.titleH;
     }
     const cell = sc(CELL_PX), numF = fontPixel(Math.max(8, sc(22)));
@@ -1599,8 +1621,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
     }
     if (L.side !== "none") {
-      const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox, sy = L.side === "right" ? y0 : y0 + L.gh + L.sbGap;
+      const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox;
+      let sy = L.side === "right" ? y0 : y0 + L.gh + L.sbGap;
       const colW = L.side === "right" ? L.sbW : Math.floor((L.sbW - GAP_PX * 2 * (L.sbCols - 1)) / L.sbCols);
+      if (L.title && L.side === "right") {
+        ctx.font = titleFont; ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
+        // 字面の上端がグリッドの上端とそろうよう、行の中心でなく上寄せ（中心を上から 0.55 文字分）に置く
+        ctx.fillText(ellipsizeText(ctx, oneLine(L.title), L.sbW * S), sc(sx), sc(sy + L.titleSize * 0.55));
+        sy += L.titleH;
+      }
       const perCol = L.side === "right" ? n : Math.ceil(n / L.sbCols);
       const fontS = Math.max(8, sc(L.fontS)), numFont = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
       for (let i = 0; i < n; i++) {
