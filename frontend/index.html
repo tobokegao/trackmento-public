@@ -452,16 +452,22 @@ body.sheet-open { overflow: hidden; }
 .check input:checked { background: var(--color-ink); box-shadow: none; }
 .check input:checked::after { content: ""; width: 8px; height: 8px; background: var(--color-paper); }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
-.swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.swatches label { position: relative; flex: 1 1 28px; max-width: 40px; aspect-ratio: 1; }   /* 行幅に合わせて 28〜40px に広がる。スマホで右に空きが残らないように */
+.swatches { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
+.swatches label { position: relative; flex: 1 1 28px; max-width: 40px; aspect-ratio: 1; }   /* 見本は 28〜40px に広がり、余りは間隔に配る。右に空きが残らない */
 .swatches input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .swatches span { display: block; width: 100%; height: 100%; border: var(--line) solid var(--color-ink); background: var(--sw); }
 .swatches input:checked + span { outline: 3px solid var(--color-ink); outline-offset: 2px; }
 .swatches input:focus-visible + span { outline: 3px solid var(--color-focus); outline-offset: 2px; }
-.custom-color { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-family: var(--font-display); font-size: var(--text-sm); }
-.custom-color input { appearance: none; width: 28px; height: 28px; padding: 0; border: var(--line) solid var(--color-ink); background: none; cursor: pointer; }
-.custom-color input::-webkit-color-swatch-wrapper { padding: 0; }
-.custom-color input::-webkit-color-swatch { border: 0; }
+.custom-color { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); font-family: var(--font-display); font-size: var(--text-sm); }
+.custom-color button { width: 28px; height: 28px; padding: 0; border: var(--line) solid var(--color-ink); background: var(--sw, var(--color-paper)); cursor: pointer; }
+.custom-color button.is-on { outline: 3px solid var(--color-ink); outline-offset: 2px; }
+.custom-color button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+/* カスタムカラーの色相・彩度・明度スライダー。つまみの位置が色で分かるよう、溝に色の帯を敷く */
+.hsv { display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-1); border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
+.hsv label { display: flex; justify-content: space-between; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
+.hsv input[type="range"]::-webkit-slider-runnable-track { height: 16px; border: var(--line) solid var(--color-ink); background: var(--track); box-sizing: border-box; }
+.hsv input[type="range"]::-webkit-slider-thumb { margin-top: -2px; }
+.hsv .hex { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: right; font-variant-numeric: tabular-nums; }
 input[type="range"] { appearance: none; width: 100%; height: 24px; background: transparent; margin: 0; cursor: pointer; }
 input[type="range"]::-webkit-slider-runnable-track { height: var(--line); background: var(--color-ink); }
 input[type="range"]::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; margin-top: -7px; background: var(--color-ink); border: var(--line) solid var(--color-ink); box-shadow: inset 0 0 0 3px var(--color-paper); }
@@ -641,7 +647,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <fieldset class="field">
         <legend>背景色</legend>
         <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
-        <label class="custom-color">好きな色 <input type="color" id="bg-custom" value="#f2efe6" aria-label="背景色を自由に指定"></label>
+        <div class="custom-color">カスタムカラー <button type="button" id="bg-custom-btn" aria-label="カスタムカラーを設定" aria-expanded="false" aria-controls="bg-custom-panel"></button></div>
+        <div class="hsv" id="bg-custom-panel" hidden>
+          <label for="hsv-h">色相 <output id="hsv-h-out">0</output></label>
+          <input type="range" id="hsv-h" min="0" max="360" step="1" value="0" style="--track: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
+          <label for="hsv-s">彩度 <output id="hsv-s-out">0</output></label>
+          <input type="range" id="hsv-s" min="0" max="100" step="1" value="0">
+          <label for="hsv-v">明度 <output id="hsv-v-out">100</output></label>
+          <input type="range" id="hsv-v" min="0" max="100" step="1" value="100">
+          <div class="hex" id="hsv-hex">#f2efe6</div>
+        </div>
       </fieldset>
 
       <div class="field">
@@ -745,7 +760,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"), optTitle: $("#opt-title"), optSidebar: $("#opt-sidebar"), optNumbers: $("#opt-numbers"),
-    swatches: $("#swatches"), bgCustom: $("#bg-custom"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
+    swatches: $("#swatches"), bgCustomBtn: $("#bg-custom-btn"), bgCustomPanel: $("#bg-custom-panel"),
+    hsvH: $("#hsv-h"), hsvS: $("#hsv-s"), hsvV: $("#hsv-v"), hsvHOut: $("#hsv-h-out"), hsvSOut: $("#hsv-s-out"), hsvVOut: $("#hsv-v-out"), hsvHex: $("#hsv-hex"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"), specMargin: $("#spec-margin"),
   };
 
@@ -1257,10 +1273,43 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.optNumbers.addEventListener("change", () => { state.numbers = els.optNumbers.checked; renderGrid(); });
   els.margin.addEventListener("input", () => { state.margin = Number(els.margin.value); els.marginOut.value = state.margin; updateSpec(); });
   els.gap.addEventListener("input", () => { state.gap = Number(els.gap.value); els.gapOut.value = state.gap; updateSpec(); });
-  els.bgCustom.addEventListener("input", () => {
-    state.bg = "custom"; state.bgCustom = els.bgCustom.value;
-    for (const i of els.swatches.querySelectorAll("input")) i.checked = false;
-    updateSpec();
+  /* カスタムカラー: 色見本のボタンを押すとすぐ色相・彩度・明度のスライダーが開き、動かした色が即反映される */
+  const CUSTOM_DEFAULT = "#f2efe6";
+  function hsvToHex(h, s, v) {
+    s /= 100; v /= 100;
+    const f = (n) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+    return "#" + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, "0")).join("");
+  }
+  function hexToHsv(hex) {
+    const [r, g, b] = hexToRgb(hex).map(x => x / 255), max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let h = 0;
+    if (d) h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h = Math.round(h * 60); if (h < 0) h += 360;
+    return [h, Math.round(max ? (d / max) * 100 : 0), Math.round(max * 100)];
+  }
+  function syncCustomColor() {
+    const hex = state.bgCustom || CUSTOM_DEFAULT, on = state.bg === "custom";
+    els.bgCustomBtn.style.setProperty("--sw", hex); els.bgCustomBtn.classList.toggle("is-on", on);
+    if (!on) { els.bgCustomPanel.hidden = true; els.bgCustomBtn.setAttribute("aria-expanded", "false"); }
+    const [h, sat, v] = hexToHsv(hex);
+    els.hsvH.value = h; els.hsvS.value = sat; els.hsvV.value = v;
+    els.hsvHOut.value = h; els.hsvSOut.value = sat; els.hsvVOut.value = v; els.hsvHex.textContent = hex;
+    els.hsvS.style.setProperty("--track", `linear-gradient(to right, #fff, ${hsvToHex(h, 100, 100)})`);
+    els.hsvV.style.setProperty("--track", `linear-gradient(to right, #000, ${hsvToHex(h, sat, 100)})`);
+  }
+  els.bgCustomBtn.addEventListener("click", () => {
+    const open = els.bgCustomPanel.hidden;   // 閉じていれば開き、開いていれば閉じる。開くときはカスタムカラーを選択状態にする
+    if (open) {
+      state.bg = "custom"; state.bgCustom = state.bgCustom || CUSTOM_DEFAULT;
+      for (const i of els.swatches.querySelectorAll("input")) i.checked = false;
+      updateSpec();
+    }
+    els.bgCustomPanel.hidden = !open; els.bgCustomBtn.setAttribute("aria-expanded", String(open));
+    syncCustomColor();
+  });
+  for (const el of [els.hsvH, els.hsvS, els.hsvV]) el.addEventListener("input", () => {
+    state.bg = "custom"; state.bgCustom = hsvToHex(Number(els.hsvH.value), Number(els.hsvS.value), Number(els.hsvV.value));
+    updateSpec(); syncCustomColor();
   });
   function renderSwatches() {
     els.swatches.innerHTML = "";
@@ -1268,7 +1317,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const l = document.createElement("label"); l.title = label;
       const i = document.createElement("input"); i.type = "radio"; i.name = "bg"; i.value = key; i.checked = key === state.bg; i.setAttribute("aria-label", label);
       const sp = document.createElement("span"); sp.style.setProperty("--sw", `var(--color-${key})`);
-      i.addEventListener("change", () => { state.bg = key; updateSpec(); });
+      i.addEventListener("change", () => { state.bg = key; updateSpec(); syncCustomColor(); });
       l.append(i, sp); els.swatches.append(l);
     }
   }
@@ -1429,7 +1478,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.ratioSeg.querySelector(`input[value="${state.ratio}"]`).checked = true;
     els.optTitle.checked = state.showTitle; els.optSidebar.checked = state.sidebar; els.optNumbers.checked = state.numbers;
     for (const i of els.swatches.querySelectorAll("input")) i.checked = i.value === state.bg;
-    if (state.bg === "custom" && state.bgCustom) els.bgCustom.value = state.bgCustom;
+    syncCustomColor();
     els.margin.value = state.margin; els.marginOut.value = state.margin;
     els.gap.value = state.gap; els.gapOut.value = state.gap;
   }
