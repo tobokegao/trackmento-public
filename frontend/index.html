@@ -602,8 +602,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
         <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
-        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">JSON を書き出す</button>
-        <button class="btn" type="button" id="json-import">JSON を読み込む</button>
+        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">共有データを出力</button>
+        <button class="btn" type="button" id="json-import">共有データを入力</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
       </div>
       <div class="output" id="output" hidden>
@@ -1273,7 +1273,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     a.download = `trackmento-${(state.title.trim() || "grid").replace(/[\\/:*?"<>|]/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    say(els.gridMsg, "JSON を書き出しました。「JSON を読み込む」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。");
+    say(els.gridMsg, "共有データ（JSON）を出力しました。「共有データを入力」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。");
   });
   els.jsonImport.addEventListener("click", () => els.jsonFile.click());
   els.jsonFile.addEventListener("change", async () => {
@@ -1283,9 +1283,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     try {
       applyData(JSON.parse(await f.text()));
       save();
-      say(els.gridMsg, `JSON を読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
+      say(els.gridMsg, `共有データを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
     } catch (err) {
-      say(els.gridMsg, `JSON を読み込めませんでした: ${err.message}`, "error");
+      say(els.gridMsg, `共有データを読み込めませんでした: ${err.message}`, "error");
     }
   });
   els.clearBtn.addEventListener("click", () => {
