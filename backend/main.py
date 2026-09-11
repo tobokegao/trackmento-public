@@ -406,10 +406,13 @@ async def health() -> dict:
     }
     if public_mode():
         # 公開時は内部情報（キャッシュのパス、内部 IP、グリッド名）を出さない。
-        # 常駐メモリはログにだけ出す（keepalive が 10 分おきに叩くので、Render のログで推移が追える）
-        rss = _rss_mb()
-        if rss is not None:
-            print(f"[health] rss={rss:.0f}MB uptime={common['uptime_s']}s")
+        # 常駐メモリはログにだけ出す。Render のヘルスチェック（約 5 秒おき）でも呼ばれるので、出力は 60 秒に 1 回に間引く
+        now = time.monotonic()
+        if now - _health_logged_at[0] >= 60:
+            rss = _rss_mb()
+            if rss is not None:
+                _health_logged_at[0] = now
+                print(f"[health] rss={rss:.0f}MB uptime={common['uptime_s']}s")
         return {**common, "public": True}
     return {
         **common,
@@ -611,6 +614,9 @@ async def grid_put(name: str, doc: GridDoc) -> GridDoc:
 
 
 _grid_saves = [0]
+
+
+_health_logged_at = [0.0]   # [health] を最後に出した時刻（monotonic）
 
 
 def _rss_mb() -> float | None:
