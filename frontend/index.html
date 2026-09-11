@@ -140,10 +140,12 @@ img { max-width: 100%; display: block; }
   .pane-results { order: 1; }
   .pane-options { order: 2; }
 }
+/* オプション列の幅: 背景色の見本 8 個（28px、間隔 8px）が 1 行に収まる内側の幅 ＋ ペインの余白と枠線 */
+:root { --options-w: calc(8 * 28px + 7 * var(--space-2) + 2 * var(--space-3) + 2 * var(--line)); }
 @media (min-width: 60rem) {
   :root { --page-inline: var(--space-6); }
   .workbench {
-    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr) minmax(0, 17rem);
+    grid-template-columns: minmax(0, 17rem) minmax(0, 1fr) minmax(0, var(--options-w));
     grid-template-areas: "search grid options" "results grid options";
     grid-template-rows: auto 1fr;
     padding: var(--space-6) var(--page-inline);
@@ -155,10 +157,10 @@ img { max-width: 100%; display: block; }
   .pane-grid { grid-area: grid; }
   .pane-options { grid-area: options; }
 }
-/* 広い画面では 4 列: 検索 | 候補 | グリッド | オプション。オプションはグリッドサイズのボタン 5 個が 1 列に収まる幅 */
+/* 広い画面では 4 列: 検索 | 候補 | グリッド | オプション。列幅は 3 列のときと同じ（検索・候補 17rem、オプションは見本 8 個分） */
 @media (min-width: 80rem) {
   .workbench {
-    grid-template-columns: minmax(0, 17rem) minmax(0, 17rem) minmax(0, 1fr) minmax(0, 20rem);
+    grid-template-columns: minmax(0, 17rem) minmax(0, 17rem) minmax(0, 1fr) minmax(0, var(--options-w));
     grid-template-areas: "search results grid options";
     grid-template-rows: auto;
   }
@@ -265,13 +267,13 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 @media (pointer: coarse) { .btn { min-height: 44px; } }
 
 .seg { display: flex; flex-wrap: wrap; gap: var(--space-1); max-width: 100%; min-width: 0; }
-.seg label { position: relative; }
+.seg label { position: relative; flex: 1 1 auto; }   /* 折り返した各行の項目を行幅いっぱいに広げる（右に空きが残らないように） */
 .seg input { position: absolute; inset: 0; opacity: 0; margin: 0; }
 /* 折り返しても崩れないよう、1 項目ずつ四辺の枠を持つ四角いボタンにする */
 .seg span {
   --sh: 2px;
   position: relative;
-  display: block; padding: var(--space-1) var(--space-3);
+  display: block; padding: var(--space-1) var(--space-3); text-align: center;
   font-family: var(--font-display); font-size: var(--text-sm); white-space: nowrap; cursor: pointer;
   border: var(--line) solid var(--color-ink); background: var(--color-paper);
   transition: transform var(--dur-tick) var(--ease-out), background-color var(--dur-short) var(--ease-out);
@@ -451,7 +453,7 @@ body.sheet-open { overflow: hidden; }
 .check input:checked::after { content: ""; width: 8px; height: 8px; background: var(--color-paper); }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.swatches label { position: relative; width: 28px; height: 28px; }
+.swatches label { position: relative; flex: 1 1 28px; max-width: 40px; aspect-ratio: 1; }   /* 行幅に合わせて 28〜40px に広がる。スマホで右に空きが残らないように */
 .swatches input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .swatches span { display: block; width: 100%; height: 100%; border: var(--line) solid var(--color-ink); background: var(--sw); }
 .swatches input:checked + span { outline: 3px solid var(--color-ink); outline-offset: 2px; }
@@ -535,7 +537,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <input class="input" id="bc-url" name="url" type="text" inputmode="url" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…">
       </div>
       <div class="search-actions">
-        <button class="btn" type="submit" id="bc-btn"><span class="label">URL から取る</span></button>
+        <button class="btn btn-primary" type="submit" id="bc-btn"><span class="label">URL から取得</span></button>
         <p class="msg" id="bc-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -547,7 +549,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <label for="m-image">手入力: ジャケット画像の URL</label>
         <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
         <div class="search-actions">
-          <button class="btn" type="button" id="m-file-btn"><span class="label">PC／スマホの画像を選ぶ</span></button>
+          <button class="btn" type="button" id="m-file-btn"><span class="label">端末から画像を選択</span></button>
           <input type="file" id="m-file" accept="image/*" hidden>
           <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶと画像が取り込まれ、URL 欄に入ります。</p>
         </div>
@@ -561,7 +563,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <input class="input" id="m-artist" name="artist" type="text" autocomplete="off">
       </div>
       <div class="search-actions">
-        <button class="btn" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
+        <button class="btn btn-primary" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
         <p class="msg" id="m-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -671,7 +673,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「PC／スマホの画像を選ぶ」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った PNG と曲リストは、URL を知っている人なら誰でも見られます（30 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有データに載せることはありません。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った PNG と曲リストは、URL を知っている人なら誰でも見られます（30 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有データに載せることはありません。</p>
     </div>
   </div>
 </div>
