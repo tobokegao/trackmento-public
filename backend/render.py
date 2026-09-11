@@ -344,7 +344,7 @@ def render(doc: GridDoc) -> Image.Image:
     cell = sc(CELL_PX)
     num_font = font("pixel", max(8, sc(22)))
     from backend.config import public_mode
-    with ThreadPoolExecutor(max_workers=4 if public_mode() else 6, initializer=lower_thread_priority) as ex:
+    with ThreadPoolExecutor(max_workers=2 if public_mode() else 6, initializer=lower_thread_priority) as ex:   # 公開時は控えめに（0.1 vCPU）
         covers = list(ex.map(lambda t: load_cover(t, cell) if t else None, doc.cells))
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols

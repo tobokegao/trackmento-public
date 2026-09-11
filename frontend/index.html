@@ -707,7 +707,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       throw new Error(`HTTP ${r.status}`);
     }
   }
-  const isGatewayError = (r) => r.status === 502 || r.status === 503 || r.status === 504;
+  const isGatewayError = (r) => r.status === 502 || r.status === 504;   // 503 はサーバーが意図して断っている（混雑）ので自動では再試行しない
   const sleep = (ms) => new Promise(res => setTimeout(res, ms));
   // 公開モードかはサーバーが HTML に埋める（/status が広告ブロッカーに遮断されても分かるように）。GitHub Pages 配信では置換されず "__PUBLIC__" のまま
   let isPublic = ((document.querySelector('meta[name="trackmento-public"]') || {}).content || "") === "1";
@@ -747,7 +747,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   // アップロード画像（/uploads/…）は同一オリジンなのでプロキシを通さない
   $("#health-link").href = api("/health");
-  const proxied = (url) => (url.startsWith("/uploads/") ? api(url) : api(`/image-proxy?url=${encodeURIComponent(url)}`));
+  /* iTunes（mzstatic）と Cover Art Archive（archive.org）の画像は配信元から直接読む（CORS 許可あり）。検索を直接叩く相手と同じなので
+     新たな露出は無く、サーバーの /image-proxy の負荷（検索 1 回でサムネイル 25〜33 枚）を無くせる。
+     動画サムネイル（黒帯除去が要る）・Bandcamp・SoundCloud・アップロード画像はこれまでどおりサーバー経由 */
+  const DIRECT_IMAGE_HOSTS = ["mzstatic.com", "coverartarchive.org", "archive.org"];
+  function isDirectImage(url) {
+    try { const h = new URL(url).hostname.toLowerCase(); return DIRECT_IMAGE_HOSTS.some(d => h === d || h.endsWith("." + d)); } catch { return false; }
+  }
+  const proxied = (url) => (url.startsWith("/uploads/") ? api(url) : isDirectImage(url) ? url : api(`/image-proxy?url=${encodeURIComponent(url)}`));
   const isImageRef = (s) => /^https?:\/\//.test(s) || /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(s);
   const setBtnState = (btn, s) => { if (s) btn.dataset.state = s; else delete btn.dataset.state; btn.disabled = s === "loading"; };
   const say = (el, text, tone) => { el.textContent = text; if (tone) el.dataset.tone = tone; else delete el.dataset.tone; };
@@ -1428,7 +1435,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   function schedulePush(d) {
     clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => pushNow(d), 600);
+    pushTimer = setTimeout(() => pushNow(d), 1500);   // 連続編集の途中で何度も PUT しない
   }
   async function pushNow(d = serialize()) {
     clearTimeout(pushTimer);
@@ -1520,17 +1527,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent);
   async function loadShareFonts() {
     const specs = [fontBold(24), fontRegular(24), fontPixel(24)];
-    const ok = await Promise.race([Promise.all(specs.map(f => document.fonts.load(f, "TRACKMENTO 龍 01"))).then(() => true), sleep(10000).then(() => false)]);
+    // 回線が遅いときにサーバー描画へ落ちると、かえってサーバーが詰まる。フォントは長めに待つ
+    const ok = await Promise.race([Promise.all(specs.map(f => document.fonts.load(f, "TRACKMENTO 龍 01"))).then(() => true), sleep(25000).then(() => false)]);
     if (!ok || !specs.every(f => document.fonts.check(f))) throw new Error("fonts not ready");
   }
   const yieldToUI = () => new Promise(res => setTimeout(res, 0));
   async function fetchBitmap(url) {
     const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 20000);
     try {
-      const r = await fetch(proxied(url), { signal: ctrl.signal });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const blob = await r.blob();
-      return await createImageBitmap(blob);
+      // 直接読める配信元は直接（CORS）。失敗したらサーバー経由に切り替える
+      const targets = isDirectImage(url) ? [url, api(`/image-proxy?url=${encodeURIComponent(url)}`)] : [proxied(url)];
+      let lastErr = null;
+      for (const target of targets) {
+        try {
+          const r = await fetch(target, { signal: ctrl.signal, mode: "cors" });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return await createImageBitmap(await r.blob());
+        } catch (err) { lastErr = err; if (ctrl.signal.aborted) break; }
+      }
+      throw lastErr || new Error("image fetch failed");
     } finally { clearTimeout(timer); }
   }
   async function loadCover(t) {

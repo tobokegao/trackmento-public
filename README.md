@@ -92,7 +92,7 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 - **無料枠を超えないための上限**（環境変数で変更可）:
   `SHARE_BUDGET_GB`（既定 9.5）… 共有ファイルの合計が実バイト数でこれを超える保存は断る（バケットの使用量を 10 分ごとに集計し、保存のたびに加算）。
   `SHARE_LIMIT_PER_IP_DAY`（既定 20）/ `SHARE_LIMIT_PER_DAY`（既定 200）… 1 日の共有回数。
-  `MAX_SIDE`（公開時の既定 3200px）… PNG を軽くする。公開時は X の添付上限に合わせて PNG を 5 MB 未満に縮小し、カード用の 1200×630 JPEG も保存する。書き込み回数は 1 共有あたり 3 回なので、200 回/日でも月 1.8 万回（無料枠 100 万回）
+  `MAX_SIDE`（公開時の既定 2400px、サーバー描画のみ）… PNG を軽くする。公開時は X の添付上限に合わせて PNG を 5 MB 未満に縮小し、カード用の 1200×630 JPEG も保存する。書き込み回数は 1 共有あたり 3 回なので、200 回/日でも月 1.8 万回（無料枠 100 万回）
 - アップロード画像（手入力用）と検索キャッシュは R2 に置かない（消えてよいもの）
 
 ### 公開モード（PUBLIC_MODE=1）で変わること
@@ -159,7 +159,7 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 - アップロード画像は再エンコードして保存する。EXIF（位置情報・撮影日時・機種）、ICC、コメント、PNG のテキストは残さない。長辺 2048px まで縮め、名前はランダム
 - 共有 JSON にはブラウザごとのグリッド ID（`name`）と `savedAt` を入れない（同じ人の共有を突き合わせたり、そのグリッドを読み書きされたりしないため）
 - 貼られた URL の `?si=…` などのクエリは外して保存する（SoundCloud / Bandcamp）。YouTube・ニコニコ・bilibili・Spotify は正規 URL に直す
-- ジャケット画像は `/image-proxy` 経由で配るので、利用者のブラウザが YouTube などに直接つながることはない。例外は iTunes と MusicBrainz の**検索**で、これはブラウザから iTunes Search API / MusicBrainz API / Cover Art Archive（archive.org）を直接叩く（サーバーの共有 IP が Apple に遮断され、MusicBrainz にレート制限されるため）。検索語と利用者の IP が Apple・MetaBrainz・Internet Archive に渡る。共有 PNG は R2 の公開 URL から配る（Cloudflare が閲覧者の IP を見る）
+- 動画サムネイル・Bandcamp・SoundCloud・アップロード画像は `/image-proxy` 経由で配るので、利用者のブラウザが YouTube などに直接つながることはない。例外は iTunes と MusicBrainz で、**検索**はブラウザから iTunes Search API / MusicBrainz API / Cover Art Archive（archive.org）を直接叩き（サーバーの共有 IP が Apple に遮断され、MusicBrainz にレート制限されるため）、その**ジャケット画像**も配信元（mzstatic.com / archive.org）から直接読む（同じ相手先なので露出は増えず、サーバーの負荷を大きく減らせる）。検索語と利用者の IP が Apple・MetaBrainz・Internet Archive に渡る。共有 PNG は R2 の公開 URL から配る（Cloudflare が閲覧者の IP を見る）
 - 検索キャッシュ（`cache.sqlite3`）には検索語と結果を保存するが、誰が検索したかは持たない
 
 ## 構成

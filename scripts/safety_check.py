@@ -44,7 +44,7 @@ def main() -> int:
     check("CSP がある", bool(csp), csp[:60])
     check("CSP: script-src は nonce のみ（unsafe-inline / http: が無い）", "script-src 'nonce-" in csp and "unsafe-inline'" not in csp.split("script-src")[1].split(";")[0] if "script-src" in csp else False)
     check("CSP: connect-src は self と検索 API（iTunes / MusicBrainz / CAA）だけ",
-          "connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org;" in csp)
+          "connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com;" in csp)
     check("CSP: object-src none / base-uri self / frame-ancestors", all(k in csp for k in ("object-src 'none'", "base-uri 'self'", "frame-ancestors")))
     check("X-Content-Type-Options: nosniff", h.get("x-content-type-options", "").lower() == "nosniff")
     check("Referrer-Policy がある", bool(h.get("referrer-policy")), h.get("referrer-policy", ""))
