@@ -242,7 +242,6 @@ def expired_html(sid: str, base: str, app_url: str | None = None) -> str:
     リンクカードはサイト既定の画像にして、再共有されても壊れた表示にならないようにする。"""
     app_url = (app_url or base).rstrip("/")
     days = share_retention_days()
-    sid_s = html.escape(sid)[:16]
     return f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>この共有は見つかりません — TRACKMENTO</title>
@@ -255,7 +254,7 @@ def expired_html(sid: str, base: str, app_url: str | None = None) -> str:
 <header><span class="mark">TRACKMENTO</span></header>
 <main>
   <h1>この共有は見つかりません</h1>
-  <p class="note">共有 URL は作成から {days} 日で消えます。この共有（ID {sid_s}）は期限切れか、2026-09-11 の障害対応（保存容量の上限到達）で削除されたものです。
+  <p class="note">共有 URL は作成から {days} 日で消えます。この共有 URL は期限切れか、障害対応（保存容量の上限到達）で削除されたものです。
   画像や共有データ（JSON ファイル）を保存していない場合は、お手数ですが TRACKMENTO で作り直してください。</p>
   <div class="btns">
     <a class="btn primary" href="{app_url}/">TRACKMENTO で作る</a>
