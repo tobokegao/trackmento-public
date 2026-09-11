@@ -1796,7 +1796,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
 
   /* ---- 折りたたみ（Explorer 風）。PC とスマホで別々に記憶し、初期値はスマホだけオプションと補助フォームを畳む ---- */
-  const FOLD_DEFAULT = { mobile: { "pane-options": true, "sub-bandcamp": true, "sub-manual": true }, desktop: {} };
+  const FOLD_DEFAULT = { mobile: { "pane-options": true, "sub-bandcamp": true, "sub-manual": true }, desktop: { "sub-manual": true } };   // PC は手入力だけ閉じておく
   const mq = window.matchMedia("(min-width: 60rem)");
   const foldMode = () => (mq.matches ? "desktop" : "mobile");
   const foldKey = () => `trackmento:fold:${foldMode()}`;
