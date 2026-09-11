@@ -252,7 +252,7 @@ def expired_html(sid: str, base: str, app_url: str | None = None) -> str:
 <meta property="og:description" content="この共有は期限切れです。TRACKMENTO で作り直せます"><meta name="twitter:card" content="summary_large_image">
 <style>{_page_css(base)}</style></head>
 <body>
-<header><span class="mark">TRACKMENTO</span><small>share</small></header>
+<header><span class="mark">TRACKMENTO</span></header>
 <main>
   <h1>この共有は見つかりません</h1>
   <p class="note">共有 URL は作成から {days} 日で消えます。この共有（ID {sid_s}）は期限切れか、2026-09-11 の障害対応（保存容量の上限到達）で削除されたものです。
@@ -294,7 +294,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
 <meta property="og:description" content="トラック共有サイト #TRACKMENTO からシェア:「{html.escape(snap.get('title') or '無題')}」"><meta name="twitter:card" content="summary_large_image">
 <style>{_page_css(base)}</style></head>
 <body>
-<header><span class="mark">TRACKMENTO</span><small>share</small></header>
+<header><span class="mark">TRACKMENTO</span></header>
 <main>
   <h1>{title}</h1>
   <img src="{img_url}" alt="{title}">
