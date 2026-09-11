@@ -17,7 +17,10 @@ from pathlib import Path
 
 import io
 
+from PIL import Image
+
 from backend import render, storage
+from backend.config import public_mode
 from backend.grids import GridDoc
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,6 +34,38 @@ def _new_id(doc: GridDoc) -> str:
     t = format(int(time.time()) % (36 ** 4), "x")[-4:].rjust(4, "0")
     r = secrets.token_hex(1)   # 同じ内容を同じ秒に共有しても別 ID になるように
     return f"{h}{t}{r}"
+
+
+OG_W, OG_H = 1200, 630            # リンクカード（X の summary_large_image、Discord・LINE も同じ 1.91:1）
+MAX_PNG_BYTES = 4_900_000         # X の画像添付は 5 MB まで。公開モードではこれに収まるまで縮小する
+
+
+def _encode_png(im: Image.Image, limit: int) -> tuple[bytes, Image.Image]:
+    """PNG に書き出す。limit > 0 で超えるときは、収まるまで（最大 4 回）縮小して書き直す。"""
+    for _ in range(4):
+        buf = io.BytesIO()
+        im.save(buf, "PNG", compress_level=6)
+        png = buf.getvalue()
+        if not limit or len(png) <= limit:
+            return png, im
+        f = max(0.6, (limit / len(png)) ** 0.5 * 0.97)   # PNG の容量は概ね画素数に比例
+        im = im.resize((max(1, round(im.width * f)), max(1, round(im.height * f))), Image.LANCZOS)
+    return png, im
+
+
+def _og_jpeg(im: Image.Image, bg: tuple[int, int, int]) -> bytes:
+    """カード用の 1200×630 JPEG。全体を収め、余白は背景色（切り取らない）。"""
+    canvas = Image.new("RGB", (OG_W, OG_H), bg)
+    f = min(OG_W / im.width, OG_H / im.height)
+    w, h = max(1, round(im.width * f)), max(1, round(im.height * f))
+    canvas.paste(im.resize((w, h), Image.LANCZOS), ((OG_W - w) // 2, (OG_H - h) // 2))
+    buf = io.BytesIO()
+    canvas.save(buf, "JPEG", quality=85, optimize=True, progressive=True)
+    return buf.getvalue()
+
+
+def og_url(sid: str) -> str:
+    return storage.get_storage().public_url(f"{sid}-og.jpg") or f"/shares/{sid}-og.jpg"
 
 
 def png_url(sid: str) -> str:
@@ -51,14 +86,16 @@ def create(doc: GridDoc, budget: int = 0) -> dict:
     st = storage.get_storage()
     sid = _new_id(doc)
     im = render.render(doc)
-    buf = io.BytesIO()
-    im.save(buf, "PNG", compress_level=6)
-    png = buf.getvalue()
+    o = doc.options
+    bg = render._hex_to_rgb(o.bgCustom if o.bg == "custom" and o.bgCustom else render.TOKENS[o.bg])
+    og = _og_jpeg(im, bg)
+    png, im = _encode_png(im, MAX_PNG_BYTES if public_mode() else 0)
     # name はブラウザごとの固有 ID（u-…）。公開 JSON に載せると同じ人の共有を突き合わせたり、そのグリッドを読み書きされたりするので外す
     snap = doc.model_dump(exclude={"name", "savedAt"})
-    snap.update({"id": sid, "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")})
+    snap.update({"id": sid, "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+                 "og": True})   # カード用 JPEG がある印（古い共有には無い）
     js = json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8")
-    need = len(png) + len(js)
+    need = len(png) + len(js) + len(og)
     if budget > 0:
         used = storage.usage_bytes()
         if used + need > budget:
@@ -66,9 +103,10 @@ def create(doc: GridDoc, budget: int = 0) -> dict:
             if used + need > budget:
                 raise BudgetExceeded(used, budget, need)
     st.put(f"{sid}.png", png, "image/png")
+    st.put(f"{sid}-og.jpg", og, "image/jpeg")
     st.put(f"{sid}.json", js, "application/json")
     storage.add_usage(need)
-    return {"id": sid, "png": png_url(sid), "json": f"/shares/{sid}.json", "width": im.width, "height": im.height, "bytes": need}
+    return {"id": sid, "png": png_url(sid), "og": og_url(sid), "json": f"/shares/{sid}.json", "width": im.width, "height": im.height, "bytes": need}
 
 
 def get_png(sid: str) -> bytes | None:
@@ -98,6 +136,12 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
     img_url = png_url(sid)   # R2 の公開 URL があればそこから直接（サーバーの転送量を節約）
     if img_url.startswith("/"):
         img_url = base + img_url
+    # カード画像は 1200×630 の JPEG（X は 5 MB 超・2:1 以外を切り取るので PNG 本体は使わない）。古い共有は PNG のまま
+    card_url = og_url(sid) if snap.get("og") else img_url
+    if card_url.startswith("/"):
+        card_url = base + card_url
+    card_meta = ('<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:type" content="image/jpeg">'
+                 if snap.get("og") else "")
     title = html.escape(snap.get("title") or "TRACKMENTO")
     rows = []
     for i, c in enumerate(snap.get("cells") or [], 1):
@@ -109,7 +153,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
 <title>{title} — TRACKMENTO</title>
 <link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<meta property="og:title" content="{title}"><meta property="og:image" content="{img_url}">
+<meta property="og:title" content="{title}"><meta property="og:image" content="{card_url}">{card_meta}<meta name="twitter:image" content="{card_url}">
 <meta property="og:description" content="トラック共有サイト #TRACKMENTO からシェア:「{html.escape(snap.get('title') or '無題')}」"><meta name="twitter:card" content="summary_large_image">
 <style>
 @font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; src: url("{base}/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}

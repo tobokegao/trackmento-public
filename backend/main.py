@@ -230,12 +230,14 @@ else:
     @app.get("/shares/{fname}")
     async def share_file(fname: str) -> Response:
         sid, _, ext = fname.rpartition(".")
-        if ext not in ("png", "json") or not share.valid_id(sid):
+        if ext == "jpg" and sid.endswith("-og"):
+            sid = sid[:-3]
+        if ext not in ("png", "json", "jpg") or not share.valid_id(sid):
             raise HTTPException(404, "not found")
         data = await run_in_threadpool(storage.get_storage().get, fname)
         if data is None:
             raise HTTPException(404, "この共有は見つかりません（期限切れの可能性）")
-        return Response(content=data, media_type="image/png" if ext == "png" else "application/json",
+        return Response(content=data, media_type={"png": "image/png", "jpg": "image/jpeg"}.get(ext, "application/json"),
                         headers={"Cache-Control": "public, max-age=86400"})
 
 

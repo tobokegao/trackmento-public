@@ -27,7 +27,7 @@ _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 class GridOptions(BaseModel):
-    ratio: Ratio = "1:1"
+    ratio: Ratio = "16:9"
     showTitle: bool = True
     sidebar: bool = True
     numbers: bool = False

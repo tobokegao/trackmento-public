@@ -9,7 +9,7 @@ SHARES = ROOT / "shares"
 UPLOADS = ROOT / "uploads"
 GRIDS = ROOT / "grids"
 
-KEEP_SHARES = 2000      # PNG + JSON のペア数
+KEEP_SHARES = 2000      # PNG + カード JPEG + JSON の組数
 KEEP_UPLOADS = 2000
 GRID_MAX_AGE_DAYS = 90
 KEEP_GRIDS = 5000       # ブラウザごとのグリッド JSON の上限件数（古い順に消す）
@@ -30,8 +30,8 @@ def _prune_newest(dir_: Path, patterns: tuple[str, ...], keep: int) -> int:
 
 
 def prune_shares(keep: int = KEEP_SHARES) -> int:
-    # PNG と JSON はペアなので合計は keep*2
-    return _prune_newest(SHARES, ("*.png", "*.json"), keep * 2)
+    # PNG・カード JPEG・JSON は 1 組なので合計は keep*3
+    return _prune_newest(SHARES, ("*.png", "*.jpg", "*.json"), keep * 3)
 
 
 def prune_uploads(keep: int = KEEP_UPLOADS) -> int:

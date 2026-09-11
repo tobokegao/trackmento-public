@@ -48,11 +48,11 @@ def max_cells() -> int:
 
 
 def max_side() -> int:
-    """書き出し PNG の最大辺。公開モードは 4000px（1 枚を軽く）。ローカルは 8000px。MAX_SIDE で変更可"""
+    """書き出し PNG の最大辺。公開モードは 3200px（X の 4096px 上限内で、5 MB 上限にも収まりやすい）。ローカルは 8000px。MAX_SIDE で変更可"""
     try:
-        return max(1000, int(os.getenv("MAX_SIDE", "4000" if public_mode() else "8000")))
+        return max(1000, int(os.getenv("MAX_SIDE", "3200" if public_mode() else "8000")))
     except ValueError:
-        return 4000 if public_mode() else 8000
+        return 3200 if public_mode() else 8000
 
 
 def share_budget_bytes() -> int:

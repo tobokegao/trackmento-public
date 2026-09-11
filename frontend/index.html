@@ -619,8 +619,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <fieldset class="field">
         <legend>比率</legend>
         <div class="seg" id="ratio-seg" role="radiogroup" aria-label="出力比率">
-          <label><input type="radio" name="ratio" value="1:1" checked><span>1:1 インスタ</span></label>
-          <label><input type="radio" name="ratio" value="16:9"><span>16:9 ツイート</span></label>
+          <label><input type="radio" name="ratio" value="1:1"><span>1:1 インスタ</span></label>
+          <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 ツイート</span></label>
           <label><input type="radio" name="ratio" value="9:16"><span>9:16 ストーリーズ</span></label>
           <label><input type="radio" name="ratio" value="free"><span>設定なし</span></label>
         </div>
@@ -720,7 +720,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
-    ratio: "1:1", showTitle: true, sidebar: true, numbers: false, bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（2026-09-09 の画面設定）
+    ratio: "16:9", showTitle: true, sidebar: true, numbers: false, bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（比率は X 向けの 16:9）
   };
   let available = [];
   let dragFrom = null;
@@ -1373,7 +1373,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     state.stash = Array.isArray(d.stash) ? d.stash.filter(isTrack) : [];
     state.title = typeof d.title === "string" ? d.title.slice(0, 60) : "";
     const o = d.options || {};
-    state.ratio = o.ratio in RATIOS ? o.ratio : "1:1";
+    state.ratio = o.ratio in RATIOS ? o.ratio : "16:9";
     state.showTitle = o.showTitle !== false; state.sidebar = o.sidebar !== false; state.numbers = o.numbers === true;
     const bgKeys = SWATCHES.map(s => s[0]);
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
