@@ -2,9 +2,14 @@
 
 https://itunes.apple.com/search?term=...&entity=song&country=JP&limit=25
 artworkUrl100 の "100x100" を "1000x1000" に置き換えると高解像度が取れる。
+
+Apple は共有ホスティング（Render など）の IP を 403/429 で遮断することがある。その場合は
+ITUNES_PROXY_URL（Cloudflare Workers の中継。scripts/cloudflare/itunes-proxy.js）を設定すると、
+Cloudflare の IP から Apple を呼ぶ。ITUNES_PROXY_TOKEN は中継側の TOKEN と同じ値（他人に使われないため）。
 """
 from __future__ import annotations
 
+import os
 import re
 import time
 
@@ -16,6 +21,19 @@ from backend.models import Track
 ENDPOINT = "https://itunes.apple.com/search"
 BLOCK_SECONDS = 600   # 403/429 を受けたあと iTunes を叩かない秒数
 _blocked_until = 0.0
+
+
+def proxy_url() -> str:
+    """中継（Cloudflare Workers）の URL。無ければ空文字（Apple を直接呼ぶ）。"""
+    return os.getenv("ITUNES_PROXY_URL", "").strip().rstrip("/")
+
+
+def _endpoint() -> tuple[str, dict[str, str]]:
+    p = proxy_url()
+    if not p:
+        return ENDPOINT, {}
+    token = os.getenv("ITUNES_PROXY_TOKEN", "").strip()
+    return f"{p}/search", ({"X-Trackmento-Token": token} if token else {})
 
 
 def is_blocked() -> bool:
@@ -58,12 +76,13 @@ async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "J
         raise SourceBlocked("iTunes がこのサーバーからのアクセスを制限しています（しばらく待ってから再検索）")
     own = client is None
     client = client or httpx.AsyncClient(timeout=10)
+    endpoint, headers = _endpoint()
     try:
-        r = await client.get(ENDPOINT, params=params)
+        r = await client.get(endpoint, params=params, headers=headers)
         if r.status_code in (403, 429):
             # 共有 IP（Render など）が Apple に拒否されている。叩き続けると悪化するので一定時間止める
             _blocked_until = time.monotonic() + BLOCK_SECONDS
-            print(f"[itunes] {r.status_code} → {BLOCK_SECONDS}s 停止")
+            print(f"[itunes] {r.status_code}{'（中継経由）' if proxy_url() else ''} → {BLOCK_SECONDS}s 停止")
             raise SourceBlocked(f"iTunes がこのサーバーからのアクセスを制限しています（{r.status_code}）")
         r.raise_for_status()
         data = r.json()

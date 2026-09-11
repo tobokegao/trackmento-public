@@ -63,6 +63,20 @@ IMAGE_HOST_ALLOWLIST = (
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
 SOURCE_TIMEOUT = 20   # 1 ソースあたりの検索の上限秒。超えたソースは「失敗」扱いにして他の結果を返す
 FAIL_TTL = 60         # 失敗した検索を覚えておく秒数（同じ検索の連打を外部に流さない）
+_fail_log: dict[str, list] = {}   # (ソース名 + 理由) → [最後に出した時刻, その後の省略件数]。同じ失敗は 60 秒に 1 行
+
+
+def _log_search_failure(name: str, reason: str) -> None:
+    """同じソース・同じ理由の失敗は 60 秒に 1 行にまとめる（iTunes の遮断中などは毎秒出て読めなくなる）。"""
+    key = f"{name}:{reason}"
+    now = time.monotonic()
+    ent = _fail_log.get(key)
+    if ent and now - ent[0] < 60:
+        ent[1] += 1
+        return
+    extra = f"（ほか {ent[1]} 件を省略）" if ent and ent[1] else ""
+    _fail_log[key] = [now, 0]
+    print(f"[search] {name} failed: {reason}{extra}")
 _recent_fail: dict[tuple[str, str, str], tuple[float, str]] = {}   # (source, q, artist) → (時刻, busy|error)
 
 # source 省略時はこの順で並べ、重複は先のソースを残す: iTunes > MusicBrainz > Discogs
@@ -401,6 +415,7 @@ async def health() -> dict:
         "started_at": datetime.fromtimestamp(app.state.started_at, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "uptime_s": int(time.time() - app.state.started_at),
         "itunes_server": "blocked" if itunes.is_blocked() else "ok",
+        "itunes_proxy": bool(itunes.proxy_url()),   # サーバー側 iTunes を Cloudflare Workers 経由にしているか
         "frontend_url": frontend_url(),
         "storage": storage.get_storage().name,
     }
@@ -479,7 +494,7 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
         for i, res in zip(misses, fetched):
             if isinstance(res, BaseException):
                 # 1ソースの失敗で全体を落とさない。失敗は永続キャッシュには入れず、FAIL_TTL 秒だけ覚える
-                print(f"[search] {names[i]} failed: {brief(res)}")
+                _log_search_failure(names[i], brief(res))
                 results[i] = []
                 failed[names[i]] = "busy" if isinstance(res, (musicbrainz.SourceBusy, itunes.SourceBlocked, asyncio.TimeoutError)) or "503" in str(res) else "error"
                 _recent_fail[(names[i], q, artist)] = (now, failed[names[i]])
