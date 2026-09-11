@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="trackmento-public" content="__PUBLIC__">
+<link rel="preload" href="fonts/DotGothic16-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/IBMPlexSansJP-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <title>TRACKMENTO</title>
 <meta name="description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
@@ -16,11 +18,11 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 /* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
-@font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }
-@font-face { font-family: "IBM Plex Sans JP"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }
-@font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Regular.ttf") format("truetype"); }
-@font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Bold.ttf") format("truetype"); }
-@font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/DotGothic16-Regular.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Regular.woff2") format("woff2"), url("fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }
+@font-face { font-family: "IBM Plex Sans JP"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Bold.woff2") format("woff2"), url("fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Regular.woff2") format("woff2"), url("fonts/Silkscreen-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Bold.woff2") format("woff2"), url("fonts/Silkscreen-Bold.ttf") format("truetype"); }
+@font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/DotGothic16-Regular.woff2") format("woff2"), url("fonts/DotGothic16-Regular.ttf") format("truetype"); }
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(97% 0.003 95) · accent: oklch(60% 0.14 235)
  * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
@@ -754,9 +756,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* 接続確認は /status（内容は /health と同じ）。/health は EasyPrivacy（Vivaldi・uBlock Origin・Brave などが使う遮断リスト）に
      「onrender.com/health」の規則があり、公開サイトでは fetch が失敗して「サーバーに接続できません」になっていた */
   const DIRECT_SOURCES = ["itunes", "musicbrainz"];   // ブラウザから直接検索できるソース（サーバーに届かなくても使える）
-  async function loadHealth() {
+  async function loadHealth(attempt = 0) {
     try {
-      const r = await fetch(api("/status"));
+      // アプリ内ブラウザ（X・LINE など）や不安定な回線では初回の fetch が失敗・停滞しやすい。上限を付け、失敗時は少し待って取り直す
+      const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 12000);
+      let r;
+      try { r = await fetch(api("/status"), { signal: ctrl.signal, cache: "no-store" }); } finally { clearTimeout(timer); }
       const d = await readJson(r);
       available = d.sources || [];
       isPublic = !!d.public;
@@ -773,6 +778,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       $("#health-link").hidden = isPublic;
       els.status.textContent = isPublic ? "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）" : "サーバーに接続できません";
       els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
+      if (attempt < 3) setTimeout(() => loadHealth(attempt + 1), 3000 * (attempt + 1));   // 3 秒・6 秒・9 秒後に取り直す。つながれば表示が戻る
     }
     renderSources();
   }

@@ -270,6 +270,9 @@ async def rate_limit(request: Request, call_next):
             for k in [k for k, v in _hits.items() if not v or now - v[-1] > 60][:1000]:
                 _hits.pop(k, None)
     response = await call_next(request)
+    if request.url.path.startswith("/fonts/"):
+        # 同梱フォント（合計 2.6 MB の WOFF2）は変わらないので長くキャッシュさせる。アプリ内ブラウザでも 2 回目以降は読み直さない
+        response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
