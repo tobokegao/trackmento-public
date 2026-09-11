@@ -497,7 +497,7 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
         if got is None:
             raise HTTPException(404, "アップロード画像が見つかりません（期限切れの可能性）")
         return Response(content=got[0], media_type=got[1], headers={"Cache-Control": "public, max-age=86400"})
-    if not _host_allowed(url):
+    if not await asyncio.to_thread(_host_allowed, url):   # 許可ホスト以外は名前解決（同期）を伴うのでスレッドで
         raise HTTPException(403, "このホストの画像は取得できません（私設アドレスや解決できないホスト）")
     hit = await asyncio.to_thread(cache.get_image, url)
     if hit:
