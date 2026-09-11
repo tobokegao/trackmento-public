@@ -196,16 +196,27 @@ def load(sid: str) -> dict | None:
 
 
 def _page_css(base: str) -> str:
+    # フォントはこのサーバー（共有ページを配っているのと同じオリジン）から相対パスで読む。base（LAN IP や公開 URL）と
+    # ページのオリジンが違うとフォントは CORS で読めず、ワードマークが代替フォントになる
     return f"""
-@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; src: url("{base}/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
-@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; src: url("{base}/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}
-@font-face {{ font-family: "Silkscreen"; font-weight: 700; src: url("{base}/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
-@font-face {{ font-family: "DotGothic16"; src: url("{base}/fonts/DotGothic16-Regular.ttf") format("truetype"); }}
+@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; font-display: swap; src: url("/fonts/IBMPlexSansJP-Regular.woff2") format("woff2"), url("/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
+@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; font-display: swap; src: url("/fonts/IBMPlexSansJP-Bold.woff2") format("woff2"), url("/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}
+@font-face {{ font-family: "Silkscreen"; font-weight: 700; font-display: swap; src: url("/fonts/Silkscreen-Bold.woff2") format("woff2"), url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
+@font-face {{ font-family: "DotGothic16"; font-display: swap; src: url("/fonts/DotGothic16-Regular.woff2") format("woff2"), url("/fonts/DotGothic16-Regular.ttf") format("truetype"); }}
 * {{ box-sizing: border-box; border-radius: 0; }}
 body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "IBM Plex Sans JP", sans-serif; line-height: 1.55; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
-.mark {{ font-family: "Silkscreen", monospace; font-weight: 700; font-size: 20px; letter-spacing: .04em; padding-bottom: 10px;
-  background: linear-gradient(to right, #e6b731 0 16.66%, #008bc7 0 33.33%, #e5462c 0 50%, #af9ee4 0 66.66%, #80e2b9 0 83.33%, #f594c3 0) bottom / 100% 5px no-repeat; }}
+/* ワードマークは本体（frontend/index.html の .wordmark .mark）と同じ規則: Silkscreen 25px、行送り 16px（大文字のインク高）、
+   インクの 3px 下にリソ 6 色の太線（5px）。色も本体の oklch トークンと同値 */
+.mark {{ font-family: "Silkscreen", "DotGothic16", monospace; font-weight: 700; font-size: 1.5625rem; letter-spacing: .04em; white-space: nowrap;
+  display: inline-block; line-height: 16px; margin-top: -2px; padding-bottom: 10px;
+  background: linear-gradient(to right,
+    oklch(80% 0.150 88)  0 calc(100% / 6),
+    oklch(60% 0.140 235) 0 calc(200% / 6),
+    oklch(62% 0.200 32)  0 50%,
+    oklch(74% 0.100 295) 0 calc(400% / 6),
+    oklch(84% 0.110 165) 0 calc(500% / 6),
+    oklch(78% 0.130 350) 0) bottom / 100% 5px no-repeat; }}
 small {{ font-family: "DotGothic16", sans-serif; color: #53595f; }}
 main {{ max-width: 56rem; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }}
 h1 {{ font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 1.25rem; margin: 0; }}
