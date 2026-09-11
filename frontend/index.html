@@ -602,6 +602,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
         <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
+        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">JSON を書き出す</button>
+        <button class="btn" type="button" id="json-import">JSON を読み込む</button>
+        <input type="file" id="json-file" accept="application/json,.json" hidden>
       </div>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="共有した画像のプレビュー">
@@ -757,7 +760,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     shareBtn: $("#share-btn"), shareUrl: $("#share-url"), copyBtn: $("#copy-btn"), nativeShareBtn: $("#native-share-btn"), openShare: $("#open-share"),
     results: $("#results"), resultsCount: $("#results-count"),
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
-    clearBtn: $("#clear-btn"),
+    clearBtn: $("#clear-btn"), jsonExport: $("#json-export"), jsonImport: $("#json-import"), jsonFile: $("#json-file"),
     editor: $("#editor"), eNum: $("#editor-num"), eTitle: $("#editor-title"), eSource: $("#editor-source"), eTitleIn: $("#e-title"), eArtistIn: $("#e-artist"), eMeta: $("#editor-meta"), eRemove: $("#e-remove"), eClose: $("#e-close"),
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
@@ -1261,6 +1264,30 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     renderEditor();
     updateSpec();
   }
+  /* JSON の書き出し／読み込み。共有 URL は 7 日、ブラウザ保存とサーバー側の保存も消えることがあるので、手元に残す唯一の手段 */
+  els.jsonExport.addEventListener("click", () => {
+    const d = serialize();
+    const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `trackmento-${(state.title.trim() || "grid").replace(/[\\/:*?"<>|]/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    say(els.gridMsg, "JSON を書き出しました。「JSON を読み込む」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。");
+  });
+  els.jsonImport.addEventListener("click", () => els.jsonFile.click());
+  els.jsonFile.addEventListener("change", async () => {
+    const f = els.jsonFile.files && els.jsonFile.files[0];
+    els.jsonFile.value = "";
+    if (!f) return;
+    try {
+      applyData(JSON.parse(await f.text()));
+      save();
+      say(els.gridMsg, `JSON を読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
+    } catch (err) {
+      say(els.gridMsg, `JSON を読み込めませんでした: ${err.message}`, "error");
+    }
+  });
   els.clearBtn.addEventListener("click", () => {
     if (!state.cells.some(Boolean) && !state.stash.length) return;
     state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
