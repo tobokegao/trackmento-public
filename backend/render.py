@@ -258,7 +258,9 @@ def layout(doc: GridDoc) -> Layout:
     title_size = rnd(min(96, max(48, gw * 0.045)))
     title_h = rnd(title_size * 1.9) if title else 0
     ratio = RATIOS[o.ratio]
-    side = ("right" if ratio is None or ratio >= 1 else "bottom") if o.sidebar else "none"
+    # サイドバー: 横長・設定なしなら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
+    # 正方形で右に置くと内容が横長になり、上下の余白ばかり広がるため
+    side = ("right" if ratio is None or ratio > 1 else "bottom") if o.sidebar else "none"
     # 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）に置く。グリッドの上に置くと内容が縦長になり、
     # 横長の比率（16:9）で左右の余白ばかり広がるため
     title_top_h = 0 if side == "right" else title_h
@@ -271,7 +273,8 @@ def layout(doc: GridDoc) -> Layout:
         need = max(_longest_line(doc, font_s), _title_width(title, title_size))
         sb_w, sb_h = max(720, min(gw, need)), gh
     if side == "bottom":
-        sb_cols = 2 if n > 12 else 1
+        # 列数: 9:16 は 12 曲まで 1 列。1:1 / 4:5 は縦に伸びると横の余りが増えるので 6 曲以上で 2 列
+        sb_cols = 2 if n > 12 or (ratio >= 0.8 and n >= 6) else 1
         sb_w, sb_h = gw, math.ceil(n / sb_cols) * line_h
     sb_gap = 0 if side == "none" else GAP_PX * 4
     content_w = gw + sb_gap + sb_w if side == "right" else gw

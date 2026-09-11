@@ -621,7 +621,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <fieldset class="field">
         <legend>比率</legend>
         <div class="seg" id="ratio-seg" role="radiogroup" aria-label="出力比率">
-          <label><input type="radio" name="ratio" value="1:1"><span>1:1 インスタ</span></label>
+          <label><input type="radio" name="ratio" value="1:1"><span>1:1 正方形</span></label>
+          <label><input type="radio" name="ratio" value="4:5"><span>4:5 インスタ</span></label>
           <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 ツイート</span></label>
           <label><input type="radio" name="ratio" value="9:16"><span>9:16 ストーリーズ</span></label>
           <label><input type="radio" name="ratio" value="free"><span>設定なし</span></label>
@@ -715,7 +716,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", manual: "手入力" };
   const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
-  const RATIOS = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, free: null };   // 4:5 は廃止。古い JSON の 4:5 は 1:1 に読み替える
+  const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
   const SWATCHES = [
     ["paper", "クリーム"], ["ink", "黒"], ["mustard", "マスタード"], ["cerulean", "セルリアン"],
     ["vermilion", "朱赤"], ["lavender", "ラベンダー"], ["mint", "ミント"], ["pink", "ピンク"],
@@ -1338,8 +1339,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const titleSize = Math.round(Math.min(96, Math.max(48, gw * 0.045)));
     const titleH = title ? Math.round(titleSize * 1.9) : 0;
     const ratio = RATIOS[state.ratio];
-    // サイドバー: 横長・正方形なら右、縦長ならグリッドの下
-    const side = state.sidebar ? (ratio === null || ratio >= 1 ? "right" : "bottom") : "none";
+    // サイドバー: 横長・設定なしなら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
+    // 正方形で右に置くと内容が横長になり、上下の余白ばかり広がるため
+    const side = state.sidebar ? (ratio === null || ratio > 1 ? "right" : "bottom") : "none";
     // 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）。グリッドの上に置くと内容が縦長になり、
     // 横長の比率（16:9）で左右の余白ばかり広がるため
     const titleTopH = side === "right" ? 0 : titleH;
@@ -1349,7 +1351,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const fontS = Math.round(lineH * 0.5);
     let sbW = 0, sbH = 0, sbCols = 1;
     if (side === "right") { sbW = Math.max(720, Math.min(gw, Math.max(longestLine(fontS), titleWidth(title, titleSize)))); sbH = gh; }
-    if (side === "bottom") { sbCols = n > 12 ? 2 : 1; sbW = gw; sbH = Math.ceil(n / sbCols) * lineH; }
+    // 列数: 9:16 は 12 曲まで 1 列。1:1 / 4:5 は縦に伸びると横の余りが増えるので 6 曲以上で 2 列
+    if (side === "bottom") { sbCols = n > 12 || (ratio >= 0.8 && n >= 6) ? 2 : 1; sbW = gw; sbH = Math.ceil(n / sbCols) * lineH; }
     const sbGap = side === "none" ? 0 : GAP_PX * 4;
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
     const contentH = titleTopH + gh + (side === "bottom" ? sbGap + sbH : 0);
