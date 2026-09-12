@@ -1314,7 +1314,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* JSON の書き出し／読み込み。共有 URL は 7 日、ブラウザ保存とサーバー側の保存も消えることがあるので、手元に残す唯一の手段 */
   els.jsonExport.addEventListener("click", () => {
     const d = serialize();
-    const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+    // charset を明示する。付けないと端末によっては既定の文字コード（Shift_JIS など）で開かれ、曲名が文字化けする
+    const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `trackmento-${(state.title.trim() || "grid").replace(/[\\/:*?"<>|]/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`;

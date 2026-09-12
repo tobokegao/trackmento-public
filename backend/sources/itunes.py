@@ -43,11 +43,29 @@ def is_blocked() -> bool:
 class SourceBlocked(Exception):
     """Apple にこのサーバーの IP が拒否（403）または制限（429）されている。しばらく呼ばない。"""
 _SIZE_RE = re.compile(r"/\d+x\d+(bb)?\.(jpg|png)$")
+_SIZE_CAP_RE = re.compile(r"/(\d+)x(\d+)(bb)?\.(jpg|png)$")
+
+# 書き出しのマスは render.py / index.html とも 600px（CELL_PX）。それ以上の解像度を取っても
+# 縮小されて捨てられるだけで、転送量（Render の課金対象）が増える。1000x1000 は約 171KB、600x600 は約 70KB。
+COVER_PX = 600
 
 
-def hires(url: str, size: int = 1000) -> str:
-    """artworkUrl100 → 1000x1000 版 URL。"""
+def hires(url: str, size: int = COVER_PX) -> str:
+    """artworkUrl100 → マスの大きさ（既定 600x600）版 URL。"""
     return _SIZE_RE.sub(lambda m: f"/{size}x{size}{m.group(1) or ''}.{m.group(2)}", url)
+
+
+def clamp_size(url: str, limit: int = COVER_PX) -> str:
+    """mzstatic の画像 URL の指定サイズを limit 以下に落とす。limit 以下ならそのまま返す。
+
+    既に保存済みのグリッド（1000x1000 で保存されている）にも効かせるため、/image-proxy から呼ぶ。
+    """
+    if "mzstatic.com" not in url:
+        return url
+    m = _SIZE_CAP_RE.search(url)
+    if not m or max(int(m.group(1)), int(m.group(2))) <= limit:
+        return url
+    return f"{url[:m.start()]}/{limit}x{limit}{m.group(3) or ''}.{m.group(4)}"
 
 
 def _to_track(item: dict) -> Track | None:

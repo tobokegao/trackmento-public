@@ -132,7 +132,7 @@ def store(doc: GridDoc, image: bytes, og: bytes, width: int, height: int, budget
         _check_budget(need, budget)
     st.put(f"{sid}.{ext}", image, "image/jpeg" if ext == "jpg" else "image/png")
     st.put(f"{sid}-og.jpg", og, "image/jpeg")
-    st.put(f"{sid}.json", js, "application/json")
+    st.put(f"{sid}.json", js, "application/json;charset=utf-8")   # charset なしだと端末によっては文字化けして開かれる
     storage.add_usage(need)
     url = image_url(sid, ext)
     return {"id": sid, "image": url, "png": url, "ext": ext, "og": og_url(sid), "json": f"/shares/{sid}.json",

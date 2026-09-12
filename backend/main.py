@@ -375,7 +375,8 @@ else:
         data = await run_in_threadpool(storage.get_storage().get, fname)
         if data is None:
             raise HTTPException(404, "この共有は見つかりません（期限切れの可能性）")
-        return Response(content=data, media_type={"png": "image/png", "jpg": "image/jpeg"}.get(ext, "application/json"),
+        # JSON は charset を明示する（付けないと端末によっては既定の文字コードで開かれ、曲名が文字化けする）
+        return Response(content=data, media_type={"png": "image/png", "jpg": "image/jpeg"}.get(ext, "application/json;charset=utf-8"),
                         headers={"Cache-Control": "public, max-age=86400"})
 
 
@@ -596,6 +597,8 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
         return Response(content=got[0], media_type=got[1], headers={"Cache-Control": "public, max-age=86400"})
     if not await asyncio.to_thread(_host_allowed, url):   # 許可ホスト以外は名前解決（同期）を伴うのでスレッドで
         raise HTTPException(403, "このホストの画像は取得できません（私設アドレスや解決できないホスト）")
+    # 1000x1000 で保存済みのグリッドも 600x600（マスの大きさ）で取り直す。ホストは変わらないので検査の後でよい
+    url = itunes.clamp_size(url)
     hit = await asyncio.to_thread(cache.get_image, url)
     if hit:
         ctype, data = hit
