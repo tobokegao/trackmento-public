@@ -38,7 +38,7 @@
   --color-muted:    oklch(46% 0.012 250);
   --color-rule:     oklch(76% 0.012 250);
   --color-rule-2:   oklch(82% 0.012 250);
-  --color-bar:      oklch(84% 0.008 250);   /* タイトルバーの下地（OS 9 プラチナのグレー） */
+  --color-bar:      oklch(91% 0.006 250);   /* タイトルバーの下地（OS 9 プラチナのグレー。題名が読めるよう明るめ） */
   --color-bar-dark: oklch(66% 0.012 250);   /* タイトルバーの縞の影線 */
   /* the six riso inks — badges and one primary accent */
   --color-mustard:  oklch(80% 0.150 88);
@@ -173,8 +173,8 @@ img { max-width: 100%; display: block; }
   box-shadow: var(--shadow);
   min-width: 0;
 }
-/* Mac OS 9（プラチナ）風のタイトルバー。下地はグレー。縞は「1px の白線」と「その真下の 1px の濃いグレー線を 1px 右へずらしたもの」の組を
-   2px 周期で重ねる（左端に白、右端に影が 1px はみ出して凹凸に見える）。題名は中央、件数と折りたたみボックスは右端。
+/* Mac OS 9（プラチナ）風のタイトルバー。下地はグレー。縞は「2px の白線」と「その真下の 2px の濃いグレー線を 1px 右へずらしたもの」の組を
+   4px 周期で重ねる（左端に白、右端に影が 1px はみ出して凹凸に見える）。題名は中央、件数と折りたたみボックスは右端。
    題名・件数・ボックスの列（バーの上下いっぱい）には縞を描かず下地色で塗る */
 .pane-title {
   --bar-inset: 4px;   /* 縞を描かない上下・左の余白（折りたたみボックスの上下の余白と同じ）。縞はボックスの高さの帯だけに引く */
@@ -182,8 +182,8 @@ img { max-width: 100%; display: block; }
   min-height: 28px; padding: 0 0 0 var(--space-2);   /* 右は .tail が端まで塗る（ボックスより右に縞を出さない） */
   border-bottom: var(--line) solid var(--color-ink);
   background:
-    repeating-linear-gradient(to bottom, #fff 0 1px, transparent 1px 2px) var(--bar-inset) var(--bar-inset) / calc(100% - var(--bar-inset) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
-    repeating-linear-gradient(to bottom, transparent 0 1px, var(--color-bar-dark) 1px 2px) calc(var(--bar-inset) + 1px) var(--bar-inset) / calc(100% - var(--bar-inset) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
+    repeating-linear-gradient(to bottom, #fff 0 2px, transparent 2px 4px) var(--bar-inset) var(--bar-inset) / calc(100% - var(--bar-inset) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
+    repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px) calc(var(--bar-inset) + 1px) var(--bar-inset) / calc(100% - var(--bar-inset) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
     var(--color-bar);
 }
 .pane-title h2 {
@@ -195,11 +195,11 @@ img { max-width: 100%; display: block; }
 /* 縞が題名・右端の列にぶつかる所: 白線より影線が 1px 右へ飛び出す（左隣 1px 列は影線だけ）。縞が再開する所: 白線が 1px 先に始まる（右隣 1px 列は白線だけ） */
 .pane-title h2::before, .pane-title .tail::before {
   content: ""; position: absolute; left: -1px; top: var(--bar-inset); bottom: var(--bar-inset); width: 1px;
-  background: repeating-linear-gradient(to bottom, var(--color-bar) 0 1px, var(--color-bar-dark) 1px 2px);
+  background: repeating-linear-gradient(to bottom, var(--color-bar) 0 2px, var(--color-bar-dark) 2px 4px);
 }
 .pane-title h2::after {
   content: ""; position: absolute; right: -1px; top: var(--bar-inset); bottom: var(--bar-inset); width: 1px;
-  background: repeating-linear-gradient(to bottom, #fff 0 1px, var(--color-bar) 1px 2px);
+  background: repeating-linear-gradient(to bottom, #fff 0 2px, var(--color-bar) 2px 4px);
 }
 .pane-title .count { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--line) solid var(--color-ink); padding: 0 var(--space-1); }
 /* Explorer 風の最小化ボタン。タイトル行のクリックでも開閉できる */
