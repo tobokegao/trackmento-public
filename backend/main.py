@@ -18,6 +18,7 @@ from collections import defaultdict, deque
 
 from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
 from starlette.datastructures import UploadFile as StarletteUploadFile
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import ClientDisconnect
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
@@ -180,17 +181,35 @@ async def _load_monitor():
             _stats.clear()
 
 
+def _wants_html(request: Request) -> bool:
+    """ブラウザのアドレスバーやリンクから直接開いた要求か（fetch は Accept: */* なので JSON のまま）。"""
+    return request.method in ("GET", "HEAD") and "text/html" in request.headers.get("accept", "")
+
+
+def _error_response(request: Request, status: int, detail: str, headers: dict | None = None) -> Response:
+    """エラーは fetch には JSON、ブラウザ遷移には案内ページ（存在しない URL・期限切れの画像・429・500 で {"detail": …} を見せない）。"""
+    if _wants_html(request):
+        return HTMLResponse(share.notice_html(status, base_url_for(request), app_url_for(request), detail), status_code=status, headers=headers)
+    return JSONResponse({"detail": detail}, status_code=status, headers=headers)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException) -> Response:
+    """raise HTTPException(...) と、ルートに無いパスの 404・メソッド違いの 405。"""
+    return _error_response(request, exc.status_code, str(exc.detail), exc.headers)
+
+
 @app.exception_handler(Exception)
-async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
-    """想定外の例外も JSON で返す（フロントが「Internal Server Error」の生テキストを JSON として読もうとして失敗しないように）。
-    原因はサーバーログに残す。"""
+async def unhandled_error(request: Request, exc: Exception) -> Response:
+    """想定外の例外も JSON（ブラウザ遷移なら案内ページ）で返す（フロントが「Internal Server Error」の生テキストを JSON として
+    読もうとして失敗しないように）。原因はサーバーログに残す。"""
     import traceback
     if isinstance(exc, ClientDisconnect):   # 利用者が送信途中で離脱しただけ（アプリ内ブラウザや回線切替）。トレースバック不要
         print(f"[error] {request.method} {request.url.path}: 送信途中で切断")
         return JSONResponse({"detail": "送信が途中で切れました"}, status_code=400)
     print(f"[error] {request.method} {request.url.path}: {exc!r}")
     print("".join(traceback.format_exception(exc)))
-    return JSONResponse({"detail": f"サーバー内部でエラーが起きました（{type(exc).__name__}）。時間をおいて再試行しても直らない場合は連絡先へ"}, status_code=500)
+    return _error_response(request, 500, f"サーバー内部でエラーが起きました（{type(exc).__name__}）。時間をおいて再試行しても直らない場合は連絡先へ")
 
 
 if cors_origins():

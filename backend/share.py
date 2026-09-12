@@ -274,6 +274,37 @@ def expired_html(sid: str, base: str, app_url: str | None = None) -> str:
 </body></html>"""
 
 
+def notice_html(status: int, base: str, app_url: str | None = None, detail: str = "") -> str:
+    """ブラウザで直接開いた URL がエラーになったときの案内ページ（404・405・429・5xx）。
+    JSON の {"detail": …} をそのまま見せない。見た目は共有ページと同じ。"""
+    app_url = (app_url or base).rstrip("/")
+    days = share_retention_days()
+    if status in (404, 405):
+        title, note = "ページが見つかりません", f"URL が間違っているか、期限切れで消えたページです。共有 URL や画像は作成から {days} 日で消えます。"
+    elif status == 429:
+        title, note = "アクセスが集中しています", "1 分ほど待ってからもう一度お試しください。"
+    else:
+        title, note = "エラーが起きました", "時間をおいてもう一度お試しください。直らない場合は連絡先へお知らせください。"
+    extra = f'<p class="note">{html.escape(detail)}</p>' if detail and status not in (404, 405) else ""
+    return f"""<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title} — TRACKMENTO</title>
+<link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="robots" content="noindex">
+<style>{_page_css(base)}</style></head>
+<body>
+<header><span class="mark">TRACKMENTO</span></header>
+<main>
+  <h1>{title}</h1>
+  <p class="note">{note}</p>{extra}
+  <div class="btns">
+    <a class="btn primary" href="{app_url}/">TRACKMENTO を開く</a>
+  </div>
+  <p class="meta">連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
+</main>
+</body></html>"""
+
+
 def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
     """共有ページ。依存なしの単一 HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
