@@ -315,7 +315,10 @@ async def rate_limit(request: Request, call_next):
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     # CSP: スクリプトはこのサーバーが埋めた nonce 付きのものだけ。画像は同一オリジン＋R2 の公開 URL（https:）＋Canvas の blob/data
-    response.headers.setdefault("Content-Security-Policy",
+    # 304 には付けない: ブラウザは 304 のヘッダーでキャッシュ済み応答のヘッダーを更新するので、新しい nonce の CSP が
+    # 古い本文（古い nonce）に適用されてスクリプトが止まる。付けなければキャッシュ済みの CSP（本文と一致）がそのまま残る
+    if response.status_code != 304:
+      response.headers.setdefault("Content-Security-Policy",
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'; "
         # connect-src: iTunes と MusicBrainz（＋Cover Art Archive → archive.org へリダイレクト）の検索はブラウザから直接叩く
         # （サーバーの共有 IP が Apple に遮断され、MusicBrainz にはレート制限されるため）
@@ -378,11 +381,16 @@ async def index(request: Request) -> HTMLResponse:
     html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
     html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
     html = html.replace("<!--__FONT_LINK__-->", _font_head(), 1)   # 分割フォントの @font-face（<link>）
-    html = html.replace("<script>", f'<script nonce="{request.state.csp_nonce}">', 1)   # CSP（script-src 'nonce-…'）用
     # Google Search Console の所有権確認（HTML タグ方式）。GOOGLE_SITE_VERIFICATION が無ければタグごと消す
     token = os.getenv("GOOGLE_SITE_VERIFICATION", "").strip()
     html = html.replace("<!--__VERIFY__-->", f'<meta name="google-site-verification" content="{token}">' if token else "", 1)
-    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})   # 更新をすぐ配る（古い HTML のタブが古い経路を叩き続けないように）
+    # ETag は nonce を入れる前の内容から作る（nonce は毎回変わる）。ブラウザが同じ ETag を持っていれば 304 で本文（約 40KB）を省く。
+    # 304 には CSP ヘッダーを付けない（付けるとキャッシュ済み本文の nonce と食い違ってスクリプトが止まる。middleware 側で除外）
+    etag = '"' + hashlib.sha256(html.encode("utf-8")).hexdigest()[:16] + '"'
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+    html = html.replace("<script>", f'<script nonce="{request.state.csp_nonce}">', 1)   # CSP（script-src 'nonce-…'）用
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache", "ETag": etag})   # no-cache = 毎回 ETag で確認（更新をすぐ配る）
 
 
 @app.get("/robots.txt")
