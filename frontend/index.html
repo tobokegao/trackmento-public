@@ -38,6 +38,8 @@
   --color-muted:    oklch(46% 0.012 250);
   --color-rule:     oklch(76% 0.012 250);
   --color-rule-2:   oklch(82% 0.012 250);
+  --color-bar:      oklch(84% 0.008 250);   /* タイトルバーの下地（OS 9 プラチナのグレー） */
+  --color-bar-dark: oklch(66% 0.012 250);   /* タイトルバーの縞の影線 */
   /* the six riso inks — badges and one primary accent */
   --color-mustard:  oklch(80% 0.150 88);
   --color-cerulean: oklch(60% 0.140 235);
@@ -171,23 +173,39 @@ img { max-width: 100%; display: block; }
   box-shadow: var(--shadow);
   min-width: 0;
 }
+/* Mac OS 9（プラチナ）風のタイトルバー。下地はグレー。縞は「1px の白線」と「その真下の 1px の濃いグレー線を 1px 右へずらしたもの」の組を
+   2px 周期で重ねる（左端に白、右端に影が 1px はみ出して凹凸に見える）。題名は中央、件数と折りたたみボックスは右端。
+   題名・件数・ボックスの列（バーの上下いっぱい）には縞を描かず下地色で塗る */
 .pane-title {
-  display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
+  --bar-inset: 4px;   /* 縞を描かない上下・左の余白（折りたたみボックスの上下の余白と同じ）。縞はボックスの高さの帯だけに引く */
+  position: relative; display: flex; align-items: center;
+  min-height: 28px; padding: 0 0 0 var(--space-2);   /* 右は .tail が端まで塗る（ボックスより右に縞を出さない） */
   border-bottom: var(--line) solid var(--color-ink);
-  background: repeating-linear-gradient(to bottom, var(--color-ink) 0 2px, var(--color-paper) 2px 4px);
+  background:
+    repeating-linear-gradient(to bottom, #fff 0 1px, transparent 1px 2px) var(--bar-inset) var(--bar-inset) / calc(100% - var(--bar-inset) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
+    repeating-linear-gradient(to bottom, transparent 0 1px, var(--color-bar-dark) 1px 2px) calc(var(--bar-inset) + 1px) var(--bar-inset) / calc(100% - var(--bar-inset) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
+    var(--color-bar);
 }
 .pane-title h2 {
-  font-size: var(--text-sm); letter-spacing: 0.04em;
-  background: var(--color-paper); padding: 0 var(--space-2);
-  border: var(--line) solid var(--color-ink);
+  position: absolute; left: 50%; top: 0; bottom: 0; transform: translateX(-50%);
+  display: flex; align-items: center; padding: 0 var(--space-2); background: var(--color-bar);
+  font-size: var(--text-sm); letter-spacing: 0.04em; white-space: nowrap;
 }
-.pane-title .count { margin-left: auto; font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--line) solid var(--color-ink); padding: 0 var(--space-1); }
-.pane-title .count + .fold { margin-left: 0; }
+.pane-title .tail { position: relative; margin-left: auto; align-self: stretch; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2) 0 var(--space-1); background: var(--color-bar); }
+/* 縞が題名・右端の列にぶつかる所: 白線より影線が 1px 右へ飛び出す（左隣 1px 列は影線だけ）。縞が再開する所: 白線が 1px 先に始まる（右隣 1px 列は白線だけ） */
+.pane-title h2::before, .pane-title .tail::before {
+  content: ""; position: absolute; left: -1px; top: var(--bar-inset); bottom: var(--bar-inset); width: 1px;
+  background: repeating-linear-gradient(to bottom, var(--color-bar) 0 1px, var(--color-bar-dark) 1px 2px);
+}
+.pane-title h2::after {
+  content: ""; position: absolute; right: -1px; top: var(--bar-inset); bottom: var(--bar-inset); width: 1px;
+  background: repeating-linear-gradient(to bottom, #fff 0 1px, var(--color-bar) 1px 2px);
+}
+.pane-title .count { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--line) solid var(--color-ink); padding: 0 var(--space-1); }
 /* Explorer 風の最小化ボタン。タイトル行のクリックでも開閉できる */
 .pane-title { cursor: pointer; user-select: none; }
 .fold {
-  margin-left: auto; width: 24px; height: 20px; padding: 0; flex: none;
+  width: 24px; height: 20px; padding: 0; flex: none;
   display: grid; place-items: center;
   font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1;
   background: var(--color-paper); border: var(--line) solid var(--color-ink); cursor: pointer;
@@ -393,13 +411,14 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
   border-top: var(--line) solid var(--color-ink); background: var(--color-paper);
   box-shadow: 0 -4px 0 var(--color-ink);
 }
+/* 計算機（Mac のデスクアクセサリ）風の黒いタイトルバー: 黒地に白の題名、右端に「閉じる」 */
 .sheet-head {
   display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-bottom: var(--line) solid var(--color-ink);
-  background: repeating-linear-gradient(to bottom, var(--color-ink) 0 2px, var(--color-paper) 2px 4px);
+  background: var(--color-ink); color: var(--color-paper);
 }
-.sheet-head h2 { font-size: var(--text-sm); letter-spacing: 0.04em; background: var(--color-paper); padding: 0 var(--space-2); border: var(--line) solid var(--color-ink); }
+.sheet-head h2 { font-size: var(--text-base); letter-spacing: 0.04em; color: var(--color-paper); }
 .sheet-head .btn { margin-left: auto; min-height: 36px; }
 .sheet-body { overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); }
 .sheet-body .pane { box-shadow: none; }
@@ -516,7 +535,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <main class="workbench">
 
   <section class="pane pane-search" aria-labelledby="h-search">
-    <div class="pane-title"><h2 id="h-search">検索</h2><button class="fold" type="button" aria-expanded="true" aria-label="検索を折りたたむ"></button></div>
+    <div class="pane-title"><h2 id="h-search">検索</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="検索を折りたたむ"></button></span></div>
     <div class="editor" id="editor" hidden aria-labelledby="editor-title">
         <div class="editor-head"><span class="num-badge" id="editor-num">01</span><span id="editor-title">選択中のマス</span><span class="badge" id="editor-source"></span></div>
         <div class="editor-fields">
@@ -589,7 +608,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   </section>
 
   <section class="pane pane-results" aria-labelledby="h-results">
-    <div class="pane-title"><h2 id="h-results">候補</h2><span class="count" id="results-count" aria-label="候補数">0</span><button class="fold" type="button" aria-expanded="true" aria-label="候補を折りたたむ"></button></div>
+    <div class="pane-title"><h2 id="h-results">候補</h2><span class="tail"><span class="count" id="results-count" aria-label="候補数">0</span><button class="fold" type="button" aria-expanded="true" aria-label="候補を折りたたむ"></button></span></div>
     <div class="pane-body">
       <ul class="results" id="results">
         <li class="empty"><strong>まだ候補がありません</strong><span>曲名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>クリックで次の空きマスに入ります。</span></li>
@@ -598,7 +617,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   </section>
 
   <section class="pane pane-grid" aria-labelledby="h-grid">
-    <div class="pane-title"><h2 id="h-grid">グリッド <span id="grid-size-label">3×3</span></h2><span class="count" id="grid-count" aria-label="配置数">0/9</span><button class="fold" type="button" aria-expanded="true" aria-label="グリッドを折りたたむ"></button></div>
+    <div class="pane-title"><h2 id="h-grid">グリッド <span id="grid-size-label">3×3</span></h2><span class="tail"><span class="count" id="grid-count" aria-label="配置数">0/9</span><button class="fold" type="button" aria-expanded="true" aria-label="グリッドを折りたたむ"></button></span></div>
     <div class="pane-body">
       <div class="grid-head">
         <div class="field">
@@ -630,7 +649,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   </section>
 
   <aside class="pane pane-options" aria-labelledby="h-options">
-    <div class="pane-title"><h2 id="h-options">出力オプション</h2><button class="fold" type="button" aria-expanded="true" aria-label="出力オプションを折りたたむ"></button></div>
+    <div class="pane-title"><h2 id="h-options">出力オプション</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="出力オプションを折りたたむ"></button></span></div>
     <div class="pane-body opts">
       <fieldset class="field">
         <legend>グリッド（横 × 縦）</legend>
