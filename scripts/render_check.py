@@ -30,10 +30,18 @@ from pathlib import Path
 API = "https://api.render.com/v1"
 ROOT = Path(__file__).resolve().parent.parent
 
+# インスタンスの種類 → (vCPU, メモリ MB)。メモリの閾値はここから出すので、種類を変えたら点検も自動で追随する。
+# https://render.com/docs/web-services#instance-types
+PLAN_SPECS = {
+    "free": (0.1, 512), "starter": (0.5, 512), "standard": (1.0, 2048),
+    "pro": (2.0, 4096), "pro_plus": (4.0, 8192), "pro_max": (4.0, 16384), "pro_ultra": (8.0, 32768),
+}
+_FALLBACK_MEM_MB = 512   # 種類が取れなかったときに使う（いちばん小さい構成に合わせて、見逃すより誤検知する側に倒す）
+
 THRESHOLDS = {
     "bw_gb_per_hour": float(os.getenv("CHECK_BW_GB_PER_HOUR", "1.0")),   # 1 時間の転送量がこれを超えたら異常
-    "rss_mb": float(os.getenv("CHECK_RSS_MB", "400")),                    # [health] rss の最大
-    "memory_gb": float(os.getenv("CHECK_MEMORY_GB", "0.45")),             # メトリクスのメモリ最大（インスタンス 512MB）
+    "rss_mb": float(os.getenv("CHECK_RSS_MB", "0")) or 0.0,               # [health] rss の最大。0 なら種類から出す
+    "memory_gb": float(os.getenv("CHECK_MEMORY_GB", "0")) or 0.0,         # メトリクスのメモリ最大。0 なら種類から出す
     "5xx_total": int(os.getenv("CHECK_5XX_TOTAL", "20")),                 # 期間内の 5xx 合計
     "5xx_share": int(os.getenv("CHECK_5XX_SHARE", "5")),                  # /share と /share/upload の 5xx 合計
     "errors": int(os.getenv("CHECK_ERRORS", "10")),                       # [error]／Traceback の行数
@@ -89,6 +97,26 @@ def _jst(s: str) -> str:
 
 
 # ---- 取得 ----
+
+def plan_of(svc: dict) -> str:
+    """サービスのインスタンス種類（free / starter / standard …）。取れなければ空文字。"""
+    d = svc.get("serviceDetails") or {}
+    raw = d.get("plan") or svc.get("plan") or ""
+    return str(raw).strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def thresholds_for(plan: str) -> tuple[dict, float | None, int]:
+    """インスタンスの種類に合わせた閾値と (vCPU, メモリ MB) を返す。
+
+    メモリ系の閾値は種類から出す（環境変数で指定があればそちら）。Free と Standard では
+    上限が 512MB と 2GB で 4 倍違うので、固定値のままだと種類を変えた後に誤検知が続く。
+    """
+    cpu_alloc, mem_mb = PLAN_SPECS.get(plan, (None, _FALLBACK_MEM_MB))
+    T = dict(THRESHOLDS)
+    T["memory_gb"] = T["memory_gb"] or mem_mb * 0.90 / 1024   # 上限の 90%
+    T["rss_mb"] = T["rss_mb"] or mem_mb * 0.78                # 上限の 78%（残りは描画中の一時的な山に充てる）
+    return T, cpu_alloc, mem_mb
+
 
 def find_service(key: str, name: str) -> dict:
     items = _get("/services", {"name": name, "limit": 20}, key)
@@ -212,11 +240,15 @@ def analyze_logs(logs: list[dict]) -> dict:
 # ---- 要約 ----
 
 def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[str, list], mem: tuple[str, list], cpu: tuple[str, list]) -> tuple[str, list[str]]:
-    T = THRESHOLDS
+    plan = plan_of(svc)
+    T, cpu_alloc, mem_mb = thresholds_for(plan)
     problems: list[str] = []
     lines: list[str] = []
     now_jst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M JST")
     lines.append(f"## Render 点検: {svc.get('name')}（直近 {hours:g} 時間、{now_jst}）")
+    known = plan in PLAN_SPECS
+    lines.append(f"- インスタンス: {plan or '不明'}"
+                 + (f"（{cpu_alloc} vCPU / {mem_mb} MB）" if known else f"（種類が読めないので {mem_mb} MB として判定）"))
 
     # イベント
     ev_counts: dict[str, int] = defaultdict(int)
@@ -251,7 +283,8 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
             problems.append(f"メモリ最大 {mmax * 1024:.0f} MB が閾値 {T['memory_gb'] * 1024:.0f} MB を超過")
     cpu_unit, cpu_vals = cpu
     if cpu_vals:
-        lines.append(f"- CPU: 最大 {max(v for _, v in cpu_vals):.3f}（単位: {cpu_unit or '不明'}。割当は 0.1 vCPU）")
+        alloc = f"割当は {cpu_alloc} vCPU" if cpu_alloc else "割当は不明"
+        lines.append(f"- CPU: 最大 {max(v for _, v in cpu_vals):.3f}（単位: {cpu_unit or '不明'}。{alloc}）")
     if la["rss"]:
         rs = [r for _, r in la["rss"]]
         lines.append(f"- [health] rss: 最小 {min(rs)} / 最大 {max(rs)} / 最新 {rs[-1]} MB（{len(rs)} 点）")
