@@ -66,14 +66,15 @@ def share_budget_bytes() -> int:
 
 
 def share_limits() -> tuple[int, int]:
-    """(IP ごとの 1 日の共有回数, サーバー全体の 1 日の共有回数)。公開モードの既定は 20 / 1500。ローカルは無制限。0 で無制限。
+    """(IP ごとの 1 日の共有回数, サーバー全体の 1 日の共有回数)。公開モードの既定は 100 / 1500。ローカルは無制限。0 で無制限。
+    IP ごとの上限は携帯回線（多数の端末が同じ IP を共有）で無関係な利用者が合算で当たるため、連打対策程度に緩くする。
     容量の保護は SHARE_BUDGET_GB（実バイト数）で別に行うので、全体の回数は連打・暴走の歯止め程度。
     目安: 1 件 約0.35MB（JPEG 品質 90・最大辺 2400）× 1500 件/日 × 保持 7 日 ≈ 3.7GB"""
-    d_ip, d_all = ("20", "1500") if public_mode() else ("0", "0")
+    d_ip, d_all = ("100", "1500") if public_mode() else ("0", "0")
     try:
         return max(0, int(os.getenv("SHARE_LIMIT_PER_IP_DAY", d_ip))), max(0, int(os.getenv("SHARE_LIMIT_PER_DAY", d_all)))
     except ValueError:
-        return (20, 1500) if public_mode() else (0, 0)
+        return (100, 1500) if public_mode() else (0, 0)
 
 
 def share_retention_days() -> int:

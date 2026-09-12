@@ -292,6 +292,12 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 }
 .hint-btn[aria-expanded="true"] { background: var(--color-ink); color: var(--color-paper); }
 .note { display: grid; gap: var(--space-3); padding: var(--space-3); font-size: var(--text-sm); }
+/* アプリ内ブラウザ（X・LINE など）向けの案内帯。共有が遅い・失敗しやすいので外部ブラウザを勧める */
+.inapp { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--page-inline);
+  background: var(--color-mustard); border-bottom: var(--line) solid var(--color-ink); font-size: var(--text-sm); }
+.inapp p { margin: 0; flex: 1 1 16rem; overflow-wrap: anywhere; }
+.inapp .btn { min-height: 36px; padding-inline: var(--space-2); }
+.inapp[hidden] { display: none; }
 /* ソース説明のモーダル（中央のオーバーレイ） */
 .modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: var(--space-4); }
 .modal[hidden] { display: none; }
@@ -501,6 +507,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <h1 class="wordmark"><span class="mark">TRACKMENTO</span> <small id="wordmark-tag"></small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite"></p>
 </header>
+<aside class="inapp" id="inapp-notice" hidden>
+  <p>アプリ内ブラウザでは共有が遅くなったり失敗したりします。右上のメニューから「ブラウザで開く」（Safari / Chrome）で開くのがおすすめです。</p>
+  <button class="btn" type="button" id="inapp-copy">URL をコピー</button>
+  <button class="btn" type="button" id="inapp-close" aria-label="この案内を閉じる">閉じる</button>
+</aside>
 
 <main class="workbench">
 
@@ -1640,7 +1651,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const mem = navigator.deviceMemory;
     return mem !== undefined && mem <= 2 ? 2000 : 2400;
   }
-  const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent);
+  const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent) || location.hash === "#inapp";
+  /* アプリ内ブラウザなら外部ブラウザを勧める帯を出す（「閉じる」でそのタブの間は出さない） */
+  function showInAppNotice() {
+    const box = $("#inapp-notice");
+    let dismissed = false;
+    try { dismissed = sessionStorage.getItem("trackmento:inapp-dismissed") === "1"; } catch { /* ignore */ }
+    if (!inAppBrowser() || dismissed) return;
+    box.hidden = false;
+    $("#inapp-copy").addEventListener("click", async () => {
+      const btn = $("#inapp-copy");
+      try { await navigator.clipboard.writeText(location.href.replace(/#inapp$/, "")); setBtnState(btn, "success"); btn.textContent = "コピーしました"; }
+      catch { btn.textContent = "コピーできませんでした"; }
+    });
+    $("#inapp-close").addEventListener("click", () => { box.hidden = true; try { sessionStorage.setItem("trackmento:inapp-dismissed", "1"); } catch { /* ignore */ } });
+  }
   async function loadShareFonts() {
     const specs = [fontBold(24), fontRegular(24), fontPixel(24)];
     // フォントは unicode-range で分割してあるので、描く文字を渡して必要な断片だけ読み込む（曲名・アーティスト名・タイトル・番号・「…」）
@@ -1774,7 +1799,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return d;
   }
   async function shareViaBrowser(snap) {
-    if (!("createImageBitmap" in window) || !document.fonts || inAppBrowser()) throw new Error("unsupported");
+    if (!("createImageBitmap" in window) || !document.fonts) throw new Error("unsupported");   // アプリ内ブラウザでもまず試し、失敗ならサーバー描画へ
     await loadShareFonts();
     say(els.gridMsg, "画像を作成中…");
     const { canvas, bg } = await renderShareCanvas(shareMaxSide(), (i, n) => say(els.gridMsg, `画像を作成中… ${i}/${n}`));
@@ -1889,6 +1914,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       return false;
     }
   }
+  showInAppNotice();
   loadHealth()
     .then(() => { if (isPublic || API) GRID_NAME = browserGridId(); })
     .then(restoreFromShare).then(ok => ok ? Promise.resolve() : restore())
