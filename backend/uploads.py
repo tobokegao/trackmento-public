@@ -54,7 +54,10 @@ def read_bytes(url: str) -> tuple[bytes, str] | None:
     st = storage.get_storage()
     if st.is_remote:
         data = st.get(f"uploads/{name}")
-        return (data, content_type(name)) if data is not None else None
+        if data is not None:
+            return (data, content_type(name))
+        # R2 に無ければローカルも見る。手元で R2 を設定する前に保存した画像が読めなくなるため
+        # （公開サーバーのディスクは再デプロイで空になるので、ここに来ても普通は見つからない）
     p = UPLOADS / name
     return (p.read_bytes(), content_type(p)) if p.is_file() else None
 
