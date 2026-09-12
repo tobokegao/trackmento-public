@@ -24,9 +24,28 @@ def _canonical(url: str) -> str:
     return urlunsplit((p.scheme, p.netloc, p.path, "", ""))
 
 
+# bcbits の末尾 _NN は解像度。_0 = 原寸, _10 = 1200px, _16 = 700px, _7 = 160px。
+# 書き出しのマスは 600px（render.py / index.html の CELL_PX）なので、それを上回る最小の _16 を使う。
+# _0 は実測で 1 枚 6.5MB あり、_16 なら 87KB（-98%）。Bandcamp は /image-proxy を必ず通るため、
+# ここが大きいと Render の転送量（課金対象）を直撃する。
+COVER_SIZE = 16
+THUMB_SIZE = 7
+
+
 def _sized(url: str, size: int) -> str:
-    """bcbits の画像は末尾 _NN で解像度が変わる。_0 = 原寸, _16 = 700px, _10 = 1200px。"""
+    """bcbits の画像 URL を指定の解像度に差し替える。"""
     return _IMG_SIZE_RE.sub(lambda m: f"_{size}.{m.group(2)}", url)
+
+
+def clamp_size(url: str) -> str:
+    """原寸（_0）や 1200px（_10）で保存済みの URL を 600px 相当（_16）に落とす。
+    既に _16 以下ならそのまま返す。/image-proxy から呼び、過去のグリッドにも効かせる。"""
+    if "bcbits.com" not in url:
+        return url
+    m = _IMG_SIZE_RE.search(url)
+    if not m or m.group(1) in ("16", "7", "2", "3", "42", "8"):   # 700px 以下のコードはそのまま
+        return url
+    return _sized(url, COVER_SIZE)
 
 
 def _from_jsonld(soup: BeautifulSoup) -> dict:
@@ -94,7 +113,7 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         title=title,
         artist=artist,
         album=album,
-        image=_sized(og_image, 0),
-        thumb=_sized(og_image, 16),
+        image=_sized(og_image, COVER_SIZE),
+        thumb=_sized(og_image, THUMB_SIZE),
         external_url=_canonical(url),
     )
