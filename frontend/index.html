@@ -514,6 +514,12 @@ output { font-variant-numeric: tabular-nums; }
 .share-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .support { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: var(--line) solid var(--color-rule); font-size: var(--text-sm); color: var(--color-ink-2); }
 .support .album { font-family: var(--font-display); color: var(--color-ink); }
+/* 広告枠。いまは中身が自分の音楽（つなぎ）で、AdSense の審査が通ったら中身とラベルを差し替える */
+/* body が flex なので、幅を絞るだけだと左に寄る。align-self で中央に置く */
+.promo { width: min(960px, 100%); align-self: center; margin-top: var(--space-5); padding: var(--space-3); border: var(--line) solid var(--color-rule); display: grid; gap: var(--space-2); }
+.promo .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
+.promo p { margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
+.promo .album { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .spec { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }   /* 幅があれば横に並び、足りなければ折り返す */
 .spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; }   /* 各項目は 8rem を基準に、並んだ行の幅を均等に分け合う */
 .spec dt { font-family: var(--font-display); color: var(--color-muted); }
@@ -746,6 +752,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <div class="sheet-body" id="sheet-body"></div>
   </div>
 </div>
+
+<!-- 広告枠。AdSense の審査が通ったら、.lbl を「申し訳ないですが広告表示です」に変え、
+     p と .album を広告のコードに差し替える（枠と CSS はそのまま使える）。
+     文言でクリックを促すと AdSense のポリシー違反（アカウント停止）になるため、
+     差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。 -->
+<aside class="promo" aria-label="サーバー代のおねがい">
+  <span class="lbl">サーバー代のおねがい</span>
+  <p>無料で置いているツールですが、思ったより多くの方に使われてサーバー代がかさんでいます。作者の音楽を聴いてもらえると助かります。</p>
+  <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a></span>
+</aside>
 
 <footer>
   <span>TRACKMENTO</span>
