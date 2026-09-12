@@ -59,13 +59,18 @@ def _get(path: str, params: dict | None = None, key: str = "") -> object:
     qs = urllib.parse.urlencode({k: v for k, v in (params or {}).items() if v is not None}, doseq=True)
     url = f"{API}{path}" + (f"?{qs}" if qs else "")
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}", "Accept": "application/json"})
-    for attempt in range(4):
+    for attempt in range(6):
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < 3:
-                time.sleep(int(e.headers.get("Retry-After", "5")))
+            if e.code == 429 and attempt < 5:
+                # /logs は 30 回/分。Ratelimit-Reset（UTC 秒）まで待つ。無ければ指数的に待つ
+                reset = e.headers.get("Ratelimit-Reset") or e.headers.get("RateLimit-Reset")
+                wait = max(1.0, float(reset) - time.time() + 1) if reset and reset.isdigit() else float(e.headers.get("Retry-After") or 5 * (attempt + 1))
+                wait = min(wait, 90.0)
+                print(f"[warn] 429 {path}: limit={e.headers.get('Ratelimit-Limit')} remaining={e.headers.get('Ratelimit-Remaining')} → {wait:.0f} 秒待つ", file=sys.stderr)
+                time.sleep(wait)
                 continue
             body = e.read().decode("utf-8", "replace")[:300]
             raise RuntimeError(f"Render API {e.code} {path}: {body}") from e
@@ -99,12 +104,16 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, max_pages: int = 80) -> list[dict]:
-    """古い順に全部読む（100 行ずつ。hasMore の間 nextStartTime/nextEndTime で続きを取る）。"""
+LOG_TEXT = ["[stats]*", "[health]*", "[error]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
+
+
+def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, max_pages: int = 25) -> list[dict]:
+    """古い順に読む（100 行ずつ。hasMore の間 nextStartTime/nextEndTime で続きを取る）。
+    /logs は 30 回/分の制限があるので、要約に使う印付きの行だけ text で絞る（トレースバックの本文は取らない）。"""
     out: list[dict] = []
     s, e = _iso(start), _iso(end)
     for _ in range(max_pages):
-        page = _get("/logs", {"ownerId": owner, "resource": sid, "startTime": s, "endTime": e, "limit": 100, "direction": "forward"}, key)
+        page = _get("/logs", {"ownerId": owner, "resource": sid, "startTime": s, "endTime": e, "limit": 100, "direction": "forward", "text": LOG_TEXT}, key)
         out.extend(page.get("logs", []))
         if not page.get("hasMore"):
             break
@@ -284,16 +293,21 @@ def main() -> int:
 
     end = datetime.now(timezone.utc)
     start = end - timedelta(hours=args.hours)
-    svc = find_service(key, name)
-    sid, owner = svc["id"], svc["ownerId"]
-    events = fetch_events(key, sid, start, end)
-    logs = fetch_logs(key, owner, sid, start, end)
-    la = analyze_logs(logs)
-    bw = fetch_metric(key, "bandwidth", sid, start.replace(minute=0, second=0, microsecond=0), end, 3600)
-    mem = fetch_metric(key, "memory", sid, start, end, 300, "MAX")
-    cpu = fetch_metric(key, "cpu", sid, start, end, 300, "MAX")
-
-    text, problems = summarize(svc, args.hours, events, la, bw, mem, cpu)
+    try:
+        svc = find_service(key, name)
+        sid, owner = svc["id"], svc["ownerId"]
+        events = fetch_events(key, sid, start, end)
+        logs = fetch_logs(key, owner, sid, start, end)
+        la = analyze_logs(logs)
+        bw = fetch_metric(key, "bandwidth", sid, start.replace(minute=0, second=0, microsecond=0), end, 3600)
+        mem = fetch_metric(key, "memory", sid, start, end, 300, "MAX")
+        cpu = fetch_metric(key, "cpu", sid, start, end, 300, "MAX")
+        text, problems = summarize(svc, args.hours, events, la, bw, mem, cpu)
+    except Exception as ex:   # API 側の失敗も「異常」として要約に残す（点検が黙って止まらないように）
+        problems = [f"点検自体が失敗: {type(ex).__name__}: {ex}"]
+        text = "\n".join([f"## Render 点検: {name}（直近 {args.hours:g} 時間）", "", "### 判定: **異常あり**", f"- {problems[0]}"])
+        la = {"per_path": {}, "rss": []}
+        events = []
     print(text)
     if args.out:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
