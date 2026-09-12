@@ -265,7 +265,7 @@ def expired_html(sid: str, base: str, app_url: str | None = None) -> str:
 <main>
   <h1>この共有は見つかりません</h1>
   <p class="note">共有 URL は作成から {days} 日で消えます。この共有 URL は期限切れか、障害対応（保存容量の上限到達）で削除されたものです。
-  画像や共有データ（JSON ファイル）を保存していない場合は、お手数ですが TRACKMENTO で作り直してください。</p>
+  画像や並びのファイル（「並びを保存」で書き出す JSON）が手元に無い場合は、お手数ですが TRACKMENTO で作り直してください。</p>
   <div class="btns">
     <a class="btn primary" href="{app_url}/">TRACKMENTO で作る</a>
   </div>

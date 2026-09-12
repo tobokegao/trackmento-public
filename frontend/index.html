@@ -637,10 +637,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
         <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
-        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">共有データ出力</button>
-        <button class="btn" type="button" id="json-import">共有データ入力</button>
+        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
+        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
       </div>
+      <p class="msg">共有 URL は __RETENTION__ 日で消えます。長く残すならファイルに保存して、あとで読み込めます。</p>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="共有した画像のプレビュー">
         <div class="share-url"><span class="lbl">共有 URL</span><input class="input" id="share-url" type="text" readonly></div>
@@ -732,7 +733,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有データに載せることはありません。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
 </div>
@@ -1328,7 +1329,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     a.download = `trackmento-${(state.title.trim() || "grid").replace(/[\\/:*?"<>|]/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    say(els.gridMsg, "共有データ（JSON）を出力しました。「共有データ入力」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。");
+    say(els.gridMsg, "並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。");
   });
   els.jsonImport.addEventListener("click", () => els.jsonFile.click());
   els.jsonFile.addEventListener("change", async () => {
@@ -1338,9 +1339,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     try {
       applyData(JSON.parse(await f.text()));
       save();
-      say(els.gridMsg, `共有データを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
+      say(els.gridMsg, `並びを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
     } catch (err) {
-      say(els.gridMsg, `共有データを読み込めませんでした: ${err.message}`, "error");
+      say(els.gridMsg, `並びを読み込めませんでした: ${err.message}`, "error");
     }
   });
   els.clearBtn.addEventListener("click", () => {
