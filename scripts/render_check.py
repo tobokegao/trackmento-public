@@ -37,7 +37,7 @@ THRESHOLDS = {
     "5xx_total": int(os.getenv("CHECK_5XX_TOTAL", "20")),                 # 期間内の 5xx 合計
     "5xx_share": int(os.getenv("CHECK_5XX_SHARE", "5")),                  # /share と /share/upload の 5xx 合計
     "errors": int(os.getenv("CHECK_ERRORS", "10")),                       # [error]／Traceback の行数
-    "lag_lines": int(os.getenv("CHECK_LAG_LINES", "10")),                 # [loop] lag の行数
+    "lag_lines": int(os.getenv("CHECK_LAG_LINES", "5")),                  # 2 秒以上の [loop] lag の行数（1 秒前後は描画の待ちで普段から出る）
 }
 
 
@@ -277,8 +277,9 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         lines.append(f"  - {e}")
     if len(la["errors"]) > T["errors"]:
         problems.append(f"エラー行 {len(la['errors'])} が閾値 {T['errors']} を超過")
-    if len(la["lags"]) > T["lag_lines"]:
-        problems.append(f"[loop] lag が {len(la['lags'])} 行（閾値 {T['lag_lines']}）")
+    slow = [l for l in la["lags"] if l >= 2.0]
+    if len(slow) > T["lag_lines"]:
+        problems.append(f"[loop] lag 2 秒以上が {len(slow)} 行（閾値 {T['lag_lines']}、最大 {max(slow):.1f} 秒）→ イベントループの停止（ヘルスチェック落ちの前兆）")
     if la["budget_lines"]:
         problems.append(f"[share] budget／quota が {len(la['budget_lines'])} 行（容量上限か回数上限に到達）")
         for b in la["budget_lines"][:3]:
