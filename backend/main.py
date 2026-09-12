@@ -417,6 +417,14 @@ async def index(request: Request) -> HTMLResponse:
     return HTMLResponse(html, headers={"Cache-Control": "no-cache", "ETag": etag})   # no-cache = 毎回 ETag で確認（更新をすぐ配る）
 
 
+@app.get("/ads.txt")
+async def ads_txt() -> Response:
+    """AdSense に出す広告枠の販売許可（IAB の ads.txt）。ルート直下に置く決まり。
+    公開されることが前提のファイルなので、publisher ID を書いてよい。"""
+    body = "google.com, pub-6662407728160305, DIRECT, f08c47fec0942fa0\n"
+    return Response(body, media_type="text/plain", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/robots.txt")
 async def robots(request: Request) -> Response:
     """トップは索引してよい。API・画像・共有の中身はクロール対象から外す"""
