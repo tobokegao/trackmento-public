@@ -330,6 +330,7 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .search-actions { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
 .msg { font-size: var(--text-sm); color: var(--color-muted); margin: 0; min-height: 1.4em; overflow-wrap: anywhere; }
 .msg[data-tone="error"] { color: var(--color-ink); border-left: 6px solid var(--color-error); padding-left: var(--space-2); }
+.msg-under { margin-top: var(--space-3); }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
 
 /* ---------- results ---------- */
 .results { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); max-height: 44dvh; overflow-y: auto; }
@@ -632,7 +633,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         </div>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
-      <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックすると入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
+      <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックすると空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
       <div class="grid-actions">
         <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
@@ -641,7 +642,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
       </div>
-      <p class="msg">共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。</p>
+      <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。</p>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="共有した画像のプレビュー">
         <div class="share-url"><span class="lbl">共有 URL</span><input class="input" id="share-url" type="text" readonly></div>
