@@ -177,21 +177,23 @@ img { max-width: 100%; display: block; }
    4px 周期で重ねる（左端に白、右端に影が 1px はみ出して凹凸に見える）。題名は中央、件数と折りたたみボックスは右端。
    題名・件数・ボックスの列（バーの上下いっぱい）には縞を描かず下地色で塗る */
 .pane-title {
-  --bar-inset: 4px;   /* 縞を描かない上下・左の余白（折りたたみボックスの上下の余白と同じ）。縞はボックスの高さの帯だけに引く */
+  --bar-inset: 4px;     /* 縞を描かない上下の余白（折りたたみボックスの上下の余白と同じ）。縞はボックスの高さの帯だけに引く */
+  --bar-inset-x: 8px;   /* 縞を描かない左端の余白（縞とボックス・題名の間隔と同じ） */
   position: relative; display: flex; align-items: center;
-  min-height: 28px; padding: 0 0 0 var(--space-2);   /* 右は .tail が端まで塗る（ボックスより右に縞を出さない） */
+  min-height: calc(28px + var(--line)); padding: 0 0 0 var(--space-2);   /* 右は .tail が端まで塗る（ボックスより右に縞を出さない） */
+  /* 縞の帯 = 高さ 28px − 上下 4px = 20px = 白 2px＋影 2px の 5 組ちょうど（border-box なので下線の分を足す。足りないと最後の影線が欠ける） */
   border-bottom: var(--line) solid var(--color-ink);
   background:
-    repeating-linear-gradient(to bottom, #fff 0 2px, transparent 2px 4px) var(--bar-inset) var(--bar-inset) / calc(100% - var(--bar-inset) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
-    repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px) calc(var(--bar-inset) + 1px) var(--bar-inset) / calc(100% - var(--bar-inset) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
+    repeating-linear-gradient(to bottom, #fff 0 2px, transparent 2px 4px) var(--bar-inset-x) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
+    repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px) calc(var(--bar-inset-x) + 1px) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 1px) calc(100% - 2 * var(--bar-inset)) no-repeat,
     var(--color-bar);
 }
 .pane-title h2 {
-  position: absolute; left: 50%; top: 0; bottom: 0; transform: translateX(-50%);
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: fit-content; margin-inline: auto;   /* transform で中央寄せしない（半端な位置になり境の 1px 線がにじむ） */
   display: flex; align-items: center; padding: 0 var(--space-2); background: var(--color-bar);
   font-size: var(--text-sm); letter-spacing: 0.04em; white-space: nowrap;
 }
-.pane-title .tail { position: relative; margin-left: auto; align-self: stretch; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2) 0 var(--space-1); background: var(--color-bar); }
+.pane-title .tail { position: relative; margin-left: auto; align-self: stretch; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: var(--color-bar); }   /* 縞→件数、件数→ボックス、ボックス→右端をすべて 8px に */
 /* 縞が題名・右端の列にぶつかる所: 白線より影線が 1px 右へ飛び出す（左隣 1px 列は影線だけ）。縞が再開する所: 白線が 1px 先に始まる（右隣 1px 列は白線だけ） */
 .pane-title h2::before, .pane-title .tail::before {
   content: ""; position: absolute; left: -1px; top: var(--bar-inset); bottom: var(--bar-inset); width: 1px;
