@@ -18,6 +18,7 @@ from collections import defaultdict, deque
 
 from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
 from starlette.datastructures import UploadFile as StarletteUploadFile
+from starlette.requests import ClientDisconnect
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -184,6 +185,9 @@ async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
     """想定外の例外も JSON で返す（フロントが「Internal Server Error」の生テキストを JSON として読もうとして失敗しないように）。
     原因はサーバーログに残す。"""
     import traceback
+    if isinstance(exc, ClientDisconnect):   # 利用者が送信途中で離脱しただけ（アプリ内ブラウザや回線切替）。トレースバック不要
+        print(f"[error] {request.method} {request.url.path}: 送信途中で切断")
+        return JSONResponse({"detail": "送信が途中で切れました"}, status_code=400)
     print(f"[error] {request.method} {request.url.path}: {exc!r}")
     print("".join(traceback.format_exception(exc)))
     return JSONResponse({"detail": f"サーバー内部でエラーが起きました（{type(exc).__name__}）。時間をおいて再試行しても直らない場合は連絡先へ"}, status_code=500)
@@ -854,7 +858,11 @@ async def share_upload(request: Request) -> dict:
     if _UPLOAD_SEM.locked():
         raise HTTPException(503, "共有が混み合っています。10 秒ほど待ってからもう一度お試しください", headers={"Retry-After": "10"})
     async with _UPLOAD_SEM:
-        form = await request.form()
+        try:
+            form = await request.form()
+        except ClientDisconnect:   # 利用者が送信途中で離脱（アプリ内ブラウザや回線切替）。サーバー側の異常ではないので 5xx にしない
+            print("[share] 送信途中で切断（利用者側の離脱）")
+            raise HTTPException(400, "送信が途中で切れました。もう一度お試しください")
         doc, image, og = form.get("doc"), form.get("image") or form.get("png"), form.get("og")
         if not isinstance(doc, str) or not isinstance(image, StarletteUploadFile) or not isinstance(og, StarletteUploadFile):   # request.form() が返すのは starlette の UploadFile
             raise HTTPException(400, "並び（doc）と画像（image, og）が必要です")
