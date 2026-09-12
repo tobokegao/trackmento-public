@@ -603,7 +603,8 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     if hit:
         ctype, data = hit
     else:
-        # 配信元からの取得は同時 8 本まで。0.1 vCPU で 30 本が同時に流れると全応答が遅れ、ヘルスチェック（5 秒）に落ちる
+        # 配信元からの取得の同時本数を IMAGE_PROXY_CONCURRENCY で絞る（既定 16）。
+        # 取りこぼすと 503 になるので、CPU の割当を変えたらこちらも見直す（0.1 vCPU の頃は 8 本だった）
         try:
             await asyncio.wait_for(_PROXY_SEM.acquire(), timeout=20)
         except asyncio.TimeoutError:
@@ -619,7 +620,7 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     return Response(content=data, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
 
-_PROXY_SEM = asyncio.Semaphore(8)
+_PROXY_SEM = asyncio.Semaphore(max(1, int(os.getenv("IMAGE_PROXY_CONCURRENCY", "16"))))
 
 
 async def fetch_image(url: str) -> tuple[str, bytes]:
