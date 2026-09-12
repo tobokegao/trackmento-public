@@ -511,6 +511,8 @@ output { font-variant-numeric: tabular-nums; }
 .share-url .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
 .share-url .input { font-family: ui-monospace, monospace; font-size: var(--text-sm); }
 .share-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.support { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: var(--line) solid var(--color-rule); font-size: var(--text-sm); color: var(--color-ink-2); }
+.support .album { font-family: var(--font-display); color: var(--color-ink); }
 .spec { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }   /* 幅があれば横に並び、足りなければ折り返す */
 .spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; }   /* 各項目は 8rem を基準に、並んだ行の幅を均等に分け合う */
 .spec dt { font-family: var(--font-display); color: var(--color-muted); }
@@ -648,6 +650,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <a class="btn" id="open-share" href="#" target="_blank" rel="noopener">共有ページを開く</a>
           <a class="btn dl" id="download" download="trackmento.jpg" href="#">画像を保存</a>
         </div>
+        <div class="support">
+          <span>予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭</span>
+          <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a></span>
+        </div>
       </div>
     </div>
   </section>
@@ -742,6 +748,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <footer>
   <span>TRACKMENTO</span>
   <span>連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></span>
+  <span>♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">おかねがたりないときのうた</a>（サーバー代のたすけ）</span>
   <a href="/health" id="health-link">/health</a>
   <span id="foot-sources"></span>
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
