@@ -103,6 +103,16 @@ def _iso(t: datetime) -> str:
     return t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+RESTART_WINDOW_S = 300   # この秒数内に続く uptime の戻りは、同じ入れ替え（新旧の並走）とみなす
+
+
+def _dt(s: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
 def _jst(s: str) -> str:
     try:
         return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone(timedelta(hours=9))).strftime("%m/%d %H:%M")
@@ -211,8 +221,10 @@ def analyze_logs(logs: list[dict]) -> dict:
     budget_lines: list[str] = []
     search_fail = 0
     restored: list[tuple[str, int]] = []
-    uptime_resets = 0
+    uptime_resets = 0        # 入れ替え単位にまとめた回数（判定に使う）
+    uptime_reset_lines = 0   # 生の「戻り」行数（並走で膨らむ）
     uptime_reset_at: list[str] = []
+    last_reset_at = None
     last_uptime = None
     for lg in logs:
         m, ts = lg.get("message", ""), lg.get("timestamp", "")
@@ -227,9 +239,15 @@ def analyze_logs(logs: list[dict]) -> dict:
             r, up = int(h.group(1)), int(h.group(2))
             rss.append((ts, r))
             if last_uptime is not None and up < last_uptime:
-                uptime_resets += 1
-                if len(uptime_reset_at) < 8:   # 何時に何秒から何秒へ戻ったかを残す（入れ替え時の新旧並走か、本当の再起動かの判別用）
-                    uptime_reset_at.append(f"{_jst(ts)} {last_uptime}→{up}s")
+                # 入れ替え中は新旧のプロセスが並走し、両方の [health] が交互に出るので
+                # 1 回の入れ替えが 2〜3 行の「戻り」として現れる。近い時刻のものは 1 回にまとめる
+                t = _dt(ts)
+                if last_reset_at is None or t is None or (t - last_reset_at).total_seconds() > RESTART_WINDOW_S:
+                    uptime_resets += 1
+                    if len(uptime_reset_at) < 8:
+                        uptime_reset_at.append(f"{_jst(ts)} {last_uptime}→{up}s")
+                uptime_reset_lines += 1
+                last_reset_at = t or last_reset_at
             last_uptime = up
         elif (lm := LAG_RE.search(m)):
             lags.append(float(lm.group(1)))
@@ -251,6 +269,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "search_fail": search_fail,
         "restored": restored,
         "uptime_resets": uptime_resets,
+        "uptime_reset_lines": uptime_reset_lines,
         "uptime_reset_at": uptime_reset_at,
     }
 
@@ -278,7 +297,9 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         problems.append(f"再起動・障害イベント {sum(bad_ev.values())} 回: {', '.join(f'{k} {v}' for k, v in bad_ev.items())}")
     if la["uptime_resets"]:
         detail = "、".join(la["uptime_reset_at"]) + ("…" if la["uptime_resets"] > len(la["uptime_reset_at"]) else "")
-        lines.append(f"- [health] uptime のリセット: {la['uptime_resets']} 回（{detail}）")
+        lines.append(f"- [health] uptime のリセット: {la['uptime_resets']} 回"
+                     + (f"（戻りの行は {la['uptime_reset_lines']}。入れ替え中の新旧並走を 1 回にまとめた）" if la["uptime_reset_lines"] > la["uptime_resets"] else "")
+                     + f": {detail}")
     if la["uptime_resets"] > max(deploys, 0):
         problems.append(f"uptime のリセットがデプロイ回数より多い（{la['uptime_resets']} 回 > デプロイ {deploys} 回）→ 想定外の再起動")
 
