@@ -35,7 +35,7 @@ jobs:
           set +e
           python scripts/render_check.py --hours "${{ inputs.hours || '2' }}" --strict --out summary.md
           echo "code=$?" >> "$GITHUB_OUTPUT"
-          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          cat summary.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "要約なし（スクリプトが途中で落ちた）" | tee summary.md >> "$GITHUB_STEP_SUMMARY"
       - name: 異常なら Issue に書く
         if: steps.check.outputs.code == '2'
         env:
