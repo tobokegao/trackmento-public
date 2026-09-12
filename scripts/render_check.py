@@ -31,12 +31,26 @@ API = "https://api.render.com/v1"
 ROOT = Path(__file__).resolve().parent.parent
 
 # インスタンスの種類 → (vCPU, メモリ MB)。メモリの閾値はここから出すので、種類を変えたら点検も自動で追随する。
-# https://render.com/docs/web-services#instance-types
+# API が返すのは "1c_2g"（1 vCPU / 2GB）のような形式で、これは _PLAN_RE で解く。下は名前で返る分。
 PLAN_SPECS = {
     "free": (0.1, 512), "starter": (0.5, 512), "standard": (1.0, 2048),
     "pro": (2.0, 4096), "pro_plus": (4.0, 8192), "pro_max": (4.0, 16384), "pro_ultra": (8.0, 32768),
 }
+# "1c_2g" / "0_5c_512m" のような形式。c の前が vCPU、その後ろが g(GB) か m(MB)
+_PLAN_RE = re.compile(r"^(\d+)(?:_(\d+))?c_(\d+)([gm])$")
 _FALLBACK_MEM_MB = 512   # 種類が取れなかったときに使う（いちばん小さい構成に合わせて、見逃すより誤検知する側に倒す）
+
+
+def spec_of(plan: str) -> tuple[float | None, int]:
+    """インスタンスの種類 → (vCPU, メモリ MB)。読めなければ (None, 512)。"""
+    if plan in PLAN_SPECS:
+        return PLAN_SPECS[plan]
+    m = _PLAN_RE.match(plan)
+    if not m:
+        return None, _FALLBACK_MEM_MB
+    cpu = float(f"{m.group(1)}.{m.group(2)}") if m.group(2) else float(m.group(1))
+    mem = int(m.group(3)) * (1024 if m.group(4) == "g" else 1)
+    return cpu, mem
 
 THRESHOLDS = {
     "bw_gb_per_hour": float(os.getenv("CHECK_BW_GB_PER_HOUR", "1.0")),   # 1 時間の転送量がこれを超えたら異常
@@ -111,7 +125,7 @@ def thresholds_for(plan: str) -> tuple[dict, float | None, int]:
     メモリ系の閾値は種類から出す（環境変数で指定があればそちら）。Free と Standard では
     上限が 512MB と 2GB で 4 倍違うので、固定値のままだと種類を変えた後に誤検知が続く。
     """
-    cpu_alloc, mem_mb = PLAN_SPECS.get(plan, (None, _FALLBACK_MEM_MB))
+    cpu_alloc, mem_mb = spec_of(plan)
     T = dict(THRESHOLDS)
     T["memory_gb"] = T["memory_gb"] or mem_mb * 0.90 / 1024   # 上限の 90%
     T["rss_mb"] = T["rss_mb"] or mem_mb * 0.78                # 上限の 78%（残りは描画中の一時的な山に充てる）
@@ -246,9 +260,8 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     lines: list[str] = []
     now_jst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M JST")
     lines.append(f"## Render 点検: {svc.get('name')}（直近 {hours:g} 時間、{now_jst}）")
-    known = plan in PLAN_SPECS
     lines.append(f"- インスタンス: {plan or '不明'}"
-                 + (f"（{cpu_alloc} vCPU / {mem_mb} MB）" if known else f"（種類が読めないので {mem_mb} MB として判定）"))
+                 + (f"（{cpu_alloc:g} vCPU / {mem_mb} MB）" if cpu_alloc else f"（種類が読めないので {mem_mb} MB として判定）"))
 
     # イベント
     ev_counts: dict[str, int] = defaultdict(int)
