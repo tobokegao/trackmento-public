@@ -121,7 +121,8 @@ def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, m
     return out
 
 
-def fetch_metric(key: str, kind: str, sid: str, start: datetime, end: datetime, resolution: int, method: str | None = None) -> list[tuple[str, float]]:
+def fetch_metric(key: str, kind: str, sid: str, start: datetime, end: datetime, resolution: int, method: str | None = None) -> tuple[str, list[tuple[str, float]]]:
+    """(unit, [(timestamp, value), …])。unit は API が返すもの（bytes / MB / GB など。空なら不明）。"""
     params = {"resource": sid, "startTime": _iso(start), "endTime": _iso(end), "resolutionSeconds": resolution}
     if method:
         params["aggregationMethod"] = method
@@ -129,12 +130,27 @@ def fetch_metric(key: str, kind: str, sid: str, start: datetime, end: datetime, 
         series = _get(f"/metrics/{kind}", params, key)
     except RuntimeError as ex:
         print(f"[warn] metrics/{kind}: {ex}", file=sys.stderr)
-        return []
+        return "", []
+    unit = ""
     vals: list[tuple[str, float]] = []
     for ts in series or []:
+        unit = unit or str(ts.get("unit") or "")
         for v in ts.get("values", []):
+            unit = unit or str(v.get("unit") or "")
             vals.append((v.get("timestamp", ""), float(v.get("value") or 0)))
-    return vals
+    return unit, vals
+
+
+def _to_gb(value: float, unit: str) -> float:
+    """API の unit を見て GB に直す（bytes / KB / MB / GB / bytes per second など）。不明なら bytes とみなす。"""
+    u = (unit or "").lower()
+    if u.startswith("gb") or u.startswith("gib"):
+        return value
+    if u.startswith("mb") or u.startswith("mib"):
+        return value / 1024
+    if u.startswith("kb") or u.startswith("kib"):
+        return value / 1024 ** 2
+    return value / 1024 ** 3
 
 
 # ---- ログの読み取り ----
@@ -195,7 +211,7 @@ def analyze_logs(logs: list[dict]) -> dict:
 
 # ---- 要約 ----
 
-def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: list[tuple[str, float]], mem: list[tuple[str, float]], cpu: list[tuple[str, float]]) -> tuple[str, list[str]]:
+def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[str, list], mem: tuple[str, list], cpu: tuple[str, list]) -> tuple[str, list[str]]:
     T = THRESHOLDS
     problems: list[str] = []
     lines: list[str] = []
@@ -214,26 +230,28 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: list[tu
     if la["uptime_resets"] > max(deploys, 0):
         problems.append(f"uptime のリセットがデプロイ回数より多い（{la['uptime_resets']} 回 > デプロイ {deploys} 回）→ 想定外の再起動")
 
-    # 帯域（1 時間刻み。値の単位は API の unit に従う。GB/h に換算）
-    if bw:
-        # Render の bandwidth は bytes を返す（時間帯ごとの合計）
-        per_hour = [(ts, v / (1024 ** 3)) for ts, v in bw]
+    # 帯域（1 時間刻み。値の単位は API の unit に従って GB/時 に換算）
+    bw_unit, bw_vals = bw
+    if bw_vals:
+        per_hour = [(ts, _to_gb(v, bw_unit)) for ts, v in bw_vals]
         mx = max(per_hour, key=lambda x: x[1])
         total = sum(v for _, v in per_hour)
-        lines.append(f"- 帯域: 合計 {total:.2f} GB、最大 {mx[1]:.2f} GB/時（{_jst(mx[0])}）")
+        lines.append(f"- 帯域: 合計 {total:.2f} GB、最大 {mx[1]:.2f} GB/時（{_jst(mx[0])}、API の単位: {bw_unit or '不明'}）")
         if mx[1] > T["bw_gb_per_hour"]:
             problems.append(f"帯域 {mx[1]:.2f} GB/時 が閾値 {T['bw_gb_per_hour']} GB/時 を超過（{_jst(mx[0])}）")
     else:
         lines.append("- 帯域: 取得できず")
 
     # メモリ・CPU
-    if mem:
-        mmax = max(v for _, v in mem)
-        lines.append(f"- メモリ（メトリクス）: 最大 {mmax * 1024:.0f} MB")
+    mem_unit, mem_vals = mem
+    if mem_vals:
+        mmax = _to_gb(max(v for _, v in mem_vals), mem_unit)
+        lines.append(f"- メモリ（メトリクス）: 最大 {mmax * 1024:.0f} MB（API の単位: {mem_unit or '不明'}）")
         if mmax > T["memory_gb"]:
             problems.append(f"メモリ最大 {mmax * 1024:.0f} MB が閾値 {T['memory_gb'] * 1024:.0f} MB を超過")
-    if cpu:
-        lines.append(f"- CPU: 最大 {max(v for _, v in cpu):.2f}（0.1 vCPU の割当に対する使用量）")
+    cpu_unit, cpu_vals = cpu
+    if cpu_vals:
+        lines.append(f"- CPU: 最大 {max(v for _, v in cpu_vals):.3f}（単位: {cpu_unit or '不明'}。割当は 0.1 vCPU）")
     if la["rss"]:
         rs = [r for _, r in la["rss"]]
         lines.append(f"- [health] rss: 最小 {min(rs)} / 最大 {max(rs)} / 最新 {rs[-1]} MB（{len(rs)} 点）")
@@ -308,6 +326,7 @@ def main() -> int:
         text = "\n".join([f"## Render 点検: {name}（直近 {args.hours:g} 時間）", "", "### 判定: **異常あり**", f"- {problems[0]}"])
         la = {"per_path": {}, "rss": []}
         events = []
+        bw = mem = cpu = ("", [])
     print(text)
     if args.out:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
