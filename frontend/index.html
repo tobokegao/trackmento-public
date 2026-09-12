@@ -459,8 +459,10 @@ body.sheet-open { overflow: hidden; }
   background: var(--color-paper); border-top: var(--line) solid var(--color-ink);
   font-size: var(--text-xs); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.grid-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }   /* グリッドと同じ幅いっぱい（上限を付けると右に空きが残る） */
+.grid-actions { container-type: inline-size; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }   /* グリッドと同じ幅いっぱい（上限を付けると右に空きが残る） */
 .grid-actions .btn { padding-inline: var(--space-2); }
+/* グリッド列が狭いとき（スマホの PC 表示など）は 2 列だと文字の余白が足りないので、ボタンを 1 列に縦積み */
+@container (max-width: 22rem) { .grid-actions > .btn { grid-column: 1 / -1; } }
 #find-btn { grid-column: 1 / -1; }
 
 /* ---------- options ---------- */
@@ -633,8 +635,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="clear-btn">全部クリア</button>
         <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
-        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">共有データを出力</button>
-        <button class="btn" type="button" id="json-import">共有データを入力</button>
+        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">共有データ出力</button>
+        <button class="btn" type="button" id="json-import">共有データ入力</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
       </div>
       <div class="output" id="output" hidden>
@@ -1318,7 +1320,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     a.download = `trackmento-${(state.title.trim() || "grid").replace(/[\\/:*?"<>|]/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    say(els.gridMsg, "共有データ（JSON）を出力しました。「共有データを入力」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。");
+    say(els.gridMsg, "共有データ（JSON）を出力しました。「共有データ入力」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。");
   });
   els.jsonImport.addEventListener("click", () => els.jsonFile.click());
   els.jsonFile.addEventListener("change", async () => {

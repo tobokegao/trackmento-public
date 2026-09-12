@@ -111,7 +111,7 @@ def build_one(src: Path, family: str, weight: int) -> list[tuple[str, int, str]]
         opts.notdef_outline = True
         opts.name_IDs = ["*"]
         opts.hinting = False
-        f = TTFont(src)
+        f = TTFont(src, recalcTimestamp=False)   # head.modified を更新しない（更新すると毎回ハッシュが変わり、全断片のキャッシュが無効になる）
         sub = subset.Subsetter(options=opts)
         sub.populate(unicodes=group)
         sub.subset(f)
