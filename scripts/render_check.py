@@ -212,6 +212,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     search_fail = 0
     restored: list[tuple[str, int]] = []
     uptime_resets = 0
+    uptime_reset_at: list[str] = []
     last_uptime = None
     for lg in logs:
         m, ts = lg.get("message", ""), lg.get("timestamp", "")
@@ -227,6 +228,8 @@ def analyze_logs(logs: list[dict]) -> dict:
             rss.append((ts, r))
             if last_uptime is not None and up < last_uptime:
                 uptime_resets += 1
+                if len(uptime_reset_at) < 8:   # 何時に何秒から何秒へ戻ったかを残す（入れ替え時の新旧並走か、本当の再起動かの判別用）
+                    uptime_reset_at.append(f"{_jst(ts)} {last_uptime}→{up}s")
             last_uptime = up
         elif (lm := LAG_RE.search(m)):
             lags.append(float(lm.group(1)))
@@ -248,6 +251,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "search_fail": search_fail,
         "restored": restored,
         "uptime_resets": uptime_resets,
+        "uptime_reset_at": uptime_reset_at,
     }
 
 
@@ -272,6 +276,9 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     lines.append(f"- イベント: デプロイ {deploys} 回" + (f"、**再起動・障害 {sum(bad_ev.values())} 回**（{', '.join(f'{k} {v}' for k, v in bad_ev.items())}）" if bad_ev else "、再起動・障害なし"))
     if bad_ev:
         problems.append(f"再起動・障害イベント {sum(bad_ev.values())} 回: {', '.join(f'{k} {v}' for k, v in bad_ev.items())}")
+    if la["uptime_resets"]:
+        detail = "、".join(la["uptime_reset_at"]) + ("…" if la["uptime_resets"] > len(la["uptime_reset_at"]) else "")
+        lines.append(f"- [health] uptime のリセット: {la['uptime_resets']} 回（{detail}）")
     if la["uptime_resets"] > max(deploys, 0):
         problems.append(f"uptime のリセットがデプロイ回数より多い（{la['uptime_resets']} 回 > デプロイ {deploys} 回）→ 想定外の再起動")
 
