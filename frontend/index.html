@@ -4,9 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="trackmento-public" content="__PUBLIC__">
-<link rel="preload" href="fonts/DotGothic16-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/IBMPlexSansJP-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <title>TRACKMENTO</title>
+<!--__FONT_LINK__-->
 <meta name="description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
 <meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
@@ -18,11 +17,11 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 /* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
-@font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Regular.woff2") format("woff2"), url("fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }
-@font-face { font-family: "IBM Plex Sans JP"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Bold.woff2") format("woff2"), url("fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }
+/* IBM Plex Sans JP と DotGothic16 は unicode-range で分割した断片（fonts/split/、scripts/build_fonts.py が生成）。
+   画面と共有画像に出る文字を含む断片だけがダウンロードされる（丸ごと配ると 1 訪問 1.6MB で転送量の主因だった）。
+   @font-face は <head> の <!--__FONT_LINK__--> にサーバーが <link> で入れる */
 @font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Regular.woff2") format("woff2"), url("fonts/Silkscreen-Regular.ttf") format("truetype"); }
 @font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Bold.woff2") format("woff2"), url("fonts/Silkscreen-Bold.ttf") format("truetype"); }
-@font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/DotGothic16-Regular.woff2") format("woff2"), url("fonts/DotGothic16-Regular.ttf") format("truetype"); }
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(97% 0.003 95) · accent: oklch(60% 0.14 235)
  * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
@@ -1644,9 +1643,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent);
   async function loadShareFonts() {
     const specs = [fontBold(24), fontRegular(24), fontPixel(24)];
+    // フォントは unicode-range で分割してあるので、描く文字を渡して必要な断片だけ読み込む（曲名・アーティスト名・タイトル・番号・「…」）
+    const text = ["TRACKMENTO 0123456789…", state.title, ...state.cells.filter(Boolean).flatMap(t => [t.title, t.artist])].map(v => oneLine(v || "")).join(" ");
     // 回線が遅いときにサーバー描画へ落ちると、かえってサーバーが詰まる。フォントは長めに待つ
-    const ok = await Promise.race([Promise.all(specs.map(f => document.fonts.load(f, "TRACKMENTO 龍 01"))).then(() => true), sleep(25000).then(() => false)]);
-    if (!ok || !specs.every(f => document.fonts.check(f))) throw new Error("fonts not ready");
+    const ok = await Promise.race([Promise.all(specs.map(f => document.fonts.load(f, text))).then(() => true), sleep(25000).then(() => false)]);
+    if (!ok || !specs.every(f => document.fonts.check(f, text))) throw new Error("fonts not ready");
   }
   const yieldToUI = () => new Promise(res => setTimeout(res, 0));
   async function fetchBitmap(url) {

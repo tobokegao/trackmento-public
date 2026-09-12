@@ -20,3 +20,6 @@ promo/out/
 promo/public/recordings/
 promo/public/final.png
 promo/public/
+
+# Cloudflare wrangler の作業ファイル
+.wrangler/

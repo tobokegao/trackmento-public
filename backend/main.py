@@ -170,6 +170,9 @@ async def _load_monitor():
         if lag > 0.5:
             print(f"[loop] lag={lag:.1f}s render_queue={_render_waiting[0]}")
         tick += 1
+        if tick % 600 == 0:
+            # 10 分ごとに gc ＋ malloc_trim。画像中継や R2 一覧の一時バッファを glibc が抱え込み、RSS が下がらないため
+            await asyncio.to_thread(render._release_memory)
         if tick % 60 == 0 and _stats:
             items = sorted(_stats.items(), key=lambda kv: -kv[1][1])
             print("[stats] " + " ".join(f"{k}:{v[0]}件/{v[1]:.1f}s/max{v[2]:.1f}s" + (f"/5xx{v[3]}" if v[3] else "") for k, v in items[:10]))
@@ -350,12 +353,31 @@ else:
                         headers={"Cache-Control": "public, max-age=86400"})
 
 
+_FONT_CSS_FALLBACK = """
+@font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Regular.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans JP"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Bold.woff2") format("woff2"); }
+@font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/DotGothic16-Regular.woff2") format("woff2"); }
+"""
+
+
+@functools.lru_cache(maxsize=1)
+def _font_head() -> str:
+    """分割フォントの @font-face を読む <link>（scripts/build_fonts.py が生成した fonts/split/fonts.<hash>.css。
+    ハッシュ名なので /fonts/ の 1 年キャッシュに乗る）。無ければフル版の @font-face を埋め込む。"""
+    hashed = sorted((FONTS / "split").glob("fonts.*.css")) if (FONTS / "split").is_dir() else []
+    if hashed:
+        return f'<link rel="stylesheet" href="fonts/split/{hashed[-1].name}">'
+    print("[fonts] fonts/split/fonts.<hash>.css が無いのでフル版のフォントを配ります（python scripts/build_fonts.py で生成）")
+    return f"<style>{_FONT_CSS_FALLBACK}</style>"
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     # OG タグの絶対 URL（__BASE__）をこのサーバーの URL に置き換えて配る
     html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
     html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
     html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
+    html = html.replace("<!--__FONT_LINK__-->", _font_head(), 1)   # 分割フォントの @font-face（<link>）
     html = html.replace("<script>", f'<script nonce="{request.state.csp_nonce}">', 1)   # CSP（script-src 'nonce-…'）用
     # Google Search Console の所有権確認（HTML タグ方式）。GOOGLE_SITE_VERIFICATION が無ければタグごと消す
     token = os.getenv("GOOGLE_SITE_VERIFICATION", "").strip()

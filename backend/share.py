@@ -199,12 +199,11 @@ def _page_css(base: str) -> str:
     # フォントはこのサーバー（共有ページを配っているのと同じオリジン）から相対パスで読む。base（LAN IP や公開 URL）と
     # ページのオリジンが違うとフォントは CORS で読めず、ワードマークが代替フォントになる
     return f"""
-@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 400; font-display: swap; src: url("/fonts/IBMPlexSansJP-Regular.woff2") format("woff2"), url("/fonts/IBMPlexSansJP-Regular.ttf") format("truetype"); }}
-@font-face {{ font-family: "IBM Plex Sans JP"; font-weight: 700; font-display: swap; src: url("/fonts/IBMPlexSansJP-Bold.woff2") format("woff2"), url("/fonts/IBMPlexSansJP-Bold.ttf") format("truetype"); }}
+/* 日本語フォントは読まない（IBM Plex Sans JP 1.1MB ＋ DotGothic16 0.5MB が 1 閲覧ごとに転送されていた。共有ページは X からの
+   閲覧が多く、帯域の主因になっていた）。ワードマークと番号の Silkscreen（9KB）だけ読み、本文は端末のフォント */
 @font-face {{ font-family: "Silkscreen"; font-weight: 700; font-display: swap; src: url("/fonts/Silkscreen-Bold.woff2") format("woff2"), url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
-@font-face {{ font-family: "DotGothic16"; font-display: swap; src: url("/fonts/DotGothic16-Regular.woff2") format("woff2"), url("/fonts/DotGothic16-Regular.ttf") format("truetype"); }}
 * {{ box-sizing: border-box; border-radius: 0; }}
-body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "IBM Plex Sans JP", sans-serif; line-height: 1.55; }}
+body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.55; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
 /* ワードマークは本体（frontend/index.html の .wordmark .mark）と同じ規則: Silkscreen 25px、行送り 16px（大文字のインク高）、
    インクの 3px 下にリソ 6 色の太線（5px）。色も本体の oklch トークンと同値 */
@@ -217,13 +216,13 @@ header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; bo
     oklch(74% 0.100 295) 0 calc(400% / 6),
     oklch(84% 0.110 165) 0 calc(500% / 6),
     oklch(78% 0.130 350) 0) bottom / 100% 5px no-repeat; }}
-small {{ font-family: "DotGothic16", sans-serif; color: #53595f; }}
+small {{ color: #53595f; }}
 main {{ max-width: 56rem; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }}
-h1 {{ font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 1.25rem; margin: 0; }}
+h1 {{ font-weight: 700; font-size: 1.25rem; margin: 0; }}
 img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b; }}
 .btns {{ display: flex; flex-wrap: wrap; gap: 8px; }}
 .btn {{ display: inline-flex; align-items: center; min-height: 44px; padding: 4px 16px; border: 2px solid #12171b; background: #f6f5f3; color: #12171b;
-  font-family: "DotGothic16", sans-serif; text-decoration: none; box-shadow: 2px 2px 0 #12171b; }}
+  font-weight: 700; text-decoration: none; box-shadow: 2px 2px 0 #12171b; }}
 .btn.primary {{ background: #12171b; color: #f6f5f3; }}
 ol {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }}
 li {{ display: flex; gap: 10px; align-items: baseline; }}
