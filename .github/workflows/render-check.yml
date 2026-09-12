@@ -1,0 +1,56 @@
+# Render の状態を 2 時間おきに点検する（scripts/render_check.py）。
+# 異常（再起動・帯域超過・5xx 増加・[share] budget など）があればジョブを失敗させ、Issue を作る／既存の Issue にコメントする。
+# 必要な Secret: RENDER_API_KEY（Render → Account Settings → API Keys）。
+# 注意: GitHub の cron は混雑時に遅れる。60 日 push が無いと schedule は止まる（keepalive.yml と同じ）。
+name: Render check
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "さかのぼる時間"
+        default: "2"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: 点検
+        id: check
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          PYTHONUTF8: "1"
+        run: |
+          set +e
+          python scripts/render_check.py --hours "${{ inputs.hours || '2' }}" --strict --out summary.md
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: 異常なら Issue に書く
+        if: steps.check.outputs.code == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          body="$(cat summary.md)"$'\n\n'"実行: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          existing=$(gh issue list --label render-check --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh label create render-check --description "Render の自動点検" --color D93F0B 2>/dev/null || true
+            gh issue create --title "Render 点検: 異常あり（$(date -u +%m/%d) ）" --label render-check --body "$body"
+          fi
+      - name: 結果
+        run: |
+          code="${{ steps.check.outputs.code }}"
+          test "$code" = "0" || { echo "異常あり（終了コード $code）"; exit 1; }
