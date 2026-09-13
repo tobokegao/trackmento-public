@@ -105,12 +105,15 @@ async def _nicovideo(url: str, client: httpx.AsyncClient) -> list[Track]:
 # ---- SoundCloud のセット ----
 
 def _sc_track(t: dict) -> Track | None:
-    """SoundCloud の 1 曲。ジャケットが無いもの（投稿者のアイコンしか無い曲）は入れない。"""
+    """SoundCloud の 1 曲。曲にジャケットが無ければ投稿者のアイコンを使う
+    （SoundCloud 自身がそう表示するので、そのままジャケットとして扱ってよい）。"""
     title = (t.get("title") or "").strip()
-    art = t.get("artwork_url")
-    if not (title and art):
+    user = t.get("user") or {}
+    art = t.get("artwork_url") or user.get("avatar_url")
+    # 既定のアイコン（誰でも同じ灰色の 100px 画像）はジャケットにならないので外す
+    if not (title and art) or "default_avatar" in art:
         return None
-    return Track(source="soundcloud", title=title, artist=((t.get("user") or {}).get("username") or "").strip(),
+    return Track(source="soundcloud", title=title, artist=(user.get("username") or "").strip(),
                  image=art.replace("-large.", "-t500x500."), thumb=art, external_url=t.get("permalink_url"))
 
 
