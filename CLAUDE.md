@@ -93,3 +93,14 @@ claude --remote-control TRACKMENTO                                             #
   - 判定の閾値はインスタンスの種類から出す（`PLAN_SPECS` と `_PLAN_RE`。API は `1c_2g` のような形式を返す）。`CHECK_*` の環境変数で上書きできる
   - 「uptime のリセットがデプロイ回数より多い」は、無停止デプロイ中に新旧プロセスの `[health]` が交互に出るため一度は誤検知していた。5 分以内に続く戻りは同じ入れ替えとしてまとめている
 - 動作確認は各ステップごとブラウザで（`claude-in-chrome` または手動）。サーバー `--reload` なし起動時、コード変更後再起動必要
+
+## 調べ直さないための覚え書き（一度引っかかったもの）
+
+- **Render の「プラン」は 2 つある**。課金アカウントの種別（Billing の Current Plan。Pro など）と、サービスのインスタンスタイプ（サービス画面のバッジ。Free / Standard など）は別物。**ワークスペースが Pro でもインスタンスが Free ならスリープするし 512MB 上限**。混同すると「スリープしないから keepalive は不要」のような誤った判断をする。インスタンスの実体は点検の「インスタンス: `1c_2g`」行か、`unbilled-charges.csv` の Services 行（`charge` が Free なら Free インスタンス）で確認する
+- **画像が `/image-proxy` を通るかはホストで決まる**。`frontend/index.html` の `DIRECT_IMAGE_HOSTS`（mzstatic / coverartarchive.org / archive.org）はブラウザが直接読むので **Render の転送量に乗らない**。それ以外（Bandcamp・SoundCloud・YouTube・ニコニコ・bilibili・Discogs・otoDB）はサーバーを通る。帯域を調べるときは、まずここで対象を絞る
+- **`[stats]` のログに転送量は入っていない**（件数・所要時間・5xx のみ）。どの経路が何バイト出しているかはログから分からないので、`curl` で実際のサイズを測るか、ブラウザの `performance.getEntriesByType('resource')` の `transferSize` を見る。件数が多い経路が重いとは限らない（実例: `/grids/*` は最多だが 1 件 3.6KB、フォントは件数が少ないのに 210KB）
+- **Render 前段の Cloudflare は Web Service の応答をキャッシュしない**（`cf-cache-status: DYNAMIC`）。`Cache-Control` を付けても効かないので、転送量を減らすには R2 へ逃がすしかない
+- **`python -c "from backend import storage"` のような直接実行では `.env` が読まれない**（`backend.main` が `load_dotenv` する）。環境変数が無いと `get_storage()` が LocalStorage に落ちるため、R2 を見ているつもりでローカルの `shares/` を見ていることがある。**サーバー経由では 404 なのに手元のスクリプトでは取れる、という食い違いはたいていこれ**。スクリプトから触るときは `.env` を自分で読む（`scripts/upload_fonts_r2.py` の冒頭が例）
+- **R2 の CORS は本番と `localhost:8000` / `127.0.0.1:8000` だけ許可**している。検証用に別のポート（8001 など）でサーバーを立てると、R2 から読むフォントや画像が CORS で弾かれて「実装が壊れている」ように見える。**ブラウザで確かめるときは 8000 を使う**
+- **フォントや CSS の検証では必ずハードリロード**（Ctrl+Shift+R）する。`fonts.<hash>.css` は `immutable` で 1 年キャッシュするうえ、CORS や CSP で失敗した結果もキャッシュされる。普通の再読み込みだと、直したのに古い失敗が残って「断片を 249 件読んでいる」のような誤った観測になる
+- **`grids/` と `shares/` は `.gitignore`**。並びを壊しても git では戻せない。ただし `shares/<id>.json` は共有したときの並びのスナップショットなので、**そこから失われたマスを復元できる**（実例: 1 マス目だけ消えたグリッドを、同じ並びの共有 JSON から戻した）
