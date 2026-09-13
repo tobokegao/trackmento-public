@@ -1188,8 +1188,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   function setTarget(i) {
     target = i; selected = null; renderGrid();
+    // スマホでもここで出しておく。シートを閉じたときに、下の欄が古い文言（「解除しました」など）のまま残らないように
+    say(els.gridMsg, `${i + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
     if (isMobile()) { openSheet(i); return; }
-    say(els.gridMsg, `${i + 1} 番に入れる曲を検索してください。候補をクリックするとここに入ります。もう一度タップで解除。`);
     els.q.focus({ preventScroll: false });
   }
   function clearTarget() { if (target !== null) { target = null; renderGrid(); } }
@@ -1214,6 +1215,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     wb.append($(".pane-search"), $(".pane-results"));   // 並び順は CSS の order が決める
     applyFold();
     sheet.hidden = true; document.body.classList.remove("sheet-open");
+    // 閉じても入れる先は残る（マスに枠が出たまま）。何が選ばれているかを下の欄にも書いておく
+    if (target !== null) say(els.gridMsg, `${target + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
   }
   $("#sheet-close").addEventListener("click", closeSheet);
   $("#sheet-backdrop").addEventListener("click", closeSheet);
