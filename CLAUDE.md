@@ -69,6 +69,20 @@ claude --remote-control TRACKMENTO                                             #
 ### 「全部消して」
 `cli.py clear` 実行前に一度確認（取消不可）。
 
+## 変更したら回すもの（忘れると本番が壊れる／気付けない）
+
+| 何を変えたか | 回すもの | 忘れるとどうなるか |
+| --- | --- | --- |
+| `frontend/index.html` の固定文字 | `scripts/build_fonts.py` → `scripts/upload_fonts_r2.py` | **本番でフォントが 404**（断片名にハッシュが入るため） |
+| 同上 | `scripts/check_i18n.py` | 英語表示でそこだけ日本語のまま残る（警告は出ない） |
+| 描画（`render.py` か `renderShareCanvas`） | `scripts/compare_render.py` | サーバー描画とブラウザ描画がずれる（描けない端末だけ見た目が変わる） |
+| マスの上限 | 4 か所すべて（下記） | 並びが黙って潰れる |
+
+上限の 4 か所: `frontend/index.html` の `MAX_SIDE_CELLS`（1 辺 32）と `MAX_CELLS`（総数 256）、
+`backend/grids.py` の `MAX_COLS` / `MAX_ROWS`（1 辺）、`backend/config.py` の `max_cells()`（総数）。
+
+すべて `PYTHONUTF8=1 .venv/Scripts/python …` で実行する（cp932 で落ちる）。
+
 ## 開発メモ
 
 - 構成: `backend/`（FastAPI、sources/、cache.py、grids.py、render.py、share.py、uploads.py、config.py）、`frontend/index.html`（単一 HTML）、`cli.py`、`fonts/`（OFL 同梱）
@@ -81,7 +95,7 @@ claude --remote-control TRACKMENTO                                             #
   **見るのは「ぼかし後の差 > 32」**。輪郭のズレはぼかすと消え、マスや文字の位置のズレだけが残る。
   実測（2026-09-14、4x4 / 12x20 / 16x16）で 0.00〜0.24%。ここが 1% を超えたらレイアウトがずれている。
   **テスト共有は必ず `clean` で R2 から消す**
-- フォント: Web は `fonts/split/`（`scripts/build_fonts.py` が IBM Plex Sans JP / DotGothic16 を unicode-range で分割した WOFF2 ＋ `fonts.<hash>.css`）を `<!--__FONT_LINK__-->` 経由で読む。**`frontend/index.html` の固定文字（ラベル・説明文）を変えたら次の 2 つを順に実行する**
+- フォント: Web は `fonts/split/`（`scripts/build_fonts.py` が IBM Plex Sans JP / DotGothic16 を unicode-range で分割した WOFF2 ＋ `fonts.<hash>.css`）を `<!--__FONT_LINK__-->` 経由で読む。**`frontend/index.html` の固定文字（ラベル・説明文）を変えたら次の 3 つを順に実行する**
   1. `python scripts/build_fonts.py` … 断片と `fonts.<hash>.css` を作り直す（先頭断片に UI の全文字を入れる設計。忘れると初回表示で断片を大量に読む）
   2. `.venv/Scripts/python scripts/upload_fonts_r2.py` … 増えた断片を R2 に上げる。**これを忘れると本番でフォントが 404 になる**（断片名にハッシュが入るので、文字が変わると別ファイルになる）
   3. `PYTHONUTF8=1 .venv/Scripts/python scripts/check_i18n.py` … 日本語の文言と EN 表のずれを見つける。
@@ -163,6 +177,16 @@ claude --remote-control TRACKMENTO                                             #
 - **`python -c "from backend import storage"` のような直接実行では `.env` が読まれない**（`backend.main` が `load_dotenv` する）。環境変数が無いと `get_storage()` が LocalStorage に落ちるため、R2 を見ているつもりでローカルの `shares/` を見ていることがある。**サーバー経由では 404 なのに手元のスクリプトでは取れる、という食い違いはたいていこれ**。スクリプトから触るときは `.env` を自分で読む（`scripts/upload_fonts_r2.py` の冒頭が例）
 - **R2 の CORS は本番と `localhost:8000` / `127.0.0.1:8000` だけ許可**している。検証用に別のポート（8001 など）でサーバーを立てると、R2 から読むフォントや画像が CORS で弾かれて「実装が壊れている」ように見える。**ブラウザで確かめるときは 8000 を使う**
 - **フォントや CSS の検証では必ずハードリロード**（Ctrl+Shift+R）する。`fonts.<hash>.css` は `immutable` で 1 年キャッシュするうえ、CORS や CSP で失敗した結果もキャッシュされる。普通の再読み込みだと、直したのに古い失敗が残って「断片を 249 件読んでいる」のような誤った観測になる
+- **同じ知識が 2 か所以上にある所の一覧**（今回のバグはすべてここから出た）。片方だけ直すと壊れる:
+  - 描画: `backend/render.py` と `frontend/index.html` の `renderShareCanvas`（定数・レイアウト式・文字の省略規則）
+    → `scripts/compare_render.py` で突き合わせられる。丸めは `render.py` の `rnd()` が JS の `Math.round` に
+    合わせてある（**Python の `round()` は偶数丸めなので使ってはいけない**）
+  - 検索の絞り込み: `backend/sources/itunes.py` と frontend の `itunesSearch`（ブラウザから直接 iTunes を叩くため）
+  - 曲名の正規化: `backend/merge.py` の `_n()` と frontend の `nkey()`。
+    **Python の `casefold()` は ß を ss に畳むが JS の `toLowerCase()` は畳まない**ので手で合わせてある
+  - マスの上限: 4 か所（上の表）
+  - 文言: 日本語の原文と `EN` 表 → `scripts/check_i18n.py`
+  - 色・比率・`CELL_PX` / `GAP_PX` / `MAX_SIDE`: `render.py` と `index.html`（2026-09-14 時点で一致を確認済み）
 - **`scrollbar-color` / `scrollbar-width` を書くと、Chrome は `::-webkit-scrollbar-*` を丸ごと無視する**。
   スクロールバーの見た目を作り込むときにこれを併記すると、指定が一切効かず幅が既定の 15px のままになる。
   Firefox 用の指定は `@supports not selector(::-webkit-scrollbar)` に閉じ込めること
@@ -205,13 +229,19 @@ claude --remote-control TRACKMENTO                                             #
     `script-src` に `pagead2.googlesyndication.com`、`frame-src` に `googleads.g.doubleclick.net`、
     `img-src` / `connect-src` にも追加が要る（`backend/main.py` の CSP ヘッダ）
   - そもそも広告を出すかは未決。Bandcamp のカンパ導線を置いた直後なので、承認が下りてから相談する
-- **動画制作**（Remotion 予定）。要点は `video-notes.md` にまとめてある
+- **動画制作**（Remotion 予定）。要点は `video-notes.md`、素材と手順は `promo/`
+  - **`grids/default.json` は動画（`promo/public/final.png`）と同じ状態に揃えてある**（9 曲・3x3・
+    タイトル「私を構成する9選」）。`grids/*.bak` は古い状態なので、そこから戻すと逆戻りする
+- **`/s/*` の robots.txt は触らない**と決めた。`[ua]` の実測で人以外アクセスの 71% が「プレビュー」
+  （X などのリンクカード生成）だったため。塞ぐと X のカードが出なくなる。検索・AI ボットは合わせて数十件で誤差
 - 候補パネルの上限は 500 にしたが、`/search` エンドポイントには `limit` を渡す口が無いので
   **検索結果は今も 30 件のまま**。増やしたくなったら `otodb.search` の offset ページングが使える（実装済み）
 - インスタンスは Standard（`1c_2g`、約 $25/月）＋ Workspace Pro（$25/月）。**バズが収まったら下げる判断が要る**
   （メモリは最大 195MB / 2048MB、CPU は最大 0.046 / 1.0 とかなり余っている）
 
 ## 直近の数字（2026-09-14 00:10 の点検）
+
+判定「正常」。以下は次回の比較用。
 
 - 帯域: 今月累計 **109 GB / 25 GB 含む** → 超過 85GB ＝ **$12.75**。直近は 0.42 GB/2h（対策前は 1.24 GB/2h）
 - 共有数 5803 件/日、メモリ最大 173MB、CPU 最大 0.031、判定「正常」
