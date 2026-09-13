@@ -18,8 +18,12 @@ ROOT = Path(__file__).resolve().parent.parent
 GRIDS = ROOT / "grids"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
-MAX_COLS = 12
-MAX_ROWS = 12
+# 1 辺の上限。frontend/index.html の MAX_SIDE_CELLS と同じ値にすること。
+# 総数の上限（既定 256）は config.max_cells() が別に見る（main.py の _check_cells）。
+# **ここを frontend より小さくしてはいけない**。GridDoc の検証は cols/rows を黙って丸めるので、
+# 16x16 の並びを保存した瞬間に 12x12 へ潰れ、はみ出したマスが stash に移って並びが壊れる
+MAX_COLS = 32
+MAX_ROWS = 32
 MAX_STASH = 200   # マスから溢れた曲の控え。無制限だと JSON が肥大する
 Ratio = Literal["1:1", "16:9", "4:5", "9:16", "free"]
 BG_KEYS = ("paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink", "custom")

@@ -2119,11 +2119,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function applyData(d) {
     if (!d || typeof d !== "object" || !Array.isArray(d.cells)) throw new Error(tr("TRACKMENTO の JSON ではありません（cells がありません）。"));
     const clamp = (v, lo, hi, dflt) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, Math.round(+v))) : dflt;
-    const cols = clamp(d.cols, 1, 12, 3), rows = clamp(d.rows, 1, 12, 3);
-    const cells = d.cells.slice(0, cols * rows).map(t => (isTrack(t) ? t : null));
+    /* 上限は clampGrid（MAX_CELLS 256・1 辺 MAX_SIDE_CELLS 32）に合わせる。
+       ここを 12 のままにしていたため、16x16 の並びを読み込む／ページを開き直すだけで
+       12x12 に縮み、はみ出した 112 マスが黙って消えていた */
+    const [cols, rows] = clampGrid(clamp(d.cols, 1, MAX_SIDE_CELLS, 3), clamp(d.rows, 1, MAX_SIDE_CELLS, 3));
+    const all = d.cells.map(t => (isTrack(t) ? t : null));
+    const cells = all.slice(0, cols * rows);
     while (cells.length < cols * rows) cells.push(null);
     state.cols = cols; state.rows = rows; state.cells = cells;
-    state.stash = Array.isArray(d.stash) ? d.stash.filter(isTrack) : [];
+    /* 入りきらなかった分は捨てずに控えへ。サイズを戻せば戻ってくる（resize と同じ扱い） */
+    state.stash = [...all.slice(cols * rows).filter(Boolean),
+                   ...(Array.isArray(d.stash) ? d.stash.filter(isTrack) : [])];
     state.title = typeof d.title === "string" ? d.title.slice(0, 60) : "";
     const o = d.options || {};
     state.ratio = o.ratio in RATIOS ? o.ratio : "16:9";
