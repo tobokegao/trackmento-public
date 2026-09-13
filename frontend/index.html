@@ -314,9 +314,12 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .hint-btn[aria-expanded="true"] { background: var(--color-ink); color: var(--color-paper); }
 .note { display: grid; gap: var(--space-3); padding: var(--space-3); font-size: var(--text-sm); }
 /* アプリ内ブラウザ（X・LINE など）向けの案内帯。共有が遅い・失敗しやすいので外部ブラウザを勧める */
-.inapp { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--page-inline);
+/* 文章とボタンを横に並べると、「コピーしました」でボタンの幅が変わったときに「閉じる」が
+   次の行へ落ちて見た目が動く。文章の下にボタンを置く形にして、幅が変わっても崩れないようにする */
+.inapp { display: grid; gap: var(--space-2); padding: var(--space-2) var(--page-inline);
   background: var(--color-mustard); border-bottom: var(--line) solid var(--color-ink); font-size: var(--text-sm); }
-.inapp p { margin: 0; flex: 1 1 16rem; overflow-wrap: anywhere; }
+.inapp p { margin: 0; overflow-wrap: anywhere; }
+.inapp .btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .inapp .btn { min-height: 36px; padding-inline: var(--space-2); }
 .inapp[hidden] { display: none; }
 /* ソース説明のモーダル（中央のオーバーレイ） */
@@ -543,8 +546,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 </header>
 <aside class="inapp" id="inapp-notice" hidden>
   <p>アプリ内ブラウザでは共有が遅くなったり失敗したりします。右上のメニューから「ブラウザで開く」（Safari / Chrome）で開くのがおすすめです。</p>
-  <button class="btn" type="button" id="inapp-copy">URL をコピー</button>
-  <button class="btn" type="button" id="inapp-close" aria-label="この案内を閉じる">閉じる</button>
+  <div class="btns">
+    <button class="btn" type="button" id="inapp-copy">URL をコピー</button>
+    <button class="btn" type="button" id="inapp-close" aria-label="この案内を閉じる">閉じる</button>
+  </div>
 </aside>
 
 <main class="workbench">
