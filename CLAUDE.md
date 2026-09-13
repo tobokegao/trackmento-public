@@ -119,6 +119,10 @@ claude --remote-control TRACKMENTO                                             #
     タイトルと灰色のサムネイルを付けて返すため、例外にならず素通りする。`playlist.is_gone()` で
     決まり文句のタイトルを見つけ、`_fill_from_otodb()` が roxy で差し替える（並び順は変えない。
     リンク先は元の動画のまま残す）。roxy は 1 件ずつ各サイトへ取りに行くので、上限 24 件・並列 6・全体 25 秒で打ち切る
+- R2 クライアント（`storage.py` の `Config`）の `connect_timeout` は 3 秒。**ここを長くしてはいけない**。
+  boto3 はリトライ 3 回＋指数バックオフなので、接続待ちが 10 秒だと 1 回つながらなかっただけで
+  利用者の待ち時間が 14 秒になる（実際に共有ページ `/s/*` の最大応答が 14.3 秒になっていた）。
+  R2 への TCP 接続が 1 秒を超えることはまずないので、短くしても取りこぼさない
 - UI デザインは Hallmark 方針（仕様書「UI デザイン方針」）。色・フォントは CSS 変数トークン経由、角丸なし
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）

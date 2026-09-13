@@ -80,7 +80,12 @@ class R2Storage:
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
             region_name="auto",
-            config=Config(signature_version="s3v4", retries={"max_attempts": 3}, connect_timeout=10, read_timeout=30),
+            # connect_timeout は短くする。R2 への TCP 接続が 1 秒を超えることはまずないので、
+            # ここが長いとつながらなかった 1 回のために利用者を待たせてしまう。
+            # 実測で共有ページ（/s/*）に最大 14.3 秒の応答があり、10 秒の接続待ち＋リトライの
+            # バックオフ（boto3 は指数）でちょうどその値になる。3 秒なら再試行まで含めて 4 秒台で収まる。
+            # read_timeout は共有画像（1 枚 0.35MB 程度）の put も通るので 30 秒のままにする
+            config=Config(signature_version="s3v4", retries={"max_attempts": 3}, connect_timeout=3, read_timeout=30),
         )
 
     def put(self, key: str, data: bytes, content_type: str) -> None:
