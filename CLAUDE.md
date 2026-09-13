@@ -82,7 +82,10 @@ claude --remote-control TRACKMENTO                                             #
   2. `.venv/Scripts/python scripts/upload_fonts_r2.py` … 増えた断片を R2 に上げる。**これを忘れると本番でフォントが 404 になる**（断片名にハッシュが入るので、文字が変わると別ファイルになる）
 
   断片は R2 から配る（`/fonts-css/<name>` が CSS の `src` を R2 の公開 URL に差し替えて返す）。Render 前段の Cloudflare は Web Service の応答をキャッシュせず、フォントが新規訪問 1 回あたり 210KB（実測）で転送量の大半を占めていたため。`FONTS_FROM_R2=0` で従来どおりサーバーから配る。R2 側の CORS 設定と、CSP の `font-src` / `connect-src` への公開 URL の追加が前提（`_r2_origin()` が組み立てる）。共有画像の描画前は `loadShareFonts` が描く文字を渡して必要断片だけ読む。サーバー描画は `fonts/*.ttf` のまま。共有ページはシステムフォント（Silkscreen のみ読む）
-- ジャケットの取得サイズは書き出しのマス（600px = `CELL_PX`）に合わせる。それ以上の解像度は縮小されて捨てられるだけで、転送量（Render の課金対象）が増える。配信元ごとに `clamp_size()` を持ち、`/image-proxy` から呼んで保存済みのグリッドにも効かせる
+- `/image-proxy` は一度取った画像を R2（`imgcache/`）にも置き、**二度目以降は本体を返さず 302 で R2 へ送る**。画像 1 枚 77KB に対して 302 の応答は数百バイトなので、Render の転送量がほぼ無くなる。`IMAGE_TO_R2=0` で従来どおり本体を返す
+  - ブラウザは共有画像を作るとき `fetch` + `createImageBitmap` で読むので、別オリジンから返すには R2 の CORS と CSP の `connect-src` が要る（フォントを R2 に移したときに整えた）。`<img crossOrigin>` ではないので、この 2 つが揃っていれば Canvas は汚染されない
+  - `imgcache/` は `r2_prune.py` が 7 日で消すため、SQLite 側は 6 日（`cache.R2_IMAGE_TTL`）で `r2key` を無効とみなす。**この大小を逆にすると、R2 から消えた後もリダイレクトし続けて 404 になる**
+- ジャケットの取得サイズは書き出しのマス（600px = `CELL_PX`）に合わせる。それ以上の解像度は縮小されて捨てられるだけで、転送量（Render の課金対象）が増える。配信元ごとに `clamp_size()` を持ち、`/image-proxy` から呼んで保存済みのグリッドにも効かせる。**やっているのは URL の書き換えだけで、こちらで圧縮や再エンコードはしない**（配信元が用意している小さい版をそのまま返す。Bandcamp の `_16` で取ったものは配信元から直接取ったバイト列と完全に一致する＝画質の劣化なし）
   - iTunes `itunes.clamp_size` … `/1000x1000bb.jpg` → `/600x600bb.jpg`（171KB → 77KB）
   - Bandcamp `bandcamp.clamp_size` … `_0`（原寸）→ `_16`（700px）。**原寸は 1 枚 6.5MB あった**
   - bilibili `video.clamp_size` … 指定なし（原寸）→ `@600w_600h_1c`（640KB → 50KB）
