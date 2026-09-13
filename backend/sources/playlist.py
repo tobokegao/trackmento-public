@@ -16,8 +16,7 @@
       ytInitialData の lockupViewModel。タイトルも投稿者もここに入っており、1 本ずつ引く必要は無い
 
 いずれも公開されているものだけが取れる（非公開・限定公開は 0 件か失敗）。
-一度に返すのは MAX_ITEMS 件まで。マスの数より多く取っても使い道がないうえ、
-候補の一覧が長くなりすぎる。
+一度に返すのは MAX_ITEMS 件まで。
 """
 from __future__ import annotations
 
@@ -33,8 +32,12 @@ import httpx
 from backend.models import NO_COVER, Track
 from backend.sources import applemusic, bandcamp, otodb, video
 
-MAX_ITEMS = 256   # マスの上限（backend/config.py の max_cells）と同じ。1 回のページ取得で返る分だけ入れる
-                  # （ソースによっては 1 回で全部返らない。ニコニコは全件、YouTube は 100 件が上限）
+# マスの上限（256）より多く取る。入りきらない分は候補に置かれ、そこから選んで絞り込めるため
+# （500 は実機で候補パネルの描画が 500 件 52ms／1000 件 132ms だったので、その手前で切った値。
+#  ニコニコのマイリストの上限もちょうど 500 で、他のソースは実測でこれに届かない）。
+# 1 回のページ取得で返る分だけ入れる（ソースによっては 1 回で全部返らない。
+# ニコニコは全件、YouTube は 100 件、bilibili は 20 件が上限）
+MAX_ITEMS = 500
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 

@@ -21,7 +21,7 @@ from backend.sources.itunes import COVER_PX
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 LOOKUP = "https://itunes.apple.com/lookup"
-MAX_ITEMS = 256   # backend/sources/playlist.py と同じ
+MAX_ITEMS = 500   # backend/sources/playlist.py と同じ
 
 _ALBUM_RE = re.compile(r"/(?:[a-z]{2}/)?album/[^/]*/(\d+)")
 _PLAYLIST_RE = re.compile(r"/(?:[a-z]{2}/)?playlist/[^/]*/(pl\.[A-Za-z0-9_-]+)")
