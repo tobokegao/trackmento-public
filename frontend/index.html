@@ -1323,7 +1323,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      サーバー経由だと Render などの共有 IP が Apple に 403/429 で遮断されるため。絞り込み・並び順は backend/sources/itunes.py と同じ規則。
      直接叩けないとき（広告ブロッカー・ネットワーク）はサーバー側に任せる */
   const ITUNES_ENDPOINT = "https://itunes.apple.com/search";
-  const nkey = (v) => (v || "").normalize("NFKC").toLowerCase().replace(/featuring/g, "feat").replace(/feat\./g, "feat").replace(/[^\p{L}\p{N}]+/gu, "");
+  /* サーバー側（backend/merge.py の _n）と同じ結果になるようにする。Python の casefold は ß を ss に
+     畳むが JS の toLowerCase は畳まないので、そこだけ手で合わせる（揃っていないと
+     ブラウザ検索とサーバー検索で結果が変わる） */
+  const nkey = (v) => (v || "").normalize("NFKC").toLowerCase().replace(/ß/g, "ss").replace(/featuring/g, "feat").replace(/feat\./g, "feat").replace(/[^\p{L}\p{N}]+/gu, "");
   const hiresArt = (url) => url.replace(/\/\d+x\d+(bb)?\.(jpg|png)$/, (m, bb, ext) => `/1000x1000${bb || ""}.${ext}`);
   async function itunesSearch(q, artist) {
     const term = `${artist} ${q}`.trim();
