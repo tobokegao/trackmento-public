@@ -23,7 +23,9 @@ IMAGE_TTL = 30 * 24 * 3600        # 画像は 30 日
 # ソース／ホストごとの短い期限（各サービスの利用条件に合わせる）
 #   Discogs: API Terms of Use で「6 時間より古い Content を表示しない」「必要以上にキャッシュしない」
 #   YouTube: API ポリシーでデータの保持は 30 日まで（サムネイルも同じ扱いにする）
-SEARCH_TTL_BY_SOURCE = {"discogs": 6 * 3600}
+# roxy（otodb.ROXY_CACHE）は 1 日。応答に Cache-Control が無いぶんこちらで覚える。
+# 見つからなかった分も空リストで覚えるので、あとで otoDB に登録されたものを拾えるよう長くしすぎない
+SEARCH_TTL_BY_SOURCE = {"discogs": 6 * 3600, "roxy": 24 * 3600}
 IMAGE_TTL_BY_HOST = {"discogs.com": 6 * 3600, "ytimg.com": 24 * 3600}
 
 

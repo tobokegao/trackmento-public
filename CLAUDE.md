@@ -100,6 +100,13 @@ claude --remote-control TRACKMENTO                                             #
   - **roxy が未登録の動画を各サイトから取りに行くのはニコニコだけ**（2026-09 実測）。YouTube / bilibili /
     SoundCloud は生きている URL でも 404 `Cannot fallback` になる。otoDB に登録済みの作品なら
     他のサイト出典でも引ける可能性はあるが未確認。SoundCloud 対応を足すならここが確認できてから
+  - **roxy の応答には Cache-Control が無い**ので、結果を `cache.sqlite3` の search テーブルに
+    擬似ソース `roxy`（`otodb.ROXY_CACHE`）として 1 日覚える。**見つからなかった分も空リストで覚える**
+    （消えた動画の大半は otoDB にも無く、そちらのほうが多い）。同じプレイリストを貼り直しても roxy を叩かない
+- otoDB の API は**匿名の GET を 60 秒キャッシュする**（otoDB 側 `middleware.py` の `AnonymousReadOnlyCacheMiddleware`）。
+  実測で初回 364〜597ms、2 回目以降 29〜33ms。`Cache-Control: max-age=60` が返る。ログインしないので常にこの対象。
+  画像は `cdn.otodb.net`（CDN）なのでオリジンには行かない。検索は `offset` でページングできる
+  （1 ページ 30 件が上限。31 以上の `limit` は 422。`otodb.PAGE` / `MAX_PAGES`）
   - 単体 URL … `fromurl.fetch` が直接取得に失敗したら roxy に聞く（`_ROXY_FALLBACK`）。`sm12345` のような ID だけの貼付も roxy へ
   - プレイリスト … **こちらは失敗しない**。ニコニコのマイリスト API は消えた動画にも「削除された動画」という
     タイトルと灰色のサムネイルを付けて返すため、例外にならず素通りする。`playlist.is_gone()` で
