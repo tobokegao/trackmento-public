@@ -593,7 +593,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）。改行で区切ると、ちがうサイトのものをまとめて取れます。マイリスト・セット・収藏夹・プレイリスト・再生リストの URL なら、中の曲をまとめて取れます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>それぞれのサービスのプレイリスト URL なら、収録曲をまとめて取得出来ます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
@@ -1166,6 +1166,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (h.endsWith("bilibili.com") && p.includes("favlist") && u.searchParams.get("fid")) return true;
     if (h.endsWith("spotify.com") && /\/playlist\/[A-Za-z0-9]+/.test(p)) return true;
     if (h.endsWith("bandcamp.com") && /^\/[^/]+\/playlist\/[^/]+/.test(p)) return true;
+    // Apple Music はアルバム（?i= が無いもの）とプレイリストがまとめ取り
+    if (h === "music.apple.com") {
+      if (/\/playlist\/[^/]*\/pl\./.test(p)) return true;
+      if (/\/album\/[^/]*\/\d+/.test(p) && !u.searchParams.get("i")) return true;
+    }
     if ((h.endsWith("youtube.com") || h === "youtu.be") && u.searchParams.get("list")) return true;
     return false;
   }

@@ -11,9 +11,15 @@ import httpx
 
 from backend.models import Track
 from backend.logutil import brief
-from backend.sources import bandcamp, otodb, soundcloud, spotify, video
+from backend.sources import applemusic, bandcamp, otodb, soundcloud, spotify, video
 
 Fetcher = Callable[..., Awaitable[Track]]
+
+
+async def _applemusic_one(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
+    """Apple Music を 1 件で返す（アルバムやプレイリストの URL なら先頭の曲）。
+    まとめて取りたいときは playlist.fetch が使われる。"""
+    return (await applemusic.fetch(url, client=client))[0]
 _ROXY_FALLBACK = {"SoundCloud", "YouTube", "ニコニコ動画", "bilibili"}
 
 
@@ -29,6 +35,8 @@ def resolve(url: str) -> tuple[str, Fetcher]:
         return "ニコニコ動画", video.fetch_nicovideo
     if video.is_bilibili(url):
         return "bilibili", video.fetch_bilibili
+    if applemusic.is_applemusic(url):
+        return "Apple Music", _applemusic_one
     if spotify.is_spotify(url):
         return "Spotify", spotify.fetch
     return "Bandcamp", bandcamp.fetch

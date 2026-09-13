@@ -29,7 +29,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 
 from backend.models import NO_COVER, Track
-from backend.sources import bandcamp, video
+from backend.sources import applemusic, bandcamp, video
 
 MAX_ITEMS = 256   # マスの上限（backend/config.py の max_cells）と同じ。1 回のページ取得で返る分だけ入れる
                   # （ソースによっては 1 回で全部返らない。ニコニコは全件、YouTube は 100 件が上限）
@@ -65,6 +65,8 @@ def kind(url: str) -> str:
         return "bandcamp"
     if (h.endswith("youtube.com") or h == "youtu.be") and qs.get("list"):
         return "youtube"
+    if applemusic.kind(url) in ("album", "playlist"):   # 単曲は /from-url のまま
+        return "applemusic"
     return ""
 
 
@@ -75,7 +77,8 @@ def is_playlist(url: str) -> bool:
 def label(url: str) -> str:
     return {"nicovideo": "ニコニコ動画のマイリスト", "soundcloud": "SoundCloud のセット",
             "bilibili": "bilibili の収藏夹", "spotify": "Spotify のプレイリスト",
-            "bandcamp": "Bandcamp のプレイリスト", "youtube": "YouTube の再生リスト"}.get(kind(url), "プレイリスト")
+            "bandcamp": "Bandcamp のプレイリスト", "youtube": "YouTube の再生リスト",
+            "applemusic": "Apple Music"}.get(kind(url), "プレイリスト")
 
 
 # ---- ニコニコ動画のマイリスト ----
@@ -327,7 +330,8 @@ async def _youtube(url: str, client: httpx.AsyncClient) -> list[Track]:
 
 
 _FETCHERS = {"nicovideo": _nicovideo, "soundcloud": _soundcloud, "bilibili": _bilibili, "spotify": _spotify,
-             "bandcamp": _bandcamp, "youtube": _youtube}
+             "bandcamp": _bandcamp, "youtube": _youtube,
+             "applemusic": lambda url, client: applemusic.fetch(url, client=client)}
 
 
 async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> list[Track]:
