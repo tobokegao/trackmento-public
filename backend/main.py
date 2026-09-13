@@ -29,7 +29,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 
 from backend import grids, housekeeping, imgtools, netguard, render, share, storage, uploads
-from backend.cache import cache
+from backend.cache import R2_IMAGE_TTL, cache
 from backend.logutil import brief
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
                             rate_limit_per_minute, share_budget_bytes, share_limits, share_retention_days, trust_proxy)
@@ -119,6 +119,7 @@ async def lifespan(app: FastAPI):
     app.state.started_at = time.time()
     monitor = asyncio.create_task(_load_monitor()) if public_mode() else None
     seed = asyncio.create_task(_seed_share_count()) if public_mode() and st.is_remote else None
+    imgidx = asyncio.create_task(_seed_image_index()) if st.is_remote else None
     app.state.http = httpx.AsyncClient(
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
@@ -131,6 +132,8 @@ async def lifespan(app: FastAPI):
             monitor.cancel()
         if seed:
             seed.cancel()
+        if imgidx:
+            imgidx.cancel()
         await app.state.http.aclose()
         cache.close()
 
@@ -778,7 +781,68 @@ _IMG_EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "imag
 
 def _image_r2_key(url: str, ctype: str) -> str:
     """取得元 URL から R2 のキーを作る。同じ画像は同じキーになる。"""
-    return f"{IMAGE_R2_PREFIX}{hashlib.sha1(url.encode('utf-8')).hexdigest()[:20]}.{_IMG_EXT.get(ctype, 'bin')}"
+    return f"{IMAGE_R2_PREFIX}{_image_hash(url)}.{_IMG_EXT.get(ctype, 'bin')}"
+
+
+def _image_hash(url: str) -> str:
+    """R2 のキーのうち拡張子より前の部分。索引（_IMG_INDEX）の鍵でもある。"""
+    return hashlib.sha1(url.encode("utf-8")).hexdigest()[:20]
+
+
+# imgcache/ にあるキーの索引。sha1 の頭 20 桁 → (R2 のキー, 最終更新の epoch 秒)。起動時に一覧して作る。
+#
+# cache.sqlite3 はコンテナのディスクにあるのでデプロイのたびに消えるが、R2 の中身は残っている。
+# 索引が無いと、既に R2 にある画像を配信元から取り直して上げ直すことになり、入れ替えのたびに
+# Render の転送量（課金対象）が跳ねる（本体 68KB × 件数。302 なら数百バイト）。
+# 一覧は 1000 件ごとに 1 回の Class A（実測 5,609 件で 6 回）。1 件ずつ HeadObject を引くより安く、
+# 取得前には分からない拡張子（jpg/png/webp/gif）を知らなくても引ける。
+_IMG_INDEX: dict[str, tuple[str, float]] = {}
+_IMG_INDEX_MAX = int(os.getenv("IMAGE_INDEX_MAX", "200000"))   # 1 件あたり 150B 程度。20 万件で 30MB
+
+
+def _image_index_get(url: str) -> str | None:
+    """索引に載っていて、まだ R2 のライフサイクルで消えていなければ R2 のキー。
+
+    期限は R2_IMAGE_TTL（6 日）で切る。R2 側の掃除は 7 日なので、こちらを短くしておかないと
+    消えた後もリダイレクトし続けて 404 になる（cache.get_image_r2key と同じ理由）。
+    """
+    ent = _IMG_INDEX.get(_image_hash(url))
+    if not ent:
+        return None
+    key, mtime = ent
+    if time.time() - mtime > R2_IMAGE_TTL:
+        _IMG_INDEX.pop(_image_hash(url), None)
+        return None
+    return key
+
+
+def _image_index_put(url: str, key: str) -> None:
+    if len(_IMG_INDEX) < _IMG_INDEX_MAX:
+        _IMG_INDEX[_image_hash(url)] = (key, time.time())
+
+
+def _load_image_index() -> dict[str, tuple[str, float]]:
+    st = storage.get_storage()
+    out: dict[str, tuple[str, float]] = {}
+    for key, _size, modified in st.list_objects(IMAGE_R2_PREFIX):
+        name = key[len(IMAGE_R2_PREFIX):].rsplit(".", 1)[0]
+        if len(name) == 20 and len(out) < _IMG_INDEX_MAX:   # _image_hash が作る sha1 の頭 20 桁だけを拾う
+            out[name] = (key, modified.timestamp())
+    return out
+
+
+async def _seed_image_index() -> None:
+    """起動後に R2 の imgcache/ を一覧して索引を作る。失敗しても取り直すだけなので握りつぶす。"""
+    st = storage.get_storage()
+    if not IMAGE_TO_R2 or not st.is_remote or not st.public_url(""):
+        return
+    try:
+        got = await asyncio.to_thread(_load_image_index)
+    except Exception as e:
+        print(f"[error] imgcache の索引を作れませんでした: {type(e).__name__}: {e}")
+        return
+    _IMG_INDEX.update(got)
+    print(f"[storage] imgcache の索引: {len(_IMG_INDEX)} 件（デプロイ後の取り直しを防ぐ）")
 
 
 async def _image_r2_redirect(url: str) -> Response | None:
@@ -790,7 +854,8 @@ async def _image_r2_redirect(url: str) -> Response | None:
     """
     if not IMAGE_TO_R2:
         return None
-    key = await asyncio.to_thread(cache.get_image_r2key, url)
+    # SQLite が忘れていても（デプロイでコンテナのディスクごと消える）、R2 に現物が残っていれば索引で引ける
+    key = await asyncio.to_thread(cache.get_image_r2key, url) or _image_index_get(url)
     if not key:
         return None
     public = storage.get_storage().public_url(key)
@@ -808,6 +873,7 @@ async def _image_to_r2(url: str, ctype: str, data: bytes) -> None:
     try:
         await asyncio.to_thread(st.put, key, data, ctype)
         await asyncio.to_thread(cache.mark_image_r2, url, key)
+        _image_index_put(url, key)   # SQLite の行が掃除されても索引だけで 302 を返せるように
     except Exception as e:
         print(f"[error] 画像を R2 に置けませんでした: {type(e).__name__}: {e}")
 

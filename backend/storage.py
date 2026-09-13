@@ -48,13 +48,13 @@ class LocalStorage:
     def usage_bytes(self) -> int:
         return sum(p.stat().st_size for p in SHARES.glob("*") if p.is_file()) if SHARES.exists() else 0
 
-    def list_objects(self):
-        """(キー, バイト数, 最終更新 UTC) を順に返す。"""
+    def list_objects(self, prefix: str = ""):
+        """(キー, バイト数, 最終更新 UTC) を順に返す。prefix を渡すとその接頭辞のものだけ。"""
         from datetime import datetime, timezone
         if not SHARES.exists():
             return
         for p in SHARES.glob("*"):
-            if p.is_file():
+            if p.is_file() and p.name.startswith(prefix):
                 st = p.stat()
                 yield p.name, st.st_size, datetime.fromtimestamp(st.st_mtime, timezone.utc)
 
@@ -121,11 +121,14 @@ class R2Storage:
         """バケット内の合計バイト数。一覧（ListObjectsV2）は Class A 操作だが 1000 件ごとに 1 回なので安い"""
         return sum(size for _, size, _ in self.list_objects())
 
-    def list_objects(self):
-        """(キー, バイト数, 最終更新 UTC) を順に返す。1000 件ごとに 1 回の一覧呼び出し（7,000 件で 8 回・数秒）。"""
+    def list_objects(self, prefix: str = ""):
+        """(キー, バイト数, 最終更新 UTC) を順に返す。1000 件ごとに 1 回の一覧呼び出し（7,000 件で 8 回・数秒）。
+        prefix を渡すと R2 側で絞るので、一部だけ要るときは呼び出し回数が減る。"""
         token = None
         while True:
             kw = {"Bucket": self.bucket, "MaxKeys": 1000}
+            if prefix:
+                kw["Prefix"] = prefix
             if token:
                 kw["ContinuationToken"] = token
             r = self._client.list_objects_v2(**kw)
