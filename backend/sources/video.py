@@ -29,6 +29,26 @@ _YT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 _NICO_ID_RE = re.compile(r"\b((?:sm|nm|so)\d+)\b")
 _BILI_ID_RE = re.compile(r"/video/((?:BV[0-9A-Za-z]{10})|(?:av\d+))", re.IGNORECASE)
 _BILI_STATE_RE = re.compile(r"window\.__INITIAL_STATE__=(\{.*?\});\(function", re.S)
+
+# bilibili の画像 CDN（hdslb.com）は URL の後ろに @<幅>w_<高さ>h_1c を付けると、その大きさに切って返す。
+# 付けないと原寸（実測 1076x608 で 640KB）が返り、書き出しのマス 600px には過剰。600 角なら 50KB（-92%）。
+BILI_COVER_SUFFIX = "@600w_600h_1c"   # 600 = render.py / index.html の CELL_PX
+BILI_THUMB_SUFFIX = "@320w_320h_1c"
+_BILI_SIZE_RE = re.compile(r"@[0-9a-z_]+$")
+
+
+def bili_sized(url: str, suffix: str = BILI_COVER_SUFFIX) -> str:
+    """hdslb.com の画像 URL に大きさの指定を付ける（既に付いていれば置き換える）。"""
+    if "hdslb.com" not in url:
+        return url
+    return _BILI_SIZE_RE.sub("", url) + suffix
+
+
+def clamp_size(url: str) -> str:
+    """大きさ指定なし（＝原寸）で保存済みの URL を 600 角にする。/image-proxy から呼び、過去のグリッドにも効かせる。"""
+    if "hdslb.com" not in url or _BILI_SIZE_RE.search(url):
+        return url
+    return url + BILI_COVER_SUFFIX
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
 
@@ -105,8 +125,8 @@ async def fetch_bilibili(url: str, *, client: httpx.AsyncClient | None = None) -
         title=title.strip(),
         artist=artist.strip(),
         album=None,
-        image=pic,
-        thumb=pic + "@320w_320h_1c",   # bilibili の画像 CDN はサイズ指定サフィックスで縮小できる
+        image=bili_sized(pic),
+        thumb=bili_sized(pic, BILI_THUMB_SUFFIX),
         external_url=f"https://www.bilibili.com/video/{vid}/",
     )
 

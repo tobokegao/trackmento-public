@@ -35,7 +35,7 @@ from backend.config import (app_url_for, base_url_for, cors_origins, frontend_ur
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
-from backend.sources import bandcamp, discogs, fromurl, itunes, musicbrainz, otodb
+from backend.sources import bandcamp, discogs, fromurl, itunes, musicbrainz, otodb, video
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -605,9 +605,9 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
         return Response(content=got[0], media_type=got[1], headers={"Cache-Control": "public, max-age=86400"})
     if not await asyncio.to_thread(_host_allowed, url):   # 許可ホスト以外は名前解決（同期）を伴うのでスレッドで
         raise HTTPException(403, "このホストの画像は取得できません（私設アドレスや解決できないホスト）")
-    # 保存済みのグリッドが持つ大きすぎる URL（iTunes の 1000x1000、Bandcamp の原寸）を
+    # 保存済みのグリッドが持つ大きすぎる URL（iTunes の 1000x1000、Bandcamp と bilibili の原寸）を
     # マスの大きさ（600px）に合わせて取り直す。ホストは変わらないので検査の後でよい
-    url = bandcamp.clamp_size(itunes.clamp_size(url))
+    url = video.clamp_size(bandcamp.clamp_size(itunes.clamp_size(url)))
     hit = await asyncio.to_thread(cache.get_image, url)
     if hit:
         ctype, data = hit
