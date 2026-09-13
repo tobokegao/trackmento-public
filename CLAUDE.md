@@ -111,7 +111,10 @@ claude --remote-control TRACKMENTO                                             #
   実測で初回 364〜597ms、2 回目以降 29〜33ms。`Cache-Control: max-age=60` が返る。ログインしないので常にこの対象。
   画像は `cdn.otodb.net`（CDN）なのでオリジンには行かない。検索は `offset` でページングできる
   （1 ページ 30 件が上限。31 以上の `limit` は 422。`otodb.PAGE` / `MAX_PAGES`）
-  - 単体 URL … `fromurl.fetch` が直接取得に失敗したら roxy に聞く（`_ROXY_FALLBACK`）。`sm12345` のような ID だけの貼付も roxy へ
+  - 単体 URL … `fromurl.fetch` が直接取得に失敗したら roxy に聞く（`_ROXY_FALLBACK`）。`sm12345` や `BV…` のような
+    ID だけの貼付は `fromurl.normalize()` がそのサイトの URL に組み立ててから同じ流れに乗せる。
+    **ID をそのまま roxy に投げてはいけない**（roxy が扱えるのはニコニコだけなので BV… と YouTube の 11 文字は必ず失敗し、
+    毎回 roxy への無駄打ちになる。以前はそうなっていた）
   - プレイリスト … **こちらは失敗しない**。ニコニコのマイリスト API は消えた動画にも「削除された動画」という
     タイトルと灰色のサムネイルを付けて返すため、例外にならず素通りする。`playlist.is_gone()` で
     決まり文句のタイトルを見つけ、`_fill_from_otodb()` が roxy で差し替える（並び順は変えない。

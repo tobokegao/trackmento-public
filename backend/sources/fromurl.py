@@ -1,7 +1,8 @@
 """URL 貼付の振り分け。Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify をホスト名で判定して fetch 関数を返す。
 
 動画サイト（ニコニコ／YouTube／bilibili／SoundCloud）で直接取れなかったとき（削除済みなど）は
-roxy（otoDB）にフォールバックする。sm12345 や BV… のような ID だけが貼られたときは roxy に直接聞く。
+roxy（otoDB）にフォールバックする。sm12345 や BV… のような ID だけが貼られたときは、
+normalize() がそのサイトの URL に組み立ててから同じ流れに乗せる。
 
 実際に拾えるのはほぼニコニコだけ（roxy が未登録から取りに行くのがニコニコのみのため）。
 それ以外を _ROXY_FALLBACK に残してあるのは、otoDB 側が広げたときにそのまま効くようにするため。
@@ -9,6 +10,7 @@ roxy（otoDB）にフォールバックする。sm12345 や BV… のような I
 """
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable
 
 import httpx
@@ -26,11 +28,28 @@ async def _applemusic_one(url: str, *, client: httpx.AsyncClient | None = None) 
     return (await applemusic.fetch(url, client=client))[0]
 _ROXY_FALLBACK = {"SoundCloud", "YouTube", "ニコニコ動画", "bilibili"}
 
+# 動画 ID だけが貼られたとき、そのサイトの URL に組み立てる。以前は ID をまるごと roxy に投げていたが、
+# roxy が扱えるのはニコニコだけなので BV… と YouTube の 11 文字は必ず失敗していた（毎回 roxy への無駄打ち）。
+# 各サイトから直接取り、消えていたときだけ _ROXY_FALLBACK 経由で roxy に回す方がどちらにも良い
+_ID_URL = (
+    (re.compile(r"^(?:sm|nm|so)\d+$"), "https://www.nicovideo.jp/watch/{}"),
+    (re.compile(r"^(?:BV[0-9A-Za-z]{10}|av\d+)$"), "https://www.bilibili.com/video/{}"),
+    (re.compile(r"^[A-Za-z0-9_-]{11}$"), "https://www.youtube.com/watch?v={}"),
+)
+
+
+def normalize(url: str) -> str:
+    """動画 ID だけならそのサイトの URL にする。URL ならそのまま。"""
+    s = url.strip()
+    for pat, tpl in _ID_URL:
+        if pat.match(s):
+            return tpl.format(s)
+    return url
+
 
 def resolve(url: str) -> tuple[str, Fetcher]:
     """(表示名, fetch) を返す。どれにも当てはまらなければ Bandcamp として扱う（独自ドメインの Bandcamp があるため）。"""
-    if otodb.is_video_id(url):
-        return "otoDB", otodb.roxy_fetch
+    url = normalize(url)
     if soundcloud.is_soundcloud(url):
         return "SoundCloud", soundcloud.fetch
     if video.is_youtube(url):
@@ -47,6 +66,7 @@ def resolve(url: str) -> tuple[str, Fetcher]:
 
 
 async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
+    url = normalize(url)
     label, fn = resolve(url)
     try:
         return await fn(url, client=client)
