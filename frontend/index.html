@@ -162,7 +162,13 @@ img { max-width: 100%; display: block; }
     align-items: start;
   }
   .pane-search { grid-area: search; }
-  .pane-results { grid-area: results; }
+  /* 候補ペインだけは行の高さいっぱいに伸ばしてグリッドと下端を揃える（他のペインは内容ぶんのまま）。
+     height:0 ＋ min-height:100% は、行の高さを決めるときに自分の中身を数えさせないための書き方。
+     これが無いと候補が増えたぶんだけ行が伸び、グリッドまで一緒に高くなってしまう。
+     中のリストが余りを埋めるよう、ペイン → 本体 → リストの順に flex で高さを渡す */
+  .pane-results { grid-area: results; align-self: stretch; height: 0; min-height: 100%; display: flex; flex-direction: column; }
+  .pane-results .pane-body { flex: 1; min-height: 0; display: flex; }
+  .pane-results .results { flex: 1; min-height: 0; max-height: none; }
   .pane-grid { grid-area: grid; }
   .pane-options { grid-area: options; }
 }
@@ -173,7 +179,6 @@ img { max-width: 100%; display: block; }
     grid-template-areas: "search results grid options";
     grid-template-rows: auto;
   }
-  .results { max-height: calc(100dvh - 14rem); }
 }
 .pane {
   border: var(--line) solid var(--color-ink);
@@ -347,7 +352,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .msg-under { margin-top: var(--space-3); }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
 
 /* ---------- results ---------- */
-.results { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); max-height: 44dvh; overflow-y: auto; }
+.results { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: var(--space-2); max-height: 44dvh; overflow-y: auto; }   /* 上詰め。ペインを伸ばしたとき、中身が少ないと縦に間延びするため */
 @media (min-width: 60rem) { .results { max-height: calc(100dvh - 24rem); } }
 .result {
   display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-3); align-items: center;

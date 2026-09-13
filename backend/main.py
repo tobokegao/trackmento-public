@@ -244,10 +244,24 @@ def _wants_html(request: Request) -> bool:
     return request.method in ("GET", "HEAD") and "text/html" in request.headers.get("accept", "")
 
 
+def _lang_for(request: Request | None) -> str:
+    """案内ページ・共有ページの言語。開いた人の Accept-Language で決める。
+
+    共有ページは受け取った人が開くものなので、共有した人が画面で選んだ言語ではなく、
+    開く人のブラウザの設定に合わせる。ヘッダが無ければ日本語（このサイトの元の言語）。
+    """
+    header = (request.headers.get("accept-language") or "") if request is not None else ""
+    for part in header.split(","):
+        tag = part.split(";")[0].strip().lower()
+        if tag and tag != "*":
+            return "ja" if tag.startswith("ja") else "en"
+    return "ja"
+
+
 def _error_response(request: Request, status: int, detail: str, headers: dict | None = None) -> Response:
     """エラーは fetch には JSON、ブラウザ遷移には案内ページ（存在しない URL・期限切れの画像・429・500 で {"detail": …} を見せない）。"""
     if _wants_html(request):
-        return HTMLResponse(share.notice_html(status, base_url_for(request), app_url_for(request), detail), status_code=status, headers=headers)
+        return HTMLResponse(share.notice_html(status, base_url_for(request), app_url_for(request), detail, _lang_for(request)), status_code=status, headers=headers)
     return JSONResponse({"detail": detail}, status_code=status, headers=headers)
 
 
@@ -1105,5 +1119,5 @@ async def share_page(request: Request, sid: str) -> HTMLResponse:
     snap = await run_in_threadpool(share.load, sid)
     if not snap:
         # JSON の 404 だと X から開いた人に何が起きたか伝わらない。案内ページ（期限切れ・作り直し）を返す
-        return HTMLResponse(share.expired_html(sid, base_url_for(request), app_url_for(request)), status_code=404)
-    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request)))
+        return HTMLResponse(share.expired_html(sid, base_url_for(request), app_url_for(request), _lang_for(request)), status_code=404)
+    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request)))

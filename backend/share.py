@@ -195,6 +195,68 @@ def load(sid: str) -> dict | None:
         return None
 
 
+# 共有ページ・案内ページの文言。フロント（frontend/index.html の EN 表）と違い、こちらはサーバーで組み立てるので
+# 開いた人の Accept-Language で選ぶ（共有ページは受け取った人が開くため、共有した人の設定ではなく開く人に合わせる）。
+# 連絡先は英語版のページが無いので URL は共通、ラベルだけ訳す。
+TEXT = {
+    "ja": {
+        "expired_title": "この共有は見つかりません",
+        "expired_og": "この共有は期限切れです。TRACKMENTO で作り直せます",
+        "expired_note": "共有 URL は作成から {days} 日で消えます。この共有 URL は期限切れか、障害対応（保存容量の上限到達）で削除されたものです。"
+                        "画像や並びのファイル（「並びを保存」で書き出す JSON）が手元に無い場合は、お手数ですが TRACKMENTO で作り直してください。",
+        "make_btn": "TRACKMENTO で作る",
+        "open_btn": "TRACKMENTO を開く",
+        "contact": "連絡先",
+        "nf_title": "ページが見つかりません",
+        "nf_note": "URL が間違っているか、期限切れで消えたページです。共有 URL や画像は作成から {days} 日で消えます。",
+        "busy_title": "アクセスが集中しています",
+        "busy_note": "1 分ほど待ってからもう一度お試しください。",
+        "err_title": "エラーが起きました",
+        "err_note": "時間をおいてもう一度お試しください。直らない場合は連絡先へお知らせください。",
+        "save_img": "画像を保存",
+        "open_in": "TRACKMENTO で開く（この並びを読み込む）",
+        "tracks": "{n} 曲",
+        "share_id": "共有 ID",
+        "this_url": "この URL",
+        "keep": "画像を保存すれば手元に残ります",
+        "expires_until": "有効期限: {until} まで（作成から {days} 日）",
+        "expires_days": "有効期限: 作成から {days} 日",
+        "og_share": "トラック共有サイト #TRACKMENTO からシェア:「{title}」",
+        "untitled": "無題",
+    },
+    "en": {
+        "expired_title": "This share is gone",
+        "expired_og": "This share has expired. Make a new one with TRACKMENTO",
+        "expired_note": "Share URLs disappear {days} days after they are made. This one has either expired or been removed while freeing up storage. "
+                        "If you do not have the image or the layout file (the JSON that \u201cSave layout\u201d writes) to hand, you will need to build it again in TRACKMENTO.",
+        "make_btn": "Make one with TRACKMENTO",
+        "open_btn": "Open TRACKMENTO",
+        "contact": "Contact",
+        "nf_title": "Page not found",
+        "nf_note": "The URL is wrong, or the page has expired. Share URLs and images disappear {days} days after they are made.",
+        "busy_title": "Too many requests right now",
+        "busy_note": "Wait about a minute and try again.",
+        "err_title": "Something went wrong",
+        "err_note": "Try again in a little while. If it keeps happening, let me know at the contact below.",
+        "save_img": "Save image",
+        "open_in": "Open in TRACKMENTO (loads this layout)",
+        "tracks": "{n} tracks",
+        "share_id": "Share ID",
+        "this_url": "This URL",
+        "keep": "save the image to keep it",
+        "expires_until": "Expires {until} ({days} days after it was made)",
+        "expires_days": "Expires {days} days after it was made",
+        "og_share": "Shared from #TRACKMENTO, the track-grid maker: \u201c{title}\u201d",
+        "untitled": "Untitled",
+    },
+}
+
+
+def t(lang: str, key: str, **kw) -> str:
+    """文言を引く。知らない言語は日本語にする。"""
+    return TEXT.get(lang if lang in TEXT else "ja", TEXT["ja"])[key].format(**kw)
+
+
 def _page_css(base: str) -> str:
     # フォントはこのサーバー（共有ページを配っているのと同じオリジン）から相対パスで読む。base（LAN IP や公開 URL）と
     # ページのオリジンが違うとフォントは CORS で読めず、ワードマークが代替フォントになる
@@ -236,58 +298,57 @@ p.note {{ margin: 0; padding: 12px 16px; border: 2px solid #12171b; background: 
 """
 
 
-def _expires_text(created_at: str | None) -> str:
+def _expires_text(created_at: str | None, lang: str = "ja") -> str:
     """「有効期限: 2026-09-18 まで（作成から 7 日）」。createdAt が読めなければ日数だけ。"""
     days = share_retention_days()
     try:
         created = datetime.fromisoformat((created_at or "").replace("Z", "+00:00"))
         until = (created + timedelta(days=days)).astimezone(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
-        return f"有効期限: {until} まで（作成から {days} 日）"
+        return t(lang, "expires_until", until=until, days=days)
     except ValueError:
-        return f"有効期限: 作成から {days} 日"
+        return t(lang, "expires_days", days=days)
 
 
-def expired_html(sid: str, base: str, app_url: str | None = None) -> str:
+def expired_html(sid: str, base: str, app_url: str | None = None, lang: str = "ja") -> str:
     """共有が見つからないときの案内ページ（404）。JSON を返すと X から開いた人に何が起きたか伝わらない。
     リンクカードはサイト既定の画像にして、再共有されても壊れた表示にならないようにする。"""
     app_url = (app_url or base).rstrip("/")
     days = share_retention_days()
     return f"""<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>この共有は見つかりません — TRACKMENTO</title>
+<html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{t(lang, "expired_title")} — TRACKMENTO</title>
 <link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="robots" content="noindex">
 <meta property="og:title" content="TRACKMENTO"><meta property="og:image" content="{base}/og.png"><meta name="twitter:image" content="{base}/og.png">
-<meta property="og:description" content="この共有は期限切れです。TRACKMENTO で作り直せます"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:description" content="{t(lang, "expired_og")}"><meta name="twitter:card" content="summary_large_image">
 <style>{_page_css(base)}</style></head>
 <body>
 <header><span class="mark">TRACKMENTO</span></header>
 <main>
-  <h1>この共有は見つかりません</h1>
-  <p class="note">共有 URL は作成から {days} 日で消えます。この共有 URL は期限切れか、障害対応（保存容量の上限到達）で削除されたものです。
-  画像や並びのファイル（「並びを保存」で書き出す JSON）が手元に無い場合は、お手数ですが TRACKMENTO で作り直してください。</p>
+  <h1>{t(lang, "expired_title")}</h1>
+  <p class="note">{t(lang, "expired_note", days=days)}</p>
   <div class="btns">
-    <a class="btn primary" href="{app_url}/">TRACKMENTO で作る</a>
+    <a class="btn primary" href="{app_url}/">{t(lang, "make_btn")}</a>
   </div>
-  <p class="meta">連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
+  <p class="meta">{t(lang, "contact")}: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""
 
 
-def notice_html(status: int, base: str, app_url: str | None = None, detail: str = "") -> str:
+def notice_html(status: int, base: str, app_url: str | None = None, detail: str = "", lang: str = "ja") -> str:
     """ブラウザで直接開いた URL がエラーになったときの案内ページ（404・405・429・5xx）。
     JSON の {"detail": …} をそのまま見せない。見た目は共有ページと同じ。"""
     app_url = (app_url or base).rstrip("/")
     days = share_retention_days()
     if status in (404, 405):
-        title, note = "ページが見つかりません", f"URL が間違っているか、期限切れで消えたページです。共有 URL や画像は作成から {days} 日で消えます。"
+        title, note = t(lang, "nf_title"), t(lang, "nf_note", days=days)
     elif status == 429:
-        title, note = "アクセスが集中しています", "1 分ほど待ってからもう一度お試しください。"
+        title, note = t(lang, "busy_title"), t(lang, "busy_note")
     else:
-        title, note = "エラーが起きました", "時間をおいてもう一度お試しください。直らない場合は連絡先へお知らせください。"
+        title, note = t(lang, "err_title"), t(lang, "err_note")
     extra = f'<p class="note">{html.escape(detail)}</p>' if detail and status not in (404, 405) else ""
     return f"""<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} — TRACKMENTO</title>
 <link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="robots" content="noindex">
@@ -298,14 +359,14 @@ def notice_html(status: int, base: str, app_url: str | None = None, detail: str 
   <h1>{title}</h1>
   <p class="note">{note}</p>{extra}
   <div class="btns">
-    <a class="btn primary" href="{app_url}/">TRACKMENTO を開く</a>
+    <a class="btn primary" href="{app_url}/">{t(lang, "open_btn")}</a>
   </div>
-  <p class="meta">連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
+  <p class="meta">{t(lang, "contact")}: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""
 
 
-def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
+def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja") -> str:
     """共有ページ。依存なしの単一 HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
     app_url = (app_url or base).rstrip("/")
@@ -326,12 +387,12 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
             rows.append(f"<li><span class=n>{i:02d}</span><span class=t><b>{html.escape(c.get('title') or '')}</b> <span class=a>{html.escape(c.get('artist') or '')}</span></span></li>")
     n = len(rows)
     return f"""<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} — TRACKMENTO</title>
 <link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="robots" content="noindex">
 <meta property="og:title" content="{title}"><meta property="og:image" content="{card_url}">{card_meta}<meta name="twitter:image" content="{card_url}">
-<meta property="og:description" content="トラック共有サイト #TRACKMENTO からシェア:「{html.escape(snap.get('title') or '無題')}」"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:description" content="{t(lang, 'og_share', title=html.escape(snap.get('title') or t(lang, 'untitled')))}"><meta name="twitter:card" content="summary_large_image">
 <style>{_page_css(base)}</style></head>
 <body>
 <header><span class="mark">TRACKMENTO</span></header>
@@ -339,12 +400,12 @@ def page_html(snap: dict, base: str, app_url: str | None = None) -> str:
   <h1>{title}</h1>
   <img src="{img_url}" alt="{title}">
   <div class="btns">
-    <a class="btn primary" href="/shares/{sid}.{ext}" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.{ext}">画像を保存</a>
-    <a class="btn" href="{app_url}/?share={sid}">TRACKMENTO で開く（この並びを読み込む）</a>
+    <a class="btn primary" href="/shares/{sid}.{ext}" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.{ext}">{t(lang, "save_img")}</a>
+    <a class="btn" href="{app_url}/?share={sid}">{t(lang, "open_in")}</a>
   </div>
   <ol>{''.join(rows)}</ol>
-  <p class="meta">{n} 曲 · {snap.get('cols')}×{snap.get('rows')} · 共有 ID {sid} · {html.escape(snap.get('createdAt') or '')}</p>
-  <p class="meta">この URL: {base}/s/{sid} · {_expires_text(snap.get('createdAt'))}。画像を保存すれば手元に残ります</p>
-  <p class="meta">連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
+  <p class="meta">{t(lang, 'tracks', n=n)} · {snap.get('cols')}×{snap.get('rows')} · {t(lang, 'share_id')} {sid} · {html.escape(snap.get('createdAt') or '')}</p>
+  <p class="meta">{t(lang, 'this_url')}: {base}/s/{sid} · {_expires_text(snap.get('createdAt'), lang)} · {t(lang, 'keep')}</p>
+  <p class="meta">{t(lang, "contact")}: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""
