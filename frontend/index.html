@@ -441,8 +441,10 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 
 /* ---------- results ---------- */
 /* overflow-x: hidden は必須。.result:hover の translateX(2px) が横のはみ出しを作り、
-   横スクロールバーが出入りするたび縦バーの長さが変わってしまう。ずらす 2px は padding で受ける */
-.results { list-style: none; margin: 0; padding: 0 2px 0 0; display: grid; align-content: start; gap: var(--space-2); max-height: 44dvh; overflow: hidden auto; }   /* 上詰め。ペインを伸ばしたとき、中身が少ないと縦に間延びするため */
+   横スクロールバーが出入りするたび縦バーの長さが変わってしまう。
+   右の余白はスクロールバーとの間隔（.pane-body の余白はバーの外側なので、ここで空けないと曲がバーに貼り付く）。
+   hover の 2px もこの中で受けるので、8px あれば切れない */
+.results { list-style: none; margin: 0; padding: 0 var(--space-2) 0 0; display: grid; align-content: start; gap: var(--space-2); max-height: 44dvh; overflow: hidden auto; }   /* 上詰め。ペインを伸ばしたとき、中身が少ないと縦に間延びするため */
 @media (min-width: 60rem) { .results { max-height: calc(100dvh - 24rem); } }
 .result {
   display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-3); align-items: center;
