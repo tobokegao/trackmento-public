@@ -2,6 +2,10 @@
 
 動画サイト（ニコニコ／YouTube／bilibili／SoundCloud）で直接取れなかったとき（削除済みなど）は
 roxy（otoDB）にフォールバックする。sm12345 や BV… のような ID だけが貼られたときは roxy に直接聞く。
+
+実際に拾えるのはほぼニコニコだけ（roxy が未登録から取りに行くのがニコニコのみのため）。
+それ以外を _ROXY_FALLBACK に残してあるのは、otoDB 側が広げたときにそのまま効くようにするため。
+空振りしても失敗時に 1 回余分に問い合わせるだけで、結果は元の例外を返す。
 """
 from __future__ import annotations
 

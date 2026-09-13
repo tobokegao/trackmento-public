@@ -3,8 +3,10 @@
 - 検索: https://otodb.net/api/work/search?query=…&limit=30 → items[].title / thumbnail / tags。
   作者はタグのうち category=4（Creator）の名前。サムネイルは otoDB の CDN にあるので、元動画が削除済みでも残る
 - roxy: https://roxy.otodb.net/xml?q=<動画 ID か URL> → title / thumbnail / identifier。
-  otoDB 登録済みならそのデータ、未登録なら各サイトから取ってくる「ベストエフォートの取得プロキシ」。
-  ニコニコ／YouTube／bilibili／SoundCloud の直接取得に失敗したとき（削除済みなど）のフォールバックに使う
+  otoDB 登録済みならそのデータ（identifier が otodb:<id>）、未登録なら各サイトから取ってくる。
+  直接取得に失敗したとき（削除済みなど）のフォールバックに使う。
+  **未登録からの取得が効くのはニコニコだけ**（2026-09 実測）。YouTube / bilibili / SoundCloud は
+  生きている URL でも 404 "Cannot fallback" を返す。identifier が niconico:<id> なら各サイトからの取得
 どちらもキー不要。
 """
 from __future__ import annotations
