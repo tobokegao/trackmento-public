@@ -592,7 +592,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）。改行で区切ると、ちがうサイトのものをまとめて取れます。ニコニコのマイリスト・SoundCloud のセット・bilibili の収藏夹・Spotify のプレイリストは、中の曲をまとめて取れます</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）。改行で区切ると、ちがうサイトのものをまとめて取れます。マイリスト・セット・収藏夹・プレイリスト・再生リストの URL なら、中の曲をまとめて取れます</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
@@ -1099,6 +1099,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (h.endsWith("soundcloud.com") && /^\/[^/]+\/sets\/[^/]+/.test(p)) return true;
     if (h.endsWith("bilibili.com") && p.includes("favlist") && u.searchParams.get("fid")) return true;
     if (h.endsWith("spotify.com") && /\/playlist\/[A-Za-z0-9]+/.test(p)) return true;
+    if (h.endsWith("bandcamp.com") && /^\/[^/]+\/playlist\/[^/]+/.test(p)) return true;
+    if ((h.endsWith("youtube.com") || h === "youtu.be") && u.searchParams.get("list")) return true;
     return false;
   }
 

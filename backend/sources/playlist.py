@@ -10,6 +10,10 @@
       api.bilibili.com/x/v3/fav/resource/list。単体の動画ページと違い Cookie が要らない
   - Spotify のプレイリスト      https://open.spotify.com/playlist/<id>
       /embed/playlist/<id> の __NEXT_DATA__（通常ページには曲が入っていない）
+  - Bandcamp のプレイリスト     https://bandcamp.com/<user>/playlist/<name>
+      data-blob の appData.tracklist.tracks。画像は artId から組み立てる
+  - YouTube の再生リスト        https://www.youtube.com/playlist?list=<id>
+      ytInitialData の lockupViewModel。タイトルも投稿者もここに入っており、1 本ずつ引く必要は無い
 
 いずれも公開されているものだけが取れる（非公開・限定公開は 0 件か失敗）。
 一度に返すのは MAX_ITEMS 件まで。マスの数より多く取っても使い道がないうえ、
@@ -25,9 +29,9 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 
 from backend.models import Track
-from backend.sources import video
+from backend.sources import bandcamp, video
 
-MAX_ITEMS = 50
+MAX_ITEMS = 100   # 候補が長くなりすぎない範囲で。SoundCloud のセットは 150 曲超のものもある
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 _NICO_MYLIST_RE = re.compile(r"/mylist/(\d+)")
@@ -225,7 +229,97 @@ async def _spotify(url: str, client: httpx.AsyncClient) -> list[Track]:
     return out
 
 
-_FETCHERS = {"nicovideo": _nicovideo, "soundcloud": _soundcloud, "bilibili": _bilibili, "spotify": _spotify}
+# ---- Bandcamp のプレイリスト ----
+
+async def _bandcamp(url: str, client: httpx.AsyncClient) -> list[Track]:
+    r = await client.get(url, headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"})
+    r.raise_for_status()
+    m = re.search(r'data-blob="(.*?)"', r.text, re.S)
+    if not m:
+        raise ValueError("Bandcamp のページから曲の一覧を読めませんでした")
+    try:
+        blob = json.loads(html.unescape(m.group(1)))
+    except json.JSONDecodeError as e:
+        raise ValueError("Bandcamp のページの形式が変わったようです") from e
+    tracks = (((blob.get("appData") or {}).get("tracklist") or {}).get("tracks")) or []
+    out: list[Track] = []
+    for t in tracks[:MAX_ITEMS]:
+        title, art_id = (t.get("title") or "").strip(), t.get("artId")
+        if not (title and art_id):
+            continue
+        # artId から画像 URL を組み立てる（a<artId>_<サイズ>.jpg）。_16 は 700px でマス 600px に足りる
+        image = f"https://f4.bcbits.com/img/a{art_id}_{bandcamp.COVER_SIZE}.jpg"
+        out.append(Track(source="bandcamp", title=title,
+                         artist=(t.get("artistName") or "").strip(),
+                         album=((t.get("album") or {}).get("title") or None) if isinstance(t.get("album"), dict) else None,
+                         image=image, thumb=f"https://f4.bcbits.com/img/a{art_id}_{bandcamp.THUMB_SIZE}.jpg",
+                         external_url=t.get("bandUrl") or None))
+    return out
+
+
+# ---- YouTube の再生リスト ----
+
+def _yt_lockups(node, out: list) -> None:
+    """ytInitialData を辿って lockupViewModel（1 本の動画）を集める。
+    以前の playlistVideoRenderer から作りが変わっており、決まった場所に無いので全体を歩く。"""
+    if isinstance(node, dict):
+        if "lockupViewModel" in node:
+            out.append(node["lockupViewModel"])
+        for v in node.values():
+            _yt_lockups(v, out)
+    elif isinstance(node, list):
+        for v in node:
+            _yt_lockups(v, out)
+
+
+async def _youtube(url: str, client: httpx.AsyncClient) -> list[Track]:
+    list_id = (parse_qs(urlparse(url).query or "").get("list") or [""])[0]
+    if not list_id:
+        raise ValueError("再生リストの URL ではありません（list= が要ります）")
+    r = await client.get("https://www.youtube.com/playlist", params={"list": list_id},
+                         headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"})
+    r.raise_for_status()
+    m = re.search(r"var ytInitialData = (\{.*?\});</script>", r.text, re.S)
+    if not m:
+        raise ValueError("YouTube のページから曲の一覧を読めませんでした")
+    try:
+        data = json.loads(m.group(1))
+    except json.JSONDecodeError as e:
+        raise ValueError("YouTube のページの形式が変わったようです") from e
+    lockups: list = []
+    _yt_lockups(data, lockups)
+    out: list[Track] = []
+    seen: set[str] = set()
+    for lv in lockups:
+        vid = lv.get("contentId") or ""
+        if not re.fullmatch(r"[A-Za-z0-9_-]{11}", vid) or vid in seen:
+            continue
+        meta = (lv.get("metadata") or {}).get("lockupMetadataViewModel") or {}
+        title = ((meta.get("title") or {}).get("content") or "").strip()
+        if not title:
+            continue
+        # 投稿者はアバターの読み上げ文（「チャンネル「○○」に移動します」）からしか取れない。
+        # metadataParts に入っていることもあるので、両方見る
+        a11y = ((meta.get("image") or {}).get("decoratedAvatarViewModel") or {}).get("a11yLabel") or ""
+        am = re.search(r"[「\"'](.+?)[」\"']", a11y)
+        if not am:
+            for part in meta.get("metadataParts") or []:
+                text = ((part.get("text") or {}).get("content") or "").strip()
+                if text and not re.fullmatch(r"[\d,.\s]+(?:回視聴|views?)?", text):
+                    am = re.match(r"(.+)", text)
+                    break
+        seen.add(vid)
+        out.append(Track(source="youtube", title=title, artist=(am.group(1) if am else "").strip(),
+                         image=f"https://i.ytimg.com/vi/{vid}/sddefault.jpg",
+                         thumb=f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                         external_url=f"https://www.youtube.com/watch?v={vid}"))
+        if len(out) >= MAX_ITEMS:
+            break
+    return out
+
+
+_FETCHERS = {"nicovideo": _nicovideo, "soundcloud": _soundcloud, "bilibili": _bilibili, "spotify": _spotify,
+             "bandcamp": _bandcamp, "youtube": _youtube}
 
 
 async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> list[Track]:
