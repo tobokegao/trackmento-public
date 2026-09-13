@@ -592,7 +592,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）。改行で区切ると、ちがうサイトのものをまとめて取れます</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）。改行で区切ると、ちがうサイトのものをまとめて取れます。ニコニコのマイリスト・SoundCloud のセット・bilibili の収藏夹・Spotify のプレイリストは、中の曲をまとめて取れます</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
@@ -1089,11 +1089,26 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const URL_LINE_RE = /^(?:https?:\/\/\S+|(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$/;
   const MAX_URLS = 30;   // 一度に投げすぎると相手のサイトにも負担なので上限を決める
 
+  /* まとめ（プレイリスト／マイリスト／収藏夹）の URL か。合えば複数曲が返る方に投げる。
+     判定はサーバー側（backend/sources/playlist.py の kind）と同じ条件にしておく */
+  function isPlaylistUrl(url) {
+    let u;
+    try { u = new URL(url); } catch { return false; }
+    const h = u.hostname.toLowerCase(), p = u.pathname;
+    if (h.endsWith("nicovideo.jp") && /\/mylist\/\d+/.test(p)) return true;
+    if (h.endsWith("soundcloud.com") && /^\/[^/]+\/sets\/[^/]+/.test(p)) return true;
+    if (h.endsWith("bilibili.com") && p.includes("favlist") && u.searchParams.get("fid")) return true;
+    if (h.endsWith("spotify.com") && /\/playlist\/[A-Za-z0-9]+/.test(p)) return true;
+    return false;
+  }
+
   async function fetchOneUrl(url) {
-    const r = await fetch(api("/from-url"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
+    const playlist = isPlaylistUrl(url);
+    const r = await fetch(api(playlist ? "/from-playlist" : "/from-url"),
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
     const d = await readJson(r);
     if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
-    return d;
+    return Array.isArray(d) ? d : [d];   // まとめのときは複数返る
   }
 
   els.bcForm.addEventListener("submit", async (e) => {
@@ -1118,7 +1133,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const got = [], failed = [];
     for (const [i, u] of lines.entries()) {
       if (lines.length > 1) say(els.bcMsg, `${i + 1}/${lines.length} 件目を取得中…`);
-      try { got.push(await fetchOneUrl(u)); } catch (err) { failed.push(`${u.slice(0, 30)}…（${err.message}）`); }
+      try { got.push(...await fetchOneUrl(u)); } catch (err) { failed.push(`${u.slice(0, 30)}…（${err.message}）`); }
     }
     if (got.length) {
       const images = new Set(got.map(t => t.image));

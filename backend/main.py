@@ -36,7 +36,7 @@ from backend.config import (app_url_for, base_url_for, cors_origins, frontend_ur
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
-from backend.sources import bandcamp, discogs, fromurl, itunes, musicbrainz, otodb, video
+from backend.sources import bandcamp, discogs, fromurl, itunes, musicbrainz, otodb, playlist, video
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -229,7 +229,7 @@ if cors_origins():
     app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["*"], max_age=600)
 
 # ---------- 簡易レートリミット（IP ごと・1 分間の回数。公開時の連打・スクレイピング対策） ----------
-_RATE_PATHS = ("/search", "/from-url", "/bandcamp", "/upload", "/share", "/share/upload", "/render", "/grids")
+_RATE_PATHS = ("/search", "/from-url", "/from-playlist", "/bandcamp", "/upload", "/share", "/share/upload", "/render", "/grids")
 _hits: dict[str, deque] = defaultdict(deque)
 # 共有の 1 日あたり回数（IP ごと／全体）。プロセス内カウンタ。日付が変わるとリセット
 _share_day = {"date": "", "per_ip": defaultdict(int), "total": 0}
@@ -483,7 +483,7 @@ async def robots(request: Request) -> Response:
     body = "\n".join([
         "User-agent: *",
         "Allow: /$",
-        "Disallow: /search", "Disallow: /from-url", "Disallow: /image-proxy", "Disallow: /grids", "Disallow: /shares",
+        "Disallow: /search", "Disallow: /from-url", "Disallow: /from-playlist", "Disallow: /image-proxy", "Disallow: /grids", "Disallow: /shares",
         "Disallow: /uploads", "Disallow: /outputs", "Disallow: /health", "Disallow: /render", "Disallow: /upload", "Disallow: /share",
         f"Sitemap: {base_url_for(request)}/sitemap.xml", "",
     ])
@@ -624,6 +624,23 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
 
 class BandcampBody(BaseModel):
     url: str = Field(max_length=2048)
+
+
+@app.post("/from-playlist", response_model=list[Track])
+async def from_playlist(body: BandcampBody) -> list[Track]:
+    """プレイリスト（まとめ）の URL から複数曲を取る。ニコニコのマイリスト、SoundCloud のセット、
+    bilibili の収藏夹、Spotify のプレイリストなど。単体の URL は /from-url のまま。"""
+    url = body.url.strip()
+    if not playlist.is_playlist(url):
+        raise HTTPException(400, "プレイリストの URL ではありません")
+    try:
+        return await playlist.fetch(url, client=app.state.http)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(502, f"{playlist.label(url)} が {e.response.status_code} を返しました") from e
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"取得失敗: {e}") from e
 
 
 @app.post("/from-url", response_model=Track)
