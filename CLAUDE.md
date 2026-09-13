@@ -172,6 +172,11 @@ claude --remote-control TRACKMENTO                                             #
   取りこぼしてもその文字が別の断片から読まれるだけで壊れない
 - **`[ua]` の実測（2026-09-14）で `/s/*` の人以外アクセスの 71% が「プレビュー」だった**（X などのリンクカード生成）。
   robots.txt で `/s/` を塞ぐと **X のカードが出なくなる**ので触らない、と判断済み。検索・AI ボットは合わせて数十件で誤差
+- **マスの上限は 3 か所にあり、ずれると並びが黙って壊れる**。`frontend/index.html` の `MAX_SIDE_CELLS`（1 辺）と
+  `MAX_CELLS`（総数）、`backend/grids.py` の `MAX_COLS` / `MAX_ROWS`（1 辺）、`backend/config.py` の `max_cells()`（総数）。
+  **`grids.py` の側を小さくしてはいけない**。`GridDoc` の検証は cols/rows を黙って丸め、はみ出したマスを stash に移すので、
+  16x16 の並びを保存した瞬間に 12x12 へ潰れる（2026-09-14 に実際に起きていた。上限を 256 に上げたとき
+  `grids.py` と `applyData` の 12 を直し忘れていた）
 - **ブラウザで動作を確かめるときは `PUBLIC_MODE=1` を付けて起動する**。付けないとグリッド名が `default` になり、
   **`grids/default.json`（利用者の並び）をテストで上書きしてしまう**（2026-09-14 に実際にやった。
   幸い `grids/default.json.bak-*` が残っていたので復元できた）。公開モードならブラウザごとの `u-….json` に分かれる
