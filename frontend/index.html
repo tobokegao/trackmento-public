@@ -163,11 +163,11 @@ img { max-width: 100%; display: block; }
   background-size: 7px 8px; background-position: center; background-repeat: no-repeat;
 }
 
-/* 矢印ボタン: 既定では終端に 1 つずつ出るので、start 側を消して end 側に 2 つ並べる */
+/* 矢印ボタン: 見た目だけ OS 9 に寄せ、置き場所は上下（左右）の端のままにする */
 ::-webkit-scrollbar-button { display: none; }
-::-webkit-scrollbar-button:vertical:end:decrement,
+::-webkit-scrollbar-button:vertical:start:decrement,
 ::-webkit-scrollbar-button:vertical:end:increment,
-::-webkit-scrollbar-button:horizontal:end:decrement,
+::-webkit-scrollbar-button:horizontal:start:decrement,
 ::-webkit-scrollbar-button:horizontal:end:increment {
   display: block; width: 16px; height: 16px;
   background-color: var(--color-bar);
@@ -176,13 +176,13 @@ img { max-width: 100%; display: block; }
               0 0 0 1px var(--color-bar-dark);
 }
 ::-webkit-scrollbar-button:active { background-color: var(--color-rule-2); }
-::-webkit-scrollbar-button:vertical:end:decrement {
+::-webkit-scrollbar-button:vertical:start:decrement {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 1.5 8 7H1z' fill='%23232a33'/%3E%3C/svg%3E");
 }
 ::-webkit-scrollbar-button:vertical:end:increment {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 7.5 1 2h7z' fill='%23232a33'/%3E%3C/svg%3E");
 }
-::-webkit-scrollbar-button:horizontal:end:decrement {
+::-webkit-scrollbar-button:horizontal:start:decrement {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1.5 4.5 7 1v7z' fill='%23232a33'/%3E%3C/svg%3E");
 }
 ::-webkit-scrollbar-button:horizontal:end:increment {
