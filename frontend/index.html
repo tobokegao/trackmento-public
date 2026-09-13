@@ -243,6 +243,8 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
   box-shadow: inset 2px 2px 0 var(--color-paper-3);
   transition: box-shadow var(--dur-short) var(--ease-out);
 }
+/* textarea は font を継承しないので揃える。縦だけ伸ばせるようにして、横に広げて崩されないようにする */
+textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .input::placeholder { color: var(--color-muted); }
 .input:hover { box-shadow: inset 2px 2px 0 var(--color-rule-2); }
 .input:focus-visible { outline-offset: 0; box-shadow: inset 2px 2px 0 var(--color-paper-3); }
@@ -590,8 +592,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）</label>
-        <input class="input" id="bc-url" name="url" type="text" inputmode="url" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…">
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）。改行で区切ると、ちがうサイトのものをまとめて取れます</label>
+        <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
         <button class="btn btn-primary" type="submit" id="bc-btn"><span class="label">URL から取得</span></button>
@@ -1084,24 +1086,54 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   $("#src-modal-backdrop").addEventListener("click", closeSrcModal);
 
   /* ---- Bandcamp / SoundCloud の URL ---- */
+  const URL_LINE_RE = /^(?:https?:\/\/\S+|(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$/;
+  const MAX_URLS = 30;   // 一度に投げすぎると相手のサイトにも負担なので上限を決める
+
+  async function fetchOneUrl(url) {
+    const r = await fetch(api("/from-url"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
+    const d = await readJson(r);
+    if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+    return d;
+  }
+
   els.bcForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const url = els.bcUrl.value.trim();
     els.bcUrl.removeAttribute("aria-invalid");
-    if (!/^https?:\/\//.test(url) && !/^(?:(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$/.test(url)) { els.bcUrl.setAttribute("aria-invalid", "true"); say(els.bcMsg, "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。", "error"); els.bcUrl.focus({ preventScroll: true }); return; }
-    setBtnState(els.bcBtn, "loading"); say(els.bcMsg, "");
-    try {
-      const r = await fetch(api("/from-url"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
-      currentResults = [d, ...currentResults.filter(t => t.image !== d.image)];
+    // 改行で区切って複数受け取る。空行は捨てる（貼り付けた末尾の改行など）
+    const lines = els.bcUrl.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    if (!lines.length || !lines.every(s => URL_LINE_RE.test(s))) {
+      els.bcUrl.setAttribute("aria-invalid", "true");
+      say(els.bcMsg, "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。", "error");
+      els.bcUrl.focus({ preventScroll: true });
+      return;
+    }
+    if (lines.length > MAX_URLS) {
+      els.bcUrl.setAttribute("aria-invalid", "true");
+      say(els.bcMsg, `一度に取れるのは ${MAX_URLS} 件までです（いまは ${lines.length} 件）。`, "error");
+      return;
+    }
+    setBtnState(els.bcBtn, "loading");
+    say(els.bcMsg, lines.length > 1 ? `${lines.length} 件を取得中…` : "");
+    // 相手のサイトに一度に投げないよう順番に。取れなかったものは飛ばして続ける
+    const got = [], failed = [];
+    for (const [i, u] of lines.entries()) {
+      if (lines.length > 1) say(els.bcMsg, `${i + 1}/${lines.length} 件目を取得中…`);
+      try { got.push(await fetchOneUrl(u)); } catch (err) { failed.push(`${u.slice(0, 30)}…（${err.message}）`); }
+    }
+    if (got.length) {
+      const images = new Set(got.map(t => t.image));
+      currentResults = [...got, ...currentResults.filter(t => !images.has(t.image))];
       renderResults(currentResults);
       els.bcUrl.value = "";
-      setBtnState(els.bcBtn, null);
-      say(els.bcMsg, `候補の先頭に「${d.title}」を入れました。クリックで配置します。`);
-    } catch (err) {
-      setBtnState(els.bcBtn, "error");
-      say(els.bcMsg, `取れませんでした。${err.message}`, "error");
+    }
+    setBtnState(els.bcBtn, got.length ? null : "error");
+    if (got.length && !failed.length) {
+      say(els.bcMsg, got.length === 1 ? `候補の先頭に「${got[0].title}」を入れました。クリックで配置します。`
+                                      : `候補の先頭に ${got.length} 件入れました。クリックで配置します。`);
+    } else if (got.length) {
+      say(els.bcMsg, `${got.length} 件を候補に入れました。取れなかったもの: ${failed.join(" / ")}`, "error");
+    } else {
+      say(els.bcMsg, `取れませんでした。${failed.join(" / ")}`, "error");
       setTimeout(() => setBtnState(els.bcBtn, null), 2500);
     }
   });
