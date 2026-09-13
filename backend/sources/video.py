@@ -44,13 +44,32 @@ def bili_sized(url: str, suffix: str = BILI_COVER_SUFFIX) -> str:
     return _BILI_SIZE_RE.sub("", url) + suffix
 
 
+# YouTube のサムネイルの名前 → 正方形に切り出したときの実寸（＝短辺）。実測した寸法とバイト数:
+#   default 120x90 3.4KB / mqdefault 320x180 12KB / hqdefault 480x360 23KB / sddefault 640x480 32KB
+# マスは正方形なので、横幅ではなく短辺で足りるかを見る
+_YT_SIZES = (("default", 90), ("mqdefault", 180), ("hqdefault", 360), ("sddefault", 480), ("maxresdefault", 720))
+_YT_THUMB_RE = re.compile(r"(/vi/[A-Za-z0-9_-]{11}/)(\w+)(\.jpg)$")
+_YT_PX = dict(_YT_SIZES)
+
+
 def clamp_size(url: str, want_px: int = 600) -> str:
-    """hdslb.com の画像 URL に、欲しい実寸の大きさ指定を付ける（既に付いていればそのまま）。
-    /image-proxy から呼び、大きさ指定なし（＝原寸）で保存済みの過去のグリッドにも効かせる。"""
-    if "hdslb.com" not in url or _BILI_SIZE_RE.search(url):
-        return url
-    n = max(1, int(want_px))
-    return f"{url}@{n}w_{n}h_1c"
+    """動画サムネイルの URL を、欲しい実寸を満たす最小の大きさにする。
+    /image-proxy から呼び、大きすぎる指定で保存済みの過去のグリッドにも効かせる。"""
+    if "hdslb.com" in url:
+        # bilibili は URL の後ろに大きさ指定を付ける（既に付いていればそのまま）
+        if _BILI_SIZE_RE.search(url):
+            return url
+        n = max(1, int(want_px))
+        return f"{url}@{n}w_{n}h_1c"
+    if "ytimg.com" in url:
+        m = _YT_THUMB_RE.search(url)
+        if not m:
+            return url
+        now = _YT_PX.get(m.group(2), 10000)
+        name, px = next(((n, p) for n, p in _YT_SIZES if p >= want_px), ("sddefault", 640))
+        # 16:9 のサムネイルは正方形に切り出すので、高さが足りるものを選ぶ（横幅の 9/16 が実質の高さ）
+        return url if now <= px else url[:m.start()] + f"{m.group(1)}{name}{m.group(3)}"
+    return url
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
 

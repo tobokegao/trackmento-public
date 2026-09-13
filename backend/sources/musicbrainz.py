@@ -6,6 +6,7 @@ recording 検索 → releases[] の release MBID → CAA の front-500 を HEAD 
 from __future__ import annotations
 
 import asyncio
+import re
 import os
 import time
 from urllib.parse import quote_plus
@@ -25,6 +26,22 @@ MB_ENDPOINT = "https://musicbrainz.org/ws/2/recording"
 class SourceBusy(Exception):
     """一時的に使えない（混雑・レート制限）。検索全体は続け、利用者にその旨を知らせる"""
 CAA = "https://coverartarchive.org/release/{mbid}/front-{size}"
+# CAA が持っている大きさ。front（指定なし）は原寸で実測 3.3MB あるので、必ずどれかを指定する
+_CAA_SIZES = (250, 500, 1200)
+_CAA_URL_RE = re.compile(r"(/release/[0-9a-f-]{36}/front)(?:-(\d+))?$", re.IGNORECASE)
+
+
+def clamp_size(url: str, want_px: int = 1200) -> str:
+    """Cover Art Archive の画像 URL を、欲しい実寸を満たす最小の大きさにする。
+    大きさ指定なし（＝原寸 3.3MB）も落とす。/image-proxy から呼び、過去のグリッドにも効かせる。"""
+    if "coverartarchive.org" not in url:
+        return url
+    m = _CAA_URL_RE.search(url)
+    if not m:
+        return url
+    now = int(m.group(2)) if m.group(2) else 10000
+    px = next((s for s in _CAA_SIZES if s >= want_px), _CAA_SIZES[-1])
+    return url if now <= px else url[:m.start()] + f"{m.group(1)}-{px}"
 _lock = asyncio.Lock()
 _waiting = 0          # _lock を待っている（または握っている）呼び出しの数
 MAX_QUEUE = 6         # これ以上並んでいたら待たずに SourceBusy（1 req/秒なので 6 件 ≒ 6 秒以上の待ち）

@@ -730,7 +730,8 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     # 欲しい実寸に合わせて取り直す。ホストは変わらないので検査の後でよい。
     # px はマスが小さいとき（8x8 以上）にブラウザが指定する。既定は書き出しのマスと同じ 600
     want = max(100, min(600, px or 600))
-    url = soundcloud.clamp_size(video.clamp_size(bandcamp.clamp_size(itunes.clamp_size(url, want), want), want), want)
+    for _src in (itunes, bandcamp, video, soundcloud, musicbrainz):
+        url = _src.clamp_size(url, want)
     if (redirect := await _image_r2_redirect(url)) is not None:
         return redirect
     hit = await asyncio.to_thread(cache.get_image, url)
