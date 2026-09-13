@@ -329,6 +329,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .modal[hidden] { display: none; }
 .modal-panel { position: relative; width: min(100%, 40rem); max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--line) solid var(--color-ink); background: var(--color-paper); box-shadow: var(--shadow); }
 .modal-body { overflow-y: auto; }
+.pl-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2); }
 .note p { margin: 0; overflow-wrap: anywhere; }
 .note a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .note code { font-family: ui-monospace, monospace; background: var(--color-paper); padding: 0 4px; border: 1px solid var(--color-rule); }
@@ -739,6 +740,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
 </main>
 
+<div class="modal" id="pl-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pl-modal-title">
+  <div class="sheet-backdrop" id="pl-modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="sheet-head"><h2 id="pl-modal-title">まとめて取れました</h2><button class="btn" type="button" id="pl-cancel">やめる</button></div>
+    <div class="modal-body note">
+      <p id="pl-summary"></p>
+      <div class="pl-choices">
+        <button class="btn btn-primary" type="button" id="pl-to-grid"><span class="label">マスに入れる</span></button>
+        <button class="btn" type="button" id="pl-to-results">候補に置いて選ぶ</button>
+      </div>
+      <p id="pl-hint" class="msg"></p>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="src-modal" hidden role="dialog" aria-modal="true" aria-labelledby="src-modal-title">
   <div class="sheet-backdrop" id="src-modal-backdrop"></div>
   <div class="modal-panel">
@@ -1085,6 +1101,51 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   $("#src-modal-close").addEventListener("click", closeSrcModal);
   $("#src-modal-backdrop").addEventListener("click", closeSrcModal);
 
+  /* ---- まとめて取れたときの選択（マスに入れる／候補に置く） ---- */
+  const plModal = $("#pl-modal");
+  let plPending = null;   // 取れた曲。選ぶまでここに置いておく
+  const plOpen = () => !plModal.hidden;
+  function closePlModal() {
+    plModal.hidden = true; plPending = null;
+    if (!sheetOpen()) document.body.classList.remove("sheet-open");
+  }
+  function askPlaylist(tracks) {
+    plPending = tracks;
+    const empty = state.cells.filter(c => c === null).length;
+    const fit = Math.min(empty, tracks.length);
+    $("#pl-summary").textContent = `${tracks.length} 曲 取れました。いまの空きマスは ${empty} 個です。`;
+    $("#pl-hint").textContent = fit >= tracks.length
+      ? "「マスに入れる」で、番号の若い空きマスから順に全部入ります。"
+      : `「マスに入れる」で ${fit} 曲が入り、残り ${tracks.length - fit} 曲は候補に置きます。`;
+    plModal.hidden = false;
+    document.body.classList.add("sheet-open");
+    $("#pl-to-grid").focus({ preventScroll: true });
+  }
+  function plPutToResults(tracks, note) {
+    const images = new Set(tracks.map(t => t.image));
+    currentResults = [...tracks, ...currentResults.filter(t => !images.has(t.image))];
+    renderResults(currentResults);
+    say(els.bcMsg, note);
+  }
+  $("#pl-to-grid").addEventListener("click", () => {
+    const tracks = plPending || [];
+    closePlModal();
+    const put = fillEmptyCells(tracks);
+    const rest = tracks.slice(put);
+    if (rest.length) {
+      plPutToResults(rest, `${put} 曲をマスに入れ、残り ${rest.length} 曲を候補に置きました。`);
+    } else {
+      say(els.bcMsg, `${put} 曲をマスに入れました。`);
+    }
+  });
+  $("#pl-to-results").addEventListener("click", () => {
+    const tracks = plPending || [];
+    closePlModal();
+    plPutToResults(tracks, `候補に ${tracks.length} 曲を置きました。クリックで配置します。`);
+  });
+  $("#pl-cancel").addEventListener("click", () => { closePlModal(); say(els.bcMsg, "やめました。"); });
+  $("#pl-modal-backdrop").addEventListener("click", () => { closePlModal(); say(els.bcMsg, "やめました。"); });
+
   /* ---- Bandcamp / SoundCloud の URL ---- */
   const URL_LINE_RE = /^(?:https?:\/\/\S+|(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$/;
   const MAX_URLS = 30;   // 一度に投げすぎると相手のサイトにも負担なので上限を決める
@@ -1137,13 +1198,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (lines.length > 1) say(els.bcMsg, `${i + 1}/${lines.length} 件目を取得中…`);
       try { got.push(...await fetchOneUrl(u)); } catch (err) { failed.push(`${u.slice(0, 30)}…（${err.message}）`); }
     }
+    if (got.length) els.bcUrl.value = "";
+    setBtnState(els.bcBtn, got.length ? null : "error");
+    // まとめ（プレイリスト）を貼っていて、たくさん取れたときは入れ方を選んでもらう。
+    // 1 曲ずつ貼ったときまで確認を挟むと煩わしいので、まとめのときだけ
+    if (got.length > 1 && lines.some(isPlaylistUrl) && !failed.length) {
+      askPlaylist(got);
+      return;
+    }
     if (got.length) {
       const images = new Set(got.map(t => t.image));
       currentResults = [...got, ...currentResults.filter(t => !images.has(t.image))];
       renderResults(currentResults);
-      els.bcUrl.value = "";
     }
-    setBtnState(els.bcBtn, got.length ? null : "error");
     if (got.length && !failed.length) {
       say(els.bcMsg, got.length === 1 ? `候補の先頭に「${got[0].title}」を入れました。クリックで配置します。`
                                       : `候補の先頭に ${got.length} 件入れました。クリックで配置します。`);
@@ -1235,6 +1302,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     say(els.gridMsg, `${i + 1} 番に「${t.title}」を入れました。`);
     if (sheetOpen()) closeSheet();
   }
+  /* まとめて取れた曲を、若い番号の空きマスから順に入れる（埋まっているマスは飛ばす）。
+     プレイリストは上から順に聴く前提で並んでいるので、その順序をそのままマスの順序にする。
+     入りきらなかった分は呼び出し元が候補へ置く。 */
+  function fillEmptyCells(tracks) {
+    let put = 0;
+    for (const t of tracks) {
+      const i = state.cells.findIndex(c => c === null);
+      if (i < 0) break;
+      state.cells[i] = { ...t };
+      put++;
+    }
+    if (put) { target = null; renderGrid(); save(); }
+    return put;
+  }
+
   function setTarget(i) {
     target = i; selected = null; renderGrid();
     // スマホでもここで出しておく。シートを閉じたときに、下の欄が古い文言（「解除しました」など）のまま残らないように
@@ -1338,6 +1420,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.eClose.addEventListener("click", () => { clearSelection(); say(els.gridMsg, "選択を解除しました。"); });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    if (plOpen()) { closePlModal(); say(els.bcMsg, "やめました。"); return; }
     if (!srcModal.hidden) { closeSrcModal(); return; }
     if (sheetOpen()) { closeSheet(); return; }
     if (selected !== null) { clearSelection(); say(els.gridMsg, "選択を解除しました。"); return; }
