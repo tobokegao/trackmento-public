@@ -6,6 +6,7 @@ import functools
 import hashlib
 import json
 import os
+import re
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -130,6 +131,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
+
+
+@functools.lru_cache(maxsize=1)
+def _r2_origin() -> str:
+    """R2 の公開 URL のオリジン（CSP に足すための " https://…" 形式）。R2 を使っていなければ空文字。"""
+    st = storage.get_storage()
+    if not st.is_remote:
+        return ""
+    from urllib.parse import urlsplit
+    p = urlsplit(st.public_url("") or "")
+    return f" {p.scheme}://{p.netloc}" if p.scheme and p.netloc else ""
 
 # ---------- 描画は専用の 1 本の低優先度スレッドで直列に ----------
 # 無料ホスト（0.1 vCPU）では描画（画像デコード・PNG 圧縮）が重なるとイベントループが CPU を取れず、
@@ -341,11 +353,14 @@ async def rate_limit(request: Request, call_next):
     # 304 には付けない: ブラウザは 304 のヘッダーでキャッシュ済み応答のヘッダーを更新するので、新しい nonce の CSP が
     # 古い本文（古い nonce）に適用されてスクリプトが止まる。付けなければキャッシュ済みの CSP（本文と一致）がそのまま残る
     if response.status_code != 304:
+      # フォントと画像を R2 から配るときは、その公開 URL だけを font-src / connect-src に足す
+      # （外部の任意のホストを開くわけではない。自分のバケット 1 つだけ）
+      r2 = _r2_origin()
       response.headers.setdefault("Content-Security-Policy",
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'; "
         # connect-src: iTunes と MusicBrainz（＋Cover Art Archive → archive.org へリダイレクト）の検索はブラウザから直接叩く
         # （サーバーの共有 IP が Apple に遮断され、MusicBrainz にはレート制限されるため）
-        "img-src 'self' data: blob: https:; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com; font-src 'self'; object-src 'none'; base-uri 'self'; "
+        f"img-src 'self' data: blob: https:; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'self'")
     if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
@@ -387,13 +402,50 @@ _FONT_CSS_FALLBACK = """
 """
 
 
+FONTS_R2_PREFIX = "fonts/"
+# フォントを R2 から配るか（既定は有効）。公開 URL と R2 が無ければ自動でこのサーバーから配る
+FONTS_FROM_R2 = os.getenv("FONTS_FROM_R2", "1") not in ("0", "false", "no")
+
+
+def _fonts_r2_base() -> str:
+    """R2 に置いたフォントの公開 URL の先頭。使えないときは空文字。"""
+    if not FONTS_FROM_R2:
+        return ""
+    st = storage.get_storage()
+    if not st.is_remote:
+        return ""
+    return (st.public_url(FONTS_R2_PREFIX) or "").rstrip("/")
+
+
+@app.get("/fonts-css/{name}")
+async def fonts_css(name: str) -> Response:
+    """分割フォントの CSS。中の src を R2 の公開 URL に差し替えて返す。
+
+    フォントは新規の訪問 1 回あたり 210KB（実測）で、Render の転送量の大半を占めていた。
+    前段の Cloudflare は Web Service の応答をキャッシュしないため、訪問のたびにここから出ていく。
+    R2 は転送量が無料なので、断片の URL だけそちらに向ける（CSS 自体は 12KB と小さい）。
+    """
+    if not re.fullmatch(r"fonts\.[0-9a-f]{8}\.css", name):
+        raise HTTPException(404, "not found")
+    p = FONTS / "split" / name
+    if not p.is_file():
+        raise HTTPException(404, "not found")
+    css = p.read_text(encoding="utf-8")
+    base = _fonts_r2_base()
+    if base:
+        css = css.replace('url("/fonts/split/', f'url("{base}/')
+    return Response(css, media_type="text/css", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
 @functools.lru_cache(maxsize=1)
 def _font_head() -> str:
     """分割フォントの @font-face を読む <link>（scripts/build_fonts.py が生成した fonts/split/fonts.<hash>.css。
-    ハッシュ名なので /fonts/ の 1 年キャッシュに乗る）。無ければフル版の @font-face を埋め込む。"""
+    ハッシュ名なので 1 年キャッシュに乗る）。無ければフル版の @font-face を埋め込む。"""
     hashed = sorted((FONTS / "split").glob("fonts.*.css")) if (FONTS / "split").is_dir() else []
     if hashed:
-        return f'<link rel="stylesheet" href="fonts/split/{hashed[-1].name}">'
+        # 断片を R2 から配るときは、src を書き換えた CSS を返す /fonts-css/ 経由にする
+        path = f"fonts-css/{hashed[-1].name}" if _fonts_r2_base() else f"fonts/split/{hashed[-1].name}"
+        return f'<link rel="stylesheet" href="{path}">'
     print("[fonts] fonts/split/fonts.<hash>.css が無いのでフル版のフォントを配ります（python scripts/build_fonts.py で生成）")
     return f"<style>{_FONT_CSS_FALLBACK}</style>"
 

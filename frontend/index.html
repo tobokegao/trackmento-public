@@ -521,6 +521,7 @@ output { font-variant-numeric: tabular-nums; }
 .promo .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
 .promo p { margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
 .promo .album { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
+.promo .elsewhere { font-size: var(--text-sm); color: var(--color-ink-2); }   /* 主役は Bandcamp。ほかは従として小さく並べる */
 .spec { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }   /* 幅があれば横に並び、足りなければ折り返す */
 .spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; }   /* 各項目は 8rem を基準に、並んだ行の幅を均等に分け合う */
 .spec dt { font-family: var(--font-display); color: var(--color-muted); }
@@ -761,7 +762,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <aside class="promo" aria-label="サーバー代のおねがい">
   <span class="lbl">サーバー代のおねがい</span>
   <p>無料で置いているツールですが、思ったより多くの反響にてサーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
-  <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a></span>
+  <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a>（Bandcamp）</span>
+  <span class="elsewhere">ほかで聴く:
+    <a href="https://soundcloud.com/tobokegao" target="_blank" rel="noopener noreferrer">SoundCloud</a> /
+    <a href="https://open.spotify.com/artist/2ZW0H3Dntod1TN6dUFKY3v" target="_blank" rel="noopener noreferrer">Spotify</a> /
+    <a href="https://music.apple.com/jp/artist/tobokegao/1532385760" target="_blank" rel="noopener noreferrer">Apple Music</a>
+  </span>
 </aside>
 
 <footer>
