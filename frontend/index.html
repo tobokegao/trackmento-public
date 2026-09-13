@@ -593,7 +593,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）。改行で区切ると、ちがうサイトのものをまとめて取れます。マイリスト・セット・収藏夹・プレイリスト・再生リストの URL なら、中の曲をまとめて取れます</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL（sm… などの動画 ID も可）。改行で区切ると、ちがうサイトのものをまとめて取れます。マイリスト・セット・収藏夹・プレイリスト・再生リストの URL なら、中の曲をまとめて取れます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
@@ -764,6 +764,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>MusicBrainz</b>: 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
+          <p><b>まとめて取る</b>: プレイリスト・マイリスト・セット・収藏夹・再生リストの URL を貼ると、中の曲をまとめて取れます（最大 256 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。<b>YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで</b>（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
@@ -960,8 +961,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         break;
       } finally { clearTimeout(timer); }
     }
+    // 絞り込みは backend/sources/itunes.py の search と同じ規則にする（サーバー経由でも同じ結果になるように）
     const wantTitle = nkey(q), wantArtist = nkey(artist);
-    const exact = [], partial = [];
+    const exact = [], partial = [], loose = [];   // loose: 曲名は合うがアーティスト名が合わないもの
     for (const item of data.results || []) {
       if (item.wrapperType && item.wrapperType !== "track") continue;
       const art = item.artworkUrl100 || item.artworkUrl60;
@@ -970,10 +972,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
                   image: hiresArt(art), thumb: art, external_url: item.trackViewUrl || null };
       const nt = nkey(t.title), na = nkey(t.artist);
       if (wantTitle && !nt.includes(wantTitle)) continue;
-      if (wantArtist && !na.includes(wantArtist)) continue;
+      if (wantArtist && !na.includes(wantArtist)) { loose.push(t); continue; }
       ((!wantTitle || nt === wantTitle) && (!wantArtist || na === wantArtist) ? exact : partial).push(t);
     }
-    return exact.concat(partial);
+    // アーティスト名で 1 件も残らなかったときは曲名だけ合うものを出す
+    // （「Kenshi Yonezu」で探しても登録が「米津玄師」だと 0 件になるため）
+    return exact.length || partial.length ? exact.concat(partial) : loose;
   }
   /* MusicBrainz もブラウザから直接（CORS 許可あり）。サーバー経由は共有 IP がレート制限されて 503／タイムアウトが続くため。
      検索式・リリースの選び方は backend/sources/musicbrainz.py と同じ。ジャケットの有無は Cover Art Archive の
