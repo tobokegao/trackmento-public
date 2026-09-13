@@ -64,6 +64,11 @@ IMAGE_HOST_ALLOWLIST = (
     "bandcamp.com",
 )
 IMAGE_MAX_BYTES = 15 * 1024 * 1024
+# 画像取得のタイムアウト。共有クライアント app.state.http の既定（30 秒 / connect 10 秒）は
+# MusicBrainz や roxy に合わせたもので、画像には長すぎる。遅い配信元が 1 本で _PROXY_SEM の枠を
+# 30 秒占有すると 16 枠が飽和し、後続が 20 秒待たされて 503 になる（実測で最大 24 秒）。
+# サーバー側描画（render.py の safe_get_sync）も 12 秒なので、そちらに揃える。
+IMAGE_FETCH_TIMEOUT = httpx.Timeout(float(os.getenv("IMAGE_FETCH_TIMEOUT", "12")), connect=5)
 SOURCE_TIMEOUT = 20   # 1 ソースあたりの検索の上限秒。超えたソースは「失敗」扱いにして他の結果を返す
 FAIL_TTL = 60         # 失敗した検索を覚えておく秒数（同じ検索の連打を外部に流さない）
 _fail_log: dict[str, list] = {}   # (ソース名 + 理由) → [最後に出した時刻, その後の省略件数]。同じ失敗は 60 秒に 1 行
@@ -207,6 +212,8 @@ def _ua_kind(ua: str) -> str:
 
 
 _ua_stats: dict[tuple[str, str], int] = {}   # (パス種別, UA 種別) → 件数
+_5xx_stats: dict[str, int] = {}   # "status パス種別 理由" → 件数（_log_5xx が足し、1 分ごとに [5xx] 行で出す）
+_5XX_TOP = 6                      # 1 分あたりに出す理由の数（多すぎる理由はログを膨らませるので上位だけ）
 
 
 async def _load_monitor():
@@ -226,6 +233,15 @@ async def _load_monitor():
             items = sorted(_stats.items(), key=lambda kv: -kv[1][1])
             print("[stats] " + " ".join(f"{k}:{v[0]}件/{v[1]:.1f}s/max{v[2]:.1f}s" + (f"/5xx{v[3]}" if v[3] else "") for k, v in items[:10]))
             _stats.clear()
+        if tick % 60 == 0 and _5xx_stats:
+            # 5xx の内訳。[stats] の 5xx は件数しか分からないので、理由（HTTPException の detail）を添える。
+            # 理由が _5XX_TOP を超えたぶんは「ほか」にまとめて数だけ残す（取りこぼさない）
+            top = sorted(_5xx_stats.items(), key=lambda kv: -kv[1])
+            for key, n in top[:_5XX_TOP]:
+                print(f"[5xx] {n} {key}")
+            if (rest := sum(n for _, n in top[_5XX_TOP:])):
+                print(f"[5xx] {rest} 000 - ほか {len(top) - _5XX_TOP} 種類")
+            _5xx_stats.clear()
         if tick % 60 == 0 and _ua_stats:
             # 経路ごとの UA 種別の内訳。どの経路をボットが踏んでいるかが分かると、
             # robots.txt で減らせるぶんと、減らしてはいけないぶん（リンクカード）を分けて考えられる
@@ -258,6 +274,26 @@ def _lang_for(request: Request | None) -> str:
     return "ja"
 
 
+def _log_5xx(request: Request, status: int, detail: str) -> None:
+    """HTTPException で返した 5xx を理由ごとに数える。1 分ごとに _load_monitor が [5xx] 行で出す。
+
+    raise HTTPException(...) は unhandled_error を通らないのでログに何も出ず、点検では
+    「エラー行 0・5xx N」としか分からなかった（/image-proxy の 503/502 がこれで、
+    最大 24 秒の原因を突き止めるのに時間がかかった）。印は [error] と分ける。
+    [error] は「想定外の例外」を数える枠で、そこに配信元都合の 502 を混ぜると判定が鈍るため。
+    1 件ごとに出さず [stats] と同じ 60 秒窓でまとめるのは、件数を取りこぼさずに行数を抑えるため。
+    パスは _stat_key で種別に潰す（query には外部の画像 URL が入るので出さない）。
+    """
+    if status < 500:
+        return
+    key = f"{status} {_stat_key(request.url.path)} {detail[:80]}"
+    if not public_mode():
+        print(f"[5xx] 1 {key}")   # ローカルは _load_monitor が動かないので、その場で出す
+        return
+    if len(_5xx_stats) < 500:     # 理由が際限なく増える種類のものが出ても溜め込まない
+        _5xx_stats[key] = _5xx_stats.get(key, 0) + 1
+
+
 def _error_response(request: Request, status: int, detail: str, headers: dict | None = None) -> Response:
     """エラーは fetch には JSON、ブラウザ遷移には案内ページ（存在しない URL・期限切れの画像・429・500 で {"detail": …} を見せない）。"""
     if _wants_html(request):
@@ -268,6 +304,7 @@ def _error_response(request: Request, status: int, detail: str, headers: dict | 
 @app.exception_handler(StarletteHTTPException)
 async def http_error(request: Request, exc: StarletteHTTPException) -> Response:
     """raise HTTPException(...) と、ルートに無いパスの 404・メソッド違いの 405。"""
+    _log_5xx(request, exc.status_code, str(exc.detail))
     return _error_response(request, exc.status_code, str(exc.detail), exc.headers)
 
 
@@ -775,6 +812,25 @@ async def _image_to_r2(url: str, ctype: str, data: bytes) -> None:
         print(f"[error] 画像を R2 に置けませんでした: {type(e).__name__}: {e}")
 
 
+_R2_TASKS: set[asyncio.Task] = set()
+_R2_TASKS_MAX = int(os.getenv("IMAGE_R2_TASKS_MAX", "64"))
+
+
+def _image_to_r2_bg(url: str, ctype: str, data: bytes) -> None:
+    """R2 への書き込みを応答の後ろに回す（待たない）。
+
+    put は connect_timeout 3 秒 × リトライ 3 回＋バックオフで 10 秒を超えることがあり、await すると
+    その分そのまま利用者の待ち時間になる（/s/* を 14.3 秒 → 1.0 秒にしたのと同じ話）。
+    次回以降 302 で返すためのキャッシュなので、落としても応答は正しい。
+    R2 が不調なときに溜め込まないよう、走っている本数が _R2_TASKS_MAX を超えたら諦める。
+    """
+    if len(_R2_TASKS) >= _R2_TASKS_MAX:
+        return
+    t = asyncio.create_task(_image_to_r2(url, ctype, data))
+    _R2_TASKS.add(t)
+    t.add_done_callback(_R2_TASKS.discard)
+
+
 @app.get("/image-proxy")
 async def image_proxy(url: str = Query(..., description="取得する画像URL", max_length=2048),
                       px: int = Query(0, ge=0, le=2000, description="欲しい実寸（マスが小さいときだけ指定する）")) -> Response:
@@ -804,7 +860,7 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     hit = await asyncio.to_thread(cache.get_image, ckey)
     if hit:
         ctype, data = hit
-        await _image_to_r2(ckey, ctype, data)   # 既にキャッシュ済みの分も、一度返すついでに R2 へ寄せる
+        _image_to_r2_bg(ckey, ctype, data)   # 既にキャッシュ済みの分も、一度返すついでに R2 へ寄せる
     else:
         # 配信元からの取得の同時本数を IMAGE_PROXY_CONCURRENCY で絞る（既定 16）。
         # 取りこぼすと 503 になるので、CPU の割当を変えたらこちらも見直す（0.1 vCPU の頃は 8 本だった）
@@ -822,7 +878,7 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
             await asyncio.to_thread(cache.set_image, ckey, ctype, data)
         finally:
             _PROXY_SEM.release()
-        await _image_to_r2(ckey, ctype, data)
+        _image_to_r2_bg(ckey, ctype, data)
     return Response(content=data, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
 
@@ -834,7 +890,7 @@ async def fetch_image(url: str) -> tuple[str, bytes]:
     client: httpx.AsyncClient = app.state.http
     try:
         # 画像 CDN の中には汎用 UA を弾くものがある（Wikimedia 等）ためブラウザ風にする。リダイレクトは 1 ホップずつ宛先を検査
-        r = await netguard.safe_get(client, url, allowlist=IMAGE_HOST_ALLOWLIST,
+        r = await netguard.safe_get(client, url, allowlist=IMAGE_HOST_ALLOWLIST, timeout=IMAGE_FETCH_TIMEOUT,
                                     headers={"User-Agent": "Mozilla/5.0 (compatible; trackmento/0.1)", "Accept": "image/*,*/*;q=0.8"})
     except netguard.BlockedURL as e:
         raise HTTPException(403, str(e)) from e

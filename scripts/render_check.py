@@ -156,7 +156,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[ua]*", "[health]*", "[error]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
 
 
 def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, max_pages: int = 25) -> list[dict]:
@@ -213,6 +213,9 @@ UA_RE = re.compile(r"(\S+?):((?:[^\s=,]+=\d+)(?:,[^\s=,]+=\d+)*)")
 HEALTH_RE = re.compile(r"\[health\] rss=(\d+)MB uptime=(\d+)s")
 LAG_RE = re.compile(r"\[loop\] lag=([\d.]+)s")
 RESTORE_RE = re.compile(r"本日の共有数を復元: (\d+) 件")
+# [5xx] <件数> <status> <パス種別> <理由>。HTTPException で返した 5xx の内訳。
+# backend/main.py の _log_5xx が理由ごとに数え、_load_monitor が [stats] と同じ 60 秒窓で出す
+FIVEXX_RE = re.compile(r"^\[5xx\] (\d+) (\d{3}) (\S+) (.*)$")
 
 
 def analyze_logs(logs: list[dict]) -> dict:
@@ -220,6 +223,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     ua_by_path: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     rss: list[tuple[str, int]] = []
     errors: list[str] = []
+    fivexx: dict[str, int] = defaultdict(int)   # "status パス種別 理由" → 件数（省略分を含む）
     lags: list[float] = []
     budget_lines: list[str] = []
     search_fail = 0
@@ -259,6 +263,8 @@ def analyze_logs(logs: list[dict]) -> dict:
             last_uptime = up
         elif (lm := LAG_RE.search(m)):
             lags.append(float(lm.group(1)))
+        elif (fm := FIVEXX_RE.match(m)):
+            fivexx[f"{fm.group(2)} {fm.group(3)} {fm.group(4)}"] += int(fm.group(1))
         elif m.startswith("[error]") or m.startswith("Traceback") or m.startswith("ERROR:"):
             errors.append(f"{_jst(ts)} {m[:160]}")
         elif "[share] budget" in m or "[share] quota" in m:
@@ -273,6 +279,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "ua_by_path": {k: dict(v) for k, v in ua_by_path.items()},
         "rss": rss,
         "errors": errors,
+        "fivexx": dict(fivexx),
         "lags": lags,
         "budget_lines": budget_lines,
         "search_fail": search_fail,
@@ -349,6 +356,11 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     lines.append(f"- 要求（[stats] {la['lines']} 行から集計）: 5xx 合計 {total_5xx}、共有の 5xx {share_5xx}")
     for k, p in top:
         lines.append(f"  - `{k}` {p['count']} 件、最大 {p['max_s']:.1f} 秒、ピーク {p['peak_per_min']} 件/分" + (f"、5xx {p['5xx']}" if p["5xx"] else ""))
+    fx = la.get("fivexx") or {}
+    if fx:
+        lines.append("  - 5xx の内訳（[5xx] 行。HTTPException で返したもの）:")
+        for k, n in sorted(fx.items(), key=lambda kv: -kv[1])[:6]:
+            lines.append(f"    - {n} 件 `{k}`")
     if total_5xx > T["5xx_total"]:
         problems.append(f"5xx 合計 {total_5xx} が閾値 {T['5xx_total']} を超過")
     if share_5xx > T["5xx_share"]:
