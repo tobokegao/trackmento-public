@@ -39,11 +39,15 @@ def trust_proxy() -> bool:
 
 
 def max_cells() -> int:
-    """1 枚に描けるマスの上限（公開モードでの重い描画対策。既定 64 = 8×8。ローカルは無制限）。"""
+    """1 枚に描けるマスの上限（公開モードでの重い描画対策。既定 256。ローカルは無制限）。
+
+    256 はフロント（index.html の MAX_CELLS）と同じ。書き出しは最大辺 2400px に収まるので、
+    マスが増えるほど 1 マスは小さくなり、16x16 で約 146px。これ以上は何の絵か分からなくなる。
+    """
     try:
-        v = int(os.getenv("MAX_CELLS", "64" if public_mode() else "0"))
+        v = int(os.getenv("MAX_CELLS", "256" if public_mode() else "0"))
     except ValueError:
-        v = 64
+        v = 256
     return max(0, v)
 
 

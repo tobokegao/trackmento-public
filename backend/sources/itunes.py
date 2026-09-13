@@ -113,6 +113,7 @@ async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "J
     want_title, want_artist = _n(q), _n(artist)
     exact: list[Track] = []
     partial: list[Track] = []
+    loose: list[Track] = []   # 曲名は合うがアーティスト名が合わないもの（表記違いの受け皿）
     for item in data.get("results", []):
         if item.get("wrapperType") not in (None, "track"):
             continue
@@ -123,6 +124,9 @@ async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "J
         if want_title and want_title not in nt:
             continue
         if want_artist and want_artist not in na:
+            loose.append(t)   # アーティスト名だけ合わない。表記違い（英語で入れて登録が日本語など）の可能性
             continue
         (exact if (not want_title or nt == want_title) and (not want_artist or na == want_artist) else partial).append(t)
-    return exact + partial
+    # アーティスト名で 1 件も残らなかったときは、曲名だけ合うものを出す。
+    # 「Kenshi Yonezu」で探しても登録が「米津玄師」だと 0 件になり、何も出ないより候補を見せたほうがよい
+    return exact + partial if (exact or partial) else loose

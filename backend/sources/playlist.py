@@ -31,7 +31,8 @@ import httpx
 from backend.models import NO_COVER, Track
 from backend.sources import bandcamp, video
 
-MAX_ITEMS = 100   # 候補が長くなりすぎない範囲で。SoundCloud のセットは 150 曲超のものもある
+MAX_ITEMS = 256   # マスの上限（backend/config.py の max_cells）と同じ。1 回のページ取得で返る分だけ入れる
+                  # （ソースによっては 1 回で全部返らない。ニコニコは全件、YouTube は 100 件が上限）
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 

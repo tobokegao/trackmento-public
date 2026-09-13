@@ -682,9 +682,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <fieldset class="field">
         <legend>グリッド（横 × 縦）</legend>
         <div class="custom-size" id="custom-size">
-          <label>横 <input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="12" value="3" aria-label="横のマス数"></label>
+          <label>横 <input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="横のマス数"></label>
           <span aria-hidden="true">×</span>
-          <label>縦 <input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="12" value="3" aria-label="縦のマス数"></label>
+          <label>縦 <input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="縦のマス数"></label>
         </div>
       </fieldset>
 
@@ -1427,8 +1427,27 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (selected !== null) { clearSelection(); say(els.gridMsg, "選択を解除しました。"); return; }
     if (target !== null) { clearTarget(); say(els.gridMsg, "入れる先の指定を解除しました。"); }
   });
-  function resizeGrid(cols, rows) {
-    cols = Math.min(12, Math.max(1, cols | 0)); rows = Math.min(12, Math.max(1, rows | 0));
+  /* マスの数の上限。書き出しは最大辺 2400px に収まるので、マスが増えるほど 1 マスは小さくなる
+     （16x16 で約 146px）。これ以上は何のジャケットか分からなくなるため 256 で止める。
+     縦横それぞれは 32 まで許し、12x20 のような縦長も作れるようにする */
+  const MAX_CELLS = 256, MAX_SIDE_CELLS = 32;
+  /* keep に "cols" / "rows" を渡すと、その側は動かさずもう一方を減らして総数に収める。
+     利用者がいま触った側を優先するため（横を 32 にしたら、縦が減って 32x8 になるべき） */
+  function clampGrid(cols, rows, keep) {
+    cols = Math.min(MAX_SIDE_CELLS, Math.max(1, cols | 0));
+    rows = Math.min(MAX_SIDE_CELLS, Math.max(1, rows | 0));
+    while (cols * rows > MAX_CELLS) {
+      if (keep === "cols" && rows > 1) rows--;
+      else if (keep === "rows" && cols > 1) cols--;
+      else if (rows >= cols) rows--;
+      else cols--;
+    }
+    return [cols, rows];
+  }
+  function resizeGrid(cols, rows, keep) {
+    const asked = [cols | 0, rows | 0];
+    [cols, rows] = clampGrid(cols, rows, keep);
+    if (asked[0] * asked[1] > MAX_CELLS) say(els.gridMsg, `マスは全部で ${MAX_CELLS} 個までです（${cols} × ${rows} にしました）。`);
     const n = cols * rows, cur = state.cells.length;
     if (n < cur) {
       // 溢れた曲は退避。サイズを戻すと復帰する
@@ -1516,7 +1535,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
 
   /* ---- options ---- */
-  for (const inp of [els.cols, els.rows]) inp.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value)));
+  // いま触った側は動かさず、もう一方を減らして総数に収める
+  els.cols.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value), "cols"));
+  els.rows.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value), "rows"));
   els.ratioSeg.addEventListener("change", () => { state.ratio = els.ratioSeg.querySelector("input:checked").value; updateSpec(); });
   els.optTitle.addEventListener("change", () => { state.showTitle = els.optTitle.checked; els.title.disabled = !state.showTitle; updateSpec(); });
   els.optSidebar.addEventListener("change", () => { state.sidebar = els.optSidebar.checked; updateSpec(); });
