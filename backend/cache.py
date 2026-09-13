@@ -58,6 +58,12 @@ CREATE TABLE IF NOT EXISTS image (
 );
 CREATE INDEX IF NOT EXISTS image_ts ON image(ts);
 """
+# R2 に上げた画像のキーを覚える列（後から足す）。ここに値があれば、その URL は R2 から直接配信できる
+_MIGRATIONS = ["ALTER TABLE image ADD COLUMN r2key TEXT"]
+
+# R2 に置いた画像を「まだある」とみなす時間。R2 側のライフサイクル（7 日）より短くしておかないと、
+# 消えた後もリダイレクトし続けて 404 になる
+R2_IMAGE_TTL = 6 * 24 * 3600
 
 
 def _skey(source: str, q: str, artist: str) -> str:
@@ -77,6 +83,12 @@ class Cache:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=NORMAL")
             conn.executescript(_SCHEMA)
+            for sql in _MIGRATIONS:   # 既にある DB に列を足す。二度目は duplicate column で落ちるので握りつぶす
+                try:
+                    conn.execute(sql)
+                except sqlite3.OperationalError:
+                    pass
+            conn.commit()
             self._conn = conn
         return self._conn
 
@@ -124,6 +136,29 @@ class Cache:
                 "INSERT OR REPLACE INTO image(url, ctype, data, size, ts) VALUES (?,?,?,?,?)",
                 (url, ctype, sqlite3.Binary(data), len(data), time.time()),
             )
+            db.commit()
+
+    def get_image_r2key(self, url: str) -> str | None:
+        """この URL の画像を R2 に上げてあればそのキー。無ければ None。
+
+        本体（BLOB）を読まずに済むので、R2 へ寄せた後の通常の経路はこれだけで足りる。
+        R2 のライフサイクルで消える前に期限切れにする（R2_IMAGE_TTL）。
+        """
+        with self._lock:
+            db = self._db()
+            row = db.execute("SELECT r2key, ts FROM image WHERE url=? AND r2key IS NOT NULL", (url,)).fetchone()
+            if not row:
+                return None
+            age = time.time() - row[1]
+            if age > min(_image_ttl(url), R2_IMAGE_TTL):
+                return None
+            return row[0]
+
+    def mark_image_r2(self, url: str, r2key: str) -> None:
+        """既にキャッシュ済みの画像に、R2 へ上げたことを記録する。"""
+        with self._lock:
+            db = self._db()
+            db.execute("UPDATE image SET r2key=? WHERE url=?", (r2key, url))
             db.commit()
 
     # ---- 保守 ----

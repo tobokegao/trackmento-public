@@ -25,7 +25,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend import grids, housekeeping, imgtools, netguard, render, share, storage, uploads
@@ -647,9 +647,54 @@ def _host_allowed(url: str) -> bool:
     return netguard.url_ok(url, IMAGE_HOST_ALLOWLIST)
 
 
+IMAGE_R2_PREFIX = "imgcache/"
+# 画像を R2 へ寄せるか（既定は有効）。R2 が無い・公開 URL が無い環境では自動で無効になる
+IMAGE_TO_R2 = os.getenv("IMAGE_TO_R2", "1") not in ("0", "false", "no")
+_IMG_EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}
+
+
+def _image_r2_key(url: str, ctype: str) -> str:
+    """取得元 URL から R2 のキーを作る。同じ画像は同じキーになる。"""
+    return f"{IMAGE_R2_PREFIX}{hashlib.sha1(url.encode('utf-8')).hexdigest()[:20]}.{_IMG_EXT.get(ctype, 'bin')}"
+
+
+async def _image_r2_redirect(url: str) -> Response | None:
+    """R2 に寄せ済みならそこへ 302。まだなら None（呼び出し元が本体を返す）。
+
+    画像 1 枚 77KB に対してリダイレクトの応答は数百バイトなので、Render の転送量（課金対象）が
+    ほぼ無くなる。ブラウザは fetch + createImageBitmap で読むため、R2 側の CORS と
+    CSP の connect-src（_r2_origin）が要る。どちらもフォントを R2 に移したときに整えてある。
+    """
+    if not IMAGE_TO_R2:
+        return None
+    key = await asyncio.to_thread(cache.get_image_r2key, url)
+    if not key:
+        return None
+    public = storage.get_storage().public_url(key)
+    if not public:
+        return None
+    return RedirectResponse(public, status_code=302, headers={"Cache-Control": "public, max-age=86400"})
+
+
+async def _image_to_r2(url: str, ctype: str, data: bytes) -> None:
+    """画像を R2 に置き、次からは 302 で返せるようにする。失敗しても本体は返せるので握りつぶす。"""
+    st = storage.get_storage()
+    if not IMAGE_TO_R2 or not st.is_remote or not st.public_url(""):
+        return
+    key = _image_r2_key(url, ctype)
+    try:
+        await asyncio.to_thread(st.put, key, data, ctype)
+        await asyncio.to_thread(cache.mark_image_r2, url, key)
+    except Exception as e:
+        print(f"[error] 画像を R2 に置けませんでした: {type(e).__name__}: {e}")
+
+
 @app.get("/image-proxy")
 async def image_proxy(url: str = Query(..., description="取得する画像URL", max_length=2048)) -> Response:
-    """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。取得結果は SQLite にキャッシュ。"""
+    """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。取得結果は SQLite にキャッシュ。
+
+    二度目以降は本体を返さず R2 へ 302 で送る（_image_r2_redirect）。IMAGE_TO_R2=0 で止められる。
+    """
     if uploads.is_upload_url(url):
         got = await run_in_threadpool(uploads.read_bytes, url)
         if got is None:
@@ -660,9 +705,12 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     # 保存済みのグリッドが持つ大きすぎる URL（iTunes の 1000x1000、Bandcamp と bilibili の原寸）を
     # マスの大きさ（600px）に合わせて取り直す。ホストは変わらないので検査の後でよい
     url = video.clamp_size(bandcamp.clamp_size(itunes.clamp_size(url)))
+    if (redirect := await _image_r2_redirect(url)) is not None:
+        return redirect
     hit = await asyncio.to_thread(cache.get_image, url)
     if hit:
         ctype, data = hit
+        await _image_to_r2(url, ctype, data)   # 既にキャッシュ済みの分も、一度返すついでに R2 へ寄せる
     else:
         # 配信元からの取得の同時本数を IMAGE_PROXY_CONCURRENCY で絞る（既定 16）。
         # 取りこぼすと 503 になるので、CPU の割当を変えたらこちらも見直す（0.1 vCPU の頃は 8 本だった）
@@ -678,6 +726,7 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
             await asyncio.to_thread(cache.set_image, url, ctype, data)
         finally:
             _PROXY_SEM.release()
+        await _image_to_r2(url, ctype, data)
     return Response(content=data, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
 
