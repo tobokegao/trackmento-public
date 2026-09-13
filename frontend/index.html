@@ -121,7 +121,14 @@ img { max-width: 100%; display: block; }
     var(--color-pink)      0) bottom / 100% 5px no-repeat;
 }
 .wordmark small { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); letter-spacing: 0; }
-.bar-status { margin: 0 0 0 auto; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
+.lang-switch {
+  order: 9;   /* 常にバーの右端。直前の .bar-status が margin-left:auto で余白を吸うので、これで右端に付く */
+  font-family: var(--font-display); font-size: var(--text-sm); line-height: 1;
+  padding: 5px 10px; border: var(--line) solid var(--color-ink);
+  background: var(--color-paper); color: var(--color-ink); cursor: pointer;
+}
+.lang-switch:hover { background: var(--color-ink); color: var(--color-paper); }
+.bar-status { margin: 0 0 0 auto; order: 8; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
 
 /* ---------- panes ---------- */
 .workbench {
@@ -546,6 +553,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <header class="bar">
   <h1 class="wordmark"><span class="mark">TRACKMENTO</span> <small id="wordmark-tag"></small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite"></p>
+  <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
 <aside class="inapp" id="inapp-notice" hidden>
   <p>アプリ内ブラウザでは共有が遅くなったり失敗したりします。右上のメニューから「ブラウザで開く」（Safari / Chrome）で開くのがおすすめです。</p>
@@ -810,13 +818,277 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* バックエンドの URL。同一オリジンなら空。GitHub Pages に置くときは build_pages.py が <meta name="trackmento-api"> を埋め込む */
   const API = (((document.querySelector('meta[name="trackmento-api"]') || {}).content || window.TRACKMENTO_API || "") + "").replace(/\/+$/, "");
   const api = (path) => API + path;
+
+  /* ---------- 日本語 / 英語 ---------- */
+  /* 日本語の文面をそのまま鍵にして英語を引く。原文がコードに残るので、読めば何が出るか分かる。
+     ${…} を含む文面は tr`…` とタグ付きテンプレートで呼び、鍵は raw を "{}" でつないだもの。
+     英語側の差し込み位置は {0} {1} … で書く（語順が日本語と変わるため）。
+     HTML に直接書いた文言は起動時に控えを取り、切り替えのたびに差し替える（後から足した
+     利用者のデータは控えに無いので触らない）。__RETENTION__ はサーバーが HTML 全体を
+     置換するので、鍵と DOM の文字列は必ず同じ値になる。 */
+  const EN = {
+        "アプリ内ブラウザでは共有が遅くなったり失敗したりします。右上のメニューから「ブラウザで開く」（Safari / Chrome）で開くのがおすすめです。": "Sharing is slow and often fails in in-app browsers. Use the menu at the top right to open this page in Safari or Chrome.",
+        "URL をコピー": "Copy URL",
+        "閉じる": "Close",
+        "検索": "Search",
+        "選択中のマス": "Selected cell",
+        "曲名": "Track",
+        "アーティスト名": "Artist",
+        "このマスを外す": "Remove this cell",
+        "選択解除": "Deselect",
+        "ソース": "Sources",
+        "検索する": "Search",
+        "URL から": "From a URL",
+        "Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。": "A page URL from Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify or Apple Music (a bare video ID such as sm… also works).",
+        "改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。": "Put one per line to pull from several sites at once.",
+        "それぞれのサービスのプレイリスト URL なら、収録曲をまとめて取得出来ます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）": "A playlist URL from any of these services pulls in every track at once (up to 500; YouTube stops at 100 and bilibili at 20).",
+        "URL から取得": "Fetch from URL",
+        "手入力（画像 URL＋曲名）": "By hand (image URL + track name)",
+        "手入力: ジャケット画像の URL": "By hand: cover image URL",
+        "端末から画像を選択": "Choose an image from this device",
+        "選ぶと画像が取り込まれ、URL 欄に入ります。": "The image is uploaded and its URL fills the field above.",
+        "手入力で追加": "Add by hand",
+        "候補": "Results",
+        "まだ候補がありません": "No results yet",
+        "曲名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。": "Search by track or artist and the matches appear here with their covers.",
+        "クリックで次の空きマスに入ります。": "Click one to drop it into the next empty cell.",
+        "グリッド": "Grid",
+        "タイトル（省略可）": "Title (optional)",
+        "候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。": "Click a result to fill the next empty cell. Tap a cell to select it, then tap another to swap.",
+        "トラックを共有": "Share these tracks",
+        "全部クリア": "Clear all",
+        "曲を探す": "Find a track",
+        "並びを保存": "Save layout",
+        "並びを読み込み": "Load layout",
+        "共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。": "Share URLs expire after __RETENTION__ days. To keep a layout, save it to a file and load it back later.",
+        "共有 URL": "Share URL",
+        "SNS に共有": "Share on social",
+        "共有ページを開く": "Open share page",
+        "画像を保存": "Save image",
+        "予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭": "This blew up more than I expected and the server bills keep climbing…! Buy my album and help out if you can 😭",
+        "Tobokegao「おかねがたりないときのうた」": "Tobokegao \"Okane ga Tarinai Toki no Uta\"",
+        "出力オプション": "Output options",
+        "グリッド（横 × 縦）": "Grid (columns × rows)",
+        "横": "Cols",
+        "縦": "Rows",
+        "比率": "Ratio",
+        "1:1 正方形": "1:1 square",
+        "4:5 インスタ": "4:5 Instagram",
+        "16:9 ツイート": "16:9 post",
+        "9:16 ストーリーズ": "9:16 stories",
+        "設定なし": "Free",
+        "表示": "Show",
+        "タイトル": "Title",
+        "曲名リスト（サイドバー）": "Track list (sidebar)",
+        "番号バッジ": "Number badges",
+        "背景色": "Background",
+        "カスタムカラー": "Custom colour",
+        "色相": "Hue",
+        "彩度": "Saturation",
+        "明度": "Lightness",
+        "余白": "Margin",
+        "マスの間隔": "Gap",
+        "出力サイズ": "Output size",
+        "マスの大きさ": "Cell size",
+        "まとめて取れました": "Fetched the whole list",
+        "やめる": "Cancel",
+        "マスに入れる": "Fill the grid",
+        "候補に置いて選ぶ": "Put in results and pick",
+        "ソースについて": "About the sources",
+        ": 曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。": ": only shows tracks whose title contains your query and whose artist contains the artist you typed, to keep unrelated songs and covers out. Exact matches come first.",
+        ": 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。": ": covers come only from releases registered with the Cover Art Archive. It allows one request per second, so it is a little slow.",
+        ": 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。": ": the otoMAD database (otodb.net). Search by work title; the creator comes from the database tags. Thumbnails live on otoDB, so they still show even when the original video is gone. Off by default.",
+        "組み合わせ": "Combining sources",
+        ": ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。": ": you can pick several. Results follow the order of the buttons (iTunes → MusicBrainz → …), and for duplicates the earlier source wins, since iTunes is fast and steady while MusicBrainz gets busy. Your choice is remembered.",
+        "まとめて取る": "Fetching a whole list",
+        ": プレイリスト・マイリスト・セット・収藏夹・再生リストの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。": ": paste a playlist, mylist, set, favourites or watch-list URL and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
+        "YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで": "YouTube playlists stop at 100 tracks and bilibili favourites at 20",
+        "（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。": " because neither publishes a way to page through the rest. Put URLs on separate lines to mix several sites in one go.",
+        ": Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track or album), SoundCloud (track), Spotify (track or album), YouTube (video), Niconico or bilibili and it picks up the cover or thumbnail along with the title and the artist (or uploader). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bare ID such as sm12345 works too.",
+        "保存されるもの": "What gets stored",
+        ": 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched covers are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
+        "01 番に入れる曲を探す": "Find a track for cell 01",
+        "サーバー代のおねがい": "A word about server bills",
+        "無料で置いているツールですが、思ったより多くの反響にてサーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
+        "ほかで聴く:": "Also on:",
+        "おかねがたりないときのうた": "Okane ga Tarinai Toki no Uta",
+        "（サーバー代のたすけ）": " (helps with the server bills)",
+        "連絡先:": "Contact:",
+        "曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有": "Build a grid of cover art track by track. Search widely, then share the tracks you love.",
+        "この案内を閉じる": "Dismiss this notice",
+        "検索を折りたたむ": "Collapse search",
+        "例: 感電": "e.g. Never Gonna Give You Up",
+        "例: 米津玄師": "e.g. Rick Astley",
+        "各ソースの説明": "What each source does",
+        "検索ソース（複数選択）": "Search sources (pick any)",
+        "候補数": "Number of results",
+        "候補を折りたたむ": "Collapse results",
+        "配置数": "Cells filled",
+        "グリッドを折りたたむ": "Collapse grid",
+        "例: 私を構成する9曲": "e.g. 9 tracks that made me",
+        "ジャケットの並び": "Cover grid",
+        "PNG を作り、並びのスナップショットと一緒に共有 URL にする": "Render a PNG and put it, with a snapshot of the layout, behind a share URL",
+        "並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる": "Save the layout (tracks, image URLs and output settings) to a JSON file on this device. Load it to get the same layout back",
+        "「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す": "Load a JSON file written by \"Save layout\" to restore that layout",
+        "共有した画像のプレビュー": "Preview of the shared image",
+        "出力オプションを折りたたむ": "Collapse output options",
+        "横のマス数": "Columns",
+        "縦のマス数": "Rows",
+        "出力比率": "Output ratio",
+        "カスタムカラーを設定": "Set a custom colour",
+        "ニコニコ動画": "Niconico",
+        "手入力": "By hand",
+        "クリーム": "Cream",
+        "黒": "Ink",
+        "マスタード": "Mustard",
+        "セルリアン": "Cerulean",
+        "朱赤": "Vermilion",
+        "ラベンダー": "Lavender",
+        "ミント": "Mint",
+        "ピンク": "Pink",
+        "iTunes: サーバー経由は制限中（ブラウザから直接検索）": "iTunes: the server is rate-limited, searching from your browser instead",
+        "接続OK": "Connected",
+        "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）": "Cannot reach the server (search is limited to iTunes and MusicBrainz; saving and sharing are unavailable)",
+        "サーバーに接続できません": "Cannot reach the server",
+        "このソースはサーバー側で無効です（README を参照）": "This source is switched off on the server (see the README)",
+        "曲名かアーティスト名のどちらかは必要です。": "Enter a track name or an artist name.",
+        "URL だったので「URL を貼る」から取り込みます。": "That was a URL, so it is being fetched through \"From a URL\".",
+        "ソースを 1 つ以上選んでください。": "Pick at least one source.",
+        "混雑中で応答しませんでした（少し待って再検索）": "was busy and did not answer; wait a moment and search again",
+        "エラーで取得できませんでした": "failed with an error",
+        "見つかりませんでした。表記を変えるか、別のソースを試してください。": "Nothing found. Try a different spelling, or another source.",
+        "「マスに入れる」で、番号の若い空きマスから順に全部入ります。": "\"Fill the grid\" puts every one of them into the empty cells, lowest number first.",
+        "やめました。": "Cancelled.",
+        "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。": "Paste a page URL starting with https:// (Bandcamp, SoundCloud, YouTube, Niconico, bilibili or Spotify), or a video ID (sm…, BV…, or the 11-character YouTube one). Put one per line for several.",
+        "画像は https:// の URL か、「画像を選ぶ」で取り込んだ /uploads/ の URL にしてください。": "The image must be an https:// URL, or a /uploads/ URL from \"Choose an image\".",
+        "曲名を入れてください。": "Enter a track name.",
+        "<strong>該当なし</strong><span>曲名を短くする、アーティスト名だけで検索する、などを試してください。</span>": "<strong>No matches</strong><span>Try a shorter title, or search by artist alone.</span>",
+        "空きマスがありません。× で外してから追加してください。": "No empty cells left. Remove one with × first.",
+        "曲を探す（次の空きマスに入ります）": "Find a track (goes into the next empty cell)",
+        "入れる先の指定を解除しました。": "Target cell cleared.",
+        "選択を解除しました。": "Selection cleared.",
+        "元ページを開く": "Open the original page",
+        "曲名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。": "The track and artist names appear in the sidebar of the image. Edit them here.",
+        "並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。": "Layout saved to a JSON file. \"Load layout\" brings it back, though images you uploaded from this device may have expired by then.",
+        "全部外しました。": "Cleared every cell.",
+        "画像の取得に失敗": "Could not fetch the image",
+        "TRACKMENTO の JSON ではありません（cells がありません）。": "That is not a TRACKMENTO JSON file (no cells in it).",
+        "サーバー側の保存（CLI など）の方が新しいので、そちらを読み込みました。": "The copy saved on the server (from the CLI, say) was newer, so that one was loaded.",
+        "コピーしました": "Copied",
+        "コピーできませんでした": "Could not copy",
+        "サーバーが応答しません。少し待ってもう一度試しています…": "The server is not answering. Waiting a moment and trying again…",
+        "画像を作成中…": "Rendering the image…",
+        "曲を置いてから押してください。": "Put some tracks in first.",
+        "この端末では画像を作れなかったので、サーバーで作成します…": "This device could not render the image, so the server is doing it…",
+        "共有 URL をコピーしました。": "Share URL copied.",
+        "コピーできなかったので、URL 欄を選択しました。手動でコピーしてください。": "Copying failed, so the URL field is selected. Copy it by hand.",
+        "無題": "Untitled",
+        "期限切れか削除済みです": "Expired or deleted",
+        "サーバーが応答できませんでした（HTTP {}）。再起動中の可能性があります。30 秒ほど待ってからもう一度お試しください": "The server could not answer (HTTP {0}). It may be restarting. Wait about 30 seconds and try again",
+        "ソース: {}": "Sources: {0}",
+        "{} は{}。": "{0} {1}.",
+        "{} 件": "{0} found",
+        "検索に失敗しました（{}）。サーバーが起動しているか確認して、もう一度押してください。": "Search failed ({0}). Check that the server is running and press again.",
+        "{} 曲 取れました。いまの空きマスは {} 個です。": "Got {0} tracks. There are {1} empty cells right now.",
+        "「マスに入れる」で {} 曲が入り、残り {} 曲は候補に置きます。": "\"Fill the grid\" takes {0} of them; the other {1} go to the results.",
+        "{} 曲をマスに入れ、残り {} 曲を候補に置きました。": "Put {0} tracks in the grid and the other {1} in the results.",
+        "{} 曲をマスに入れました。": "Put {0} tracks in the grid.",
+        "候補に {} 曲を置きました。クリックで配置します。": "Put {0} tracks in the results. Click one to place it.",
+        "一度に取れるのは {} 件までです（いまは {} 件）。": "Up to {0} at a time, and there are {1} here.",
+        "{} 件を取得中…": "Fetching {0}…",
+        "{}/{} 件目を取得中…": "Fetching {0} of {1}…",
+        "候補の先頭に「{}」を入れました。クリックで配置します。": "Put \"{0}\" at the top of the results. Click it to place it.",
+        "候補の先頭に {} 件入れました。クリックで配置します。": "Put {0} at the top of the results. Click one to place it.",
+        "{} 件を候補に入れました。取れなかったもの: {}": "Put {0} in the results. These could not be fetched: {1}",
+        "取れませんでした。{}": "Nothing could be fetched. {0}",
+        "{} を送っています…": "Uploading {0}…",
+        "取り込みました（{}）。曲名を確認して「手入力で追加」を押してください。": "Uploaded ({0}). Check the track name and press \"Add by hand\".",
+        "取り込めませんでした。{}": "Upload failed. {0}",
+        "{} / {} をグリッドに追加": "Add {0} by {1} to the grid",
+        "{} 番に「{}」を入れました。": "Put \"{1}\" in cell {0}.",
+        "{} 番に入れます。候補をタップで確定／もう一度タップで解除": "Cell {0} is the target. Tap a result to place it, or tap again to cancel",
+        "{} 番に入れる曲を探す": "Find a track for cell {0}",
+        "{} 番の「{}」を外しました。": "Removed \"{1}\" from cell {0}.",
+        "{} 番と {} 番を入れ替えました。": "Swapped cells {0} and {1}.",
+        "{} 番を選択中。別のマスをタップすると入れ替え（空マスなら移動）。もう一度タップで解除。": "Cell {0} is selected. Tap another cell to swap, or an empty one to move. Tap again to deselect.",
+        "{} 番を {} 番に移しました。": "Moved cell {0} to cell {1}.",
+        "アルバム: {}": "Album: {0}",
+        "マスは全部で {} 個までです（{} × {} にしました）。": "The grid holds at most {0} cells, so this is now {1} × {2}.",
+        "{} 曲をいったん外しました。サイズを戻すと復帰します。": "{0} tracks were set aside. They come back if you restore the size.",
+        "{} 番: {} / {}": "Cell {0}: {1} by {2}",
+        "{} 番の {} を外す": "Remove {1} from cell {0}",
+        "{} 番: 空": "Cell {0}: empty",
+        "並びを読み込みました（{} 曲）。この画面での変更は自分のグリッドとして保存されます。": "Layout loaded ({0} tracks). Changes you make here are saved as your own grid.",
+        "並びを読み込めませんでした: {}": "Could not load the layout: {0}",
+        "上下 {} / 左右 {} px": "{0} top and bottom / {1} left and right, px",
+        "画像を作成中… {}/{}": "Rendering the image… {0}/{1}",
+        "アップロード中…（{} MB）": "Uploading… ({0} MB)",
+        "{} × {} px の画像と共有 URL ができました。": "Made a {0} × {1} px image and a share URL.",
+        "共有できませんでした（{}）。": "Sharing failed ({0}).",
+        "トラック共有サイト #TRACKMENTO からシェア:「{}」": "Shared from #TRACKMENTO, the track-grid maker: \"{0}\"",
+        "共有 {} の並びを読み込みました（{} 曲）。この画面での変更は自分のグリッドとして保存されます。": "Loaded the layout from share {0} ({1} tracks). Changes you make here are saved as your own grid.",
+        "共有 {} を読み込めませんでした（{}）。": "Could not load share {0} ({1})."
+    };
+  const LANG_KEY = "trackmento.lang";
+  let LANG = "";
+  try { LANG = localStorage.getItem(LANG_KEY) || ""; } catch { LANG = ""; }
+  if (LANG !== "ja" && LANG !== "en") LANG = /^ja/i.test(navigator.language || "") ? "ja" : "en";
+
+  function tr(x, ...v) {
+    if (typeof x === "string") return LANG === "en" && EN[x] ? EN[x] : x;
+    const raw = x.raw;
+    if (LANG === "en") {
+      const pat = EN[raw.join("{}")];
+      if (pat) return pat.replace(/\{(\d+)\}/g, (m, i) => v[i] ?? "");
+    }
+    return raw.reduce((s, p, i) => s + (i ? v[i - 1] : "") + p, "");
+  }
+
+  const I18N_SNAP = [];
+  function snapI18n() {
+    const w = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
+    for (let n; (n = w.nextNode());) {
+      const s = n.nodeValue;
+      if (s && s.trim() && EN[s.trim()]) I18N_SNAP.push([n, null, s]);
+    }
+    for (const el of document.querySelectorAll("[placeholder],[aria-label],[title],[alt],meta[content]")) {
+      for (const a of ["placeholder", "aria-label", "title", "alt", "content"]) {
+        const v = el.getAttribute(a);
+        if (v && EN[v]) I18N_SNAP.push([el, a, v]);
+      }
+    }
+  }
+
+  function applyI18n() {
+    for (const [node, attr, ja] of I18N_SNAP) {
+      const en = EN[attr ? ja : ja.trim()];
+      if (attr) node.setAttribute(attr, LANG === "en" ? en : ja);
+      else node.nodeValue = LANG === "en" ? ja.replace(ja.trim(), en) : ja;
+    }
+    document.documentElement.lang = LANG;
+    const b = $("#lang-switch");
+    if (b) {
+      b.textContent = LANG === "ja" ? "EN" : "日本語";
+      b.lang = LANG === "ja" ? "en" : "ja";
+      b.setAttribute("aria-label", LANG === "ja" ? "Switch to English" : "日本語に切り替える");
+    }
+  }
+
+  /* 言語を変えたら、すでに描いてあるものを描き直す（ソース名・色名・マスの読み上げなど）。
+     まだ描いていない段階でも呼ばれるので、1 つずつ握りつぶす */
+  function reRenderForLang() {
+    for (const fn of [() => renderSources(), () => renderSwatches(), () => currentResults.length && renderResults(currentResults),   /* 空のまま描き直すと「該当なし」に変わってしまう */
+                      () => renderGrid(), () => updateSpec(), () => syncControls(), () => paintHealth()]) {
+      try { fn(); } catch { /* まだ用意できていないものは飛ばす */ }
+    }
+  }
   /* fetch の応答を JSON として読む。Render の再起動中やプロキシのタイムアウトでは HTML のエラーページが返り
      （"Unexpected token '<'"）、r.json() では原因が分からないので、状態コード付きの文言にする */
   async function readJson(r) {
     const text = await r.text();
     try { return JSON.parse(text); }
     catch {
-      if (r.status >= 500 || r.status === 429) throw new Error(`サーバーが応答できませんでした（HTTP ${r.status}）。再起動中の可能性があります。30 秒ほど待ってからもう一度お試しください`);
+      if (r.status >= 500 || r.status === 429) throw new Error(tr`サーバーが応答できませんでした（HTTP ${r.status}）。再起動中の可能性があります。30 秒ほど待ってからもう一度お試しください`);
       throw new Error(`HTTP ${r.status}`);
     }
   }
@@ -824,6 +1096,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const sleep = (ms) => new Promise(res => setTimeout(res, ms));
   // 公開モードかはサーバーが HTML に埋める（/status が広告ブロッカーに遮断されても分かるように）。GitHub Pages 配信では置換されず "__PUBLIC__" のまま
   let isPublic = ((document.querySelector('meta[name="trackmento-public"]') || {}).content || "") === "1";
+  snapI18n();
+  applyI18n();
+
   const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", manual: "手入力" };
   const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
@@ -880,6 +1155,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const DIRECT_SOURCES = ["itunes", "musicbrainz"];   // ブラウザから直接検索できるソース（サーバーに届かなくても使える）
   let itunesServerBlockedUntil = 0;   // サーバー経由の iTunes が遮断中と分かった時刻＋10 分。その間はフォールバックを呼ばない
   const itunesServerBlocked = () => Date.now() < itunesServerBlockedUntil;
+  /* 接続状態とフッターのソース一覧を描く。/status の取得（loadHealth）とは分けてあるので、
+     言語を切り替えたときに通信せずに描き直せる */
+  let lastHealth = null;
+  function paintHealth() {
+    if (!lastHealth) return;
+    els.status.textContent = lastHealth.ok
+      ? (isPublic ? (lastHealth.blocked ? tr("iTunes: サーバー経由は制限中（ブラウザから直接検索）") : "") : tr("接続OK"))
+      : (isPublic ? tr("サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）") : tr("サーバーに接続できません"));
+    els.footSources.textContent = tr`ソース: ${available.map(s => tr(SOURCE_LABEL[s] || s)).join(" / ")}`;
+  }
   async function loadHealth(attempt = 0) {
     try {
       // アプリ内ブラウザ（X・LINE など）や不安定な回線では初回の fetch が失敗・停滞しやすい。上限を付け、失敗時は少し待って取り直す
@@ -893,16 +1178,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       $("#wordmark-tag").textContent = isPublic ? "" : "local";
       $("#health-link").hidden = isPublic;   // 診断用リンクは公開サイトでは出さない
       // サーバー経由の iTunes が Apple に制限されているとき（Web はブラウザから直接検索するので影響は小さい）
-      els.status.textContent = isPublic ? (d.itunes_server === "blocked" ? "iTunes: サーバー経由は制限中（ブラウザから直接検索）" : "") : "接続OK";
       if (d.itunes_server === "blocked") itunesServerBlockedUntil = Date.now() + 600000;
-      els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
+      lastHealth = { ok: true, blocked: d.itunes_server === "blocked" };
+      paintHealth();
       $("#foot-discogs").hidden = !available.includes("discogs");
     } catch {
       // サーバーに届かなくても iTunes / MusicBrainz はブラウザから直接検索できるので、その 2 つは使えるままにする
       available = DIRECT_SOURCES.slice();
       $("#health-link").hidden = isPublic;
-      els.status.textContent = isPublic ? "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）" : "サーバーに接続できません";
-      els.footSources.textContent = `ソース: ${available.map(s => SOURCE_LABEL[s] || s).join(" / ")}`;
+      lastHealth = { ok: false };
+      paintHealth();
       if (attempt < 3) setTimeout(() => loadHealth(attempt + 1), 3000 * (attempt + 1));   // 3 秒・6 秒・9 秒後に取り直す。つながれば表示が戻る
     }
     renderSources();
@@ -925,8 +1210,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const i = document.createElement("input");
       i.type = "checkbox"; i.name = "source"; i.value = s; i.disabled = !on;
       i.checked = on && (saved ? saved.includes(s) : s === "itunes");
-      const sp = document.createElement("span"); sp.textContent = SOURCE_LABEL[s];
-      if (!on) l.title = "このソースはサーバー側で無効です（README を参照）";
+      const sp = document.createElement("span"); sp.textContent = tr(SOURCE_LABEL[s]);
+      if (!on) l.title = tr("このソースはサーバー側で無効です（README を参照）");
       i.addEventListener("change", () => { try { localStorage.setItem(SOURCES_KEY, JSON.stringify(selectedSources())); } catch { /* ignore */ } });
       l.append(i, sp); els.sources.append(l);
     }
@@ -1048,19 +1333,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     e.preventDefault();
     const q = els.q.value.trim(), artist = els.artist.value.trim();
     els.q.removeAttribute("aria-invalid");
-    if (!q && !artist) { els.q.setAttribute("aria-invalid", "true"); say(els.searchMsg, "曲名かアーティスト名のどちらかは必要です。", "error"); els.q.focus({ preventScroll: true }); return; }
+    if (!q && !artist) { els.q.setAttribute("aria-invalid", "true"); say(els.searchMsg, tr("曲名かアーティスト名のどちらかは必要です。"), "error"); els.q.focus({ preventScroll: true }); return; }
     // 曲名欄にページの URL を貼った人は「URL を貼る」に回す（iTunes に URL を検索させても何も出ない）
     const pasted = [q, artist].find(v => /^https?:\/\//i.test(v));
     if (pasted) {
       els.bcUrl.value = pasted;
       const sub = els.bcForm.closest(".sub");
       if (sub && sub.dataset.collapsed === "true") toggleFold(sub);
-      say(els.searchMsg, "URL だったので「URL を貼る」から取り込みます。");
+      say(els.searchMsg, tr("URL だったので「URL を貼る」から取り込みます。"));
       els.bcForm.requestSubmit();
       return;
     }
     const chosen = selectedSources();
-    if (!chosen.length) { say(els.searchMsg, "ソースを 1 つ以上選んでください。", "error"); return; }
+    if (!chosen.length) { say(els.searchMsg, tr("ソースを 1 つ以上選んでください。"), "error"); return; }
     setBtnState(els.searchBtn, "loading"); say(els.searchMsg, "");
     try {
       // iTunes と MusicBrainz はブラウザから直接、それ以外（Discogs / otoDB）はサーバー経由。並列に取って SOURCE_ORDER の順に並べる
@@ -1089,12 +1374,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       setBtnState(els.searchBtn, null);
       // 一部のソースが失敗していたら、その旨を添える（MusicBrainz の混雑など）
       const failNote = failed.length
-        ? " " + failed.map(([n, k]) => `${SOURCE_LABEL[n] || n} は${k === "busy" ? "混雑中で応答しませんでした（少し待って再検索）" : "エラーで取得できませんでした"}。`).join("")
+        ? " " + failed.map(([n, k]) => tr`${tr(SOURCE_LABEL[n] || n)} は${k === "busy" ? tr("混雑中で応答しませんでした（少し待って再検索）") : tr("エラーで取得できませんでした")}。`).join("")
         : "";
-      say(els.searchMsg, (tracks.length ? `${tracks.length} 件` : "見つかりませんでした。表記を変えるか、別のソースを試してください。") + failNote, failed.length ? "error" : null);
+      say(els.searchMsg, (tracks.length ? tr`${tracks.length} 件` : tr("見つかりませんでした。表記を変えるか、別のソースを試してください。")) + failNote, failed.length ? "error" : null);
     } catch (err) {
       setBtnState(els.searchBtn, "error");
-      say(els.searchMsg, `検索に失敗しました（${err.message}）。サーバーが起動しているか確認して、もう一度押してください。`, "error");
+      say(els.searchMsg, tr`検索に失敗しました（${err.message}）。サーバーが起動しているか確認して、もう一度押してください。`, "error");
       setTimeout(() => setBtnState(els.searchBtn, null), 2500);
     }
   });
@@ -1118,10 +1403,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     plPending = tracks;
     const empty = state.cells.filter(c => c === null).length;
     const fit = Math.min(empty, tracks.length);
-    $("#pl-summary").textContent = `${tracks.length} 曲 取れました。いまの空きマスは ${empty} 個です。`;
+    $("#pl-summary").textContent = tr`${tracks.length} 曲 取れました。いまの空きマスは ${empty} 個です。`;
     $("#pl-hint").textContent = fit >= tracks.length
-      ? "「マスに入れる」で、番号の若い空きマスから順に全部入ります。"
-      : `「マスに入れる」で ${fit} 曲が入り、残り ${tracks.length - fit} 曲は候補に置きます。`;
+      ? tr("「マスに入れる」で、番号の若い空きマスから順に全部入ります。")
+      : tr`「マスに入れる」で ${fit} 曲が入り、残り ${tracks.length - fit} 曲は候補に置きます。`;
     plModal.hidden = false;
     document.body.classList.add("sheet-open");
     $("#pl-to-grid").focus({ preventScroll: true });
@@ -1138,18 +1423,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const put = fillEmptyCells(tracks);
     const rest = tracks.slice(put);
     if (rest.length) {
-      plPutToResults(rest, `${put} 曲をマスに入れ、残り ${rest.length} 曲を候補に置きました。`);
+      plPutToResults(rest, tr`${put} 曲をマスに入れ、残り ${rest.length} 曲を候補に置きました。`);
     } else {
-      say(els.bcMsg, `${put} 曲をマスに入れました。`);
+      say(els.bcMsg, tr`${put} 曲をマスに入れました。`);
     }
   });
   $("#pl-to-results").addEventListener("click", () => {
     const tracks = plPending || [];
     closePlModal();
-    plPutToResults(tracks, `候補に ${tracks.length} 曲を置きました。クリックで配置します。`);
+    plPutToResults(tracks, tr`候補に ${tracks.length} 曲を置きました。クリックで配置します。`);
   });
-  $("#pl-cancel").addEventListener("click", () => { closePlModal(); say(els.bcMsg, "やめました。"); });
-  $("#pl-modal-backdrop").addEventListener("click", () => { closePlModal(); say(els.bcMsg, "やめました。"); });
+  $("#pl-cancel").addEventListener("click", () => { closePlModal(); say(els.bcMsg, tr("やめました。")); });
+  $("#pl-modal-backdrop").addEventListener("click", () => { closePlModal(); say(els.bcMsg, tr("やめました。")); });
 
   /* ---- Bandcamp / SoundCloud の URL ---- */
   const URL_LINE_RE = /^(?:https?:\/\/\S+|(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$/;
@@ -1191,21 +1476,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const lines = els.bcUrl.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     if (!lines.length || !lines.every(s => URL_LINE_RE.test(s))) {
       els.bcUrl.setAttribute("aria-invalid", "true");
-      say(els.bcMsg, "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。", "error");
+      say(els.bcMsg, tr("https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。"), "error");
       els.bcUrl.focus({ preventScroll: true });
       return;
     }
     if (lines.length > MAX_URLS) {
       els.bcUrl.setAttribute("aria-invalid", "true");
-      say(els.bcMsg, `一度に取れるのは ${MAX_URLS} 件までです（いまは ${lines.length} 件）。`, "error");
+      say(els.bcMsg, tr`一度に取れるのは ${MAX_URLS} 件までです（いまは ${lines.length} 件）。`, "error");
       return;
     }
     setBtnState(els.bcBtn, "loading");
-    say(els.bcMsg, lines.length > 1 ? `${lines.length} 件を取得中…` : "");
+    say(els.bcMsg, lines.length > 1 ? tr`${lines.length} 件を取得中…` : "");
     // 相手のサイトに一度に投げないよう順番に。取れなかったものは飛ばして続ける
     const got = [], failed = [];
     for (const [i, u] of lines.entries()) {
-      if (lines.length > 1) say(els.bcMsg, `${i + 1}/${lines.length} 件目を取得中…`);
+      if (lines.length > 1) say(els.bcMsg, tr`${i + 1}/${lines.length} 件目を取得中…`);
       try { got.push(...await fetchOneUrl(u)); } catch (err) { failed.push(`${u.slice(0, 30)}…（${err.message}）`); }
     }
     if (got.length) els.bcUrl.value = "";
@@ -1222,12 +1507,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       renderResults(currentResults);
     }
     if (got.length && !failed.length) {
-      say(els.bcMsg, got.length === 1 ? `候補の先頭に「${got[0].title}」を入れました。クリックで配置します。`
-                                      : `候補の先頭に ${got.length} 件入れました。クリックで配置します。`);
+      say(els.bcMsg, got.length === 1 ? tr`候補の先頭に「${got[0].title}」を入れました。クリックで配置します。`
+                                      : tr`候補の先頭に ${got.length} 件入れました。クリックで配置します。`);
     } else if (got.length) {
-      say(els.bcMsg, `${got.length} 件を候補に入れました。取れなかったもの: ${failed.join(" / ")}`, "error");
+      say(els.bcMsg, tr`${got.length} 件を候補に入れました。取れなかったもの: ${failed.join(" / ")}`, "error");
     } else {
-      say(els.bcMsg, `取れませんでした。${failed.join(" / ")}`, "error");
+      say(els.bcMsg, tr`取れませんでした。${failed.join(" / ")}`, "error");
       setTimeout(() => setBtnState(els.bcBtn, null), 2500);
     }
   });
@@ -1237,13 +1522,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     e.preventDefault();
     const image = els.mImage.value.trim(), title = els.mTitle.value.trim(), artist = els.mArtist.value.trim();
     for (const el of [els.mImage, els.mTitle]) el.removeAttribute("aria-invalid");
-    if (!isImageRef(image)) { els.mImage.setAttribute("aria-invalid", "true"); say(els.mMsg, "画像は https:// の URL か、「画像を選ぶ」で取り込んだ /uploads/ の URL にしてください。", "error"); els.mImage.focus({ preventScroll: true }); return; }
-    if (!title) { els.mTitle.setAttribute("aria-invalid", "true"); say(els.mMsg, "曲名を入れてください。", "error"); els.mTitle.focus({ preventScroll: true }); return; }
+    if (!isImageRef(image)) { els.mImage.setAttribute("aria-invalid", "true"); say(els.mMsg, tr("画像は https:// の URL か、「画像を選ぶ」で取り込んだ /uploads/ の URL にしてください。"), "error"); els.mImage.focus({ preventScroll: true }); return; }
+    if (!title) { els.mTitle.setAttribute("aria-invalid", "true"); say(els.mMsg, tr("曲名を入れてください。"), "error"); els.mTitle.focus({ preventScroll: true }); return; }
     const t = { source: "manual", title, artist, album: null, image, thumb: image, external_url: null };
     currentResults = [t, ...currentResults.filter(x => x.image !== image)];
     renderResults(currentResults);
     els.mImage.value = ""; els.mTitle.value = ""; els.mArtist.value = "";
-    say(els.mMsg, `候補の先頭に「${title}」を入れました。クリックで配置します。`);
+    say(els.mMsg, tr`候補の先頭に「${title}」を入れました。クリックで配置します。`);
   });
 
   /* ---- ローカル画像のアップロード（手入力用） ---- */
@@ -1251,7 +1536,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.mFile.addEventListener("change", async () => {
     const f = els.mFile.files[0];
     if (!f) return;
-    setBtnState(els.mFileBtn, "loading"); say(els.mFileMsg, `${f.name} を送っています…`);
+    setBtnState(els.mFileBtn, "loading"); say(els.mFileMsg, tr`${f.name} を送っています…`);
     try {
       const fd = new FormData(); fd.append("file", f, f.name);
       const r = await fetch(api("/upload"), { method: "POST", body: fd });
@@ -1260,11 +1545,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.mImage.value = d.url; els.mImage.removeAttribute("aria-invalid");
       if (!els.mTitle.value) els.mTitle.value = f.name.replace(/\.[^.]+$/, "");
       setBtnState(els.mFileBtn, null);
-      say(els.mFileMsg, `取り込みました（${d.url}）。曲名を確認して「手入力で追加」を押してください。`);
+      say(els.mFileMsg, tr`取り込みました（${d.url}）。曲名を確認して「手入力で追加」を押してください。`);
       els.mTitle.focus({ preventScroll: true });
     } catch (err) {
       setBtnState(els.mFileBtn, "error");
-      say(els.mFileMsg, `取り込めませんでした。${err.message}`, "error");
+      say(els.mFileMsg, tr`取り込めませんでした。${err.message}`, "error");
       setTimeout(() => setBtnState(els.mFileBtn, null), 2500);
     }
     els.mFile.value = "";
@@ -1277,7 +1562,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.resultsCount.textContent = String(tracks.length);
     if (!tracks.length) {
       const li = document.createElement("li"); li.className = "empty";
-      li.innerHTML = "<strong>該当なし</strong><span>曲名を短くする、アーティスト名だけで検索する、などを試してください。</span>";
+      li.innerHTML = tr("<strong>該当なし</strong><span>曲名を短くする、アーティスト名だけで検索する、などを試してください。</span>");
       els.results.append(li);
       return;
     }
@@ -1285,14 +1570,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const li = document.createElement("li");
       const b = document.createElement("button");
       b.type = "button"; b.className = "result";
-      b.setAttribute("aria-label", `${t.title} / ${t.artist} をグリッドに追加`);
+      b.setAttribute("aria-label", tr`${t.title} / ${t.artist} をグリッドに追加`);
       const img = document.createElement("img");
       img.src = proxied(t.thumb || t.image); img.alt = ""; img.loading = "lazy"; img.width = 56; img.height = 56;
       const box = document.createElement("div");
       const tt = document.createElement("div"); tt.className = "t"; tt.textContent = t.title;
       const meta = document.createElement("div"); meta.className = "meta";
       const a = document.createElement("span"); a.className = "a"; a.textContent = t.artist + (t.album ? ` · ${t.album}` : "");
-      const badge = document.createElement("span"); badge.className = "badge"; badge.dataset.source = t.source; badge.textContent = SOURCE_LABEL[t.source] || t.source;
+      const badge = document.createElement("span"); badge.className = "badge"; badge.dataset.source = t.source; badge.textContent = tr(SOURCE_LABEL[t.source] || t.source);
       if (t.source === "discogs") badge.title = "Data provided by Discogs";
       meta.append(badge, a); box.append(tt, meta); b.append(img, box); li.append(b);
       b.addEventListener("click", () => addTrack(t));
@@ -1305,11 +1590,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   let target = null;
   function addTrack(t) {
     let i = target !== null && state.cells[target] === null ? target : state.cells.findIndex(c => c === null);
-    if (i < 0) { say(els.gridMsg, "空きマスがありません。× で外してから追加してください。", "error"); return; }
+    if (i < 0) { say(els.gridMsg, tr("空きマスがありません。× で外してから追加してください。"), "error"); return; }
     target = null;
     state.cells[i] = { ...t };   // 候補と切り離す（曲名の編集が候補に波及しないように）
     renderGrid();
-    say(els.gridMsg, `${i + 1} 番に「${t.title}」を入れました。`);
+    say(els.gridMsg, tr`${i + 1} 番に「${t.title}」を入れました。`);
     if (sheetOpen()) closeSheet();
   }
   /* まとめて取れた曲を、若い番号の空きマスから順に入れる（埋まっているマスは飛ばす）。
@@ -1330,7 +1615,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function setTarget(i) {
     target = i; selected = null; renderGrid();
     // スマホでもここで出しておく。シートを閉じたときに、下の欄が古い文言（「解除しました」など）のまま残らないように
-    say(els.gridMsg, `${i + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
+    say(els.gridMsg, tr`${i + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
     if (isMobile()) { openSheet(i); return; }
     els.q.focus({ preventScroll: false });
   }
@@ -1342,7 +1627,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const sheetOpen = () => !sheet.hidden;
   $("#find-btn").addEventListener("click", () => { target = null; renderGrid(); openSheet(null); });
   function openSheet(i) {
-    sheetTitle.textContent = i === null ? "曲を探す（次の空きマスに入ります）" : `${String(i + 1).padStart(2, "0")} 番に入れる曲を探す`;
+    sheetTitle.textContent = i === null ? tr("曲を探す（次の空きマスに入ります）") : tr`${String(i + 1).padStart(2, "0")} 番に入れる曲を探す`;
     const search = $(".pane-search"), results = $(".pane-results");
     sheetBody.append(search, results);
     search.dataset.collapsed = "false"; results.dataset.collapsed = "false";
@@ -1357,7 +1642,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     applyFold();
     sheet.hidden = true; document.body.classList.remove("sheet-open");
     // 閉じても入れる先は残る（マスに枠が出たまま）。何が選ばれているかを下の欄にも書いておく
-    if (target !== null) say(els.gridMsg, `${target + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
+    if (target !== null) say(els.gridMsg, tr`${target + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
   }
   $("#sheet-close").addEventListener("click", closeSheet);
   $("#sheet-backdrop").addEventListener("click", closeSheet);
@@ -1371,12 +1656,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const t = state.cells[i]; state.cells[i] = null;
     if (selected === i) selected = null;
     renderGrid();
-    if (t) say(els.gridMsg, `${i + 1} 番の「${t.title}」を外しました。`);
+    if (t) say(els.gridMsg, tr`${i + 1} 番の「${t.title}」を外しました。`);
   }
   function swap(a, b) {
     if (a === b) return;
     [state.cells[a], state.cells[b]] = [state.cells[b], state.cells[a]];
-    renderGrid(); say(els.gridMsg, `${a + 1} 番と ${b + 1} 番を入れ替えました。`);
+    renderGrid(); say(els.gridMsg, tr`${a + 1} 番と ${b + 1} 番を入れ替えました。`);
   }
 
   /* ---- タップで選んでタップで入れ替え（スマホ向け。PC でも使える） ---- */
@@ -1384,20 +1669,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function onCellTap(i) {
     if (selected === null) {
       if (!state.cells[i]) {
-        if (target === i) { clearTarget(); say(els.gridMsg, "入れる先の指定を解除しました。"); return; }
+        if (target === i) { clearTarget(); say(els.gridMsg, tr("入れる先の指定を解除しました。")); return; }
         setTarget(i); return;
       }
       target = null;
       selected = i; renderGrid();
-      say(els.gridMsg, `${i + 1} 番を選択中。別のマスをタップすると入れ替え（空マスなら移動）。もう一度タップで解除。`);
+      say(els.gridMsg, tr`${i + 1} 番を選択中。別のマスをタップすると入れ替え（空マスなら移動）。もう一度タップで解除。`);
       return;
     }
-    if (selected === i) { selected = null; renderGrid(); say(els.gridMsg, "選択を解除しました。"); return; }
+    if (selected === i) { selected = null; renderGrid(); say(els.gridMsg, tr("選択を解除しました。")); return; }
     const from = selected, wasEmpty = !state.cells[i];
     selected = null;
     [state.cells[from], state.cells[i]] = [state.cells[i], state.cells[from]];
     renderGrid();
-    say(els.gridMsg, wasEmpty ? `${from + 1} 番を ${i + 1} 番に移しました。` : `${from + 1} 番と ${i + 1} 番を入れ替えました。`);
+    say(els.gridMsg, wasEmpty ? tr`${from + 1} 番を ${i + 1} 番に移しました。` : tr`${from + 1} 番と ${i + 1} 番を入れ替えました。`);
   }
   function clearSelection() { if (selected !== null) { selected = null; renderGrid(); } }
   function renderEditor() {
@@ -1405,18 +1690,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!t) { els.editor.hidden = true; return; }
     els.editor.hidden = false;
     els.eNum.textContent = String(selected + 1).padStart(2, "0");
-    els.eSource.textContent = SOURCE_LABEL[t.source] || t.source; els.eSource.dataset.source = t.source;
+    els.eSource.textContent = tr(SOURCE_LABEL[t.source] || t.source); els.eSource.dataset.source = t.source;
     if (document.activeElement !== els.eTitleIn) els.eTitleIn.value = t.title;
     if (document.activeElement !== els.eArtistIn) els.eArtistIn.value = t.artist;
     els.eMeta.innerHTML = "";
     const parts = [];
-    if (t.album) parts.push(`アルバム: ${t.album}`);
+    if (t.album) parts.push(tr`アルバム: ${t.album}`);
     els.eMeta.append(parts.join(" · "));
     if (t.external_url) {
       if (parts.length) els.eMeta.append(" · ");
-      const a = document.createElement("a"); a.href = t.external_url; a.target = "_blank"; a.rel = "noopener"; a.textContent = "元ページを開く"; els.eMeta.append(a);
+      const a = document.createElement("a"); a.href = t.external_url; a.target = "_blank"; a.rel = "noopener"; a.textContent = tr("元ページを開く"); els.eMeta.append(a);
     }
-    if (!parts.length && !t.external_url) els.eMeta.textContent = "曲名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。";
+    if (!parts.length && !t.external_url) els.eMeta.textContent = tr("曲名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。");
   }
   els.eTitleIn.addEventListener("input", () => {
     const t = selected !== null && state.cells[selected]; if (!t) return;
@@ -1427,14 +1712,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     t.artist = els.eArtistIn.value; renderGrid();
   });
   els.eRemove.addEventListener("click", () => { if (selected !== null) removeAt(selected); });
-  els.eClose.addEventListener("click", () => { clearSelection(); say(els.gridMsg, "選択を解除しました。"); });
+  els.eClose.addEventListener("click", () => { clearSelection(); say(els.gridMsg, tr("選択を解除しました。")); });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    if (plOpen()) { closePlModal(); say(els.bcMsg, "やめました。"); return; }
+    if (plOpen()) { closePlModal(); say(els.bcMsg, tr("やめました。")); return; }
     if (!srcModal.hidden) { closeSrcModal(); return; }
     if (sheetOpen()) { closeSheet(); return; }
-    if (selected !== null) { clearSelection(); say(els.gridMsg, "選択を解除しました。"); return; }
-    if (target !== null) { clearTarget(); say(els.gridMsg, "入れる先の指定を解除しました。"); }
+    if (selected !== null) { clearSelection(); say(els.gridMsg, tr("選択を解除しました。")); return; }
+    if (target !== null) { clearTarget(); say(els.gridMsg, tr("入れる先の指定を解除しました。")); }
   });
   /* マスの数の上限。書き出しは最大辺 2400px に収まるので、マスが増えるほど 1 マスは小さくなる
      （16x16 で約 146px）。これ以上は何のジャケットか分からなくなるため 256 で止める。
@@ -1456,14 +1741,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function resizeGrid(cols, rows, keep) {
     const asked = [cols | 0, rows | 0];
     [cols, rows] = clampGrid(cols, rows, keep);
-    if (asked[0] * asked[1] > MAX_CELLS) say(els.gridMsg, `マスは全部で ${MAX_CELLS} 個までです（${cols} × ${rows} にしました）。`);
+    if (asked[0] * asked[1] > MAX_CELLS) say(els.gridMsg, tr`マスは全部で ${MAX_CELLS} 個までです（${cols} × ${rows} にしました）。`);
     const n = cols * rows, cur = state.cells.length;
     if (n < cur) {
       // 溢れた曲は退避。サイズを戻すと復帰する
       const cut = state.cells.slice(n).filter(Boolean);
       state.stash = cut.concat(state.stash);
       state.cells = state.cells.slice(0, n);
-      if (cut.length) say(els.gridMsg, `${cut.length} 曲をいったん外しました。サイズを戻すと復帰します。`);
+      if (cut.length) say(els.gridMsg, tr`${cut.length} 曲をいったん外しました。サイズを戻すと復帰します。`);
     } else if (n > cur) {
       const add = [];
       while (add.length < n - cur) add.push(state.stash.length ? state.stash.shift() : null);
@@ -1488,14 +1773,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       li.append(num);
       if (t) {
         li.draggable = true;
-        li.setAttribute("aria-label", `${i + 1} 番: ${t.title} / ${t.artist}`);
+        li.setAttribute("aria-label", tr`${i + 1} 番: ${t.title} / ${t.artist}`);
         const img = document.createElement("img"); img.src = proxied(t.thumb || t.image); img.alt = ""; img.draggable = false;   // 表示は小さい方（転送量）。フル解像度は共有画像を描くときだけ
-        const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.setAttribute("aria-label", `${i + 1} 番の ${t.title} を外す`);
+        const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.setAttribute("aria-label", tr`${i + 1} 番の ${t.title} を外す`);
         rm.addEventListener("click", (e) => { e.stopPropagation(); removeAt(i); });
         const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `${t.title} / ${t.artist}`;
         li.append(img, rm, cap);
       } else {
-        li.setAttribute("aria-label", `${i + 1} 番: 空`);
+        li.setAttribute("aria-label", tr`${i + 1} 番: 空`);
       }
       li.addEventListener("dragstart", (e) => { if (selected !== null) { selected = null; els.grid.querySelectorAll(".is-selected").forEach(c => c.classList.remove("is-selected")); els.editor.hidden = true; } dragFrom = i; li.classList.add("is-dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); });
       li.addEventListener("dragend", () => { dragFrom = null; li.classList.remove("is-dragging"); });
@@ -1522,7 +1807,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     a.download = `trackmento-${(state.title.trim() || "grid").replace(/[\\/:*?"<>|]/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    say(els.gridMsg, "並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。");
+    say(els.gridMsg, tr("並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。"));
   });
   els.jsonImport.addEventListener("click", () => els.jsonFile.click());
   els.jsonFile.addEventListener("change", async () => {
@@ -1532,14 +1817,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     try {
       applyData(JSON.parse(await f.text()));
       save();
-      say(els.gridMsg, `並びを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
+      say(els.gridMsg, tr`並びを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
     } catch (err) {
-      say(els.gridMsg, `並びを読み込めませんでした: ${err.message}`, "error");
+      say(els.gridMsg, tr`並びを読み込めませんでした: ${err.message}`, "error");
     }
   });
   els.clearBtn.addEventListener("click", () => {
     if (!state.cells.some(Boolean) && !state.stash.length) return;
-    state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true; say(els.gridMsg, "全部外しました。");
+    state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true; say(els.gridMsg, tr("全部外しました。"));
   });
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
 
@@ -1594,7 +1879,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
   function renderSwatches() {
     els.swatches.innerHTML = "";
-    for (const [key, label] of SWATCHES) {
+    for (const [key, ja] of SWATCHES) {
+      const label = tr(ja);
       const l = document.createElement("label"); l.title = label;
       const i = document.createElement("input"); i.type = "radio"; i.name = "bg"; i.value = key; i.checked = key === state.bg; i.setAttribute("aria-label", label);
       const sp = document.createElement("span"); sp.style.setProperty("--sw", `var(--color-${key})`);
@@ -1618,7 +1904,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return new Promise((res, rej) => {
       const img = new Image();
       img.onload = () => res(img);
-      img.onerror = () => rej(new Error("画像の取得に失敗"));
+      img.onerror = () => rej(new Error(tr("画像の取得に失敗")));
       img.src = proxied(url);
     });
   }
@@ -1702,7 +1988,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const L = layout();
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
     els.specCell.textContent = `${Math.round(CELL_PX * L.scale)} px`;
-    els.specMargin.textContent = `上下 ${Math.round(L.oy * L.scale)} / 左右 ${Math.round(L.ox * L.scale)} px`;
+    els.specMargin.textContent = tr`上下 ${Math.round(L.oy * L.scale)} / 左右 ${Math.round(L.ox * L.scale)} px`;
     syncPreview();
     save();
   }
@@ -1733,7 +2019,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     };
   }
   function applyData(d) {
-    if (!d || typeof d !== "object" || !Array.isArray(d.cells)) throw new Error("TRACKMENTO の JSON ではありません（cells がありません）。");
+    if (!d || typeof d !== "object" || !Array.isArray(d.cells)) throw new Error(tr("TRACKMENTO の JSON ではありません（cells がありません）。"));
     const clamp = (v, lo, hi, dflt) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, Math.round(+v))) : dflt;
     const cols = clamp(d.cols, 1, 12, 3), rows = clamp(d.rows, 1, 12, 3);
     const cells = d.cells.slice(0, cols * rows).map(t => (isTrack(t) ? t : null));
@@ -1822,7 +2108,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     try {
       if (pick === server) lastPushed = signature(server);
       applyData(pick);
-      if (pick === server && local) say(els.gridMsg, "サーバー側の保存（CLI など）の方が新しいので、そちらを読み込みました。");
+      if (pick === server && local) say(els.gridMsg, tr("サーバー側の保存（CLI など）の方が新しいので、そちらを読み込みました。"));
       return true;
     } catch { return false; }
   }
@@ -1888,8 +2174,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     box.hidden = false;
     $("#inapp-copy").addEventListener("click", async () => {
       const btn = $("#inapp-copy");
-      try { await navigator.clipboard.writeText(location.href.replace(/#inapp$/, "")); setBtnState(btn, "success"); btn.textContent = "コピーしました"; }
-      catch { btn.textContent = "コピーできませんでした"; }
+      try { await navigator.clipboard.writeText(location.href.replace(/#inapp$/, "")); setBtnState(btn, "success"); btn.textContent = tr("コピーしました"); }
+      catch { btn.textContent = tr("コピーできませんでした"); }
     });
     $("#inapp-close").addEventListener("click", () => { box.hidden = true; try { sessionStorage.setItem("trackmento:inapp-dismissed", "1"); } catch { /* ignore */ } });
   }
@@ -2024,7 +2310,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   async function postShare(path, init) {
     let r = await fetch(api(path), init);
     if (isGatewayError(r)) {   // サーバーの再起動直後など。少し待って 1 回だけやり直す
-      say(els.gridMsg, "サーバーが応答しません。少し待ってもう一度試しています…");
+      say(els.gridMsg, tr("サーバーが応答しません。少し待ってもう一度試しています…"));
       await sleep(5000);
       r = await fetch(api(path), init);
     }
@@ -2035,10 +2321,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   async function shareViaBrowser(snap) {
     if (!("createImageBitmap" in window) || !document.fonts) throw new Error("unsupported");   // アプリ内ブラウザでもまず試し、失敗ならサーバー描画へ
     await loadShareFonts();
-    say(els.gridMsg, "画像を作成中…");
-    const { canvas, bg } = await renderShareCanvas(shareMaxSide(), (i, n) => say(els.gridMsg, `画像を作成中… ${i}/${n}`));
+    say(els.gridMsg, tr("画像を作成中…"));
+    const { canvas, bg } = await renderShareCanvas(shareMaxSide(), (i, n) => say(els.gridMsg, tr`画像を作成中… ${i}/${n}`));
     const enc = await encodeShare(canvas, bg);
-    say(els.gridMsg, `アップロード中…（${(enc.png.size / 1e6).toFixed(1)} MB）`);
+    say(els.gridMsg, tr`アップロード中…（${(enc.png.size / 1e6).toFixed(1)} MB）`);
     const fd = new FormData();
     fd.append("doc", JSON.stringify({ grid: GRID_NAME, doc: snap }));
     fd.append("image", enc.png, "trackmento.jpg");
@@ -2047,7 +2333,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   const shareViaServer = (snap) => postShare("/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME, doc: snap }) });
   els.shareBtn.addEventListener("click", async () => {
-    if (!state.cells.some(Boolean)) { say(els.gridMsg, "曲を置いてから押してください。", "error"); return; }
+    if (!state.cells.some(Boolean)) { say(els.gridMsg, tr("曲を置いてから押してください。"), "error"); return; }
     setBtnState(els.shareBtn, "loading"); say(els.gridMsg, "");
     try {
       /* 並びは同梱する。サーバーの grids/ は再起動で消えることがあり（Render）、
@@ -2060,7 +2346,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       } catch (err) {
         if (err.status === 429 || err.status === 507) throw err;   // 回数・容量の上限はサーバーで描いても同じ
         console.warn("browser render failed → server render:", err);
-        say(els.gridMsg, "この端末では画像を作れなかったので、サーバーで作成します…");
+        say(els.gridMsg, tr("この端末では画像を作れなかったので、サーバーで作成します…"));
         d = await shareViaServer(snap);
       }
       lastPushed = signature(snap);
@@ -2072,21 +2358,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.nativeShareBtn.hidden = false;
       els.output.hidden = false;
       setBtnState(els.shareBtn, null);
-      say(els.gridMsg, `${d.width} × ${d.height} px の画像と共有 URL ができました。`);
+      say(els.gridMsg, tr`${d.width} × ${d.height} px の画像と共有 URL ができました。`);
       els.shareUrl.focus({ preventScroll: true }); els.shareUrl.select();
     } catch (err) {
       setBtnState(els.shareBtn, "error");
-      say(els.gridMsg, `共有できませんでした（${err.message}）。`, "error");
+      say(els.gridMsg, tr`共有できませんでした（${err.message}）。`, "error");
       setTimeout(() => setBtnState(els.shareBtn, null), 2500);
     }
   });
   els.copyBtn.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(els.shareUrl.value); setBtnState(els.copyBtn, "success"); say(els.gridMsg, "共有 URL をコピーしました。"); }
-    catch { els.shareUrl.select(); say(els.gridMsg, "コピーできなかったので、URL 欄を選択しました。手動でコピーしてください。", "error"); }
+    try { await navigator.clipboard.writeText(els.shareUrl.value); setBtnState(els.copyBtn, "success"); say(els.gridMsg, tr("共有 URL をコピーしました。")); }
+    catch { els.shareUrl.select(); say(els.gridMsg, tr("コピーできなかったので、URL 欄を選択しました。手動でコピーしてください。"), "error"); }
     setTimeout(() => setBtnState(els.copyBtn, null), 1500);
   });
   /* SNS に共有: 文言 + 共有 URL。共有シートがある端末（スマホ）はそれを、無い PC は X の投稿画面を開く */
-  const shareText = () => `トラック共有サイト #TRACKMENTO からシェア:「${state.title.trim() || "無題"}」`;
+  const shareText = () => tr`トラック共有サイト #TRACKMENTO からシェア:「${state.title.trim() || tr("無題")}」`;
   els.nativeShareBtn.addEventListener("click", async () => {
     const url = els.shareUrl.value, text = shareText();
     if (navigator.share) {
@@ -2138,14 +2424,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!sid || !/^[a-z0-9]{6,16}$/.test(sid)) return false;
     try {
       const r = await fetch(api(`/shares/${sid}.json`), { cache: "no-store" });
-      if (r.status === 404) throw new Error("期限切れか削除済みです");
+      if (r.status === 404) throw new Error(tr("期限切れか削除済みです"));
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       applyData(await readJson(r));
       history.replaceState(null, "", location.pathname);
-      say(els.gridMsg, `共有 ${sid} の並びを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
+      say(els.gridMsg, tr`共有 ${sid} の並びを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
       return true;
     } catch (err) {
-      say(els.gridMsg, `共有 ${sid} を読み込めませんでした（${err.message}）。`, "error");
+      say(els.gridMsg, tr`共有 ${sid} を読み込めませんでした（${err.message}）。`, "error");
       return false;
     }
   }
@@ -2154,6 +2440,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     .then(() => { if (isPublic || API) GRID_NAME = browserGridId(); })
     .then(restoreFromShare).then(ok => ok ? Promise.resolve() : restore())
     .finally(() => { ready = true; save(); });
+  $("#lang-switch").addEventListener("click", () => {
+    LANG = LANG === "ja" ? "en" : "ja";
+    try { localStorage.setItem(LANG_KEY, LANG); } catch { /* ignore */ }
+    applyI18n();
+    reRenderForLang();
+  });
+
 })();
 </script>
 </body>
