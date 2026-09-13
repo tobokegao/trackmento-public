@@ -96,6 +96,12 @@ claude --remote-control TRACKMENTO                                             #
     短辺 200px で 1 枚 22.6KB（256 マスで 5.7MB、-86%）。これだけ JPEG 品質 85 で再エンコードするので原本とはバイト列が変わる
   - 実測して問題が無かったもの: SoundCloud 78KB、YouTube 32KB、ニコニコ 10KB、Spotify 120KB（640px）、Cover Art Archive は `front-250`（28KB）が最小で 250/500/1200 の 3 段階しかない
     （ブラウザから直接読むので Render を通らない）
+- 消えた動画（削除・非公開）は otoDB で埋める。otoDB のサムネイルは元動画が消えても CDN に残るため
+  - 単体 URL … `fromurl.fetch` が直接取得に失敗したら roxy に聞く（`_ROXY_FALLBACK`）。`sm12345` のような ID だけの貼付も roxy へ
+  - プレイリスト … **こちらは失敗しない**。ニコニコのマイリスト API は消えた動画にも「削除された動画」という
+    タイトルと灰色のサムネイルを付けて返すため、例外にならず素通りする。`playlist.is_gone()` で
+    決まり文句のタイトルを見つけ、`_fill_from_otodb()` が roxy で差し替える（並び順は変えない。
+    リンク先は元の動画のまま残す）。roxy は 1 件ずつ各サイトへ取りに行くので、上限 24 件・並列 6・全体 25 秒で打ち切る
 - UI デザインは Hallmark 方針（仕様書「UI デザイン方針」）。色・フォントは CSS 変数トークン経由、角丸なし
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）

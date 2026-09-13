@@ -21,6 +21,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import html
 import json
 import re
@@ -29,7 +30,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 
 from backend.models import NO_COVER, Track
-from backend.sources import applemusic, bandcamp, video
+from backend.sources import applemusic, bandcamp, otodb, video
 
 MAX_ITEMS = 256   # マスの上限（backend/config.py の max_cells）と同じ。1 回のページ取得で返る分だけ入れる
                   # （ソースによっては 1 回で全部返らない。ニコニコは全件、YouTube は 100 件が上限）
@@ -329,6 +330,53 @@ async def _youtube(url: str, client: httpx.AsyncClient) -> list[Track]:
     return out
 
 
+# 削除・非公開の動画は、プレイリストに決まり文句のタイトルと灰色のサムネイルで残る。
+# otoDB（roxy）に登録があれば本当のタイトル・作者・サムネイルを取れるので、そちらに差し替える。
+# otoDB のサムネイルは元動画が消えても残るため、音MAD のプレイリストではかなりの確率で埋まる
+# ニコニコは「削除された動画」「非公開動画」、YouTube は「[削除された動画]」「[非公開の動画]」
+# （英語ロケールだと Deleted video / Private video）、bilibili は「已失效视频」。表記の揺れごと並べる
+_GONE_TITLES = ("削除された動画", "非公開動画", "非公開の動画", "この動画は削除されました",
+                "deleted video", "private video", "unavailable video", "unavailable",
+                "已失效视频", "已失效視頻", "失效视频")
+_ROXY_MAX = 24        # 穴埋めに roxy を呼ぶ上限。1 件ずつ各サイトへ取りに行くので多いと待たされる
+_ROXY_PARALLEL = 6
+_ROXY_TIMEOUT = 12    # 1 件あたり
+_ROXY_BUDGET = 25     # 穴埋め全体。使い切ったら取れた分だけ反映する
+
+
+def is_gone(title: str) -> bool:
+    """プレイリストに残った「削除された動画」等の決まり文句か。"""
+    return (title or "").strip().strip("[]").casefold() in _GONE_TITLES
+
+
+async def _fill_from_otodb(out: list[Track], client: httpx.AsyncClient) -> int:
+    """消えた動画の枠を otoDB（roxy）で埋める。並び順は変えない。取れなければそのまま残す。"""
+    holes = [(i, t.external_url) for i, t in enumerate(out) if t.external_url and is_gone(t.title)]
+    if not holes:
+        return 0
+    sem = asyncio.Semaphore(_ROXY_PARALLEL)
+    filled = 0
+
+    async def one(i: int, ref: str) -> None:
+        nonlocal filled
+        async with sem:
+            try:
+                got = await otodb.roxy_fetch(ref, client=client, timeout=_ROXY_TIMEOUT)
+            except (ValueError, httpx.HTTPError, asyncio.TimeoutError):
+                return
+            # リンク先は元の動画のまま残す（otoDB の作品ページより、貼った本人の意図に近い）
+            out[i] = got.model_copy(update={"external_url": ref})
+            filled += 1
+
+    try:
+        await asyncio.wait_for(asyncio.gather(*(one(i, r) for i, r in holes[:_ROXY_MAX])), timeout=_ROXY_BUDGET)
+    except asyncio.TimeoutError:
+        pass   # 間に合った分だけ反映されている
+    if holes:
+        print(f"[playlist] 消えた動画 {len(holes)} 件 → otoDB で {filled} 件を復元")
+    return filled
+
+
 _FETCHERS = {"nicovideo": _nicovideo, "soundcloud": _soundcloud, "bilibili": _bilibili, "spotify": _spotify,
              "bandcamp": _bandcamp, "youtube": _youtube,
              "applemusic": lambda url, client: applemusic.fetch(url, client=client)}
@@ -344,9 +392,12 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> list[Tr
     client = client or httpx.AsyncClient(timeout=30, follow_redirects=True)
     try:
         out = await fn(url, client)
+        if not out:
+            raise ValueError("曲を取れませんでした（非公開か、空のプレイリストの可能性）")
+        out = out[:MAX_ITEMS]
+        # 削除・非公開で中身が分からない分を otoDB で埋める（client を閉じる前に済ませる）
+        await _fill_from_otodb(out, client)
     finally:
         if own:
             await client.aclose()
-    if not out:
-        raise ValueError("曲を取れませんでした（非公開か、空のプレイリストの可能性）")
-    return out[:MAX_ITEMS]
+    return out

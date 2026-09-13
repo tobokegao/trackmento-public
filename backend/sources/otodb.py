@@ -82,13 +82,16 @@ async def search(q: str, artist: str = "", *, limit: int = 30, client: httpx.Asy
     return out
 
 
-async def roxy_fetch(query: str, *, client: httpx.AsyncClient | None = None) -> Track:
-    """roxy で動画 ID／URL からタイトルとサムネイルを取る。otoDB 登録済みなら作者も付ける。"""
+async def roxy_fetch(query: str, *, client: httpx.AsyncClient | None = None, timeout: float = 45) -> Track:
+    """roxy で動画 ID／URL からタイトルとサムネイルを取る。otoDB 登録済みなら作者も付ける。
+
+    timeout は既定 45 秒（roxy は各サイトへ取りに行くぶん遅いことがある）。プレイリストの
+    穴埋めのようにまとめて呼ぶときは、全体が待たされないよう短めを渡す。
+    """
     own = client is None
     client = client or httpx.AsyncClient(timeout=25, follow_redirects=True)
     try:
-        # roxy は各サイトへ取りに行くぶん遅いことがあるので、長めに待つ
-        r = await client.get(ROXY, params={"q": query.strip()}, headers={"User-Agent": UA}, timeout=45)
+        r = await client.get(ROXY, params={"q": query.strip()}, headers={"User-Agent": UA}, timeout=timeout)
         if r.status_code == 404:
             raise ValueError("roxy / otoDB にも情報がありませんでした")
         r.raise_for_status()
