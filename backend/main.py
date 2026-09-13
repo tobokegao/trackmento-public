@@ -163,7 +163,7 @@ async def run_render(fn, *args):
         _render_waiting[0] -= 1
 
 
-# ---------- 負荷の診断ログ（公開モード）。IP・検索語は含めない ----------
+# ---------- 負荷の診断ログ（公開モード）。IP・検索語・生の User-Agent は含めない ----------
 _stats: dict[str, list] = {}   # パス種別 → [件数, 合計秒, 最大秒, 5xx 件数]
 
 
@@ -172,6 +172,41 @@ def _stat_key(path: str) -> str:
         if path.startswith(prefix):
             return prefix + "*"
     return path
+
+
+# ---------- User-Agent の種別（経路ごとの内訳を見るため） ----------
+# 生の UA は指紋になるので記録せず、この 5 種のどれかに丸めた名前だけを数える。
+# 種別を分けているのは対策が別だから。「プレビュー」は X などがリンクカードを作るための取得で、
+# **止めてはいけない**（robots.txt で /s/ を塞ぐと X のカードが出なくなる）。
+# 「検索」「AI」「その他ボット」は robots.txt で減らせる。
+_UA_KINDS = (
+    # AI を先に見る（applebot-extended が applebot に当たってしまわないように）
+    ("AI", ("gptbot", "oai-searchbot", "chatgpt-user", "claudebot", "claude-web", "anthropic-ai",
+            "ccbot", "perplexitybot", "bytespider", "meta-externalagent", "google-extended",
+            "amazonbot", "applebot-extended", "timpibot", "omgili", "diffbot")),
+    ("検索", ("googlebot", "bingbot", "duckduckbot", "yandexbot", "baiduspider", "applebot",
+             "petalbot", "seznambot", "naver", "sogou", "google-inspectiontool")),
+    ("プレビュー", ("twitterbot", "facebookexternalhit", "slackbot", "discordbot", "telegrambot",
+                "skypeuripreview", "whatsapp", "embedly", "redditbot", "pinterest",
+                "bluesky", "mastodon", "misskey", "line-poker", "vkshare", "linkedinbot")),
+    ("その他ボット", ("ahrefsbot", "semrushbot", "mj12bot", "dotbot", "dataforseo", "serpstat",
+                 "screaming frog", "zoominfo", "bot", "crawler", "spider", "curl/",
+                 "python-requests", "httpx", "wget", "go-http-client", "java/", "scrapy")),
+)
+
+
+def _ua_kind(ua: str) -> str:
+    """User-Agent をおおまかな種別にする。生の UA は残さない。"""
+    u = ua.lower()
+    if not u:
+        return "不明"
+    for kind, tokens in _UA_KINDS:
+        if any(t in u for t in tokens):
+            return kind
+    return "人"
+
+
+_ua_stats: dict[tuple[str, str], int] = {}   # (パス種別, UA 種別) → 件数
 
 
 async def _load_monitor():
@@ -191,6 +226,17 @@ async def _load_monitor():
             items = sorted(_stats.items(), key=lambda kv: -kv[1][1])
             print("[stats] " + " ".join(f"{k}:{v[0]}件/{v[1]:.1f}s/max{v[2]:.1f}s" + (f"/5xx{v[3]}" if v[3] else "") for k, v in items[:10]))
             _stats.clear()
+        if tick % 60 == 0 and _ua_stats:
+            # 経路ごとの UA 種別の内訳。どの経路をボットが踏んでいるかが分かると、
+            # robots.txt で減らせるぶんと、減らしてはいけないぶん（リンクカード）を分けて考えられる
+            by_path: dict[str, dict[str, int]] = {}
+            for (path, kind), n in _ua_stats.items():
+                by_path.setdefault(path, {})[kind] = n
+            top = sorted(by_path.items(), key=lambda kv: -sum(kv[1].values()))[:6]
+            print("[ua] " + " ".join(
+                f"{path}:" + ",".join(f"{k}={n}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
+                for path, kinds in top))
+            _ua_stats.clear()
 
 
 def _wants_html(request: Request) -> bool:
@@ -310,12 +356,15 @@ async def request_stats(request: Request, call_next):
         return response
     finally:
         dt = time.monotonic() - t0
-        s = _stats.setdefault(_stat_key(request.url.path), [0, 0.0, 0.0, 0])
+        key = _stat_key(request.url.path)
+        s = _stats.setdefault(key, [0, 0.0, 0.0, 0])
         s[0] += 1
         s[1] += dt
         s[2] = max(s[2], dt)
         if status >= 500:
             s[3] += 1
+        ua = _ua_kind(request.headers.get("user-agent", ""))
+        _ua_stats[(key, ua)] = _ua_stats.get((key, ua), 0) + 1
 
 
 @app.middleware("http")

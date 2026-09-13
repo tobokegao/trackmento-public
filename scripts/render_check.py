@@ -8,7 +8,7 @@
 
 見るもの:
   - イベント: デプロイ、再起動（server_failed / server_restarted）、停止（service_suspended）
-  - ログ: [stats]（経路ごとの件数・5xx）、[health] rss、[error]／Traceback、[loop] lag、[share] budget／quota、共有数の復元
+  - ログ: [stats]（経路ごとの件数・5xx）、[ua]（経路ごとの UA 種別）、[health] rss、[error]／Traceback、[loop] lag、[share] budget／quota、共有数の復元
   - メトリクス: 帯域（1 時間ごと）、メモリ・CPU の最大
 判定の閾値は環境変数で変えられる（CHECK_BW_GB_PER_HOUR など。下の THRESHOLDS 参照）。
 """
@@ -156,7 +156,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[health]*", "[error]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[health]*", "[error]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
 
 
 def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, max_pages: int = 25) -> list[dict]:
@@ -208,6 +208,8 @@ def _to_gb(value: float, unit: str) -> float:
 # ---- ログの読み取り ----
 
 STATS_RE = re.compile(r"(\S+?):(\d+)件/([\d.]+)s/max([\d.]+)s(?:/5xx(\d+))?")
+# [ua] /s/*:人=60,プレビュー=80 /image-proxy:人=300 … の 1 経路ぶん
+UA_RE = re.compile(r"(\S+?):((?:[^\s=,]+=\d+)(?:,[^\s=,]+=\d+)*)")
 HEALTH_RE = re.compile(r"\[health\] rss=(\d+)MB uptime=(\d+)s")
 LAG_RE = re.compile(r"\[loop\] lag=([\d.]+)s")
 RESTORE_RE = re.compile(r"本日の共有数を復元: (\d+) 件")
@@ -215,6 +217,7 @@ RESTORE_RE = re.compile(r"本日の共有数を復元: (\d+) 件")
 
 def analyze_logs(logs: list[dict]) -> dict:
     per_path: dict[str, dict] = defaultdict(lambda: {"count": 0, "5xx": 0, "max_s": 0.0, "peak_per_min": 0})
+    ua_by_path: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     rss: list[tuple[str, int]] = []
     errors: list[str] = []
     lags: list[float] = []
@@ -235,6 +238,11 @@ def analyze_logs(logs: list[dict]) -> dict:
                 p["5xx"] += int(e5 or 0)
                 p["max_s"] = max(p["max_s"], float(mx))
                 p["peak_per_min"] = max(p["peak_per_min"], int(cnt))
+        elif m.startswith("[ua]"):
+            for path, kinds in UA_RE.findall(m[len("[ua]"):]):
+                for pair in kinds.split(","):
+                    kind, _, n = pair.partition("=")
+                    ua_by_path[path][kind] += int(n)
         elif (h := HEALTH_RE.search(m)):
             r, up = int(h.group(1)), int(h.group(2))
             rss.append((ts, r))
@@ -262,6 +270,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     return {
         "lines": len(logs),
         "per_path": dict(per_path),
+        "ua_by_path": {k: dict(v) for k, v in ua_by_path.items()},
         "rss": rss,
         "errors": errors,
         "lags": lags,
@@ -344,6 +353,23 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         problems.append(f"5xx 合計 {total_5xx} が閾値 {T['5xx_total']} を超過")
     if share_5xx > T["5xx_share"]:
         problems.append(f"共有の 5xx {share_5xx} が閾値 {T['5xx_share']} を超過")
+
+    # User-Agent の内訳（robots.txt で減らせるぶんと、減らしてはいけないぶんを分けて見る）
+    ua = la.get("ua_by_path") or {}
+    if ua:
+        total: dict[str, int] = {}
+        for kinds in ua.values():
+            for k, n in kinds.items():
+                total[k] = total.get(k, 0) + n
+        grand = sum(total.values()) or 1
+        lines.append("- User-Agent: " + "、".join(
+            f"{k} {n} 件（{n * 100 // grand}%）" for k, n in sorted(total.items(), key=lambda kv: -kv[1])))
+        for path, kinds in sorted(ua.items(), key=lambda kv: -sum(kv[1].values()))[:5]:
+            sub = sum(kinds.values()) or 1
+            human = kinds.get("人", 0) + kinds.get("不明", 0)
+            lines.append(f"  - `{path}` " + "、".join(
+                f"{k} {n}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
+                + f"（人以外 {(sub - human) * 100 // sub}%）")
 
     # エラー・lag・予算
     lines.append(f"- エラー行: {len(la['errors'])}、[loop] lag: {len(la['lags'])} 行（最大 {max(la['lags']) if la['lags'] else 0:.1f} 秒）、検索失敗: {la['search_fail']}")
