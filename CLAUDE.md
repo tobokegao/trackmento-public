@@ -103,6 +103,10 @@ claude --remote-control TRACKMENTO                                             #
   - **roxy の応答には Cache-Control が無い**ので、結果を `cache.sqlite3` の search テーブルに
     擬似ソース `roxy`（`otodb.ROXY_CACHE`）として 1 日覚える。**見つからなかった分も空リストで覚える**
     （消えた動画の大半は otoDB にも無く、そちらのほうが多い）。同じプレイリストを貼り直しても roxy を叩かない
+  - roxy はもともと「人が表計算に 1 件ずつ貼る」ような使われ方を想定した小さなサービスで、公開サイトから
+    まとめて自動で叩くうちは例外的。**`playlist._ROXY_SEM` はモジュール変数にしてプロセス全体で 1 つ持つ**
+    （リクエストごとに作ると、同時に n 人がプレイリストを貼ったときに n 倍の並列で殴ることになる）。
+    利用者が何人いても roxy から見た同時接続は既定 3（`ROXY_CONCURRENCY` で変更可）
 - otoDB の API は**匿名の GET を 60 秒キャッシュする**（otoDB 側 `middleware.py` の `AnonymousReadOnlyCacheMiddleware`）。
   実測で初回 364〜597ms、2 回目以降 29〜33ms。`Cache-Control: max-age=60` が返る。ログインしないので常にこの対象。
   画像は `cdn.otodb.net`（CDN）なのでオリジンには行かない。検索は `offset` でページングできる

@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import html
 import json
+import os
 import re
 from urllib.parse import parse_qs, urlparse
 
@@ -338,10 +339,15 @@ async def _youtube(url: str, client: httpx.AsyncClient) -> list[Track]:
 _GONE_TITLES = ("削除された動画", "非公開動画", "非公開の動画", "この動画は削除されました",
                 "deleted video", "private video", "unavailable video", "unavailable",
                 "已失效视频", "已失效視頻", "失效视频")
-_ROXY_MAX = 24        # 穴埋めに roxy を呼ぶ上限。1 件ずつ各サイトへ取りに行くので多いと待たされる
-_ROXY_PARALLEL = 6
+_ROXY_MAX = 24        # 1 つのプレイリストで roxy を呼ぶ上限。1 件ずつ各サイトへ取りに行くので多いと待たされる
 _ROXY_TIMEOUT = 12    # 1 件あたり
-_ROXY_BUDGET = 25     # 穴埋め全体。使い切ったら取れた分だけ反映する
+_ROXY_BUDGET = 25     # 1 つのプレイリストの穴埋め全体。使い切ったら取れた分だけ反映する
+
+# roxy はもともと「人が表計算に 1 件ずつ貼る」ような使われ方を想定した小さなサービスで、
+# うちのように公開サイトからまとめて自動で叩くのは例外的な使い方。
+# **セマフォはプロセス全体で 1 つ持つ**（リクエストごとに作ると、同時に n 人がプレイリストを貼った
+# ときに n 倍の並列で殴ることになる）。利用者が何人いても roxy から見た同時接続はここの数だけ。
+_ROXY_SEM = asyncio.Semaphore(max(1, int(os.getenv("ROXY_CONCURRENCY", "3"))))
 
 
 def is_gone(title: str) -> bool:
@@ -354,12 +360,11 @@ async def _fill_from_otodb(out: list[Track], client: httpx.AsyncClient) -> int:
     holes = [(i, t.external_url) for i, t in enumerate(out) if t.external_url and is_gone(t.title)]
     if not holes:
         return 0
-    sem = asyncio.Semaphore(_ROXY_PARALLEL)
     filled = 0
 
     async def one(i: int, ref: str) -> None:
         nonlocal filled
-        async with sem:
+        async with _ROXY_SEM:
             try:
                 got = await otodb.roxy_fetch(ref, client=client, timeout=_ROXY_TIMEOUT)
             except (ValueError, httpx.HTTPError, asyncio.TimeoutError):
