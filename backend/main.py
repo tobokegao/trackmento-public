@@ -36,7 +36,7 @@ from backend.config import (app_url_for, base_url_for, cors_origins, frontend_ur
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
-from backend.sources import bandcamp, discogs, fromurl, itunes, musicbrainz, otodb, playlist, video
+from backend.sources import bandcamp, discogs, fromurl, itunes, musicbrainz, otodb, playlist, soundcloud, video
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -513,6 +513,12 @@ async def favicon_png() -> FileResponse:
     return FileResponse(FRONTEND / "favicon.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
+@app.get("/no-cover.png")
+async def no_cover_png() -> FileResponse:
+    """ジャケットが無い曲のマスに使う画像（scripts/build_icons.py が作る）。"""
+    return FileResponse(FRONTEND / "no-cover.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/apple-touch-icon.png")
 async def apple_touch_icon() -> FileResponse:
     return FileResponse(FRONTEND / "apple-touch-icon.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
@@ -707,7 +713,8 @@ async def _image_to_r2(url: str, ctype: str, data: bytes) -> None:
 
 
 @app.get("/image-proxy")
-async def image_proxy(url: str = Query(..., description="取得する画像URL", max_length=2048)) -> Response:
+async def image_proxy(url: str = Query(..., description="取得する画像URL", max_length=2048),
+                      px: int = Query(0, ge=0, le=2000, description="欲しい実寸（マスが小さいときだけ指定する）")) -> Response:
     """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。取得結果は SQLite にキャッシュ。
 
     二度目以降は本体を返さず R2 へ 302 で送る（_image_r2_redirect）。IMAGE_TO_R2=0 で止められる。
@@ -720,8 +727,10 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     if not await asyncio.to_thread(_host_allowed, url):   # 許可ホスト以外は名前解決（同期）を伴うのでスレッドで
         raise HTTPException(403, "このホストの画像は取得できません（私設アドレスや解決できないホスト）")
     # 保存済みのグリッドが持つ大きすぎる URL（iTunes の 1000x1000、Bandcamp と bilibili の原寸）を
-    # マスの大きさ（600px）に合わせて取り直す。ホストは変わらないので検査の後でよい
-    url = video.clamp_size(bandcamp.clamp_size(itunes.clamp_size(url)))
+    # 欲しい実寸に合わせて取り直す。ホストは変わらないので検査の後でよい。
+    # px はマスが小さいとき（8x8 以上）にブラウザが指定する。既定は書き出しのマスと同じ 600
+    want = max(100, min(600, px or 600))
+    url = soundcloud.clamp_size(video.clamp_size(bandcamp.clamp_size(itunes.clamp_size(url, want), want), want), want)
     if (redirect := await _image_r2_redirect(url)) is not None:
         return redirect
     hit = await asyncio.to_thread(cache.get_image, url)

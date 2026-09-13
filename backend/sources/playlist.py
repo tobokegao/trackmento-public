@@ -28,10 +28,11 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 
-from backend.models import Track
+from backend.models import NO_COVER, Track
 from backend.sources import bandcamp, video
 
 MAX_ITEMS = 100   # 候補が長くなりすぎない範囲で。SoundCloud のセットは 150 曲超のものもある
+
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 _NICO_MYLIST_RE = re.compile(r"/mylist/(\d+)")
@@ -108,11 +109,14 @@ def _sc_track(t: dict) -> Track | None:
     """SoundCloud の 1 曲。曲にジャケットが無ければ投稿者のアイコンを使う
     （SoundCloud 自身がそう表示するので、そのままジャケットとして扱ってよい）。"""
     title = (t.get("title") or "").strip()
-    user = t.get("user") or {}
-    art = t.get("artwork_url") or user.get("avatar_url")
-    # 既定のアイコン（誰でも同じ灰色の 100px 画像）はジャケットにならないので外す
-    if not (title and art) or "default_avatar" in art:
+    if not title:
         return None
+    user = t.get("user") or {}
+    art = t.get("artwork_url") or user.get("avatar_url") or ""
+    # 既定のアイコン（誰でも同じ灰色の 100px 画像）はジャケットにならないので、うちの画像に置き換える。
+    # 曲自体は残したいので、落とさずに並べる
+    if not art or "default_avatar" in art:
+        art = NO_COVER
     return Track(source="soundcloud", title=title, artist=(user.get("username") or "").strip(),
                  image=art.replace("-large.", "-t500x500."), thumb=art, external_url=t.get("permalink_url"))
 

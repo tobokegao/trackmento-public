@@ -14,8 +14,13 @@ def _is_http(v: str) -> bool:
     return v.lower().startswith(("http://", "https://")) and len(v) <= MAX_URL
 
 
+# ジャケットが無い曲に使う、うちの画像（scripts/build_icons.py が作る）。
+# 絶対 URL にすると手元と公開とで別の URL になり、共有した並びが他の人の環境で壊れるので相対で持つ
+NO_COVER = "/no-cover.png"
+
+
 def _safe_ref(v: str) -> bool:
-    return _is_http(v) or (v.startswith("/uploads/") and "/" not in v[len("/uploads/"):] and len(v) <= 80)
+    return _is_http(v) or v == NO_COVER or (v.startswith("/uploads/") and "/" not in v[len("/uploads/"):] and len(v) <= 80)
 
 
 class Track(BaseModel):

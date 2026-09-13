@@ -37,15 +37,23 @@ def _sized(url: str, size: int) -> str:
     return _IMG_SIZE_RE.sub(lambda m: f"_{size}.{m.group(2)}", url)
 
 
-def clamp_size(url: str) -> str:
-    """原寸（_0）や 1200px（_10）で保存済みの URL を 600px 相当（_16）に落とす。
-    既に _16 以下ならそのまま返す。/image-proxy から呼び、過去のグリッドにも効かせる。"""
+# bcbits のサイズコード → おおよその px。欲しい実寸を満たす最小のコードを選ぶのに使う
+_CODE_PX = {"8": 12, "42": 50, "3": 100, "7": 160, "2": 350, "5": 700, "16": 700, "10": 1200, "0": 10000}
+# 選ぶ候補（小さい順）。画質を落としすぎないよう 160px 未満には落とさない
+_PICKABLE = (("7", 160), ("2", 350), ("16", 700))
+
+
+def clamp_size(url: str, want_px: int = 700) -> str:
+    """bcbits の画像 URL を、欲しい実寸を満たす最小のサイズコードに落とす。
+    既にそれ以下ならそのまま返す。/image-proxy から呼び、過去のグリッドにも効かせる。"""
     if "bcbits.com" not in url:
         return url
     m = _IMG_SIZE_RE.search(url)
-    if not m or m.group(1) in ("16", "7", "2", "3", "42", "8"):   # 700px 以下のコードはそのまま
+    if not m:
         return url
-    return _sized(url, COVER_SIZE)
+    now_px = _CODE_PX.get(m.group(1), 10000)
+    code, px = next(((c, p) for c, p in _PICKABLE if p >= want_px), ("16", 700))
+    return url if now_px <= px else _sized(url, code)
 
 
 def _from_jsonld(soup: BeautifulSoup) -> dict:

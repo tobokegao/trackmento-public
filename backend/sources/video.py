@@ -44,11 +44,13 @@ def bili_sized(url: str, suffix: str = BILI_COVER_SUFFIX) -> str:
     return _BILI_SIZE_RE.sub("", url) + suffix
 
 
-def clamp_size(url: str) -> str:
-    """大きさ指定なし（＝原寸）で保存済みの URL を 600 角にする。/image-proxy から呼び、過去のグリッドにも効かせる。"""
+def clamp_size(url: str, want_px: int = 600) -> str:
+    """hdslb.com の画像 URL に、欲しい実寸の大きさ指定を付ける（既に付いていればそのまま）。
+    /image-proxy から呼び、大きさ指定なし（＝原寸）で保存済みの過去のグリッドにも効かせる。"""
     if "hdslb.com" not in url or _BILI_SIZE_RE.search(url):
         return url
-    return url + BILI_COVER_SUFFIX
+    n = max(1, int(want_px))
+    return f"{url}@{n}w_{n}h_1c"
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
 

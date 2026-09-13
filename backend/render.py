@@ -23,7 +23,7 @@ from backend import imgtools, netguard, uploads
 from backend.cache import cache
 from backend.logutil import brief
 from backend.grids import GridDoc
-from backend.models import Track
+from backend.models import NO_COVER, Track
 
 ROOT = Path(__file__).resolve().parent.parent
 FONTS = ROOT / "fonts"
@@ -161,6 +161,11 @@ def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, 
 
 # ---------- 画像取得（キャッシュ → HTTP） ----------
 def fetch_image_bytes(url: str) -> bytes:
+    if url == NO_COVER:   # ジャケットが無い曲に使ううちの画像。同梱しているのでそのまま読む
+        p = ROOT / "frontend" / "no-cover.png"
+        if not p.is_file():
+            raise ValueError("no-cover.png がありません（python scripts/build_icons.py で作れます）")
+        return p.read_bytes()
     if uploads.is_upload_url(url):
         got = uploads.read_bytes(url)
         if got is None:

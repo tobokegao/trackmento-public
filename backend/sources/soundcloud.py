@@ -17,6 +17,25 @@ from backend.models import Track
 
 OEMBED = "https://soundcloud.com/oembed"
 UA = "trackmento/0.1 (+https://github.com/local/musicgrid-local)"
+
+# 画像 URL の末尾（…-t500x500.jpg）で大きさが決まる。実測: t500x500 89KB / t300x300 37KB / t200x200 18KB
+_SC_SIZE_RE = re.compile(r"-(original|t\d+x\d+|large|small|badge|tiny|mini|t\d+)\.(jpg|png)$", re.IGNORECASE)
+_SC_SIZES = ((200, "t200x200"), (300, "t300x300"), (500, "t500x500"))
+_SC_SIZE_PX = {"tiny": 20, "mini": 16, "badge": 47, "small": 32, "large": 100,
+               "t200x200": 200, "t300x300": 300, "t500x500": 500, "original": 10000}
+
+
+def clamp_size(url: str, want_px: int = 500) -> str:
+    """sndcdn.com の画像 URL を、欲しい実寸を満たす最小の大きさに落とす。
+    既にそれ以下ならそのまま返す。/image-proxy から呼び、過去のグリッドにも効かせる。"""
+    if "sndcdn.com" not in url:
+        return url
+    m = _SC_SIZE_RE.search(url)
+    if not m:
+        return url
+    now = _SC_SIZE_PX.get(m.group(1).lower(), 10000)
+    name, px = next(((n, p) for p, n in _SC_SIZES if p >= want_px), ("t500x500", 500))
+    return url if now <= px else _SC_SIZE_RE.sub(f"-{name}.{m.group(2)}", url)
 _BY_RE = re.compile(r"^(?P<title>.+?)\s+by\s+(?P<artist>.+)$", re.IGNORECASE)
 
 
