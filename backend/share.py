@@ -207,6 +207,7 @@ TEXT = {
         "make_btn": "TRACKMENTO で作る",
         "open_btn": "TRACKMENTO を開く",
         "contact": "連絡先",
+        "about_url": "https://tobokegao.github.io/ja/about/",
         "nf_title": "ページが見つかりません",
         "nf_note": "URL が間違っているか、期限切れで消えたページです。共有 URL や画像は作成から {days} 日で消えます。",
         "busy_title": "アクセスが集中しています",
@@ -232,6 +233,7 @@ TEXT = {
         "make_btn": "Make one with TRACKMENTO",
         "open_btn": "Open TRACKMENTO",
         "contact": "Contact",
+        "about_url": "https://tobokegao.github.io/about/",
         "nf_title": "Page not found",
         "nf_note": "The URL is wrong, or the page has expired. Share URLs and images disappear {days} days after they are made.",
         "busy_title": "Too many requests right now",
@@ -330,7 +332,7 @@ def expired_html(sid: str, base: str, app_url: str | None = None, lang: str = "j
   <div class="btns">
     <a class="btn primary" href="{app_url}/">{t(lang, "make_btn")}</a>
   </div>
-  <p class="meta">{t(lang, "contact")}: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
+  <p class="meta">{t(lang, "contact")}: <a href="{t(lang, 'about_url')}" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""
 
@@ -361,7 +363,7 @@ def notice_html(status: int, base: str, app_url: str | None = None, detail: str 
   <div class="btns">
     <a class="btn primary" href="{app_url}/">{t(lang, "open_btn")}</a>
   </div>
-  <p class="meta">{t(lang, "contact")}: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
+  <p class="meta">{t(lang, "contact")}: <a href="{t(lang, 'about_url')}" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""
 
@@ -406,6 +408,6 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
   <ol>{''.join(rows)}</ol>
   <p class="meta">{t(lang, 'tracks', n=n)} · {snap.get('cols')}×{snap.get('rows')} · {t(lang, 'share_id')} {sid} · {html.escape(snap.get('createdAt') or '')}</p>
   <p class="meta">{t(lang, 'this_url')}: {base}/s/{sid} · {_expires_text(snap.get('createdAt'), lang)} · {t(lang, 'keep')}</p>
-  <p class="meta">{t(lang, "contact")}: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></p>
+  <p class="meta">{t(lang, "contact")}: <a href="{t(lang, 'about_url')}" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""

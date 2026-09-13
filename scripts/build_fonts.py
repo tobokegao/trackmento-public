@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import re
 import sys
 from pathlib import Path
 
@@ -45,10 +46,30 @@ BLOCK = 128   # 漢字などの断片はコードポイント 128 幅ごと（IB
 UI_TEXT_FILES = [ROOT / "frontend" / "index.html"]
 
 
+# ソースのコメントは画面に出ないので、先頭断片に入れる文字からは外す。
+# index.html には日本語のコメントが多く、入れたままだと先頭断片が 4 割ほど無駄に太る
+# （実測: 日本語の文字種 597 → 362）。取りこぼしても、その文字は別の断片から読まれるだけで壊れない。
+# 逆に「コメントでないものを誤って消す」と先頭断片から抜けてしまうので、判定は控えめにする
+_COMMENT_PATTERNS = (
+    re.compile(r"<!--.*?-->", re.S),                   # HTML
+    re.compile(r"/\*.*?\*/", re.S),                    # CSS / JS のブロック
+    re.compile(r"^[ \t]*//.*$", re.M),                 # 行頭からの行コメント
+    # 行末の行コメント。直前が区切り文字のときだけ拾い、引用符を含む行は避ける
+    # （"https://…" の // は直前が : なので当たらない）
+    re.compile(r"(?<=[;,{})\s])//[^\n\"'`]*$", re.M),
+)
+
+
+def _strip_comments(src: str) -> str:
+    for pat in _COMMENT_PATTERNS:
+        src = pat.sub(" ", src)
+    return src
+
+
 def _ui_chars() -> set[int]:
     chars: set[int] = set()
     for p in UI_TEXT_FILES:
-        chars.update(ord(c) for c in p.read_text(encoding="utf-8"))
+        chars.update(ord(c) for c in _strip_comments(p.read_text(encoding="utf-8")))
     return chars
 
 

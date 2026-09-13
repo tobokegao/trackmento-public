@@ -130,6 +130,72 @@ img { max-width: 100%; display: block; }
 .lang-switch:hover { background: var(--color-ink); color: var(--color-paper); }
 .bar-status { margin: 0 0 0 auto; order: 8; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
 
+/* ---------- Mac OS 9（プラチナ）風のスクロールバー ---------- */
+/* WebKit 系（Chrome / Edge / Safari）だけ見た目を作り替える。Firefox は疑似要素を持たないので
+   scrollbar-color で色だけ寄せる。
+   OS 9 は上下（左右）の矢印が両方とも終端側に並ぶので、start 側のボタンを消して end 側に 2 つ出す。
+   溝は沈んで見えるよう内側の左上を暗く、つまみは浮いて見えるよう内側の左上を明るくする。 */
+/* scrollbar-color / scrollbar-width を書くと、Chrome は ::-webkit-scrollbar-* を丸ごと無視する。
+   そのため Firefox 用の指定は「::-webkit-scrollbar を解さないブラウザ」に閉じ込める */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: auto; scrollbar-color: var(--color-bar) var(--color-paper-3); }
+}
+
+::-webkit-scrollbar { width: 16px; height: 16px; }
+::-webkit-scrollbar-track {
+  background: var(--color-paper-3);
+  box-shadow: inset 1px 1px 0 var(--color-rule), inset -1px -1px 0 var(--color-paper);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-bar);
+  box-shadow: inset 1px 1px 0 var(--color-paper), inset -1px -1px 0 var(--color-bar-dark),
+              0 0 0 1px var(--color-bar-dark);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-paper-2); }
+::-webkit-scrollbar-thumb:active { background: var(--color-rule-2); }
+/* つまみの真ん中の握り。OS 9 と同じく、縦バーは横線・横バーは縦線 */
+::-webkit-scrollbar-thumb:vertical {
+  background-image: repeating-linear-gradient(to bottom, var(--color-paper) 0 1px, var(--color-bar-dark) 1px 2px);
+  background-size: 8px 7px; background-position: center; background-repeat: no-repeat;
+}
+::-webkit-scrollbar-thumb:horizontal {
+  background-image: repeating-linear-gradient(to right, var(--color-paper) 0 1px, var(--color-bar-dark) 1px 2px);
+  background-size: 7px 8px; background-position: center; background-repeat: no-repeat;
+}
+
+/* 矢印ボタン: 既定では終端に 1 つずつ出るので、start 側を消して end 側に 2 つ並べる */
+::-webkit-scrollbar-button { display: none; }
+::-webkit-scrollbar-button:vertical:end:decrement,
+::-webkit-scrollbar-button:vertical:end:increment,
+::-webkit-scrollbar-button:horizontal:end:decrement,
+::-webkit-scrollbar-button:horizontal:end:increment {
+  display: block; width: 16px; height: 16px;
+  background-color: var(--color-bar);
+  background-repeat: no-repeat; background-position: center; background-size: 9px 9px;
+  box-shadow: inset 1px 1px 0 var(--color-paper), inset -1px -1px 0 var(--color-bar-dark),
+              0 0 0 1px var(--color-bar-dark);
+}
+::-webkit-scrollbar-button:active { background-color: var(--color-rule-2); }
+::-webkit-scrollbar-button:vertical:end:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 1.5 8 7H1z' fill='%23232a33'/%3E%3C/svg%3E");
+}
+::-webkit-scrollbar-button:vertical:end:increment {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 7.5 1 2h7z' fill='%23232a33'/%3E%3C/svg%3E");
+}
+::-webkit-scrollbar-button:horizontal:end:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1.5 4.5 7 1v7z' fill='%23232a33'/%3E%3C/svg%3E");
+}
+::-webkit-scrollbar-button:horizontal:end:increment {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M7.5 4.5 2 8V1z' fill='%23232a33'/%3E%3C/svg%3E");
+}
+/* 縦と横が交わる角。OS 9 のサイズボックスと同じ斜めの線を入れる */
+::-webkit-scrollbar-corner {
+  background:
+    repeating-linear-gradient(-45deg, var(--color-bar-dark) 0 1px, transparent 1px 4px) center / 12px 12px no-repeat,
+    var(--color-bar);
+  box-shadow: inset 1px 1px 0 var(--color-paper), inset -1px -1px 0 var(--color-bar-dark);
+}
+
 /* ---------- panes ---------- */
 .workbench {
   flex: 1;
@@ -810,7 +876,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <footer>
   <span>TRACKMENTO</span>
   <span>♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">おかねがたりないときのうた</a>（サーバー代のたすけ）</span>
-  <span>連絡先: <a href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></span>
+  <span>連絡先: <a id="about-link" href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></span>
   <a href="/health" id="health-link">/health</a>
   <span id="foot-sources"></span>
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
@@ -1071,6 +1137,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       else node.nodeValue = LANG === "en" ? ja.replace(ja.trim(), en) : ja;
     }
     document.documentElement.lang = LANG;
+    /* 連絡先は日本語版と英語版でページが別なので、行き先も切り替える */
+    const about = $("#about-link");
+    if (about) about.href = LANG === "en" ? "https://tobokegao.github.io/about/" : "https://tobokegao.github.io/ja/about/";
     const b = $("#lang-switch");
     if (b) {
       b.textContent = LANG === "ja" ? "EN" : "日本語";
