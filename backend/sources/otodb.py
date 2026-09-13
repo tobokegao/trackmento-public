@@ -23,6 +23,19 @@ UA = "trackmento/0.1 (+https://github.com/local/musicgrid-local)"
 CREATOR = 4  # WorkTagCategory.Creator
 _ID_RE = re.compile(r"^(?:(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$")
 
+# otoDB の CDN。URL に大きさを指定する仕組みが無く、常に 1280x720 / 約 245KB を返す。
+# 他の配信元のような clamp_size（URL の書き換え）ができないので、/image-proxy でサーバー側で縮める
+IMAGE_HOSTS = ("otodb.net",)
+
+
+def is_otodb_image(url: str) -> bool:
+    from urllib.parse import urlparse
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except ValueError:
+        return False
+    return any(host == h or host.endswith("." + h) for h in IMAGE_HOSTS)
+
 
 def is_video_id(s: str) -> bool:
     """URL ではなく動画 ID だけが貼られたか（sm…, BV…, YouTube の 11 文字）。"""

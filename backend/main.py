@@ -732,12 +732,16 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     want = max(100, min(600, px or 600))
     for _src in (itunes, bandcamp, video, soundcloud, musicbrainz):
         url = _src.clamp_size(url, want)
-    if (redirect := await _image_r2_redirect(url)) is not None:
+    # otoDB だけは URL に大きさを指定できないので、取ったあとにこちらで縮める。
+    # 大きさごとに別のキャッシュになるので、刻みを 200px 単位にして種類を 3 つ（200/400/600）に抑える
+    shrink_px = min(600, -(-want // 200) * 200) if otodb.is_otodb_image(url) else 0
+    ckey = f"{url}#px={shrink_px}" if shrink_px else url   # キャッシュと R2 のキー。取得元は url のまま
+    if (redirect := await _image_r2_redirect(ckey)) is not None:
         return redirect
-    hit = await asyncio.to_thread(cache.get_image, url)
+    hit = await asyncio.to_thread(cache.get_image, ckey)
     if hit:
         ctype, data = hit
-        await _image_to_r2(url, ctype, data)   # 既にキャッシュ済みの分も、一度返すついでに R2 へ寄せる
+        await _image_to_r2(ckey, ctype, data)   # 既にキャッシュ済みの分も、一度返すついでに R2 へ寄せる
     else:
         # 配信元からの取得の同時本数を IMAGE_PROXY_CONCURRENCY で絞る（既定 16）。
         # 取りこぼすと 503 になるので、CPU の割当を変えたらこちらも見直す（0.1 vCPU の頃は 8 本だった）
@@ -750,10 +754,12 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
             if imgtools.is_video_thumb(url):
                 # 動画サムネイルの黒帯（レターボックス）を落とす。プレビューと書き出しで同じ見た目になる
                 data, ctype = await asyncio.to_thread(imgtools.trim_letterbox_bytes, data, ctype)
-            await asyncio.to_thread(cache.set_image, url, ctype, data)
+            if shrink_px:
+                data, ctype = await asyncio.to_thread(imgtools.shrink_bytes, data, ctype, shrink_px)
+            await asyncio.to_thread(cache.set_image, ckey, ctype, data)
         finally:
             _PROXY_SEM.release()
-        await _image_to_r2(url, ctype, data)
+        await _image_to_r2(ckey, ctype, data)
     return Response(content=data, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
 

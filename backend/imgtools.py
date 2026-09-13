@@ -77,3 +77,28 @@ def trim_letterbox_bytes(data: bytes, ctype: str) -> tuple[bytes, str]:
     out = io.BytesIO()
     im.crop(box).convert("RGB").save(out, "JPEG", quality=92, optimize=True)
     return out.getvalue(), "image/jpeg"
+
+
+def shrink_bytes(data: bytes, ctype: str, px: int) -> tuple[bytes, str]:
+    """長辺を px 以下に縮めて JPEG（品質 85）で返す。既に px 以下ならそのまま返す。
+
+    配信元が小さい版を用意していない otoDB 専用の逃げ道。他の配信元は clamp_size で
+    URL を書き換えるだけにしてあり、こちらで再エンコードはしない（画質が原本と変わるため）。
+    otoDB は常に 1280x720 / 約 245KB を返すので、256 マスだと合計 60MB に達する。
+    """
+    import io
+
+    try:
+        im = Image.open(io.BytesIO(data))
+        im.load()
+    except Exception:
+        return data, ctype
+    # マスは正方形で中央を切り抜くので、実際に使われるのは短辺。長辺で縮めると短辺が足りず拡大ボケする
+    short = min(im.size)
+    if short <= px:
+        return data, ctype
+    scale = px / short
+    im = im.resize((max(1, round(im.width * scale)), max(1, round(im.height * scale))), Image.LANCZOS)
+    out = io.BytesIO()
+    im.convert("RGB").save(out, "JPEG", quality=85, optimize=True)
+    return out.getvalue(), "image/jpeg"
