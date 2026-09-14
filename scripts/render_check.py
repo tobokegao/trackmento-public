@@ -308,7 +308,7 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         ev_counts[ev.get("type", "?")] += 1
     bad_ev = {k: v for k, v in ev_counts.items() if k in ("server_failed", "server_restarted", "server_hardware_failure", "service_suspended")}
     deploys = ev_counts.get("deploy_ended", 0)
-    lines.append(f"- イベント: デプロイ {deploys} 回" + (f"、**再起動・障害 {sum(bad_ev.values())} 回**（{', '.join(f'{k} {v}' for k, v in bad_ev.items())}）" if bad_ev else "、再起動・障害なし"))
+    lines.append(f"- イベント: デプロイ {deploys} 回（窓の 20 分前から数える）" + (f"、**再起動・障害 {sum(bad_ev.values())} 回**（{', '.join(f'{k} {v}' for k, v in bad_ev.items())}）" if bad_ev else "、再起動・障害なし"))
     if bad_ev:
         problems.append(f"再起動・障害イベント {sum(bad_ev.values())} 回: {', '.join(f'{k} {v}' for k, v in bad_ev.items())}")
     if la["uptime_resets"]:
@@ -427,7 +427,10 @@ def main() -> int:
     try:
         svc = find_service(key, name)
         sid, owner = svc["id"], svc["ownerId"]
-        events = fetch_events(key, sid, start, end)
+        # **イベントは窓の 20 分前から取る**。デプロイの直後にプロセスが入れ替わるので、
+        # 窓の開始直前に終わったデプロイだと「uptime のリセットはあるのにデプロイが無い」ことになり、
+        # 想定外の再起動として誤検知する（2026-09-14 23:30 の点検で実際に出た）
+        events = fetch_events(key, sid, start - timedelta(minutes=20), end)
         logs = fetch_logs(key, owner, sid, start, end)
         la = analyze_logs(logs)
         bw = fetch_metric(key, "bandwidth", sid, start.replace(minute=0, second=0, microsecond=0), end, 3600)
