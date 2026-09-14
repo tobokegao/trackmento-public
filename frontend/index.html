@@ -576,7 +576,11 @@ body.sheet-open { overflow: hidden; }
    曲名と「このマスを外す」はマスをタップすると出る編集パネル（.editor）に寄せる */
 .grid[data-dense="true"] .cell .rm,
 .grid[data-dense="true"] .cell .cap { display: none; }
-.grid[data-dense="true"] .cell .num { font-size: 10px; line-height: 1.4; padding: 0 3px; }
+/* 番号も同じ理由で隠す（31px のマスだと番号だけで 3 分の 1 を覆う）。
+   選んでいるマスと「入れる先」のマスにだけ出す。どのマスが何番かはマスに乗せれば分かる */
+.grid[data-dense="true"] .cell .num { display: none; }
+.grid[data-dense="true"] .cell.is-selected .num,
+.grid[data-dense="true"] .cell.is-target .num { display: block; font-size: 10px; line-height: 1.4; padding: 0 3px; }
 
 .grid-actions { container-type: inline-size; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }   /* グリッドと同じ幅いっぱい（上限を付けると右に空きが残る） */
 .grid-actions .btn { padding-inline: var(--space-2); }
@@ -1895,7 +1899,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.setAttribute("aria-label", tr`${i + 1} 番の ${t.title} を外す`);
         rm.addEventListener("click", (e) => { e.stopPropagation(); removeAt(i); });
         const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `${t.title} / ${t.artist}`;
-        li.title = `${t.title} / ${t.artist}`;   // マスが小さいと曲名の帯を出さないので、乗せれば分かるように
+        li.title = `${String(i + 1).padStart(2, "0")}. ${t.title} / ${t.artist}`;   // マスが小さいと番号も曲名も出さないので、乗せれば分かるように
         li.append(img, rm, cap);
       } else {
         li.setAttribute("aria-label", tr`${i + 1} 番: 空`);
