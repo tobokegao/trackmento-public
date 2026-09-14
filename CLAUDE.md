@@ -410,6 +410,10 @@ claude --remote-control TRACKMENTO                                             #
     `input type="color"` は使わない。**OS の色ダイアログは画面を止めるので、動画の撮影でも都合が悪い**
     （カスタムカラーのつまみと同じ部品・同じ操作にそろえてある）
   - 色の値は **`backend/render.py` の TOKENS・frontend の CSS 変数・TOKENS_RGB の 3 か所**にある。片方だけ変えない
+- **つまみ（余白・マスの間隔・色の指定）は掴まないと動かない**（`thumbOnly`）。`input[type="range"]` は
+  溝を押した位置へ値が飛ぶのが既定だが、スマホで並びを触っているときに指が当たって値が変わる、と報告があった。
+  つまみの上でない `pointerdown` は握りつぶす。**キーボード（矢印キー）はこれまでどおり効く**
+  - 見た目も Mac OS 9 に合わせてある（溝は凹み、つまみは出っぱり＋握りの縞）。作りはスクロールバーと同じ言葉づかい
 - UI デザインは Hallmark 方針（仕様書「UI デザイン方針」）。色・フォントは CSS 変数トークン経由、角丸なし
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）

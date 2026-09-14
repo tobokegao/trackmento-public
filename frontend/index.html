@@ -657,12 +657,33 @@ body.sheet-open { overflow: hidden; }
 .hsv { display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-1); border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
 .hsv[hidden] { display: none; }   /* display: grid が hidden 属性の display: none に勝ってしまうため明示 */
 .hsv label { display: flex; justify-content: space-between; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
-.hsv input[type="range"]::-webkit-slider-runnable-track { height: 16px; border: var(--line) solid var(--color-ink); background: var(--track); box-sizing: border-box; }
-.hsv input[type="range"]::-webkit-slider-thumb { margin-top: -2px; }
+.hsv input[type="range"]::-webkit-slider-runnable-track { height: 16px; border: var(--line) solid var(--color-ink); background: var(--track); box-sizing: border-box; box-shadow: none; }
+.hsv input[type="range"]::-webkit-slider-thumb { margin-top: -2px; height: 20px; }
 .hsv .hex { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: right; font-variant-numeric: tabular-nums; }
-input[type="range"] { appearance: none; width: 100%; height: 24px; background: transparent; margin: 0; cursor: pointer; }
-input[type="range"]::-webkit-slider-runnable-track { height: var(--line); background: var(--color-ink); }
-input[type="range"]::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; margin-top: -7px; background: var(--color-ink); border: var(--line) solid var(--color-ink); box-shadow: inset 0 0 0 3px var(--color-paper); }
+/* つまみと溝は Mac OS 9 の作り。スクロールバー（上）と同じ言葉づかいにそろえる。
+   **溝は凹み**（左上が濃く右下が白）、**つまみは出っぱり**（左上が白く右下が濃い）＋ 真ん中に握りの縞 */
+input[type="range"] { appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: default; touch-action: none; }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px; box-sizing: border-box; background: var(--color-paper-2);
+  border: 1px solid var(--color-bar-dark);
+  box-shadow: inset 1px 1px 0 rgb(0 0 0 / 0.16), inset -1px -1px 0 #fff;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none; width: 19px; height: 18px; margin-top: -7px; box-sizing: border-box;
+  background-color: var(--color-bar); border: 1px solid var(--color-bar-dark);
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 var(--color-bar-dark);
+  /* 握りの縞。**白い線と、その 1px 右下の濃い線**を 4px 周期で 3 本（OS 9 のつまみと同じ作り） */
+  background-image:
+    repeating-linear-gradient(to right, var(--color-bar-dark) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(to right, #fff 0 1px, transparent 1px 4px);
+  background-size: 10px 8px, 10px 8px;
+  background-position: calc(50% + 1px) center, calc(50% - 1px) center;
+  background-repeat: no-repeat;
+}
+input[type="range"]:active::-webkit-slider-thumb { background-color: var(--color-rule-2); }
+/* Firefox（::-webkit-* が効かないので同じ見た目を別に指定する） */
+input[type="range"]::-moz-range-track { height: 5px; background: var(--color-paper-2); border: 1px solid var(--color-bar-dark); }
+input[type="range"]::-moz-range-thumb { width: 17px; height: 16px; border-radius: 0; background: var(--color-bar); border: 1px solid var(--color-bar-dark); }
 input[type="range"]:focus-visible { outline-offset: 4px; }
 output { font-variant-numeric: tabular-nums; }
 
@@ -2273,6 +2294,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const p = { id: `u${Date.now().toString(36)}`, name: tr("じぶんの色") + " " + n, hexes: base };
     userPalettes.push(p); usePalette(p.id);
   });
+
+  /* つまみを掴んだときだけ動かす。**溝を押しても値は変わらない**
+     （スマホで並びを触っているときに指が当たり、余白やマスの間隔が変わってしまうため）。
+     キーボード（矢印キー）はこれまでどおり効く */
+  function thumbOnly(el) {
+    const THUMB = 19;   // CSS の ::-webkit-slider-thumb と同じ幅
+    el.addEventListener("pointerdown", (e) => {
+      const r = el.getBoundingClientRect();
+      const min = Number(el.min || 0), max = Number(el.max || 100), val = Number(el.value);
+      const t = max > min ? (val - min) / (max - min) : 0;
+      const cx = r.left + THUMB / 2 + t * (r.width - THUMB);
+      if (Math.abs(e.clientX - cx) > THUMB / 2 + 6) { e.preventDefault(); e.stopPropagation(); }
+    });
+  }
+  for (const el of [els.margin, els.gap, els.hsvH, els.hsvS, els.hsvV, palHsv.h, palHsv.s, palHsv.v]) thumbOnly(el);
 
   /* ---- colour helpers (CSS 変数 → 実 RGB) ---- */
   const probe = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
