@@ -7,17 +7,26 @@ import path from "node:path";
 const BASE = process.env.TRACKMENTO_URL || "http://localhost:8000";
 // MODE=pc で PC 表示（1280×720 を 1.5 倍で録って 1920×1080）。既定はスマホ表示（540×960 を 2 倍で 1080×1920）
 const PC = process.env.MODE === "pc";
-const OUT = path.resolve(PC ? "public/recordings-pc" : "public/recordings");
+// SCENE=feat で新機能だけを撮る。本編（9 マスを埋める流れ）と同じセッションでは撮れない
+// （プレイリストで 500 曲入れると並びが壊れるため）
+const FEAT = process.env.SCENE === "feat";
+// LANG_UI=en で画面の文言まで英語にして撮る。LANG は POSIX の環境変数と衝突するのでこの名前
+const EN = process.env.LANG_UI === "en";
+const OUT = path.resolve(`public/recordings${PC ? "-pc" : ""}${FEAT ? "-feat" : ""}${EN ? "-en" : ""}`);
+
+// feat で使う素材。復活は sm7889666（作品ごと消えていて otoDB がタイトル・作者・サムネを持っている。選定の経緯は video-notes.md）
+const MYLIST = "https://www.nicovideo.jp/mylist/79113711";
+const REVIVE = "https://www.nicovideo.jp/watch/sm7889666";
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
 // 画面の実ピクセルで録るため DPR を 2 に固定（Playwright の deviceScaleFactor だと 540×960 で録られて余白が灰色になる）
 const browser = await chromium.launch({ args: [PC ? "--force-device-scale-factor=1.5" : "--force-device-scale-factor=2", "--hide-scrollbars"] });
 const ctx = await browser.newContext(PC ? {
-  viewport: { width: 1280, height: 720 }, locale: "ja-JP", bypassCSP: true,
+  viewport: { width: 1280, height: 720 }, locale: EN ? "en-US" : "ja-JP", bypassCSP: true,
   recordVideo: { dir: OUT, size: { width: 1920, height: 1080 } },
 } : {
-  viewport: { width: 540, height: 960 }, isMobile: true, hasTouch: true, locale: "ja-JP", bypassCSP: true,
+  viewport: { width: 540, height: 960 }, isMobile: true, hasTouch: true, locale: EN ? "en-US" : "ja-JP", bypassCSP: true,
   recordVideo: { dir: OUT, size: { width: 1080, height: 1920 } },
 });
 // タップ位置に波紋を出す（動画で操作が分かるように）
@@ -124,83 +133,144 @@ async function swapCells(a, b) { await tap(cell(a), `select:${a}`); await wait(4
 await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
 await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}" });
 // まっさらから始める
-await page.evaluate(() => { localStorage.clear(); });
+await page.evaluate((lang) => { localStorage.clear(); localStorage.setItem("trackmento.lang", lang); }, EN ? "en" : "ja");
 await page.reload({ waitUntil: "networkidle" });
 await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}" });
 if (await page.locator("#grid .cell img").count()) { page.once("dialog", (d) => d.accept()); await page.locator("#clear-btn").click(); await wait(500); }
 await wait(1000);
 await mark("start");
 
-await tap("#title", "title-focus");
-await page.locator("#title").fill("");
-await page.locator("#title").pressSequentially("私を構成する9選", { delay: 90 });
-await wait(600); await mark("title-done");
+// ---- 新機能（SCENE=feat）----
+// 撮る順番は動画の構成順とは別でよい（Remotion 側はマーカー名で切り出すため）。
+// マスを先に 16×16 へ広げてからプレイリストを入れると、「256 マスが埋まる」絵がそのまま撮れる
+async function featScene() {
+  // ⑤ さらにダサくなった見た目: 候補を並べて Mac OS 9 風のスクロールバーを見せる
+  await openSheet();
+  await type("#q", EN ? "kirby" : "グルメレース");
+  await tap("#search-btn", "look:search");
+  await page.waitForSelector("#results .result", { timeout: 60000 });
+  await wait(900);
+  await mark("look:scroll");
+  for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 240); await wait(320); }
+  await wait(600);
+  if (!PC) { await tap("#sheet-close", "look:close"); await wait(400); }
 
-// 追加（並びは後で入れ替える）
-await searchAdd("近道したい", "須賀響子", "chikamichi", undefined, { viaCell: 1, tour: true });
-await searchAdd("天才ヴァガボンド", "COIL", "vagabond", undefined, { match: "天才ヴァガボンド - Single" });
-await urlAdd("https://www.youtube.com/watch?v=x2Uj_ILuNw0", "talk", "youtube");
-await urlAdd("https://www.nicovideo.jp/watch/sm44887188", "10-10-10", "nicovideo");
-await manualAdd("/uploads/ca3a841b8281ff38.jpg", "みつあみ引っ張って", "くま井ゆう子", "mitsuami");
-await urlAdd("https://jamiepaige.bandcamp.com/track/birdbrain-with-ok-glass-2", "birdbrain", "bandcamp");
-await urlAdd("https://on.soundcloud.com/QSnj7ttO5W4ErGhJ7U", "worldwidesuperstar", "soundcloud");
-await manualAdd("/uploads/78b3b5f5be01fa10.jpg", "(tike)2 runaway", "サラダ", "runaway");
-await searchAdd("I Love Love You", "Guitar Vader", "ilovelove", "musicbrainz", { match: "Remixes GVR" });
-await mark("grid-full");
-await wait(800);
+  // ③ マスを 16×16（256 マス）に広げる
+  await page.locator("#cols").scrollIntoViewIfNeeded();
+  await wait(300);
+  await type("#cols", "16");
+  await type("#rows", "16");
+  await page.locator("#rows").press("Enter");
+  await wait(900); await mark("cells:16");
+  await wait(900);
 
-// 並べ替え: 今 1 近道 2 天才 3 Talk 4 10-10 5 みつあみ 6 BIRDBRAIN 7 wws 8 runaway 9 ILLY
-// 目標:        1 Talk 2 みつあみ 3 10-10 4 BIRDBRAIN 5 wws 6 runaway 7 近道 8 天才 9 ILLY
-await swapCells(1, 3);   // Talk 近道 → 1 Talk, 3 近道
-await swapCells(2, 5);   // 1 Talk 2 みつあみ 3 近道 4 10-10 5 天才
-await swapCells(3, 4);   // 3 10-10 4 近道
-await swapCells(4, 6);   // 4 BIRDBRAIN 6 近道
-await swapCells(5, 7);   // 5 wws 7 天才
-await swapCells(6, 8);   // 6 runaway 8 近道
-await swapCells(7, 8);   // 7 近道 8 天才
-await mark("reorder-done");
-await wait(800);
+  // ① プレイリストをまとめて挿入（マイリスト 1 本で最大 500 曲）
+  await openSheet();
+  await expandSub("sub-bandcamp", "url");
+  await page.locator("#bc-url").scrollIntoViewIfNeeded();
+  await wait(300);
+  await type("#bc-url", MYLIST);
+  await tap("#bc-btn", "pl:paste");
+  await page.waitForSelector("#pl-modal:not([hidden])", { timeout: 300000 });
+  await wait(1400); await mark("pl:overlay");
+  await tap("#pl-to-grid", "pl:fill");
+  await page.waitForSelector("#pl-modal[hidden]", { state: "attached" });
+  await wait(2500); await mark("pl:filled");
+  await wait(1200);
 
-// 出力オプション: 比率と背景色
-if (PC) {   // PC では出力オプションは常に開いている。見出しをクリックすると畳まれるので、波紋だけ出して印を付ける
-  const b = await page.locator(".pane-options .pane-title").boundingBox();
-  await page.evaluate(([x, y]) => window.__tap(x, y), [b.x + 80, b.y + b.height / 2]);
-  await wait(120); await mark("open-options");
-} else await tap(".pane-options .fold", "open-options");
-await wait(600);
-// 比率を 4 種類順にタップ。最後の比率はスマホ版 9:16、PC 版 16:9
-for (const r of (PC ? ["9:16", "16:9", "free", "16:9"] : ["16:9", "9:16", "free", "9:16"])) { await tap(`#ratio-seg input[value="${r}"] + span`, `ratio:${r}`); await wait(380); }
-await wait(400);
-for (const c of ["cerulean", "pink", "mustard"]) { await tap(`#swatches input[value="${c}"]`, `bg:${c}`); await wait(450); }
-await wait(400);
-await page.locator("#bg-custom").scrollIntoViewIfNeeded();
-{ const box = await page.locator("#bg-custom").boundingBox(); await page.evaluate(([x, y]) => window.__tap(x, y), [box.x + box.width / 2, box.y + box.height / 2]); }
-await wait(120); await mark("bg:custom");
-await page.locator("#bg-custom").fill("#7c5cff");
-await wait(700);
-await page.locator("#bg-custom").fill("#ff7a59");
-await wait(700);
-await tap(`#swatches input[value="mustard"]`, "bg:mustard2");
-await wait(400);
+  // ② 消えた動画の復活: 削除済みの ID を貼ると otoDB がタイトル・作者・サムネを埋める
+  await openSheet();
+  await expandSub("sub-bandcamp", "url-revive");
+  await page.locator("#bc-url").scrollIntoViewIfNeeded();
+  await wait(300);
+  await type("#bc-url", REVIVE);
+  await tap("#bc-btn", "revive:paste");
+  await pickFirstResult("revive", "otodb");
+  await mark("revive:done");
+  await wait(1500);
 
-// 共有
-await page.locator("#share-btn").scrollIntoViewIfNeeded();
-await wait(400);
-await tap("#share-btn", "share");
-await page.waitForSelector("#output:not([hidden])", { timeout: 120000 });
-await page.waitForFunction(() => document.querySelector("#output-img")?.complete && document.querySelector("#output-img")?.naturalWidth > 0, null, { timeout: 120000 });
-await mark("share-ready");
-await page.locator("#output-img").scrollIntoViewIfNeeded();
-await wait(1800);
-const shareUrl = await page.locator("#share-url").inputValue();
-await mark("share-url", { url: shareUrl });
-await tap("#open-share", "open-share");
-await page.goto(shareUrl, { waitUntil: "networkidle" });
-await mark("share-page");
-await wait(1500);
-await page.mouse.wheel(0, 600); await wait(1200);
-await page.mouse.wheel(0, 600); await wait(1500);
-await mark("end");
+  // ④ 日本語 / 英語の切り替え
+  await tap("#lang-switch", EN ? "lang:ja" : "lang:en");
+  await wait(1600); await mark("lang:switched");
+  await tap("#lang-switch", EN ? "lang:en-back" : "lang:ja-back");
+  await wait(1200);
+  await mark("end");
+}
+
+async function mainScene() {
+  await tap("#title", "title-focus");
+  await page.locator("#title").fill("");
+  await page.locator("#title").pressSequentially("私を構成する9選", { delay: 90 });
+  await wait(600); await mark("title-done");
+
+  // 追加（並びは後で入れ替える）
+  await searchAdd("近道したい", "須賀響子", "chikamichi", undefined, { viaCell: 1, tour: true });
+  await searchAdd("天才ヴァガボンド", "COIL", "vagabond", undefined, { match: "天才ヴァガボンド - Single" });
+  await urlAdd("https://www.youtube.com/watch?v=x2Uj_ILuNw0", "talk", "youtube");
+  await urlAdd("https://www.nicovideo.jp/watch/sm44887188", "10-10-10", "nicovideo");
+  await manualAdd("/uploads/ca3a841b8281ff38.jpg", "みつあみ引っ張って", "くま井ゆう子", "mitsuami");
+  await urlAdd("https://jamiepaige.bandcamp.com/track/birdbrain-with-ok-glass-2", "birdbrain", "bandcamp");
+  await urlAdd("https://on.soundcloud.com/QSnj7ttO5W4ErGhJ7U", "worldwidesuperstar", "soundcloud");
+  await manualAdd("/uploads/78b3b5f5be01fa10.jpg", "(tike)2 runaway", "サラダ", "runaway");
+  await searchAdd("I Love Love You", "Guitar Vader", "ilovelove", "musicbrainz", { match: "Remixes GVR" });
+  await mark("grid-full");
+  await wait(800);
+
+  // 並べ替え: 今 1 近道 2 天才 3 Talk 4 10-10 5 みつあみ 6 BIRDBRAIN 7 wws 8 runaway 9 ILLY
+  // 目標:        1 Talk 2 みつあみ 3 10-10 4 BIRDBRAIN 5 wws 6 runaway 7 近道 8 天才 9 ILLY
+  await swapCells(1, 3);   // Talk 近道 → 1 Talk, 3 近道
+  await swapCells(2, 5);   // 1 Talk 2 みつあみ 3 近道 4 10-10 5 天才
+  await swapCells(3, 4);   // 3 10-10 4 近道
+  await swapCells(4, 6);   // 4 BIRDBRAIN 6 近道
+  await swapCells(5, 7);   // 5 wws 7 天才
+  await swapCells(6, 8);   // 6 runaway 8 近道
+  await swapCells(7, 8);   // 7 近道 8 天才
+  await mark("reorder-done");
+  await wait(800);
+
+  // 出力オプション: 比率と背景色
+  if (PC) {   // PC では出力オプションは常に開いている。見出しをクリックすると畳まれるので、波紋だけ出して印を付ける
+    const b = await page.locator(".pane-options .pane-title").boundingBox();
+    await page.evaluate(([x, y]) => window.__tap(x, y), [b.x + 80, b.y + b.height / 2]);
+    await wait(120); await mark("open-options");
+  } else await tap(".pane-options .fold", "open-options");
+  await wait(600);
+  // 比率を 4 種類順にタップ。最後の比率はスマホ版 9:16、PC 版 16:9
+  for (const r of (PC ? ["9:16", "16:9", "free", "16:9"] : ["16:9", "9:16", "free", "9:16"])) { await tap(`#ratio-seg input[value="${r}"] + span`, `ratio:${r}`); await wait(380); }
+  await wait(400);
+  for (const c of ["cerulean", "pink", "mustard"]) { await tap(`#swatches input[value="${c}"]`, `bg:${c}`); await wait(450); }
+  await wait(400);
+  await page.locator("#bg-custom").scrollIntoViewIfNeeded();
+  { const box = await page.locator("#bg-custom").boundingBox(); await page.evaluate(([x, y]) => window.__tap(x, y), [box.x + box.width / 2, box.y + box.height / 2]); }
+  await wait(120); await mark("bg:custom");
+  await page.locator("#bg-custom").fill("#7c5cff");
+  await wait(700);
+  await page.locator("#bg-custom").fill("#ff7a59");
+  await wait(700);
+  await tap(`#swatches input[value="mustard"]`, "bg:mustard2");
+  await wait(400);
+
+  // 共有
+  await page.locator("#share-btn").scrollIntoViewIfNeeded();
+  await wait(400);
+  await tap("#share-btn", "share");
+  await page.waitForSelector("#output:not([hidden])", { timeout: 120000 });
+  await page.waitForFunction(() => document.querySelector("#output-img")?.complete && document.querySelector("#output-img")?.naturalWidth > 0, null, { timeout: 120000 });
+  await mark("share-ready");
+  await page.locator("#output-img").scrollIntoViewIfNeeded();
+  await wait(1800);
+  const shareUrl = await page.locator("#share-url").inputValue();
+  await mark("share-url", { url: shareUrl });
+  await tap("#open-share", "open-share");
+  await page.goto(shareUrl, { waitUntil: "networkidle" });
+  await mark("share-page");
+  await wait(1500);
+  await page.mouse.wheel(0, 600); await wait(1200);
+  await page.mouse.wheel(0, 600); await wait(1500);
+  await mark("end");
+}
+
+if (FEAT) await featScene(); else await mainScene();
 
 await ctx.close(); await browser.close();
 // 「共有ページを開く」で別タブが開くと短い webm がもう 1 本できるので、いちばん大きいもの（本編）を選ぶ

@@ -130,6 +130,13 @@ claude --remote-control TRACKMENTO                                             #
   - 実測して問題が無かったもの: SoundCloud 78KB、YouTube 32KB、ニコニコ 10KB、Spotify 120KB（640px）、Cover Art Archive は `front-250`（28KB）が最小で 250/500/1200 の 3 段階しかない
     （ブラウザから直接読むので Render を通らない）
 - 消えた動画（削除・非公開）は otoDB で埋める。otoDB のサムネイルは元動画が消えても CDN に残るため
+  - **「その動画が消えているか」は otoDB の API だけで分かる**。`/api/work/sources?work_id=N` が返す
+    `work_status` が **1 なら削除済み**（生きているものは 0）。`platform` は 1=YouTube / 2=ニコニコ。
+    roxy を 1 件ずつ叩かなくても復活のデモに使える動画を探せるので、**候補探しでは roxy を叩かない**
+    （検索 `/api/work/search?query=…&limit=30` → work ごとに sources、で足りる）
+  - **「有名 × 削除済み」は珍しい**。転載の多い作品は誰かが再アップし続けるので生き残り、
+    消えるのは 1 本しか上がっていない作品が多い。2026-09-14 に 75 work を調べて、
+    ソースが 5 件以上あって削除済みを含むのは 1 件だけだった（動画の素材探しの結論は `video-notes.md`）
   - **roxy が未登録の動画を各サイトから取りに行くのはニコニコだけ**（2026-09 実測）。YouTube / bilibili /
     SoundCloud は生きている URL でも 404 `Cannot fallback` になる。otoDB に登録済みの作品なら
     他のサイト出典でも引ける可能性はあるが未確認。SoundCloud 対応を足すならここが確認できてから
