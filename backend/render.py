@@ -281,19 +281,19 @@ def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
 def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
     """流し込んだときの各行を返す。
 
-    **折り返しは曲の単位で行う**。字の単位で折ると、サーバー（PIL）とブラウザ（Canvas）の
-    わずかな計測差が積み上がって折り返す位置がずれ、そこから先の行がすべて食い違う。
-    曲ごとに折れば、差は行の中に収まって位置は一致する。
+    **折り返しは字の単位**。曲の単位で折ると行の頭がいつも番号になって、規則的に見えてしまう。
+    字で折れば文章のように流れる。そのかわりサーバー（PIL）とブラウザ（Canvas）で
+    折り返す位置がわずかにずれる（字幅の計り方が違うため）。内容は同じで、位置だけの違い。
 
     行には「使った幅」と「曲の切れ目の数」を添える。描画側が余った幅を切れ目に配って
-    右端をそろえる（新聞のように両端をそろえないと、右側がぎざぎざに見える）。
+    右端をそろえる。
     """
     fonts = {"num": font("pixel", rnd(font_s * 0.8)), "title": font("bold", font_s), "artist": font("regular", font_s)}
-    gap = fonts["title"].getlength("　")   # 曲と曲のあいだは全角空白 1 つぶん。残りは描画側で両端をそろえるときに配る
+    gap = fonts["title"].getlength("　")   # 曲と曲のあいだは全角空白 1 つぶん
     rows: list[FlowRow] = []
     cur: list[tuple[str, str]] = []
     x = 0.0
-    gaps = 0                   # その行にある曲の切れ目の数
+    gaps = 0
 
     def flush() -> None:
         nonlocal cur, x, gaps
@@ -301,26 +301,31 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
             rows.append(FlowRow(cur, x, gaps))
         cur, x, gaps = [], 0.0, 0
 
+    def put(kind: str, text: str) -> None:
+        nonlocal x
+        f = fonts[kind]
+        for ch in text:
+            w = f.getlength(ch)
+            if x + w > max_w and cur:
+                flush()
+            if cur and cur[-1][0] == kind:
+                cur[-1] = (kind, cur[-1][1] + ch)
+            else:
+                cur.append((kind, ch))
+            x += w
+
     for i, t in enumerate(doc.cells):
         if not t:
             continue
-        parts = [("num", f"{i + 1:02d}"), ("title", " " + _one_line(t.title))]
-        if t.artist:
-            parts.append(("artist", " " + _one_line(t.artist)))
-        w = sum(fonts[k].getlength(v) for k, v in parts)
-        if w > max_w:
-            # 1 曲で 1 行に収まらないときは曲名を切る（アーティストは落とす）
-            parts = parts[:2]
-            head = fonts["num"].getlength(parts[0][1])
-            parts[1] = ("title", _clip_to(parts[1][1], fonts["title"], max_w - head))
-            w = head + fonts["title"].getlength(parts[1][1])
-        if cur and x + gap + w > max_w:
-            flush()
-        elif cur:
+        if cur:
             x += gap
             gaps += 1
-        cur.extend(parts)
-        x += w
+            if x > max_w:
+                flush()
+        put("num", f"{i + 1:02d}")
+        put("title", " " + _one_line(t.title))
+        if t.artist:
+            put("artist", " " + _one_line(t.artist))
     flush()
     return rows
 

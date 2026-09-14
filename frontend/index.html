@@ -2064,31 +2064,31 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return text + "…";
   }
   function flowRows(fontS, maxW) {
-    // 折り返しは曲の単位で行う。字の単位で折ると、サーバー（PIL）とブラウザ（Canvas）の
-    // わずかな計測差が積み上がって折り返す位置がずれ、そこから先の行がすべて食い違う
+    // 折り返しは字の単位。曲の単位で折ると行の頭がいつも番号になって規則的に見えるため。
+    // そのかわりサーバー（PIL）とブラウザ（Canvas）で折り返す位置がわずかにずれる
     const ctx = probe;
     const fonts = { num: fontPixel(Math.round(fontS * 0.8)), title: fontBold(fontS), artist: fontRegular(fontS) };
     const width = (kind, text) => { ctx.font = fonts[kind]; return ctx.measureText(text).width; };
-    const gap = width("title", "　");   // 曲と曲のあいだは全角空白 1 つぶん。残りは描画側で両端をそろえるときに配る
+    const gap = width("title", "　");   // 曲と曲のあいだは全角空白 1 つぶん
     const rows = [];
     let cur = [], x = 0, gaps = 0;
     const flush = () => { if (cur.length) rows.push({ parts: cur, width: x, gaps }); cur = []; x = 0; gaps = 0; };
+    const put = (kind, text) => {
+      ctx.font = fonts[kind];
+      for (const ch of text) {
+        const w = ctx.measureText(ch).width;
+        if (x + w > maxW && cur.length) { flush(); ctx.font = fonts[kind]; }
+        if (cur.length && cur[cur.length - 1][0] === kind) cur[cur.length - 1][1] += ch;
+        else cur.push([kind, ch]);
+        x += w;
+      }
+    };
     state.cells.forEach((t, i) => {
       if (!t) return;
-      let parts = [["num", String(i + 1).padStart(2, "0")], ["title", " " + oneLine(t.title)]];
-      if (t.artist) parts.push(["artist", " " + oneLine(t.artist)]);
-      let w = parts.reduce((a, [k, v]) => a + width(k, v), 0);
-      if (w > maxW) {
-        // 1 曲で 1 行に収まらないときは曲名を切る（アーティストは落とす）
-        parts = parts.slice(0, 2);
-        const head = width("num", parts[0][1]);
-        parts[1] = ["title", clipTo(ctx, parts[1][1], fonts.title, maxW - head)];
-        w = head + width("title", parts[1][1]);
-      }
-      if (cur.length && x + gap + w > maxW) flush();
-      else if (cur.length) { x += gap; gaps += 1; }
-      cur = cur.concat(parts);
-      x += w;
+      if (cur.length) { x += gap; gaps += 1; if (x > maxW) flush(); }
+      put("num", String(i + 1).padStart(2, "0"));
+      put("title", " " + oneLine(t.title));
+      if (t.artist) put("artist", " " + oneLine(t.artist));
     });
     flush();
     return rows;

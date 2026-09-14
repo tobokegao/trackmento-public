@@ -213,9 +213,12 @@ claude --remote-control TRACKMENTO                                             #
     → `scripts/compare_render.py` で突き合わせられる。丸めは `render.py` の `rnd()` が JS の `Math.round` に
     合わせてある（**Python の `round()` は偶数丸めなので使ってはいけない**）
   - 曲名リストの流し込み: `render.py` の `_flow_rows` / `FLOW_*` と frontend の `flowRows` / `FLOW_*`。
-    **折り返しは曲の単位で行う**。字の単位で折ると、PIL と Canvas のわずかな計測差が積み上がって
-    折り返す位置がずれ、そこから先の行が全部食い違う（実測で `compare_render.py` のぼかし後の差が
-    3.19%。曲の単位に変えて 0.05% になった）
+    **折り返しは字の単位。ただし両端をそろえること**がずれを抑える鍵。
+    字で折ると PIL と Canvas のわずかな計測差で折り返す位置が変わるが、行ごとに右端でそろえていれば
+    そこで吸収され、次の行へ積み上がらない（`compare_render.py` のぼかし後の差: 両端そろえ無し 3.19% →
+    **両端そろえ有り 0.71%**。基準は 1%）。曲の単位で折れば 0.05% まで下がるが、
+    行の頭がいつも番号になって規則的に見えるので採らなかった
+    - 余りの配分は**空白 1 つぶんまで**。上限を付けないと、1 行の曲数が少ないときに切れ目が間延びする
   - 検索の絞り込み: `backend/sources/itunes.py` と frontend の `itunesSearch`（ブラウザから直接 iTunes を叩くため）
   - 曲名の正規化: `backend/merge.py` の `_n()` と frontend の `nkey()`。
     **Python の `casefold()` は ß を ss に畳むが JS の `toLowerCase()` は畳まない**ので手で合わせてある
