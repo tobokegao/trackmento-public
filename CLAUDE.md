@@ -404,6 +404,14 @@ claude --remote-control TRACKMENTO                                             #
     （robots.txt で `/s/` を塞ぐと X のカードが出なくなる）。「検索」「AI」「その他ボット」は robots.txt で減らせる
   - 判定の閾値はインスタンスの種類から出す（`PLAN_SPECS` と `_PLAN_RE`。API は `1c_2g` のような形式を返す）。`CHECK_*` の環境変数で上書きできる
   - 「uptime のリセットがデプロイ回数より多い」は、無停止デプロイ中に新旧プロセスの `[health]` が交互に出るため一度は誤検知していた。5 分以内に続く戻りは同じ入れ替えとしてまとめている
+- **検索は既定で iTunes だけ**（2026-09-15 から）。MusicBrainz は「1 秒に 1 リクエスト」の制限があり、
+  常に一緒に引くと検索が 2 秒かかっていた（iTunes だけなら 0.06〜0.5 秒。本番実測 2052ms → 58ms）。
+  **見つからなかったときだけ MusicBrainz で引き直す**ので、iTunes に無い音源の取りこぼしは埋まる
+  - サーバー（`main.py` の `DEFAULT_SOURCES` / `FALLBACK_SOURCE`）: `source` の指定が無くて 0 件なら MusicBrainz。
+    **指定があるときは足さない**（利用者が選んだ通りに返す）
+  - 画面（`frontend/index.html`）: 選んだソースで 0 件かつ失敗も無いときだけ MusicBrainz を直接引き、
+    「iTunes に無かったので MusicBrainz でも探しました。」と添える
+  - 画面のソース選択の既定は前から iTunes だけだったので、**遅かったのは `source` を省く呼び出し**（CLI・API）
 - 動作確認は各ステップごとブラウザで（`claude-in-chrome` または手動）。サーバー `--reload` なし起動時、コード変更後再起動必要
 
 ## 調べ直さないための覚え書き（一度引っかかったもの）

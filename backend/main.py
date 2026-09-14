@@ -92,7 +92,10 @@ _recent_fail: dict[tuple[str, str, str], tuple[float, str]] = {}   # (source, q,
 SOURCES = {"itunes": itunes.search, "musicbrainz": musicbrainz.search}
 if discogs.enabled():
     SOURCES["discogs"] = discogs.search
-DEFAULT_SOURCES = tuple(SOURCES)
+# **省略時は iTunes だけ**。MusicBrainz は「1 秒に 1 リクエスト」の制限があり、常に一緒に引くと
+# 検索が 2 秒かかる（iTunes だけなら 0.2 秒。2026-09-15 の実測）。見つからなかったときだけ下で引き直す
+DEFAULT_SOURCES = ("itunes",)
+FALLBACK_SOURCE = "musicbrainz"
 SOURCES["otodb"] = otodb.search   # 音MAD データベース。ALL には含めず、明示選択のときだけ
 
 
@@ -696,6 +699,13 @@ async def search(
     out: list[Track] = []
     for res in results:
         out.extend(res)
+    # ソースの指定が無くて 1 件も出なければ MusicBrainz でも引く（iTunes に無い音源の取りこぼしを埋める）。
+    # **指定があるときは足さない**（利用者が選んだ通りに返す）
+    if not out and not source and not failed:
+        names = [FALLBACK_SOURCE]
+        results, failed = await search_sources(names, q, artist, nocache=nocache)
+        for res in results:
+            out.extend(res)
     tracks = merge(out) if len(names) > 1 else out
     headers = {}
     if failed:
