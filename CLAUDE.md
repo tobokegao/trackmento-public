@@ -89,6 +89,15 @@ claude --remote-control TRACKMENTO                                             #
 - R2（`backend/storage.py`）: 共有画像・並び JSON・アップロード画像・分割フォントの置き場所。バケット `trackmento-shares`、公開 URL は `R2_PUBLIC_URL`。**転送量が無料なので、Render の課金対象から逃がしたいものはここに置く**
   - バケットの設定（CORS・ライフサイクル）は API トークンの権限では変えられない。Cloudflare のダッシュボードから操作する。CORS は本番と `localhost:8000` / `127.0.0.1:8000` を GET で許可済み（Canvas は fetch + `createImageBitmap` で読むので、これが無いと共有画像を作れない）
   - ライフサイクルは 7 日。共有は期限切れで自然に消える
+  - **公開 URL は独自ドメイン `https://img.trackmento.com`**（2026-09-14 に `pub-….r2.dev` から移した）。
+    `r2.dev` は Cloudflare が開発用としていてレート制限があり、256 マスの共有画像を作るときに
+    ブラウザからの読み取りが大量に落ちていた（`/image-proxy` が 527 件 → 1402 件に増えた原因）。
+    独自ドメインなら制限が無く、**Cloudflare の CDN キャッシュも効く**（`cf-cache-status: HIT`。R2 への読み取り自体が減る）
+  - **移し替えはコードを 1 行も変えずに済む**。`R2_PUBLIC_URL` を差し替えるだけで、CSP（`_r2_origin()`）も
+    フォントの配信元（`/fonts-css/*`）も画像の 302 先も追従する。URL はすべて `public_url()` で都度組み立てていて、
+    どこにも焼き付けていない。本番は Render の環境変数、手元は `.env`
+  - **`r2.dev` の公開アクセスはすぐ切らない**。配布済みの共有ページの HTML には古い URL が埋まっている。
+    共有は 7 日で消えるので、1 週間経ってから切る
   - `uploads.read_bytes` は R2 に無ければローカルの `uploads/` も見る（手元で R2 を設定した後も、それ以前に保存した画像を読めるように）
 - 描画は 2 系統: Web は端末の Canvas で描いて `/share/upload` に送る（`frontend/index.html` の `renderShareCanvas`）。サーバー描画（`backend/render.py`）は CLI と、描けない端末のフォールバック（`/share`）。レイアウト・色・文字の省略規則は両方同じ式。**片方変更時は他方も変更**し、`scripts/compare_render.py` で両方の描画を突き合わせる（差は輪郭のみが正常）。
   手順はスクリプトの docstring。サーバーは `PUBLIC_MODE=1 SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0` で立てる（R2 が無料枠を超えていると 507、本番の共有数を復元して 1 日上限にも当たる）。
