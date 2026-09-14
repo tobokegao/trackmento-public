@@ -89,6 +89,15 @@ def diff(srv: str, web: str) -> int:
     print(f"そのまま: 差>8 {over(rh, 8):.2f}%  差>32 {over(rh, 32):.2f}%  差>128 {over(rh, 128):.2f}%")
     print(f"ぼかし後: 差>32 {over(sh, 32):.2f}%（3px） / {over(sh6, 32):.2f}%（6px）")
     print("  ← 3px が 1% 未満、または 6px が 0.3% 未満なら正常（文字が大きいと 3px では輪郭が残る）")
+    # **グリッド側と曲名リスト側を分けて出す**。マスが少ないとジャケットの縮小の仕方（PIL と Canvas）の
+    # 違いが大きく出て、レイアウトのずれと見分けがつかないため。見たいのはリスト側
+    cut = int(a.size[0] * 0.52)
+    for label, box in (("  グリッド側", (0, 0, cut, a.size[1])), ("  曲名リスト側", (cut, 0, a.size[0], a.size[1]))):
+        ca, cb = a.crop(box), b.crop(box)
+        cn = max(1, ca.size[0] * ca.size[1])
+        d3 = ImageChops.difference(ca.filter(ImageFilter.GaussianBlur(3)), cb.filter(ImageFilter.GaussianBlur(3))).convert("L").histogram()
+        d6 = ImageChops.difference(ca.filter(ImageFilter.GaussianBlur(6)), cb.filter(ImageFilter.GaussianBlur(6))).convert("L").histogram()
+        print(f"{label}: 差>32 {sum(d3[33:]) / cn * 100:.2f}%（3px） / {sum(d6[33:]) / cn * 100:.2f}%（6px）")
     out = ROOT / "outputs" / f"compare-{srv}-{web}.jpg"
     out.parent.mkdir(exist_ok=True)
     w, h = a.size

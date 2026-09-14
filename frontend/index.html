@@ -2096,7 +2096,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     flush();
     return rows;
   }
-  // 曲名の末尾の「(feat. …)」。**ここだけは 2 段目に落とせる**（曲名の本体とアーティスト名を守るため）。
+  // 曲名の末尾の「(feat. …)」。**ここだけは 2 行目に落とせる**（曲名の本体を守るため）。
   // backend/render.py の _FEAT_RE と同じ規則
   const FEAT_RE = /\s*[（(\[]\s*(?:feat|ft|featuring)[.\s][^）)\]]*[）)\]]\s*$/i;
   function splitFeat(title) {
@@ -2104,35 +2104,42 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!m || !m.index) return [title, ""];
     return [title.slice(0, m.index).replace(/\s+$/, ""), title.slice(m.index).trim()];
   }
-  /* 曲ごとの段数（1 か 2）。**1 行に収まるものは 1 段のまま**。収まらないものだけ 2 段にする */
+  // 曲名リストの作り（backend/render.py と同じ値）。曲名とアーティスト名は上下 2 行に分ける
+  const LIST_MIN_COL = 640, LIST_COMFY_FONT = 26, LIST_MAX_COLS = 3, ARTIST_SCALE = 0.78;
+  // 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
+  const LIST_COL_GAP = GAP_PX * 5;
+  /* 曲ごとの行数。アーティスト名があれば 2 行（曲名 + アーティスト）、曲名が入らなければ +1 行 */
   function rowPlan(fontS, maxW) {
-    const ctx = probe, fs = Math.max(12, Math.round(fontS * 0.65));
+    const ctx = probe;
     ctx.font = fontPixel(Math.round(fontS * 0.8));
     const nw = ctx.measureText("00").width + Math.round(fontS * 0.8);
     const avail = Math.max(1, maxW - nw);
     return state.cells.map((t) => {
       if (!t) return 1;
-      const title = oneLine(t.title), a = t.artist ? `  ${oneLine(t.artist)}` : "";
-      ctx.font = fontBold(fs); const tw = ctx.measureText(title).width;
-      ctx.font = fontRegular(fs); const aw = ctx.measureText(a).width;
-      return tw + aw > avail ? 2 : 1;
+      let rows = oneLine(t.artist) ? 2 : 1;
+      ctx.font = fontBold(Math.max(12, fontS));
+      if (ctx.measureText(oneLine(t.title)).width > avail) rows += 1;
+      return rows;
     });
   }
-  /* 下に置くときの 1 列あたりの段数。**1 曲が列をまたがないように**詰める */
+  /* 1 列あたりの行数。**1 曲が列をまたがないように**詰めたうえで、必ず cols 列に収まる値を返す */
   function planRows(plan, cols) {
     const total = plan.reduce((a, b) => a + b, 0);
     if (cols <= 1) return total;
-    const target = Math.ceil(total / cols);
-    let used = 0, most = 0;
-    for (const r of plan) {
-      if (used && used + r > target) { most = Math.max(most, used); used = 0; }
-      used += r;
+    let target = Math.ceil(total / cols);
+    for (;;) {
+      let used = 0, usedCols = 1, most = 0;
+      for (const r of plan) {
+        if (used && used + r > target) { usedCols++; most = Math.max(most, used); used = 0; }
+        used += r;
+      }
+      if (usedCols <= cols) return Math.max(most, used);
+      target++;
     }
-    return Math.max(most, used);
   }
   // 曲名を折るときに切りたい場所。**閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
   const BREAK_AFTER = "　 ）)］]】〉》」』", BREAK_BEFORE = "（([［[【〈《「『／/～-—";
-  /* max_w に収まる範囲で、いちばん後ろの切れ目を探して 2 つに分ける。切れ目が無ければ字の途中で折る */
+  /* maxW に収まる範囲で、いちばん後ろの切れ目を探して 2 つに分ける。切れ目が無ければ字の途中で折る */
   function breakAt(ctx, text, f, maxW) {
     ctx.font = f;
     let cut = text.length;
@@ -2143,33 +2150,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     return [text.slice(0, cut).replace(/\s+$/, ""), text.slice(cut).replace(/^\s+/, "")];
   }
-  /* 2 段に分ける（フォント・フォント・1 段目・2 段目・アーティスト）。**曲名がどれだけ長くてもアーティストは残す** */
-  function wrapLine(ctx, title, artist, fontS, maxW) {
-    const fs = Math.max(12, Math.round(fontS * 0.85)), ft = fontBold(fs), fa = fontRegular(fs);
-    let a = artist ? `  ${artist}` : "";
+  /* 曲名を 2 行に分ける。「(feat. …)」の手前で折れるならそこで折る */
+  function splitTitle(ctx, title, f, maxW) {
     const [head, feat] = splitFeat(title);
-    let first, rest;
-    ctx.font = ft;
-    if (feat && ctx.measureText(head).width <= maxW) { first = head; rest = feat; }
-    else [first, rest] = breakAt(ctx, title, ft, maxW);
-    ctx.font = fa;
-    let aw = ctx.measureText(a).width;
-    if (aw > maxW * 0.5) { a = ellipsizeText(ctx, a, maxW * 0.5); aw = ctx.measureText(a).width; }
-    ctx.font = ft;
-    return [ft, fa, first, ellipsizeText(ctx, rest, maxW - aw), a];
-  }
-  function longestLine(fontS) {
-    const ctx = probe;
-    ctx.font = `700 ${Math.round(fontS * 0.8)}px "Silkscreen", monospace`;
-    const nw = ctx.measureText("00").width + Math.round(fontS * 0.8);
-    let best = 0;
-    for (const t of state.cells) {
-      if (!t) continue;
-      ctx.font = `700 ${fontS}px "IBM Plex Sans JP", sans-serif`; const tw = ctx.measureText(t.title).width;
-      ctx.font = `400 ${fontS}px "IBM Plex Sans JP", sans-serif`; const aw = ctx.measureText(`  ${t.artist}`).width;
-      best = Math.max(best, nw + tw + aw);
-    }
-    return Math.ceil(best) + 8;
+    ctx.font = f;
+    if (feat && ctx.measureText(head).width <= maxW) return [head, feat];
+    return breakAt(ctx, title, f, maxW);
   }
   /* 内容に四辺 pad の余白を足し、比率が指定なら短い方の辺を伸ばして合わせる */
   function fit(contentW, contentH, pad, ratio) {
@@ -2194,38 +2180,32 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）。グリッドの上に置くと内容が縦長になり、
     // 横長の比率（16:9）で左右の余白ばかり広がるため
     const titleTopH = side === "right" ? 0 : titleH;
-    let lineH = side === "right"
-      ? Math.max(30, Math.min(96, Math.floor((gh - titleH) / n)))
-      : Math.round(Math.max(52, Math.min(108, gw * 0.05)));
-    let fontS = Math.round(lineH * 0.56);
+    // 1 曲は「曲名の行 + アーティストの行」の 2 行。まずその前提で行の高さを見積もる
+    const baseRows = state.cells.reduce((a, t) => a + (t && oneLine(t.artist) ? 2 : 1), 0);
+    const availH = gh - titleH;
     let sbW = 0, sbH = 0, sbCols = 1;
     const sbGap = side === "none" ? 0 : GAP_PX * 4;
-    if (side === "right") {
-      // **比率が決まっているときは、横に余る幅を先にサイドバーへ回す**。高さはグリッドで決まるので、
-      // 全体の幅は比率から決まってしまい、サイドバーを狭くしたぶんは余白になって捨てられるだけ。
-      // 広げておけば長い曲名が「…」で切れず、文字を小さくする必要もない（流し込みでは前からこうしている）
-      let cap = gw;
-      if (ratio !== null) {
-        const wEst = Math.round((titleTopH + gh + m * 2) * ratio);
-        cap = Math.max(gw, Math.min(gw * 2, wEst - m * 2 - gw - sbGap));
-      }
-      sbW = Math.max(720, Math.min(cap, Math.max(longestLine(fontS), titleWidth(title, titleSize)))); sbH = gh;
+    let cap = gw;
+    if (side === "right" && ratio !== null) {
+      // **比率が決まっているときは、横に余る幅を先にサイドバーへ回す**。グリッド幅で下駄を履かせない
+      // （比率から決まる幅を超えると、その分だけ余白が広がるか、はみ出して描かれる）
+      const wEst = Math.round((titleTopH + gh + m * 2) * ratio);
+      cap = Math.max(LIST_MIN_COL, Math.min(gw * 2, wEst - m * 2 - gw - sbGap));
     }
-    // 列数: 9:16 は 12 曲まで 1 列。1:1 / 4:5 は縦に伸びると横の余りが増えるので 6 曲以上で 2 列
-    if (side === "bottom") { sbCols = n > 12 || (ratio >= 0.8 && n >= 6) ? 2 : 1; sbW = gw; sbH = Math.ceil(n / sbCols) * lineH; }
-    // 1 行に収まらない曲は 2 段にする。段が増えるぶん行の高さを取り直す（右は全体の高さが決まっているので
-    // 全曲の行間と文字が少し小さくなる。下に置くときは下へ伸びる）。
-    // **割り付けは 1 度しか計算しない**（小さくした字で計算し直すと、入る・入らないを行き来するため）
-    let sbPlan = [];
-    if (side !== "none") {
-      const colW0 = side === "right" ? sbW : Math.floor((sbW - GAP_PX * 2 * (sbCols - 1)) / sbCols);
-      sbPlan = rowPlan(fontS, colW0);
-      const totalRows = sbPlan.reduce((a, b) => a + b, 0);
-      if (totalRows > n) {
-        if (side === "right") { lineH = Math.max(30, Math.min(96, Math.floor((gh - titleH) / totalRows))); fontS = Math.round(lineH * 0.56); }
-        else sbH = planRows(sbPlan, sbCols) * lineH;
-      }
-    }
+    /* 列数を決めたときの [行の高さ, 文字の大きさ, サイドバーの幅] */
+    const sidebar = (cols, rowsTotal) => {
+      const lh = side === "right"
+        ? Math.max(30, Math.min(96, Math.floor(availH / Math.max(1, Math.ceil(rowsTotal / cols)))))
+        : Math.round(Math.max(52, Math.min(108, gw * 0.05)));
+      const fs = Math.round(lh * 0.56);
+      if (side !== "right") return [lh, fs, gw];
+      // **幅は文字を測って決めない**（PIL と Canvas の数 px の差が、中央寄せのグリッドのずれになる）。
+      // 比率があるときは比率から決まる残り幅、無いときはグリッドと同じ幅
+      return [lh, fs, Math.max(cap, cols === 1 ? titleWidth(title, titleSize) : 0)];
+    };
+    let [lineH, fontS, sbWv] = sidebar(1, baseRows);
+    sbW = sbWv;
+    sbH = side === "right" ? gh : Math.ceil(baseRows / sbCols) * lineH;
     const frame = (sbw, sbh) => {
       const cw = side === "right" ? gw + sbGap + sbw : gw;
       const ch = titleTopH + gh + (side === "bottom" ? sbGap + sbh : 0);
@@ -2238,8 +2218,36 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       return [w, h, Math.min(1, maxSide / Math.max(w, h))];
     };
     let [W, H, scale] = frame(sbW, sbH);
-    // 1 曲 1 行だと、曲が多いときに出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える。
-    // マスの数ではなく「出力で何 px になるか」で決める（比率・余白・タイトルの有無でも変わるため）
+    // **文字が小さくなるなら、まず列を増やす**。1 列のまま縦に詰めるより、列を割って 1 列あたりの
+    // 行数を減らしたほうが行間も文字も大きく取れる（25 曲で 2 列）。
+    // 判断は論理 px ではなく**出力で何 px になるか**で行う
+    if (side === "right") {
+      while (sbCols < LIST_MAX_COLS && fontS * scale < LIST_COMFY_FONT) {
+        const [lh, fs, w] = sidebar(sbCols + 1, baseRows);
+        if (Math.floor((w - LIST_COL_GAP * sbCols) / (sbCols + 1)) < LIST_MIN_COL) break;
+        const scale2 = frame(w, sbH)[2];
+        if (fs * scale2 <= fontS * scale) break;   // 増やしても大きくならないならやめる
+        sbCols += 1; lineH = lh; fontS = fs; sbW = w;
+        [W, H, scale] = frame(sbW, sbH);
+      }
+    }
+    // 曲名が 1 行に入らなければ 2 行に折るので、その曲だけ行が増える。増えたぶん高さを取り直す。
+    // **割り付けは 1 度しか計算しない**（小さくした字で計算し直すと、折る・折らないを行き来するため）
+    let sbPlan = [];
+    if (side !== "none") {
+      const colW0 = Math.floor((sbW - LIST_COL_GAP * (sbCols - 1)) / sbCols);
+      sbPlan = rowPlan(fontS, colW0);
+      const rowsPerCol = planRows(sbPlan, sbCols);
+      if (sbPlan.reduce((a, b) => a + b, 0) > baseRows) {
+        if (side === "right") { lineH = Math.max(30, Math.min(96, Math.floor(availH / Math.max(1, rowsPerCol)))); fontS = Math.round(lineH * 0.56); }
+        else sbH = rowsPerCol * lineH;
+        [W, H, scale] = frame(sbW, sbH);
+      } else if (side === "bottom") {
+        sbH = rowsPerCol * lineH;
+        [W, H, scale] = frame(sbW, sbH);
+      }
+    }
+    // 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     const sbFlow = side !== "none" && fontS * scale < FLOW_MIN_FONT;
     if (sbFlow) {
       if (side === "right" && ratio !== null) {
@@ -2431,22 +2439,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return text.slice(0, lo) + "…";
   }
   const fontBold = (px) => `700 ${px}px "IBM Plex Sans JP"`, fontRegular = (px) => `400 ${px}px "IBM Plex Sans JP"`, fontPixel = (px) => `700 ${px}px "Silkscreen"`;
-  function fitLine(ctx, title, artist, fontS, maxW) {
-    for (const k of [1.0, 0.92, 0.85, 0.78, 0.72, 0.65]) {
-      const fs = Math.max(12, Math.round(fontS * k)), ft = fontBold(fs), fa = fontRegular(fs), a = artist ? `  ${artist}` : "";
-      ctx.font = ft; const tw = ctx.measureText(title).width; ctx.font = fa; const aw = ctx.measureText(a).width;
-      if (tw + aw <= maxW) return [ft, fa, title, a];
-    }
-    // 縮めても入らないとき。**アーティスト名は捨てない**（誰の曲か分からなくなるため）。
-    // アーティストに渡すのは行の半分まで。残りで曲名を「…」で切る
-    const fs = Math.max(12, Math.round(fontS * 0.65)), ft = fontBold(fs), fa = fontRegular(fs);
-    let a = artist ? `  ${artist}` : "";
-    ctx.font = fa;
-    if (a) a = ellipsizeText(ctx, a, maxW * 0.5);
-    const aw = ctx.measureText(a).width;
-    ctx.font = ft;
-    return [ft, fa, ellipsizeText(ctx, title, maxW - aw), a];
-  }
   /* 出力の最大辺。既定 2400（X のタイムライン表示は最大 約1200px 幅なので十分。保存容量は 3200 の約 0.56 倍）。
      メモリの少ない端末は 2000。Safari は deviceMemory を出さないので 2400 */
   function shareMaxSide() {
@@ -2557,7 +2549,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (L.side !== "none") {
       const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox;
       let sy = L.side === "right" ? y0 : y0 + L.gh + L.sbGap;
-      const colW = L.side === "right" ? L.sbW : Math.floor((L.sbW - GAP_PX * 2 * (L.sbCols - 1)) / L.sbCols);
+      // 列の幅。**右に置くときも列に割る**（列を増やしたのに全幅で描くと、2 列目が枠の外へ出る）
+      const colW = Math.floor((L.sbW - LIST_COL_GAP * (L.sbCols - 1)) / L.sbCols);
       if (L.title && L.side === "right") {
         ctx.font = titleFont; ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
         // 字面の上端がグリッドの上端とそろうよう、行の中心でなく上寄せ（中心を上から 0.55 文字分）に置く
@@ -2591,36 +2584,51 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         return { canvas, bg };
       }
       const plan = (L.sbPlan && L.sbPlan.length) ? L.sbPlan : state.cells.map(() => 1);
-      // 段の割り付け（列・その列の中での段番号）。**1 曲が列をまたがないように**詰める
-      const rowsPerCol = L.side === "right" ? plan.reduce((a, b) => a + b, 0) : planRows(plan, L.sbCols);
+      // 行の割り付け（列・その列の中での行番号）。**1 曲が列をまたがないように**詰める
+      const rowsPerCol = planRows(plan, L.sbCols);
       const places = []; let pcol = 0, pused = 0;
       for (const r of plan) {
         if (pused && pused + r > rowsPerCol && L.sbCols > 1) { pcol++; pused = 0; }
         places.push([pcol, pused]); pused += r;
       }
       const fontS = Math.max(8, sc(L.fontS)), numFont = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
+      const titleFont2 = fontBold(fontS), artistFont = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
+      const rowY = (r) => sc(sy + r * L.lineH + L.lineH / 2);
       for (let i = 0; i < n; i++) {
         const t = state.cells[i], [col, row] = places[i];
-        const x = sc(sx + col * (colW + GAP_PX * 2)), yy = sc(sy + row * L.lineH + L.lineH / 2);
+        const x = sc(sx + col * (colW + LIST_COL_GAP)), yy = rowY(row);
         const num = String(i + 1).padStart(2, "0");
         ctx.font = numFont; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(muted);
-        const m = ctx.measureText(num), top = -m.actualBoundingBoxAscent, bottom = m.actualBoundingBoxDescent;   // 字面の中心を行の中心に
+        const mm = ctx.measureText(num), top = -mm.actualBoundingBoxAscent, bottom = mm.actualBoundingBoxDescent;   // 字面の中心を行の中心に
         ctx.fillText(num, x, Math.round(yy - (top + bottom) / 2));
-        const nw = m.width + sc(L.fontS * 0.8);
+        const nw = mm.width + sc(L.fontS * 0.8);
         if (!t) continue;
         const maxW = colW * S - nw;
-        if (plan[i] >= 2) {
-          // 2 段。1 段目は曲名の前半、2 段目は残りとアーティスト名
-          const [ft, fa, l1, l2, artistS] = wrapLine(ctx, oneLine(t.title), oneLine(t.artist), fontS, maxW);
-          const y2 = sc(sy + (row + 1) * L.lineH + L.lineH / 2);
-          ctx.textBaseline = "middle"; ctx.font = ft; ctx.fillStyle = cssRgb(ink);
-          ctx.fillText(l1, x + nw, yy); ctx.fillText(l2, x + nw, y2);
-          if (artistS) { const tw = ctx.measureText(l2).width; ctx.font = fa; ctx.fillStyle = cssRgb(muted); ctx.fillText(artistS, x + nw + tw, y2); }
-          continue;
+        const title = oneLine(t.title), artist = oneLine(t.artist);
+        let titleRows = plan[i] - (artist ? 1 : 0);
+        ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
+        if (titleRows >= 2) {
+          let [l1, l2] = splitTitle(ctx, title, titleFont2, maxW);
+          if (!l2) { titleRows = 1; ctx.font = titleFont2; l1 = ellipsizeText(ctx, title, maxW); }   // 実際は 1 行で収まった
+          ctx.font = titleFont2; ctx.fillText(l1, x + nw, yy);
+          if (l2) {
+            // 2 行目（たいていは「(feat. …)」）は、はみ出しがわずかなら**縮めて収める**
+            let f2 = titleFont2;
+            for (const k of [0.92, 0.86, 0.8]) {
+              ctx.font = f2;
+              if (ctx.measureText(l2).width <= maxW) break;
+              f2 = fontBold(Math.max(8, Math.round(fontS * k)));
+            }
+            ctx.font = f2; ctx.fillText(ellipsizeText(ctx, l2, maxW), x + nw, rowY(row + 1));
+          }
+        } else {
+          ctx.font = titleFont2; ctx.fillText(ellipsizeText(ctx, title, maxW), x + nw, yy);
         }
-        const [ft, fa, titleS, artistS] = fitLine(ctx, oneLine(t.title), oneLine(t.artist), fontS, maxW);
-        ctx.textBaseline = "middle"; ctx.font = ft; ctx.fillStyle = cssRgb(ink); ctx.fillText(titleS, x + nw, yy);
-        if (artistS) { const tw = ctx.measureText(titleS).width; ctx.font = fa; ctx.fillStyle = cssRgb(muted); ctx.fillText(artistS, x + nw + tw, yy); }
+        if (artist) {
+          // アーティスト名は曲名のすぐ下に寄せる（行の中心のままだと均等に散らばって読み取りにくい）
+          ctx.font = artistFont; ctx.fillStyle = cssRgb(muted);
+          ctx.fillText(ellipsizeText(ctx, artist, maxW), x + nw, rowY(row + titleRows) - sc(L.lineH * 0.14));
+        }
       }
     }
     return { canvas, bg };
