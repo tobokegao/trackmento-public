@@ -99,7 +99,7 @@ export const SHOTS: Shot[] = [
   // 出力の設定は画面の外にあるので、スクロールして見せる
   { beat: bar(6) + 2, len: 4, ev: "look:options", off: -0.4, rec: "feat", speed: 0.9, jp: "出力の設定もここに", en: "Output settings too", zoomPc: { x: 1, y: 0.5, s: 1.4 } },
   // ⑤ さらにダサくなった見た目（1 小節 2 拍）。ウィンドウバーとスクロールバーを見せる
-  { beat: bar(7) + 2, len: 6, ev: "look:scroll", off: -0.6, rec: "feat", speed: 1.2, ab: "v1-look", jp: "見た目はもっとダサく", en: "Now even uglier" },
+  { beat: bar(7) + 2, len: 6, ev: "look:scroll", off: -0.6, rec: "feat", speed: 1.2, ab: "v1-look", jp: "見た目はもっとダサく", en: "Now even uglier", zoom: { x: 0.5, y: 0.78, s: 1.2 }, zoomPc: { x: 0.3, y: 0.5, s: 1.35 } },
   // 9 小節目: カウントダウン（映像はトップ画面のまま）
   { beat: bar(9), len: 4, ev: "start", off: 0.0, still: true, jp: "", en: "" },
   // 10〜14 小節目: 入れ方

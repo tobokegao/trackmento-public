@@ -27,7 +27,8 @@ fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
 // 画面の実ピクセルで録るため DPR を 2 に固定（Playwright の deviceScaleFactor だと 540×960 で録られて余白が灰色になる）
-const browser = await chromium.launch({ args: [PC ? "--force-device-scale-factor=1.5" : "--force-device-scale-factor=2", "--hide-scrollbars"] });
+// feat は ⑤ でスクロールバーそのものを見せるので隠さない。本編は余計なものを映さないよう隠す
+const browser = await chromium.launch({ args: [PC ? "--force-device-scale-factor=1.5" : "--force-device-scale-factor=2", ...(FEAT ? [] : ["--hide-scrollbars"])] });
 const ctx = await browser.newContext(PC ? {
   viewport: { width: 1280, height: 720 }, locale: EN ? "en-US" : "ja-JP", bypassCSP: true,
   recordVideo: { dir: OUT, size: { width: 1920, height: 1080 } },

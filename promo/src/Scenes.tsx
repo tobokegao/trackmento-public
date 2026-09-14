@@ -199,18 +199,20 @@ const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }>
   );
 };
 
-/** ⑤ 見た目の見くらべ。前半 2 拍が v1 の画、後半が今の録画 */
-const BeforeAfter: React.FC<{ L: Layout; file: string; children: React.ReactNode }> = ({ L, file, children }) => {
+/** ⑤ 見た目の見くらべ。前半 2 拍が v1 の画、後半が今の録画（スクロールバーはこちらで動く） */
+const BeforeAfter: React.FC<{ L: Layout; file: string; zoom?: Shot["zoom"]; children: React.ReactNode }> = ({ L, file, zoom, children }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const switchAt = (beatFrame(2) - beatFrame(0));   // 2 拍で切り替える
+  const switchAt = beatFrame(2) - beatFrame(0);   // 2 拍で切り替える
   const before = frame < switchAt;
   const s = spring({ frame: frame - (before ? 0 : switchAt), fps, config: { damping: 13, stiffness: 220 } });
   const tall = L.kind === "tall";
   return (
     <>
       {before
-        ? <Img src={staticFile(`${file}${tall ? "" : "-pc"}.png`)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ? <div style={{ width: "100%", height: "100%", transform: `scale(${zoom ? zoom.s : 1.03})`, transformOrigin: zoom ? `${zoom.x * 100}% ${zoom.y * 100}%` : "50% 50%" }}>
+            <Img src={staticFile(`${file}${tall ? "" : "-pc"}.png`)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
         : children}
       <div style={{ position: "absolute", left: tall ? 24 : 28, bottom: tall ? 24 : 28,
         background: before ? C.muted : C.vermilion, color: C.paper, fontFamily: "Silk", fontWeight: 700,
@@ -380,11 +382,11 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
                 <Caption L={L} jp={s.jp} en={s.en} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>
                 <Phone L={L} fx={s.fx}>
                   {s.ab ? (
-                    <BeforeAfter L={L} file={s.ab}>
+                    <BeforeAfter L={L} file={s.ab} zoom={L.kind === "wide" ? s.zoomPc : s.zoom}>
                       <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
                     </BeforeAfter>
                   ) : (
-                  <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
+                    <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
                   )}
                   {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
                 </Phone>
