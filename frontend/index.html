@@ -577,10 +577,10 @@ body.sheet-open { overflow: hidden; }
 .grid[data-dense="true"] .cell .rm,
 .grid[data-dense="true"] .cell .cap { display: none; }
 /* 番号も同じ理由で隠す（31px のマスだと番号だけで 3 分の 1 を覆う）。
-   選んでいるマスと「入れる先」のマスにだけ出す。どのマスが何番かはマスに乗せれば分かる */
+   選んだマスにも出さない。番号は編集パネルの見出し（「01 選択中のマス」）とメッセージ欄に出るので
+   情報は失われないし、マスに乗せればツールチップでも分かる。
+   **小さくして出すのは駄目**。番号はピクセルフォントなので、10px まで落とすと字形が潰れて読めない */
 .grid[data-dense="true"] .cell .num { display: none; }
-.grid[data-dense="true"] .cell.is-selected .num,
-.grid[data-dense="true"] .cell.is-target .num { display: block; font-size: 10px; line-height: 1.4; padding: 0 3px; }
 
 .grid-actions { container-type: inline-size; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }   /* グリッドと同じ幅いっぱい（上限を付けると右に空きが残る） */
 .grid-actions .btn { padding-inline: var(--space-2); }
