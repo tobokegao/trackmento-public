@@ -547,7 +547,14 @@ def _font_head() -> str:
     hashed = sorted((FONTS / "split").glob("fonts.*.css")) if (FONTS / "split").is_dir() else []
     if hashed:
         # 断片を R2 から配るときは、src を書き換えた CSS を返す /fonts-css/ 経由にする
-        path = f"fonts-css/{hashed[-1].name}" if _fonts_r2_base() else f"fonts/split/{hashed[-1].name}"
+        base = _fonts_r2_base()
+        # **URL に R2 の公開ドメインの印を付ける**。CSS の中身（断片の URL）は R2 のドメインで変わるのに、
+        # ファイル名は断片の中身から作るので変わらない。1 年の immutable で配っているため、
+        # 印が無いとドメインを替えたあとも古い CSS を使い続け、**CSP で新ドメイン以外は弾かれて
+        # フォントが 1 つも読めなくなる**（2026-09-14 に本番で実際に起きた。日本語がシステムフォントになり、
+        # 共有画像もブラウザで作れずサーバー描画に落ちていた）
+        tag = hashlib.sha1(base.encode()).hexdigest()[:8] if base else ""
+        path = f"fonts-css/{hashed[-1].name}?o={tag}" if base else f"fonts/split/{hashed[-1].name}"
         return f'<link rel="stylesheet" href="{path}">'
     print("[fonts] fonts/split/fonts.<hash>.css が無いのでフル版のフォントを配ります（python scripts/build_fonts.py で生成）")
     return f"<style>{_FONT_CSS_FALLBACK}</style>"
