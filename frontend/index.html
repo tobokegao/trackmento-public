@@ -635,10 +635,10 @@ body.sheet-open { overflow: hidden; }
 .pal-lane[data-active="true"] { border-color: var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); }
 .pal-lane .pal-name { flex: 1 1 auto; min-width: 5em; font-size: var(--text-sm); }
 .pal-lane .pal-chips { display: flex; gap: 2px; }
-.pal-lane .pal-chips span, .pal-lane .pal-chips input { width: 22px; height: 22px; border: var(--line) solid var(--color-ink); padding: 0; }
-.pal-lane .pal-chips input[type="color"] { appearance: none; -webkit-appearance: none; background: none; cursor: pointer; }
-.pal-lane .pal-chips input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-.pal-lane .pal-chips input[type="color"]::-webkit-color-swatch { border: 0; }
+.pal-lane .pal-chips span, .pal-lane .pal-chips button { width: 22px; height: 22px; border: var(--line) solid var(--color-ink); padding: 0; }
+/* 自作の組の色は押して直せる。編集中のものは黒い輪で示す */
+.pal-lane .pal-chips button { cursor: pointer; }
+.pal-lane .pal-chips button[aria-pressed="true"] { outline: 3px solid var(--color-ink); outline-offset: 2px; }
 .pal-lane .btn { padding: 2px var(--space-2); font-size: var(--text-sm); }
 .pal-actions { display: flex; gap: var(--space-2); }
 /* 6 色の受け渡し（コピー・貼り付け） */
@@ -934,6 +934,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <div class="modal-body note">
       <p>背景色に並ぶ 6 色と、画面の配色をまとめて切り替えます。</p>
       <div class="pal-lanes" id="pal-lanes"></div>
+      <div class="hsv" id="pal-hsv" hidden>
+        <label for="pal-hsv-h">色相 <output id="pal-hsv-h-out">0</output></label>
+        <input type="range" id="pal-hsv-h" min="0" max="360" step="1" value="0" style="--track: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
+        <label for="pal-hsv-s">彩度 <output id="pal-hsv-s-out">0</output></label>
+        <input type="range" id="pal-hsv-s" min="0" max="100" step="1" value="0">
+        <label for="pal-hsv-v">明度 <output id="pal-hsv-v-out">100</output></label>
+        <input type="range" id="pal-hsv-v" min="0" max="100" step="1" value="100">
+        <div class="hex" id="pal-hsv-hex">#ffffff</div>
+      </div>
       <div class="pal-actions">
         <button class="btn" type="button" id="pal-new">いまの色から作る</button>
       </div>
@@ -2175,6 +2184,33 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     renderSwatches(); renderPalLanes();
     void beforeColors;
   }
+  // 自作の組のどの色を直しているか
+  let editing = { id: null, i: -1 };
+  const palHsv = { box: $("#pal-hsv"), h: $("#pal-hsv-h"), s: $("#pal-hsv-s"), v: $("#pal-hsv-v"),
+                   ho: $("#pal-hsv-h-out"), so: $("#pal-hsv-s-out"), vo: $("#pal-hsv-v-out"), hex: $("#pal-hsv-hex") };
+  function startEditColor(id, i) {
+    const p = userPalettes.find(x => x.id === id);
+    if (!p) return;
+    editing = (editing.id === id && editing.i === i) ? { id: null, i: -1 } : { id, i };   // もう一度押したら閉じる
+    palHsv.box.hidden = editing.i < 0;
+    if (editing.i >= 0) syncPalHsv(p.hexes[i]);
+    renderPalLanes();
+  }
+  function syncPalHsv(hex) {
+    const [h, sat, v] = hexToHsv(hex);
+    palHsv.h.value = h; palHsv.s.value = sat; palHsv.v.value = v;
+    palHsv.ho.value = h; palHsv.so.value = sat; palHsv.vo.value = v; palHsv.hex.textContent = hex;
+    palHsv.s.style.setProperty("--track", `linear-gradient(to right, #fff, ${hsvToHex(h, 100, 100)})`);
+    palHsv.v.style.setProperty("--track", `linear-gradient(to right, #000, ${hsvToHex(h, sat, 100)})`);
+  }
+  for (const el of [palHsv.h, palHsv.s, palHsv.v]) el.addEventListener("input", () => {
+    const p = userPalettes.find(x => x.id === editing.id);
+    if (!p || editing.i < 0) return;
+    const hex = hsvToHex(Number(palHsv.h.value), Number(palHsv.s.value), Number(palHsv.v.value));
+    p.hexes[editing.i] = hex; savePalettes(); syncPalHsv(hex);
+    if (p.id === activePaletteId) { applyPalette(); renderSwatches(); }
+    renderPalLanes();
+  });
   function renderPalLanes() {
     palLanes.innerHTML = "";
     for (const p of allPalettes()) {
@@ -2186,13 +2222,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           const sp = document.createElement("span"); sp.style.background = col; sp.title = tr(KEY_LABEL[p.keys[i]] || "");
           chips.append(sp);
         } else {
-          // 自作の組は、その場で色を変えられる
-          const inp = document.createElement("input"); inp.type = "color"; inp.value = col; inp.setAttribute("aria-label", `${tr(p.name)} ${i + 1}`);
-          inp.addEventListener("input", () => {
-            p.hexes[i] = inp.value; savePalettes();
-            if (p.id === activePaletteId) { applyPalette(); renderSwatches(); }
-          });
-          chips.append(inp);
+          // 自作の組は、その色を押すと下のつまみで直せる（OS の色ダイアログは出さない。
+          // サイトのほかの場所と操作を合わせるため）
+          const btn = document.createElement("button"); btn.type = "button"; btn.style.background = col;
+          btn.setAttribute("aria-label", tr(p.name) + " " + (i + 1));
+          btn.setAttribute("aria-pressed", String(editing.id === p.id && editing.i === i));
+          btn.addEventListener("click", () => startEditColor(p.id, i));
+          chips.append(btn);
         }
       });
       const use = document.createElement("button"); use.type = "button"; use.className = "btn"; use.textContent = tr("使う");
@@ -2210,6 +2246,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const del = document.createElement("button"); del.type = "button"; del.className = "btn"; del.textContent = tr("消す");
         del.addEventListener("click", () => {
           userPalettes = userPalettes.filter(x => x.id !== p.id);
+          if (editing.id === p.id) { editing = { id: null, i: -1 }; palHsv.box.hidden = true; }
           if (activePaletteId === p.id) { activePaletteId = "riso"; applyPalette(); renderSwatches(); }
           savePalettes(); renderPalLanes();
         });

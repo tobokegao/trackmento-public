@@ -406,6 +406,9 @@ claude --remote-control TRACKMENTO                                             #
   - **読み込んだ並びの色は、今の組に入っていなくても受け付ける**（`ALL_BG_KEYS`）。別の組の色なら組ごと切り替える。
     ここを今の組だけで見ていたとき、`rose` の共有を開くと `paper` に戻って**サーバー描画と 93% ずれた**
   - 6 色は「コピー」で色コードとして書き出し、貼り付けて読み込める（区切りは何でもよい。6 つちょうど必要）
+  - 自作の組の色は、**その色を押すとオーバーレイの中に HSV のつまみが開く**（もう一度押すと閉じる）。
+    `input type="color"` は使わない。**OS の色ダイアログは画面を止めるので、動画の撮影でも都合が悪い**
+    （カスタムカラーのつまみと同じ部品・同じ操作にそろえてある）
   - 色の値は **`backend/render.py` の TOKENS・frontend の CSS 変数・TOKENS_RGB の 3 か所**にある。片方だけ変えない
 - UI デザインは Hallmark 方針（仕様書「UI デザイン方針」）。色・フォントは CSS 変数トークン経由、角丸なし
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
