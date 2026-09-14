@@ -141,7 +141,9 @@ const SiteBadges: React.FC<{ L: Layout; startBeat: number }> = ({ L, startBeat }
       {sites.map((name, i) => {
         const at = Math.round(step * i * fps);   // Sequence 内の相対フレーム
         const s = spring({ frame: frame - at, fps, config: { damping: 9, stiffness: 260 } });
-        return <span key={name} style={{ fontFamily: "Plex", fontWeight: 700, fontSize: L.kind === "tall" ? 23 : 26, color: C.ink, border: `3px solid ${C.ink}`, background: STRIPE[i % 6], padding: "2px 10px", display: "inline-block", transform: `scale(${s})`, opacity: s }}>{name}</span>;
+        // Apple Music だけはクリーム地に黒文字（本家の見た目に寄せる）
+        const bg = name === "Apple Music" ? C.paper : STRIPE[i % 6];
+        return <span key={name} style={{ fontFamily: "Plex", fontWeight: 700, fontSize: L.kind === "tall" ? 23 : 26, color: C.ink, border: `3px solid ${C.ink}`, background: bg, padding: "2px 10px", display: "inline-block", transform: `scale(${s})`, opacity: s }}>{name}</span>;
       })}
     </div>
   );
@@ -184,7 +186,7 @@ const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }>
 const BeforeAfter: React.FC<{ L: Layout; file: string; zoom?: Shot["zoom"]; children: React.ReactNode }> = ({ L, file, zoom, children }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const switchAt = beatFrame(2) - beatFrame(0);   // 2 拍で切り替える（見くらべは 1 小節ぶん）
+  const switchAt = beatFrame(BAR) - beatFrame(0);   // 1 小節で切り替える（BEFORE 4 拍 / NOW 4 拍）
   const before = frame < switchAt;
   const s = spring({ frame: frame - (before ? 0 : switchAt), fps, config: { damping: 13, stiffness: 220 } });
   const tall = L.kind === "tall";
@@ -195,25 +197,53 @@ const BeforeAfter: React.FC<{ L: Layout; file: string; zoom?: Shot["zoom"]; chil
             <Img src={staticFile(`${file}${tall ? "" : "-pc"}.png`)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
         : children}
-      <div style={{ position: "absolute", left: tall ? 24 : 28, bottom: tall ? 24 : 28,
-        background: before ? C.muted : C.vermilion, color: C.paper, fontFamily: "Silk", fontWeight: 700,
-        fontSize: tall ? 40 : 34, padding: "8px 20px", border: `4px solid ${C.ink}`,
-        transform: `translateY(${(1 - s) * 30}px) scale(${0.85 + s * 0.15})`, opacity: s }}>
-        {before ? "BEFORE" : "NOW"}
-      </div>
+
     </>
   );
 };
 
+/** ⑤ の見くらべで出す BEFORE / NOW の札。Phone は overflow: hidden なので枠の外に別に置く */
+const AbBadge: React.FC<{ L: Layout }> = ({ L }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const switchAt = beatFrame(BAR) - beatFrame(0);
+  const before = frame < switchAt;
+  const s = spring({ frame: frame - (before ? 0 : switchAt), fps, config: { damping: 13, stiffness: 220 } });
+  const tall = L.kind === "tall";
+  return (
+    // 字幕（日本語＋英語の 2 段）より下、録画の枠のすぐ上に置く。
+    // 字幕の裏に回しつつ、文字どうしが重ならない高さ
+    <div style={{ position: "absolute", left: L.phone.x, width: L.phone.w, top: L.phone.y - (tall ? 96 : 74),
+      display: "flex", justifyContent: "flex-end", pointerEvents: "none" }}>
+      <div style={{ background: before ? C.muted : C.vermilion, color: C.paper, fontFamily: "Silk", fontWeight: 700,
+        fontSize: tall ? 46 : 40, padding: "8px 26px", border: `4px solid ${C.ink}`,
+        transform: `translateY(${(1 - s) * 20}px) scale(${0.85 + s * 0.15})`, opacity: s }}>
+        {before ? "BEFORE" : "AFTER"}
+      </div>
+    </div>
+  );
+};
+
 /** 録画の一部を枠線で強調（拍で脈打つ） */
-const Highlight: React.FC<{ L: Layout; hl: NonNullable<Shot["hl"]> }> = ({ L, hl }) => {
+const Highlight: React.FC<{ L: Layout; hl: NonNullable<Shot["hl"]>; clipScale?: number }> = ({ L, hl, clipScale = 1.03 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const { pulse } = useBeatPulse(0.8);
   const s = spring({ frame, fps, config: { damping: 12, stiffness: 160 } });
   const pad = 6 + pulse * 6;
+  // 枠を対象の外へ広げるぶん（録画の実寸で 22px 相当）。縦横で見た目が同じになるよう別々に出す
+  const padX = 22 / L.phone.w, padY = 22 / L.phone.h;
+  // 中心を軸に clipScale 倍した位置に置き、**録画の枠からはみ出さないように止める**
+  // （そのままだと右端や下端が画面の外に出て、枠線が切れたり端の飾りと重なって見える）
+  const at = (v: number) => 0.5 + (v - 0.5) * clipScale;
+  const x0 = Math.max(0.008, at(hl.x - padX)), x1 = Math.min(0.992, at(hl.x + hl.w + padX));
+  const y0 = Math.max(0.008, at(hl.y - padY)), y1 = Math.min(0.992, at(hl.y + hl.h + padY));
   return (
-    <div style={{ position: "absolute", left: `${hl.x * 100}%`, top: `${hl.y * 100}%`, width: `${hl.w * 100}%`, height: `${hl.h * 100}%`, boxSizing: "border-box",
+    <div style={{ position: "absolute",
+      // 録画は Clip が中心を軸に clipScale 倍している。枠も同じだけ動かさないと対象からずれる。
+      // そのうえで対象の外側に少し余裕を持たせる（ぴったりだと窮屈に見える）
+      left: `${x0 * 100}%`, top: `${y0 * 100}%`,
+      width: `${(x1 - x0) * 100}%`, height: `${(y1 - y0) * 100}%`, boxSizing: "border-box",
       border: `8px solid ${C.vermilion}`, boxShadow: `0 0 0 ${pad}px ${C.vermilion}55`, transform: `scale(${0.9 + s * 0.1})`, opacity: s, pointerEvents: "none" }} />
   );
 };
@@ -234,7 +264,7 @@ const Clip: React.FC<{ kind: Kind; lang: Lang; session: "main" | "feat"; from: n
 // ---- タイムラプス（1 小節に 16 コマ） ----
 const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
   const times = timelapseTimes(L.kind, L.lang);
-  const total = beatFrame(TIMELAPSE_BEAT + BAR) - beatFrame(TIMELAPSE_BEAT);
+  const total = beatFrame(TIMELAPSE_BEAT + BAR * 2) - beatFrame(TIMELAPSE_BEAT);   // 2 小節ぶん
   const per = total / TIMELAPSE_STEPS;
   return (
     <>
@@ -282,7 +312,7 @@ const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
   );
 };
 
-// ---- エンドカード（あなたの 9 曲は？ 2 小節 → URL 1 小節 → 無料 1 小節） ----
+// ---- エンドカード（あなたは何曲オススメを？ 2 小節 → URL 1 小節 → 無料 1 小節） ----
 const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -299,7 +329,7 @@ const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
         <div style={{ transform: `scale(${s * (1 + pulse * 0.03)})` }}><Wordmark size={L.mark} /></div>
         <div style={{ marginTop: 24 }}><Stripe h={18} width={tall ? 1000 : 1400} /></div>
         <div style={{ marginTop: tall ? 80 : 56, display: "flex", flexDirection: tall ? "column" : "row", gap: tall ? 12 : 40, alignItems: tall ? "center" : "baseline", opacity: s2, transform: `translateY(${(1 - s2) * 30}px)` }}>
-          {L.lang === "ja" && <div style={{ fontFamily: "Plex", fontWeight: 700, fontSize: tall ? 54 : 56, color: C.ink }}>あなたの 9 曲は？</div>}
+          {L.lang === "ja" && <div style={{ fontFamily: "Plex", fontWeight: 700, fontSize: tall ? 54 : 56, color: C.ink }}>あなたは何曲オススメを？</div>}
           <div style={{ fontFamily: "Dot", fontSize: L.lang === "ja" ? (tall ? 38 : 40) : (tall ? 50 : 52), color: L.lang === "ja" ? C.muted : C.ink }}>What are your nine?</div>
         </div>
         <div style={{ marginTop: tall ? 90 : 60, background: C.ink, color: C.paper, fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 44 : 48, padding: "18px 40px", letterSpacing: "0.04em", opacity: sUrl, transform: `scale(${0.8 + sUrl * 0.2})` }}>trackmento.onrender.com</div>
@@ -309,40 +339,54 @@ const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
   );
 };
 
-// ---- ⑥ 転送量削減（1 小節。録画ではなく数字を出す） ----
+// ---- ⑥「動作が軽くなりました」（2 小節。録画ではなく数字を出す） ----
+// 1 小節目: 画面いっぱいの見出しを 2 拍で中央まで縮め、残り 2 拍で見出しが上がりつつ 4 行が出る
+// 2 小節目: 「画質はそのまま」を 8 分音符で点滅させ続ける
 const Bandwidth: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const beatLen = beatFrame(1) - beatFrame(0);
   const tall = L.kind === "tall";
-  const s = spring({ frame, fps, config: { damping: 13, stiffness: 140 } });
+  const ja = L.lang === "ja";
+
+  const shrink = interpolate(frame, [0, Math.round(beatLen * 1.1)], [3, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.exp) });
+  const rise = spring({ frame: frame - beatLen * 2, fps, config: { damping: 14, stiffness: 110 } });
+  const eighth = beatLen / 2;
+  const blinkFrom = beatLen * 4 + eighth;                          // 2 小節目の裏拍から
+  const blinkOn = frame >= blinkFrom && Math.floor((frame - blinkFrom) / eighth) % 2 === 0;
+
   return (
     <Paper>
       <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
-      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: tall ? "0 70px" : "0 220px" }}>
-        <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 52 : 54, padding: "10px 28px", transform: `translateY(${(1 - s) * -24}px)`, opacity: s }}>
-          {L.lang === "ja" ? "重たくなくなりました" : "And it got lighter"}
+      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: tall ? "0 60px" : "0 200px" }}>
+        <div style={{ background: C.ink, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700,
+          fontSize: tall ? 58 : 60, padding: "12px 30px", whiteSpace: "nowrap",
+          transform: `translateY(${-rise * (tall ? 300 : 190)}px) scale(${shrink})` }}>
+          {ja ? "動作が軽くなりました" : "And it got lighter"}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: tall ? 18 : 14, marginTop: tall ? 54 : 40, width: "100%" }}>
+        <div style={{ position: "absolute", left: tall ? 60 : 200, right: tall ? 60 : 200, top: "46%",
+          display: "flex", flexDirection: "column", gap: tall ? 18 : 14, opacity: rise }}>
           {BANDWIDTH_ROWS.map((r, i) => {
-            // 1 行ずつ拍に乗せて出す
-            const k = spring({ frame: frame - Math.round(beatLen * (i * 0.25 + 0.25)), fps, config: { damping: 12, stiffness: 220 } });
+            const k = spring({ frame: frame - beatLen * 2 - Math.round(eighth * i), fps, config: { damping: 12, stiffness: 220 } });
             return (
               <div key={r.jp} style={{ display: "flex", alignItems: "baseline", gap: tall ? 16 : 24, transform: `translateX(${(1 - k) * -30}px)`, opacity: k }}>
-                <div style={{ fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 34 : 36, color: C.ink, flex: 1 }}>{L.lang === "ja" ? r.jp : r.en}</div>
+                <div style={{ fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 34 : 36, color: C.ink, flex: 1 }}>{ja ? r.jp : r.en}</div>
                 <div style={{ fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 30 : 32, color: C.muted, textDecoration: "line-through" }}>{r.from}</div>
-                <div style={{ fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 34 : 36, color: C.paper, background: STRIPE[i % 6], padding: "2px 12px", border: `3px solid ${C.ink}` }}>{r.to}</div>
+                <div style={{ fontFamily: ja ? "Plex" : "Silk", fontWeight: 700, fontSize: tall ? 32 : 34, color: C.paper, background: STRIPE[i % 6], padding: "2px 12px", border: `3px solid ${C.ink}` }}>{r.to}</div>
               </div>
             );
           })}
         </div>
-        <div style={{ fontFamily: "Dot", fontSize: tall ? 30 : 32, color: C.muted, marginTop: tall ? 46 : 34, opacity: spring({ frame: frame - beatLen * 2, fps, config: { damping: 12, stiffness: 160 } }) }}>
-          {L.lang === "ja" ? "画質はそのまま" : "Same image quality"}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: tall ? 150 : 90, textAlign: "center",
+          fontFamily: "Dot", fontSize: tall ? 38 : 40, color: C.muted, letterSpacing: "0.04em",
+          opacity: blinkOn ? 1 : 0 }}>
+          {ja ? "画質はそのまま" : "Same image quality"}
         </div>
       </AbsoluteFill>
     </Paper>
   );
 };
+
 
 // ---- 本体 ----
 export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, lang = "ja" }) => {
@@ -350,7 +394,9 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
   const flowEnd = beatFrame(TIMELAPSE_BEAT);
   return (
     <AbsoluteFill style={{ background: C.paper }}>
-      <Audio src={staticFile("sherbet.mp3")} volume={(f) => interpolate(f, [beatFrame(FADE_FROM), beatFrame(LAST_BEAT) + 6], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
+      {/* 音源そのものが大きく、そのまま入れると割れる（とくに頭）。全体を下げてから、
+          エンドカードの頭でフェードアウトする */}
+      <Audio src={staticFile("sherbet.mp3")} volume={(f) => 0.55 * interpolate(f, [beatFrame(FADE_FROM), beatFrame(LAST_BEAT)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
       <Sequence from={0} durationInFrames={beatFrame(INTRO_END)} name="Intro"><Paper><Intro L={L} /></Paper></Sequence>
 
       <Sequence from={beatFrame(INTRO_END)} durationInFrames={flowEnd - beatFrame(INTRO_END)} name="Walkthrough">
@@ -360,6 +406,8 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
             const next = SHOTS[i + 1]?.beat ?? TIMELAPSE_BEAT;
             return (
               <Sequence key={s.beat} from={beatFrame(s.beat) - beatFrame(INTRO_END)} durationInFrames={beatFrame(next) - beatFrame(s.beat)} name={s.jp || "countdown"}>
+                {/* 札はタイトルの裏に回す（先に描くと字幕が上に来る） */}
+                {s.ab && <AbBadge L={L} />}
                 <Caption L={L} jp={s.jp} en={s.en} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>
                 <Phone L={L} fx={s.fx}>
                   {s.ab ? (
@@ -378,7 +426,7 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
         </Paper>
       </Sequence>
 
-      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(BANDWIDTH_BEAT + BAR) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth"><Bandwidth L={L} /></Sequence>
+      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(BANDWIDTH_BEAT + BAR * 2) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth"><Bandwidth L={L} /></Sequence>
 
       <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
         <Paper><div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div><Timelapse L={L} /></Paper>

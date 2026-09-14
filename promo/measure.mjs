@@ -22,12 +22,20 @@ await page.waitForTimeout(1200);
 const targets = {
   "上にタイトル": "#title",
   "真ん中に 3×3 のマス": "#grid",
+  "マスの外枠（grid-scroll）": ".grid-scroll",
   "下に共有と検索のボタン": ".grid-actions",
   "出力オプション": ".pane-options",
 };
 const out = {};
 for (const [label, sel] of Object.entries(targets)) {
   const loc = page.locator(sel).first();
+  // 出力オプションは画面の外にあるので、録画と同じくスクロールして見える位置で測る
+  if (sel === ".pane-options") {
+    const fold = page.locator(".pane-options .fold");
+    if ((await fold.getAttribute("aria-expanded")) !== "true") { await fold.click(); await page.waitForTimeout(600); }
+    await loc.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+  }
   const box = await loc.boundingBox().catch(() => null);
   if (!box) { out[label] = "見つからない（画面の外か、畳まれている）"; continue; }
   const r = (v) => Math.round(v * 1000) / 1000;

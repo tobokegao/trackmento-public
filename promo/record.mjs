@@ -199,7 +199,12 @@ async function featScene() {
   await wait(600);
   if (!PC) { await tap("#sheet-close", "look:close"); await wait(400); }
 
-  // 出力オプションは画面の下のほうにあるので、スクロールして全体を見せる
+  // 出力オプションは畳まれていることがあるので、開いてから見せる（畳んだまま撮ると中身が映らない）
+  {
+    const fold = page.locator(".pane-options .fold");
+    if ((await fold.getAttribute("aria-expanded")) !== "true") { await tap(fold, "open-options-look"); await wait(700); }
+  }
+  // 画面の下のほうにあるので、スクロールして全体を見せる
   await page.locator(".pane-options").scrollIntoViewIfNeeded();
   await wait(700);
   await mark("look:options");
@@ -232,6 +237,15 @@ async function featScene() {
   await setUrl(REVIVE);
   await tap("#bc-btn", "revive:paste");
   await pickFirstResult("revive", "otodb");
+  // マスに入ったジャケットが出るまで待つ。待たずに印を付けると、動画では白いマスのまま映る
+  await page.waitForFunction(() => {
+    const img = document.querySelector("#grid .cell img");
+    return img && img.complete && img.naturalWidth > 0;
+  }, null, { timeout: 30000 }).catch(() => console.log("   （復活したジャケットが出そろわなかった）"));
+  await wait(1200);
+  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "revive-close"); await wait(500); }
+  await page.locator(".pane-grid").scrollIntoViewIfNeeded();
+  await wait(1800);
   await mark("revive:done");
   await wait(1500);
 
@@ -269,14 +283,23 @@ async function featScene() {
   await wait(1400); await mark("pl:overlay");
   await tap("#pl-to-grid", "pl:fill");
   await page.waitForSelector("#pl-modal[hidden]", { state: "attached" });
-  await wait(2500); await mark("pl:filled");
+  await wait(2000);
+  // グリッドの全体が入るよう頭まで戻す（入れた直後は下のほうを映していてマスが見切れる）
+  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "pl-close"); await wait(500); }
+  await page.locator(".pane-grid").scrollIntoViewIfNeeded();
+  await wait(1600); await mark("pl:filled");
   await wait(1200);
 
   // ④ 日本語 / 英語の切り替え
   // プレイリストを入れたあとはシートが開いたままなので、閉じてからでないと下敷きに阻まれる
   if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "sheet-close"); await wait(600); }
+  // 押す前にボタンが画面に入った状態でしばらく静止させる（動画はここから 3 拍目で押す作りなので、
+  // 押す瞬間まで「ボタンが見えている」必要がある）
+  await page.evaluate(() => window.scrollTo({ top: 0 }));
+  await page.locator("#lang-switch").scrollIntoViewIfNeeded();
+  await wait(2200);
   await tap("#lang-switch", EN ? "lang:ja" : "lang:en");
-  await wait(1600); await mark("lang:switched");
+  await wait(3000); await mark("lang:switched");   // 切り替わった画面を長めに映す
   await tap("#lang-switch", EN ? "lang:en-back" : "lang:ja-back");
   await wait(1200);
   await mark("end");

@@ -19,7 +19,7 @@ FF="$PWD/node_modules/@remotion/compositor-win32-x64-msvc/ffmpeg.exe"
 # ずれていると Remotion が「frame range が durationInFrames の外」と言って止まる
 TOTAL="${4:-$(node -e '
 const b = require("./src/beats.json").beats;
-const FPS = 30, LAST = 156;                       // LAST_BEAT = bar(40) = 拍 156
+const FPS = 30, LAST = 180;                       // LAST_BEAT = bar(46) = 拍 180
 const t = LAST < b.length ? b[LAST] : b[b.length-1] + (b[b.length-1]-b[b.length-2])*(LAST-b.length+1);
 console.log(Math.round(t*FPS) + 12);
 ')}"
@@ -51,8 +51,9 @@ echo "==== つなぐ（$i 本）===="
 # フェードアウトの掛かり方も Scenes.tsx の Audio のまま。同梱の ffmpeg には afade が無いので、
 # こちらで作ろうとすると再現できない）
 echo "==== 音を書き出す ===="
-npx remotion render "$COMP" "$work/audio.mp3" --codec=mp3 --log=error
-"$FF" -y -hide_banner -loglevel error -i "$work/video.mp4" -i "$work/audio.mp3" \
+# **wav で受け取る**。mp3 で受けてから aac に直すと、圧縮を二重にかけることになって音が割れる
+npx remotion render "$COMP" "$work/audio.wav" --codec=wav --log=error
+"$FF" -y -hide_banner -loglevel error -i "$work/video.mp4" -i "$work/audio.wav" \
   -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart "$OUT"
 rm -rf "$work"
 ls -la "$OUT"
