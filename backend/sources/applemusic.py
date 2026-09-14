@@ -109,6 +109,37 @@ def _from_page_item(x: dict) -> Track | None:
                  external_url=ext)
 
 
+async def _fix_by_lookup(client: httpx.AsyncClient, tracks: list[Track], country: str) -> list[Track]:
+    """ページから読んだ曲を、Lookup API の正しい曲名・アーティストで上書きする。
+
+    ページの曲名は表示用に切られていることがある（末尾が「…」になる）。画像はページ側のものが
+    そのまま使えるので、文字だけ直す。引けなかったものはページの値のまま残す。
+    """
+    ids = [m.group(1) for t in tracks if (m := re.search(r"/song/(\d+)", t.external_url or ""))]
+    if not ids:
+        return tracks
+    better: dict[str, dict] = {}
+    for i in range(0, len(ids), 100):
+        chunk = ids[i:i + 100]
+        try:
+            for x in await _lookup(client, {"id": ",".join(chunk), "country": country}):
+                if x.get("wrapperType") == "track" and x.get("trackId"):
+                    better[str(x["trackId"])] = x
+        except (httpx.HTTPError, ValueError):
+            break        # 引けなくてもページの値で出せるので、ここで諦める
+    out: list[Track] = []
+    for t in tracks:
+        m = re.search(r"/song/(\d+)", t.external_url or "")
+        x = better.get(m.group(1)) if m else None
+        if x and (x.get("trackName") or "").strip():
+            out.append(t.model_copy(update={"title": x["trackName"].strip(),
+                                            "artist": (x.get("artistName") or t.artist).strip(),
+                                            "album": x.get("collectionName") or t.album}))
+        else:
+            out.append(t)
+    return out
+
+
 async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> list[Track]:
     """Apple Music の URL から Track の一覧（単曲なら 1 件）。"""
     k = kind(url)
@@ -144,6 +175,11 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> list[Tr
             items: list = []
             _walk_tracks(data, items)
             out = [t for t in (_from_page_item(x) for x in items) if t]
+            # ページに載っている曲名は**表示用に切られている**ことがある
+            # （長いものが「… (feat. 〜」のように末尾を落とされ、アーティストも省かれる）。
+            # 曲の ID は取れているので、Lookup API で正しい曲名・アーティストに直す。
+            # Lookup は id をカンマ区切りでまとめて渡せるので、100 件ずつで足りる
+            out = await _fix_by_lookup(client, out, country)
     finally:
         if own:
             await client.aclose()
