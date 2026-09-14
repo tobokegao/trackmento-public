@@ -571,6 +571,13 @@ body.sheet-open { overflow: hidden; }
   background: var(--color-paper); border-top: var(--line) solid var(--color-ink);
   font-size: var(--text-xs); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* マスが小さいときは × と曲名を出さない。28px の × と曲名の帯が小さいマスを覆って、
+   ジャケットがほとんど見えなくなるため（横 7 マスあたりから起きる）。
+   曲名と「このマスを外す」はマスをタップすると出る編集パネル（.editor）に寄せる */
+.grid[data-dense="true"] .cell .rm,
+.grid[data-dense="true"] .cell .cap { display: none; }
+.grid[data-dense="true"] .cell .num { font-size: 10px; line-height: 1.4; padding: 0 3px; }
+
 .grid-actions { container-type: inline-size; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }   /* グリッドと同じ幅いっぱい（上限を付けると右に空きが残る） */
 .grid-actions .btn { padding-inline: var(--space-2); }
 /* グリッド列が狭いとき（スマホの PC 表示など）は 2 列だと文字の余白が足りないので、ボタンを 1 列に縦積み */
@@ -1862,6 +1869,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (selected !== null && !state.cells[selected]) selected = null;
     renderGrid();
   }
+  // マスの 1 辺がこれより小さいと、× と曲名の帯がジャケットを覆ってしまう
+  const DENSE_CELL_PX = 96;
+  function updateGridDensity() {
+    const first = els.grid.querySelector(".cell");
+    const px = first ? first.getBoundingClientRect().width : 0;
+    els.grid.dataset.dense = px && px < DENSE_CELL_PX ? "true" : "false";
+  }
   function renderGrid() {
     els.grid.style.setProperty("--cols", state.cols);
     els.grid.style.setProperty("--rows", state.rows);
@@ -1881,6 +1895,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.setAttribute("aria-label", tr`${i + 1} 番の ${t.title} を外す`);
         rm.addEventListener("click", (e) => { e.stopPropagation(); removeAt(i); });
         const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `${t.title} / ${t.artist}`;
+        li.title = `${t.title} / ${t.artist}`;   // マスが小さいと曲名の帯を出さないので、乗せれば分かるように
         li.append(img, rm, cap);
       } else {
         li.setAttribute("aria-label", tr`${i + 1} 番: 空`);
@@ -1897,9 +1912,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const n = state.cells.filter(Boolean).length;
     els.gridCount.textContent = `${n}/${state.cells.length}`;
     els.shareBtn.disabled = n === 0;
+    updateGridDensity();
     renderEditor();
     updateSpec();
   }
+  // 画面幅が変わるとマスの実寸も変わるので、描き直さなくても判定はやり直す
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(updateGridDensity).observe(els.grid);
   /* JSON の書き出し／読み込み。共有 URL は 7 日、ブラウザ保存とサーバー側の保存も消えることがあるので、手元に残す唯一の手段 */
   els.jsonExport.addEventListener("click", () => {
     const d = serialize();
