@@ -190,7 +190,7 @@ await mark("start");
 async function featScene() {
   // ⑤ さらにダサくなった見た目: 候補を並べて Mac OS 9 風のスクロールバーを見せる
   await openSheet();
-  await type("#q", EN ? "kirby" : "グルメレース");
+  await type("#artist", "米津玄師");
   await tap("#search-btn", "look:search");
   await page.waitForSelector("#results .result", { timeout: 60000 });
   await wait(900);
@@ -243,6 +243,15 @@ async function featScene() {
   }
   await page.locator("#cols").scrollIntoViewIfNeeded();
   await wait(300);
+  // 「縦長も横長も自由」で使うので、横×縦を動かしているところを見せる
+  await type("#cols", "16");
+  await type("#rows", "9");
+  await page.locator("#rows").press("Enter");
+  await wait(1100); await mark("cells:wide");
+  await type("#cols", "9");
+  await type("#rows", "16");
+  await page.locator("#rows").press("Enter");
+  await wait(1100); await mark("cells:tall");
   await type("#cols", "16");
   await type("#rows", "16");
   await page.locator("#rows").press("Enter");

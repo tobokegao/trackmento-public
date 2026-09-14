@@ -49,16 +49,15 @@ if (!PC) {
   await page.waitForSelector("#sheet:not([hidden])");
   await page.waitForTimeout(400);
 }
-// 候補を増やすため otoDB と MusicBrainz も足す（iTunes だけだと数件で終わる）
-for (const src of ["musicbrainz", "otodb"]) {
-  const cb = page.locator(`#sources input[value="${src}"]`);
-  if (await cb.count() && !(await cb.isChecked())) await page.locator(`#sources input[value="${src}"] + span`).click();
-}
-await page.waitForTimeout(300);
-await page.locator("#q").fill("グルメレース");
+await page.locator("#artist").fill("米津玄師");
 await page.locator("#search-btn").click();
 await page.waitForSelector("#results .result", { timeout: 90000 });
-await page.waitForTimeout(2500);   // ジャケットが出そろうまで待つ
+// ジャケットが出そろうまで待つ（出ないまま撮ると白い四角が並ぶ）
+await page.waitForFunction(() => {
+  const imgs = [...document.querySelectorAll("#results img")].slice(0, 6);
+  return imgs.length >= 4 && imgs.every((i) => i.complete && i.naturalWidth > 0);
+}, null, { timeout: 40000 }).catch(() => console.log("  （ジャケットが出そろわなかった）"));
+await page.waitForTimeout(1500);
 // 候補の途中までスクロールして、つまみが真ん中あたりに来るようにする
 // スマホではシート全体（.sheet-body）が、PC では候補ペインがスクロールする
 await page.evaluate(() => {

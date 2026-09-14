@@ -2056,7 +2056,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 幅で折り返す。区切りの記号は置かない。番号がピクセルフォントで本文と書体も色も違うので、それ自体が切れ目になる。
   // サーバー描画（backend/render.py の FLOW_* と _flow_rows）と同じ式にしてある。片方だけ変えてはいけない
   const FLOW_MIN_FONT = 20;
-  const FLOW_FONT_STEPS = [96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18];
+  const FLOW_FONT_STEPS = [132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18];
   function clipTo(ctx, text, font, maxW) {
     ctx.font = font;
     if (ctx.measureText(text).width <= maxW) return text;
@@ -2068,10 +2068,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // わずかな計測差が積み上がって折り返す位置がずれ、そこから先の行がすべて食い違う
     const ctx = probe;
     const fonts = { num: fontPixel(Math.round(fontS * 0.8)), title: fontBold(fontS), artist: fontRegular(fontS) };
-    const gap = fontS * 0.7;   // 曲と曲のあいだ。記号を置かないぶん、ここで切れ目を作る
     const width = (kind, text) => { ctx.font = fonts[kind]; return ctx.measureText(text).width; };
+    const gap = width("title", "　");   // 曲と曲のあいだは全角空白 1 つぶん。残りは描画側で両端をそろえるときに配る
     const rows = [];
-    let cur = [], x = 0;
+    let cur = [], x = 0, gaps = 0;
+    const flush = () => { if (cur.length) rows.push({ parts: cur, width: x, gaps }); cur = []; x = 0; gaps = 0; };
     state.cells.forEach((t, i) => {
       if (!t) return;
       let parts = [["num", String(i + 1).padStart(2, "0")], ["title", " " + oneLine(t.title)]];
@@ -2084,12 +2085,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         parts[1] = ["title", clipTo(ctx, parts[1][1], fonts.title, maxW - head)];
         w = head + width("title", parts[1][1]);
       }
-      if (cur.length && x + gap + w > maxW) { rows.push(cur); cur = []; x = 0; }
-      else if (cur.length) x += gap;
+      if (cur.length && x + gap + w > maxW) flush();
+      else if (cur.length) { x += gap; gaps += 1; }
       cur = cur.concat(parts);
       x += w;
     });
-    if (cur.length) rows.push(cur);
+    flush();
     return rows;
   }
   function longestLine(fontS) {
@@ -2129,9 +2130,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 横長の比率（16:9）で左右の余白ばかり広がるため
     const titleTopH = side === "right" ? 0 : titleH;
     let lineH = side === "right"
-      ? Math.max(30, Math.min(84, Math.floor((gh - titleH) / n)))
-      : Math.round(Math.max(48, Math.min(96, gw * 0.045)));
-    let fontS = Math.round(lineH * 0.5);
+      ? Math.max(30, Math.min(96, Math.floor((gh - titleH) / n)))
+      : Math.round(Math.max(52, Math.min(108, gw * 0.05)));
+    let fontS = Math.round(lineH * 0.56);
     let sbW = 0, sbH = 0, sbCols = 1;
     if (side === "right") { sbW = Math.max(720, Math.min(gw, Math.max(longestLine(fontS), titleWidth(title, titleSize)))); sbH = gh; }
     // 列数: 9:16 は 12 曲まで 1 列。1:1 / 4:5 は縦に伸びると横の余りが増えるので 6 曲以上で 2 列
@@ -2476,14 +2477,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const fonts = { num: fontPixel(Math.max(8, sc(L.fontS * 0.8))), title: fontBold(fs), artist: fontRegular(fs) };
         const colors = { num: cssRgb(muted), title: cssRgb(ink), artist: cssRgb(muted) };
         ctx.textBaseline = "middle";
-        flowRows(L.fontS, colW).forEach((parts, row) => {
+        const flow = flowRows(L.fontS, colW);
+        flow.forEach((fr, row) => {
           let x = sc(sx);
           const yy = sc(sy + row * L.lineH + L.lineH / 2);
-          for (const [kind, text] of parts) {
+          // 余った幅を曲の切れ目に均等に配って右端をそろえる。最後の行は伸ばさない。
+          // ただし配りすぎると切れ目が間延びするので、空白 1 つぶんまでしか広げない
+          ctx.font = fonts.title;
+          const gapLimit = ctx.measureText("　").width;
+          const extra = fr.gaps && row < flow.length - 1
+            ? Math.min(Math.max(0, sc(colW) - sc(fr.width)) / fr.gaps, gapLimit) : 0;
+          fr.parts.forEach(([kind, text], j) => {
+            if (kind === "num" && j > 0) x += extra;   // 番号の手前が曲の切れ目（行頭は除く）
             ctx.font = fonts[kind]; ctx.fillStyle = colors[kind];
             ctx.fillText(text, x, yy);
             x += ctx.measureText(text).width;
-          }
+          });
         });
         return { canvas, bg };
       }

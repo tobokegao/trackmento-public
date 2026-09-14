@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import math
+from typing import NamedTuple
 import unicodedata
 import os
 import re
@@ -257,9 +258,15 @@ class Layout:
 # 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
 # 続けて流し込み、幅で折り返す。区切りの記号は置かない。番号がピクセルフォントで
 # 本文と書体も色も違うので、それ自体が切れ目になる
+class FlowRow(NamedTuple):
+    parts: list[tuple[str, str]]   # ("num"|"title"|"artist", 文字列)
+    width: float                   # 文字と曲間の送りで使った幅
+    gaps: int                      # 曲の切れ目の数（余った幅をここに配る）
+
+
 FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さくなるなら流し込みに切り替える
 # 入る限り大きく。曲が少ないほど大きな字になる（流し込みに切り替わるのは曲が多いときだけ）
-FLOW_FONT_STEPS = (96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
+FLOW_FONT_STEPS = (132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
 
 
 def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
@@ -271,18 +278,29 @@ def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
     return text + "…"
 
 
-def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[list[tuple[str, str]]]:
-    """流し込んだときの各行を返す。行は ("num"|"title"|"artist", 文字列) の並び。
+def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
+    """流し込んだときの各行を返す。
 
     **折り返しは曲の単位で行う**。字の単位で折ると、サーバー（PIL）とブラウザ（Canvas）の
     わずかな計測差が積み上がって折り返す位置がずれ、そこから先の行がすべて食い違う。
     曲ごとに折れば、差は行の中に収まって位置は一致する。
+
+    行には「使った幅」と「曲の切れ目の数」を添える。描画側が余った幅を切れ目に配って
+    右端をそろえる（新聞のように両端をそろえないと、右側がぎざぎざに見える）。
     """
     fonts = {"num": font("pixel", rnd(font_s * 0.8)), "title": font("bold", font_s), "artist": font("regular", font_s)}
-    gap = font_s * 0.7        # 曲と曲のあいだ。記号を置かないぶん、ここで切れ目を作る
-    rows: list[list[tuple[str, str]]] = []
+    gap = fonts["title"].getlength("　")   # 曲と曲のあいだは全角空白 1 つぶん。残りは描画側で両端をそろえるときに配る
+    rows: list[FlowRow] = []
     cur: list[tuple[str, str]] = []
     x = 0.0
+    gaps = 0                   # その行にある曲の切れ目の数
+
+    def flush() -> None:
+        nonlocal cur, x, gaps
+        if cur:
+            rows.append(FlowRow(cur, x, gaps))
+        cur, x, gaps = [], 0.0, 0
+
     for i, t in enumerate(doc.cells):
         if not t:
             continue
@@ -297,14 +315,13 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[list[tuple[str, 
             parts[1] = ("title", _clip_to(parts[1][1], fonts["title"], max_w - head))
             w = head + fonts["title"].getlength(parts[1][1])
         if cur and x + gap + w > max_w:
-            rows.append(cur)
-            cur, x = [], 0.0
+            flush()
         elif cur:
             x += gap
+            gaps += 1
         cur.extend(parts)
         x += w
-    if cur:
-        rows.append(cur)
+    flush()
     return rows
 
 
@@ -323,8 +340,8 @@ def layout(doc: GridDoc) -> Layout:
     # 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）に置く。グリッドの上に置くと内容が縦長になり、
     # 横長の比率（16:9）で左右の余白ばかり広がるため
     title_top_h = 0 if side == "right" else title_h
-    line_h = max(30, min(84, (gh - title_h) // n)) if side == "right" else rnd(max(48, min(96, gw * 0.045)))
-    font_s = rnd(line_h * 0.5)
+    line_h = max(30, min(96, (gh - title_h) // n)) if side == "right" else rnd(max(52, min(108, gw * 0.05)))
+    font_s = rnd(line_h * 0.56)
     sb_w = sb_h = 0
     sb_cols = 1
     if side == "right":
@@ -482,10 +499,20 @@ def render(doc: GridDoc) -> Image.Image:
             fs = max(8, sc(L.font_s))
             f_flow = {"num": font("pixel", max(8, sc(L.font_s * 0.8))), "title": font("bold", fs), "artist": font("regular", fs)}
             colors = {"num": muted, "title": ink, "artist": muted}
-            for row, parts in enumerate(_flow_rows(doc, L.font_s, col_w)):
+            flow = _flow_rows(doc, L.font_s, col_w)
+            for row, fr in enumerate(flow):
                 x = sc(sx)
                 yy = sc(sy + row * L.line_h + L.line_h / 2)
-                for kind, text in parts:
+                # 余った幅を曲の切れ目に均等に配って右端をそろえる。最後の行は伸ばさない。
+                # ただし **配りすぎると切れ目が間延びする**ので、空白 1 つぶんまでしか広げない
+                # （切れ目は最大でも空白 2 つぶん）。余りきらないぶんは行末に残す
+                extra = 0.0
+                if fr.gaps and row < len(flow) - 1:
+                    extra = min(max(0.0, sc(col_w) - sc(fr.width)) / fr.gaps, sc(f_flow["title"].getlength("　")))
+                for j, (kind, text) in enumerate(fr.parts):
+                    # 番号の手前が曲の切れ目（行頭は除く）
+                    if kind == "num" and j > 0:
+                        x += extra
                     f = f_flow[kind]
                     d.text((x, yy), text, font=f, fill=colors[kind], anchor="lm")
                     x += d.textlength(text, font=f)

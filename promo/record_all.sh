@@ -40,7 +40,10 @@ for MODE_V in "" pc; do
 
       # マーカーは画面の右下。実ピクセルは DPR で変わる（スマホ 2 倍 / PC 1.5 倍）ので切り出す位置も変える
       if [ "$MODE_V" = pc ]; then crop="crop=20:20:1896:1056"; else crop="crop=20:20:1056:1896"; fi
-      PYTHONUTF8=1 "$SCAN_PY" scan_markers.py "$dir/session.mp4" "$dir/events.json" "$FF_WIN" "$crop" | head -3
+      # 直接 head に渡すと、head が先に終わったところで SIGPIPE になり pipefail で止まる。
+      # いったん受け取ってから表示する
+      scan_out="$(PYTHONUTF8=1 "$SCAN_PY" scan_markers.py "$dir/session.mp4" "$dir/events.json" "$FF_WIN" "$crop")"
+      echo "$scan_out" | head -3
 
       # MusicBrainz はブラウザから直接叩くので、続けて撮るとレート制限に当たる。1 本ごとに間を置く
       sleep 20

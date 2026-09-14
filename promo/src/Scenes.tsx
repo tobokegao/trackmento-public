@@ -6,7 +6,7 @@ import {
 import { loadFont } from "@remotion/fonts";
 import {
   FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
-  INTRO_END, COUNTDOWN_BEAT, TIMELAPSE_BEAT, SHOWCASE_BEAT, BANDWIDTH_BEAT, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
+  INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, BANDWIDTH_BEAT, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
 } from "./timeline";
 
 // ---- フォント（アプリと同じ OFL 同梱フォント） ----
@@ -122,7 +122,7 @@ const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.Re
   return (
     <div style={{ ...box, flexDirection: tall ? "column" : "row", alignItems: tall ? "flex-start" : "flex-end", gap: tall ? 0 : 40 }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-        {head && <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: L.lang === "ja" ? L.jp : L.jp * 0.82, lineHeight: 1.15, padding: tall ? "10px 26px" : "12px 34px", transform: slide, opacity: s }}>{head}</div>}
+        {head && <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: L.lang === "ja" ? L.jp : L.jp * 0.82, lineHeight: 1.15, padding: tall ? "10px 26px" : "12px 34px", whiteSpace: "pre-line", transform: slide, opacity: s }}>{head}</div>}
         {sub && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: 14, letterSpacing: "0.03em", transform: slide, opacity: s }}>{sub}</div>}
       </div>
       {children}
@@ -143,25 +143,6 @@ const SiteBadges: React.FC<{ L: Layout; startBeat: number }> = ({ L, startBeat }
         const s = spring({ frame: frame - at, fps, config: { damping: 9, stiffness: 260 } });
         return <span key={name} style={{ fontFamily: "Plex", fontWeight: 700, fontSize: L.kind === "tall" ? 23 : 26, color: C.ink, border: `3px solid ${C.ink}`, background: STRIPE[i % 6], padding: "2px 10px", display: "inline-block", transform: `scale(${s})`, opacity: s }}>{name}</span>;
       })}
-    </div>
-  );
-};
-
-/** 3, 2, 1, GO を 4 分音符 1 拍ずつ */
-const Countdown: React.FC<{ L: Layout }> = ({ L }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const t = frame / fps + beatTime(COUNTDOWN_BEAT);   // この Sequence はカウントダウンの拍頭から始まる
-  const labels = ["3", "2", "1", "GO"];
-  let k = 0;
-  for (let i = 0; i < 4; i++) if (t >= beatTime(COUNTDOWN_BEAT + i) - 1 / fps) k = i;
-  const s = spring({ frame: frame - (beatFrame(COUNTDOWN_BEAT + k) - beatFrame(COUNTDOWN_BEAT)), fps, config: { damping: 8, stiffness: 240 } });
-  const size = L.kind === "tall" ? 360 : 300;
-  return (
-    <div style={{ position: "absolute", left: L.phone.x, top: L.phone.y, width: L.phone.w, height: L.phone.h, display: "flex", justifyContent: "center", alignItems: "center", pointerEvents: "none" }}>
-      <div style={{ fontFamily: "Silk", fontWeight: 700, fontSize: k === 3 ? size * 0.7 : size, color: C.paper, background: C.ink, padding: k === 3 ? "10px 50px" : "0 60px", lineHeight: 1.1, transform: `scale(${0.6 + s * 0.4}) rotate(${(1 - s) * -6}deg)`, opacity: s, border: `6px solid ${C.paper}`, boxShadow: `12px 12px 0 ${STRIPE[k * 2 % 6]}` }}>
-        {labels[k]}
-      </div>
     </div>
   );
 };
@@ -203,7 +184,7 @@ const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }>
 const BeforeAfter: React.FC<{ L: Layout; file: string; zoom?: Shot["zoom"]; children: React.ReactNode }> = ({ L, file, zoom, children }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const switchAt = beatFrame(2) - beatFrame(0);   // 2 拍で切り替える
+  const switchAt = beatFrame(BAR) - beatFrame(0);   // 1 小節で切り替える
   const before = frame < switchAt;
   const s = spring({ frame: frame - (before ? 0 : switchAt), fps, config: { damping: 13, stiffness: 220 } });
   const tall = L.kind === "tall";
@@ -275,7 +256,7 @@ const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
   const { fps } = useVideoConfig();
   const { pulse, beat } = useBeatPulse(0.7);
   const s = spring({ frame, fps, config: { damping: 13, stiffness: 90 } });
-  const drift = interpolate(frame, [0, beatFrame(BANDWIDTH_BEAT) - beatFrame(SHOWCASE_BEAT)], [1.0, 1.05]);
+  const drift = interpolate(frame, [0, beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)], [1.0, 1.05]);
   const color = STRIPE[Math.max(0, beat) % 6];
   const img = L.kind === "tall"
     ? { left: 90, top: 200, width: 900, height: 1600 }
@@ -340,7 +321,7 @@ const Bandwidth: React.FC<{ L: Layout }> = ({ L }) => {
       <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: tall ? "0 70px" : "0 220px" }}>
         <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 52 : 54, padding: "10px 28px", transform: `translateY(${(1 - s) * -24}px)`, opacity: s }}>
-          {L.lang === "ja" ? "サーバー代を削りました" : "We cut the server bill"}
+          {L.lang === "ja" ? "重たくなくなりました" : "And it got lighter"}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: tall ? 18 : 14, marginTop: tall ? 54 : 40, width: "100%" }}>
           {BANDWIDTH_ROWS.map((r, i) => {
@@ -394,17 +375,15 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
               </Sequence>
             );
           })}
-          <Sequence from={beatFrame(COUNTDOWN_BEAT) - beatFrame(INTRO_END)} durationInFrames={beatFrame(COUNTDOWN_BEAT + BAR) - beatFrame(COUNTDOWN_BEAT)} name="3-2-1-GO">
-            <Countdown L={L} />
-          </Sequence>
         </Paper>
       </Sequence>
+
+      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(BANDWIDTH_BEAT + BAR) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth"><Bandwidth L={L} /></Sequence>
 
       <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
         <Paper><div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div><Timelapse L={L} /></Paper>
       </Sequence>
-      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(BANDWIDTH_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
-      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth"><Bandwidth L={L} /></Sequence>
+      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
       <Sequence from={beatFrame(END_BEAT)} name="End"><EndCard L={L} /></Sequence>
     </AbsoluteFill>
   );

@@ -62,20 +62,21 @@ export const evTime = (kind: Kind, lang: Lang, session: Session, name: string) =
 };
 
 // ---- 構成（拍番号は 0 始まり。小節 n の頭 = bar(n)） ----
-// 1–3 イントロ / 4–8 画面説明（⑤見た目もここに畳む）/ 9 カウントダウン / 10 タイトル /
-// 11–14 入れ方 / 15 複数 URL / 16–17 ①プレイリスト / 18–19 ②復活 / 20–24 並べる /
-// 25–26 出力設定 / 27–28 ③256 マス / 29–32 色と共有 / 33 ④日英 /
-// 34 タイムラプス / 35–36 できあがり / 37 ⑥転送量 / 38–40 エンドカード
+// 1–3 イントロ / 4–8 画面説明（⑤見た目の見くらべ 2 小節もここ）/ 9 タイトル /
+// 10–13 入れ方 / 14 複数 URL / 15–16 ①プレイリスト / 17–18 ②復活 / 19–22 並べる /
+// 23 ほぼ完成 / 24 ④日英 / 25 ⑥重たくない / 26 出力設定 / 27 解像度 / 28–29 ③256 マス /
+// 30–33 色と共有 / 34 タイムラプス / 35–36 できあがり / 37–39 エンドカード
+//
+// カウントダウン（3,2,1,GO）は v2 では使わない
 export const INTRO_END = bar(4);            // イントロは 3 小節
-export const COUNTDOWN_BEAT = bar(9);       // 3, 2, 1, GO
-export const FLOW_BEAT = bar(10);           // 操作の流れはここから
+export const FLOW_BEAT = bar(9);            // 操作の流れはここから
 export const TIMELAPSE_BEAT = bar(34);
 export const SHOWCASE_BEAT = bar(35);       // できあがり（2 小節）
-export const BANDWIDTH_BEAT = bar(37);      // ⑥ 転送量削減（録画なしのシーン）
-export const END_BEAT = bar(38);            // エンドカード（ロゴ 1 小節 → URL 1 小節 → 無料 1 小節）
-export const URL_BEAT = bar(39);
-export const FREE_BEAT = bar(40);
-export const LAST_BEAT = bar(41);
+export const BANDWIDTH_BEAT = bar(25);      // ⑥「重たくなくなりました」（録画なしのシーン）
+export const END_BEAT = bar(37);            // エンドカード（ロゴ 1 小節 → URL 1 小節 → 無料 1 小節）
+export const URL_BEAT = bar(38);
+export const FREE_BEAT = bar(39);
+export const LAST_BEAT = bar(40);
 export const FADE_FROM = END_BEAT;          // 音楽のフェードアウト開始
 export const DURATION_FRAMES = beatFrame(LAST_BEAT) + 12;
 
@@ -91,62 +92,62 @@ export type Shot = {
 };
 
 export const SHOTS: Shot[] = [
-  // 4〜8 小節目: トップ画面の説明（5 小節）。⑤ の見た目もここに畳む
-  { beat: bar(4), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "トップ画面はこれだけ", en: "This is the whole app" },
-  { beat: bar(5), len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.046, y: 0.13, w: 0.909, h: 0.063 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
-  { beat: bar(5) + 2, len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.049, y: 0.191, w: 0.872, h: 0.495 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
-  { beat: bar(6), len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索のボタン", en: "Share and search below", hl: { x: 0.046, y: 0.726, w: 0.909, h: 0.17 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
-  // 出力の設定は画面の外にあるので、スクロールして見せる
-  { beat: bar(6) + 2, len: 4, ev: "look:options", off: -0.4, rec: "feat", speed: 0.9, jp: "出力の設定もここに", en: "Output settings too", zoomPc: { x: 1, y: 0.5, s: 1.4 } },
-  // ⑤ さらにダサくなった見た目（1 小節 2 拍）。ウィンドウバーとスクロールバーを見せる
-  { beat: bar(7) + 2, len: 6, ev: "look:scroll", off: -0.6, rec: "feat", speed: 1.2, ab: "v1-look", jp: "見た目はもっとダサく", en: "Now even uglier", zoom: { x: 0.5, y: 0.78, s: 1.2 }, zoomPc: { x: 0.3, y: 0.5, s: 1.35 } },
-  // 9 小節目: カウントダウン（映像はトップ画面のまま）
-  { beat: bar(9), len: 4, ev: "start", off: 0.0, still: true, jp: "", en: "" },
-  // 10〜14 小節目: 入れ方
-  { beat: bar(10), len: 4, ev: "title-focus", off: -0.2, jp: "まずはタイトル", en: "Start with a title" },
-  { beat: bar(11), len: 4, ev: "cell-tap", off: -0.5, jp: "枠をタップ", en: "Tap a cell", zoomPc: { x: 0.52, y: 0.36, s: 1.8 } },
-  { beat: bar(12), len: 4, ev: "search:chikamichi", off: -1.6, speed: 2, jp: "曲を探す", en: "Find tracks", zoomPc: { x: 0, y: 0.3, s: 1.7 } },
-  { beat: bar(13), len: 4, ev: "src:musicbrainz", off: -0.4, jp: "検索ソースは 3 種類", en: "Three search sources", zoomPc: { x: 0, y: 0.43, s: 1.9 } },
-  { beat: bar(14), len: 4, ev: "url:talk", off: -1.6, speed: 1.4, jp: "URL 検索も対応", en: "Or paste a URL", zoomPc: { x: 0, y: 0.74, s: 1.7 } },
-  // 15 小節目: 複数の URL をまとめて
-  { beat: bar(15), len: 4, ev: "multi:got", off: -1.8, rec: "feat", speed: 1.6, jp: "改行で区切ればまとめて", en: "One per line, all at once" },
-  // 16〜17 小節目: ① プレイリストをまとめて挿入
-  { beat: bar(16), len: 4, ev: "pl:paste", off: -1.8, rec: "feat", speed: 1.6, jp: "プレイリストの URL でまとめて挿入", en: "A whole playlist in one paste" },
-  { beat: bar(17), len: 4, ev: "pl:fill", off: -1.2, rec: "feat", jp: "最大 500 曲がまとめて入る", en: "Up to 500 tracks at once" },
-  // 18〜19 小節目: ② 消えた動画の復活
-  { beat: bar(18), len: 4, ev: "revive:paste", off: -1.6, rec: "feat", speed: 1.5, jp: "消えた動画も", en: "Even deleted videos" },
-  { beat: bar(19), len: 4, ev: "add:revive", off: -0.8, rec: "feat", jp: "otoDB からよみがえる", en: "come back from otoDB" },
-  // 20〜24 小節目: 埋めて並べる
-  { beat: bar(20), len: 4, ev: "manual:mitsuami", off: -0.6, speed: 1.2, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
-  { beat: bar(21), len: 4, ev: "add:ilovelove", off: -0.4, jp: "枠が全部埋まったら", en: "All nine in", zoomPc: { x: 0.6, y: 0.45, s: 1.5 } },
-  { beat: bar(22), len: 4, ev: "select:1", off: -0.2, speed: 1.2, jp: "タップで入れ替え", en: "Tap two cells to swap", zoomPc: { x: 0.6, y: 0.45, s: 1.6 } },
-  { beat: bar(23), len: 4, ev: "reorder-done", off: -0.3, jp: "並べ終わったら", en: "Once you're done", zoomPc: { x: 0.6, y: 0.45, s: 1.4 } },
-  { beat: bar(24), len: 4, ev: "reorder-done", off: 0.6, still: true, fx: "glitchOut", jp: "ほぼ完成です", en: "Almost there", zoom: { x: 0.5, y: 0.45, s: 1.3 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
-  // 25〜26 小節目: 出力オプション
-  { beat: bar(25), len: 4, ev: "open-options", off: -0.3, fx: "flashIn", jp: "出力方法を設定", en: "Output settings", zoomPc: { x: 1, y: 0.42, s: 1.5 } },
-  { beat: bar(26), len: 4, ev: "ratio:16:9", off: -0.3, speed: 1.1, jp: "解像度は 5 種類", en: "Five aspect ratios", zoomPc: { x: 1, y: 0.3, s: 1.9 } },
-  // 27〜28 小節目: ③ 256 マス
-  { beat: bar(27), len: 4, ev: "cells:16", off: -1.4, rec: "feat", speed: 1.3, jp: "マスは最大 256", en: "Up to 256 cells", zoom: { x: 0.5, y: 0.8, s: 1.6 }, zoomPc: { x: 1, y: 0.2, s: 1.8 } },
-  { beat: bar(28), len: 4, ev: "pl:filled", off: -0.6, rec: "feat", jp: "縦長も横長も自由", en: "Any shape you like", zoomPc: { x: 0.6, y: 0.45, s: 1.2 } },
-  // 29〜32 小節目: 色と共有
-  { beat: bar(29), len: 4, ev: "bg:cerulean", off: -0.3, jp: "選べる背景色", en: "Pick a background", zoomPc: { x: 1, y: 0.62, s: 1.9 } },
-  { beat: bar(30), len: 4, ev: "bg:custom", off: -0.4, jp: "カスタム色も", en: "Or any color", zoomPc: { x: 1, y: 0.67, s: 2.0 } },
-  { beat: bar(31), len: 4, ev: "share", off: -0.4, jp: "トラックを共有", en: "Share", zoomPc: { x: 0.55, y: 0.7, s: 1.8 } },
-  { beat: bar(32), len: 4, ev: "share-ready", off: -0.2, jp: "画像と共有 URL", en: "An image and a link", zoomPc: { x: 0.6, y: 0.5, s: 1.3 } },
-  // 33 小節目: ④ 日本語 / 英語
-  { beat: bar(33), len: 4, ev: "lang:switched", off: -1.2, rec: "feat", jp: "日本語と英語", en: "Japanese and English", zoom: { x: 0.9, y: 0.05, s: 1.7 }, zoomPc: { x: 1, y: 0, s: 1.6 } },
+  // 4〜8 小節目: トップ画面の説明（5 小節）。⑤ 見た目の見くらべ（2 小節）もここに畳む
+  { beat: bar(4), len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "トップ画面はこれだけ", en: "This is the whole app" },
+  { beat: bar(4) + 2, len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.03, y: 0.118, w: 0.94, h: 0.09 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
+  { beat: bar(5), len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.03, y: 0.18, w: 0.94, h: 0.52 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
+  { beat: bar(5) + 2, len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索のボタン", en: "Share and search below", hl: { x: 0.03, y: 0.716, w: 0.94, h: 0.2 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
+  // 出力の設定は画面の外にあるので、スクロールして見せる（1 小節）
+  { beat: bar(6), len: 4, ev: "look:options", off: -0.4, rec: "feat", speed: 0.9, jp: "出力の設定もここに", en: "Output settings too", zoomPc: { x: 1, y: 0.5, s: 1.4 } },
+  // ⑤ 見た目の見くらべ。前半 1 小節が v1、後半 1 小節が今（BeforeAfter が切り替える）
+  { beat: bar(7), len: 8, ev: "look:scroll", off: -0.6, rec: "feat", speed: 1.2, ab: "v1-look", jp: "見た目はもっとダサく", en: "Now even uglier", zoom: { x: 0.5, y: 0.78, s: 1.2 }, zoomPc: { x: 0.3, y: 0.5, s: 1.35 } },
+  // 9〜13 小節目: 入れ方
+  { beat: bar(9), len: 4, ev: "title-focus", off: -0.2, jp: "まずはタイトル", en: "Start with a title" },
+  { beat: bar(10), len: 4, ev: "cell-tap", off: -0.5, jp: "枠をタップ", en: "Tap a cell", zoomPc: { x: 0.52, y: 0.36, s: 1.8 } },
+  { beat: bar(11), len: 4, ev: "search:chikamichi", off: -1.6, speed: 2, jp: "曲を探す", en: "Find tracks", zoomPc: { x: 0, y: 0.3, s: 1.7 } },
+  { beat: bar(12), len: 4, ev: "src:musicbrainz", off: -0.4, jp: "検索ソースは 3 種類", en: "Three search sources", zoomPc: { x: 0, y: 0.43, s: 1.9 } },
+  { beat: bar(13), len: 4, ev: "url:talk", off: -1.6, speed: 1.4, jp: "URL 検索も対応", en: "Or paste a URL", zoomPc: { x: 0, y: 0.74, s: 1.7 } },
+  // 14 小節目: 複数 URL
+  { beat: bar(14), len: 4, ev: "multi:got", off: -1.8, rec: "feat", speed: 1.6, jp: "改行で区切って一気に挿入", en: "One per line, all at once" },
+  // 15〜16 小節目: ① プレイリスト
+  { beat: bar(15), len: 4, ev: "pl:paste", off: -1.8, rec: "feat", speed: 1.6, jp: "プレイリストの URL 内の曲も\nまとめて追加できる", en: "A whole playlist in one paste" },
+  { beat: bar(16), len: 4, ev: "pl:fill", off: -1.2, rec: "feat", jp: "最大 500 曲がまとめて入る", en: "Up to 500 tracks at once" },
+  // 17〜18 小節目: ② 消えた動画の復活
+  { beat: bar(17), len: 4, ev: "revive:paste", off: -1.6, rec: "feat", speed: 1.5, jp: "消えた動画も", en: "Even deleted videos" },
+  { beat: bar(18), len: 4, ev: "add:revive", off: -0.8, rec: "feat", jp: "otoDB からよみがえる", en: "come back from otoDB" },
+  // 19〜22 小節目: 埋めて並べる
+  { beat: bar(19), len: 4, ev: "manual:mitsuami", off: -0.6, speed: 1.2, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
+  { beat: bar(20), len: 4, ev: "add:ilovelove", off: -0.4, jp: "枠が全部埋まったら", en: "All nine in", zoomPc: { x: 0.6, y: 0.45, s: 1.5 } },
+  { beat: bar(21), len: 4, ev: "select:1", off: -0.2, speed: 1.2, jp: "タップで入れ替え", en: "Tap two cells to swap", zoomPc: { x: 0.6, y: 0.45, s: 1.6 } },
+  { beat: bar(22), len: 4, ev: "reorder-done", off: -0.3, jp: "並べ終わったら", en: "Once you're done", zoomPc: { x: 0.6, y: 0.45, s: 1.4 } },
+  // 23 小節目: ほぼ完成（寄ったまま止める。跳ねる演出はしない）
+  { beat: bar(23), len: 4, ev: "reorder-done", off: 0.6, still: true, jp: "ほぼ完成です", en: "Almost there", zoom: { x: 0.5, y: 0.45, s: 1.35 }, zoomPc: { x: 0.6, y: 0.45, s: 1.35 } },
+  // 24 小節目: ④ 日本語 / 英語（ボタンに寄る）
+  { beat: bar(24), len: 4, ev: "lang:switched", off: -1.2, rec: "feat", jp: "日本語↔英語 切り替えボタン", en: "Japanese / English switch", zoom: { x: 0.97, y: 0.02, s: 2.1 }, zoomPc: { x: 1, y: 0, s: 2.0 } },
+  // 25 小節目は ⑥「重たくなくなりました」（録画ではないので SHOTS には無い。Scenes.tsx が別に描く）
+  // 26〜27 小節目: 出力オプション
+  { beat: bar(26), len: 4, ev: "open-options", off: -0.3, fx: "flashIn", jp: "出力方法を設定", en: "Output settings", zoomPc: { x: 1, y: 0.42, s: 1.5 } },
+  { beat: bar(27), len: 4, ev: "ratio:16:9", off: -0.3, speed: 1.1, jp: "解像度は 5 種類", en: "Five aspect ratios", zoomPc: { x: 1, y: 0.3, s: 1.9 } },
+  // 28〜29 小節目: ③ 256 マス
+  { beat: bar(28), len: 4, ev: "pl:filled", off: -0.6, rec: "feat", jp: "マスは最大 256", en: "Up to 256 cells" },
+  { beat: bar(29), len: 4, ev: "cells:wide", off: -1.2, rec: "feat", speed: 1.1, jp: "縦長も横長も自由", en: "Any shape you like", zoom: { x: 0.5, y: 0.86, s: 1.5 }, zoomPc: { x: 1, y: 0.2, s: 1.8 } },
+  // 30〜33 小節目: 色と共有
+  { beat: bar(30), len: 4, ev: "bg:cerulean", off: -0.3, jp: "選べる背景色", en: "Pick a background", zoomPc: { x: 1, y: 0.62, s: 1.9 } },
+  { beat: bar(31), len: 4, ev: "bg:custom", off: -0.4, jp: "カスタム色も", en: "Or any color", zoomPc: { x: 1, y: 0.67, s: 2.0 } },
+  { beat: bar(32), len: 4, ev: "share", off: -0.4, jp: "トラックを共有", en: "Share", zoomPc: { x: 0.55, y: 0.7, s: 1.8 } },
+  { beat: bar(33), len: 4, ev: "share-ready", off: -0.2, jp: "画像と共有 URL", en: "An image and a link", zoomPc: { x: 0.6, y: 0.5, s: 1.3 } },
 ];
 
 /** URL 検索の対応サイト（8 分音符 3 連で 1 つずつ出す） */
 export const SITES = ["YouTube", "ニコニコ", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];
 export const SITES_EN = ["YouTube", "Niconico", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];
 
-/** ⑥ 転送量削減で出す数字（録画ではなく作った画で見せる） */
+/** ⑥「重たくなくなりました」で出す数字（録画ではなく作った画で見せる） */
 export const BANDWIDTH_ROWS: { jp: string; en: string; from: string; to: string }[] = [
   { jp: "日本語フォント", en: "Japanese fonts", from: "210KB", to: "~0KB" },
   { jp: "Bandcamp のジャケット", en: "Bandcamp covers", from: "6.5MB", to: "19KB" },
-  { jp: "bilibili のサムネ", en: "bilibili thumbnails", from: "640KB", to: "50KB" },
   { jp: "otoDB のサムネ", en: "otoDB thumbnails", from: "166KB", to: "22KB" },
+  { jp: "画像の待ち時間", en: "Image wait", from: "3.8秒", to: "1.5秒" },
 ];
 
 /** タイムラプス: 録画の始まりから PNG 完成までを 16 分割して 1 小節に詰める */
