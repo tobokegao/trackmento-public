@@ -253,6 +253,7 @@ class Layout:
     gw: int; gh: int
     title: str; title_size: int; title_h: int
     side: str; sb_w: int; sb_h: int; sb_cols: int; line_h: int; font_s: int; sb_gap: int; sb_flow: bool
+    sb_plan: tuple[int, ...] = ()   # 曲ごとの段数（1 か 2）。2 は「(feat. …)」を次の段へ落とすもの
 
 
 # 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
@@ -267,6 +268,82 @@ class FlowRow(NamedTuple):
 FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さくなるなら流し込みに切り替える
 # 入る限り大きく。曲が少ないほど大きな字になる（流し込みに切り替わるのは曲が多いときだけ）
 FLOW_FONT_STEPS = (132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
+
+
+# 曲名の末尾の「(feat. …)」。**ここだけは 2 段目に落とせる**（曲名の本体とアーティスト名を守るため）。
+# 全角の括弧と、feat / ft / featuring の表記ゆれを見る。括弧が閉じていないもの（途中で切れた題）は対象外
+_FEAT_RE = re.compile(r"\s*[（(\[]\s*(?:feat|ft|featuring)[.\s][^）)\]]*[）)\]]\s*$", re.IGNORECASE)
+
+
+def _split_feat(title: str) -> tuple[str, str]:
+    """曲名を「本体」と「(feat. …)」に分ける。無ければ (曲名, "")。"""
+    m = _FEAT_RE.search(title)
+    if not m or not m.start():   # 丸ごと feat. だけの題は分けない
+        return title, ""
+    return title[:m.start()].rstrip(), title[m.start():].strip()
+
+
+def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
+    """曲ごとの段数（1 か 2）を決める。
+
+    **1 行に収まるものは 1 段のまま**。収まらないものだけ 2 段にする。右サイドバーは行の高さを
+    グリッドの高さから割り出すので、2 段が増えるとその分だけ全体の行間と文字が小さくなる。
+    小さくなりすぎたときは呼び出し側で流し込み（文章のように流す形）に切り替わる。
+    """
+    fs = max(12, rnd(font_s * 0.65))   # _fit_line が縮められる下限
+    ft, fa = font("bold", fs), font("regular", fs)
+    nw = font("pixel", rnd(font_s * 0.8)).getlength("00") + rnd(font_s * 0.8)
+    avail = max(1.0, max_w - nw)
+    plan = []
+    for t in doc.cells:
+        rows = 1
+        if t:
+            title, artist = _one_line(t.title), _one_line(t.artist)
+            a = f"  {artist}" if artist else ""
+            if ft.getlength(title) + fa.getlength(a) > avail:
+                rows = 2
+        plan.append(rows)
+    return tuple(plan)
+
+
+# 曲名を折るときに切りたい場所（優先度の高い順に見る）。空白のほか、区切りに使われる記号。
+# **閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
+_BREAK_AFTER = "　 ）)］]】〉》」』"
+_BREAK_BEFORE = "（([［[【〈《「『／/～-—"
+
+
+def _wrap_line(d: ImageDraw.ImageDraw, title: str, artist: str, font_s: int, max_w: float) -> tuple[ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, str, str, str]:
+    """2 段に分けて返す（フォント・フォント・1 段目・2 段目・アーティスト）。
+
+    アーティスト名は 2 段目の末尾に付ける。**曲名がどれだけ長くてもアーティストは残す**
+    （以前は長い曲名だとアーティストを丸ごと落としていた）。
+    """
+    fs = max(12, rnd(font_s * 0.85))   # 2 段にするぶん、1 行のときより少しだけ小さくする
+    ft, fa = font("bold", fs), font("regular", fs)
+    a = f"  {artist}" if artist else ""
+    head, feat = _split_feat(title)
+    # ① 「(feat. …)」の手前で折れるならそこで折る
+    if feat and d.textlength(head, font=ft) <= max_w:
+        first, rest = head, feat
+    else:
+        first, rest = _break_at(d, title, ft, max_w)
+    aw = d.textlength(a, font=fa)
+    if aw > max_w * 0.5:   # アーティスト名だけで 2 段目の半分を超えるなら、そちらも詰める
+        a = _ellipsize(d, a, fa, max_w * 0.5)
+        aw = d.textlength(a, font=fa)
+    return ft, fa, first, _ellipsize(d, rest, ft, max_w - aw), a
+
+
+def _break_at(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_w: float) -> tuple[str, str]:
+    """max_w に収まる範囲で、いちばん後ろの切れ目を探して 2 つに分ける。切れ目が無ければ字の途中で折る。"""
+    cut = len(text)
+    while cut > 1 and d.textlength(text[:cut], font=f) > max_w:
+        cut -= 1
+    # 収まる範囲の後ろから、区切りに使える位置を探す（行頭が空白や閉じ括弧にならないように）
+    for i in range(cut, max(1, cut // 3), -1):
+        if text[i - 1] in _BREAK_AFTER or (i < len(text) and text[i] in _BREAK_BEFORE):
+            return text[:i].rstrip(), text[i:].lstrip()
+    return text[:cut].rstrip(), text[cut:].lstrip()
 
 
 def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
@@ -349,15 +426,37 @@ def layout(doc: GridDoc) -> Layout:
     font_s = rnd(line_h * 0.56)
     sb_w = sb_h = 0
     sb_cols = 1
+    sb_gap = 0 if side == "none" else GAP_PX * 4
     if side == "right":
-        # 幅は「最長の行」に合わせる（最低 720px、最大でグリッド幅と同じ）。長い曲名が「…」で切れにくくなる
+        # 幅は「最長の行」に合わせる（最低 720px）。長い曲名が「…」で切れにくくなる
         need = max(_longest_line(doc, font_s), _title_width(title, title_size))
-        sb_w, sb_h = max(720, min(gw, need)), gh
+        # **比率が決まっているときは、横に余る幅を先にサイドバーへ回す**。高さはグリッドで決まるので、
+        # 全体の幅は比率から決まってしまい、サイドバーを狭くしたぶんは余白になって捨てられるだけ。
+        # 広げておけば長い曲名が「…」で切れず、文字を小さくする必要もない（流し込みでは前からこうしている）
+        cap = gw
+        if ratio is not None:
+            w_est = rnd((title_top_h + gh + m * 2) * ratio)
+            cap = max(gw, min(gw * 2, w_est - m * 2 - gw - sb_gap))
+        sb_w, sb_h = max(720, min(cap, need)), gh
     if side == "bottom":
         # 列数: 9:16 は 12 曲まで 1 列。1:1 / 4:5 は縦に伸びると横の余りが増えるので 6 曲以上で 2 列
         sb_cols = 2 if n > 12 or (ratio >= 0.8 and n >= 6) else 1
         sb_w, sb_h = gw, math.ceil(n / sb_cols) * line_h
-    sb_gap = 0 if side == "none" else GAP_PX * 4
+    # 1 行に収まらない曲は 2 段にする。段が増えるぶん行の高さを取り直す（右は全体の高さが決まっているので
+    # 全曲の行間と文字が少し小さくなる。下に置くときは下へ伸びる）。
+    # **割り付けは 1 度しか計算しない**。小さくした字で計算し直すと「入る→1 段→字が大きくなる→入らない」と
+    # 行ったり来たりするため。多めに段を取るぶんには崩れない
+    sb_plan: tuple[int, ...] = ()
+    if side != "none":
+        col_w0 = sb_w if side == "right" else (sb_w - GAP_PX * 2 * (sb_cols - 1)) // sb_cols
+        sb_plan = _row_plan(doc, font_s, col_w0)
+        total_rows = sum(sb_plan)
+        if total_rows > n:
+            if side == "right":
+                line_h = max(30, min(96, (gh - title_h) // total_rows))
+                font_s = rnd(line_h * 0.56)
+            else:
+                sb_h = _plan_rows(sb_plan, sb_cols) * line_h
 
     def _frame(sbw: int, sbh: int) -> tuple[int, int, float]:
         cw = gw + sb_gap + sbw if side == "right" else gw
@@ -393,7 +492,21 @@ def layout(doc: GridDoc) -> Layout:
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
-                  title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap, sb_flow)
+                  title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap, sb_flow,
+                  () if sb_flow else sb_plan)
+
+
+def _plan_rows(plan: tuple[int, ...], cols: int) -> int:
+    """下に置くときの 1 列あたりの段数。**1 曲が列をまたがないように**詰める。"""
+    if cols <= 1:
+        return sum(plan)
+    target = math.ceil(sum(plan) / cols)
+    used, most = 0, 0
+    for r in plan:
+        if used and used + r > target:
+            most, used = max(most, used), 0
+        used += r
+    return max(most, used)
 
 
 def _fit(content_w: int, content_h: int, pad: int, ratio: float | None) -> tuple[int, int]:
@@ -431,12 +544,14 @@ def _fit_line(d: ImageDraw.ImageDraw, title: str, artist: str, font_s: int, max_
         a = f"  {artist}" if artist else ""
         if d.textlength(title, font=ft) + d.textlength(a, font=fa) <= max_w:
             return ft, fa, title, a
+    # 縮めても入らないとき。**アーティスト名は捨てない**（誰の曲か分からなくなるため。
+    # 以前は曲名が長いとアーティストを丸ごと落としていて、「アーティスト名が消える」と報告があった）。
+    # アーティストに渡すのは行の半分まで。残りで曲名を「…」で切る
     ft, fa = font("bold", max(12, rnd(font_s * 0.65))), font("regular", max(12, rnd(font_s * 0.65)))
     a = f"  {artist}" if artist else ""
-    tw = d.textlength(title, font=ft)
-    if tw <= max_w * 0.7:
-        return ft, fa, title, _ellipsize(d, a, fa, max_w - tw)
-    return ft, fa, _ellipsize(d, title, ft, max_w), ""
+    if a:
+        a = _ellipsize(d, a, fa, max_w * 0.5)
+    return ft, fa, _ellipsize(d, title, ft, max_w - d.textlength(a, font=fa)), a
 
 
 # ---------- 描画 ----------
@@ -523,11 +638,19 @@ def render(doc: GridDoc) -> Image.Image:
                     x += d.textlength(text, font=f)
             _release_memory()
             return im
-        per_col = doc.size if L.side == "right" else math.ceil(doc.size / L.sb_cols)
+        plan = L.sb_plan or tuple(1 for _ in doc.cells)
+        # 段の割り付け（列・その列の中での段番号）。**1 曲が列をまたがないように**詰める
+        rows_per_col = _plan_rows(plan, L.sb_cols) if L.side != "right" else sum(plan)
+        places, col, used = [], 0, 0
+        for r in plan:
+            if used and used + r > rows_per_col and L.sb_cols > 1:
+                col, used = col + 1, 0
+            places.append((col, used))
+            used += r
         font_s = max(8, sc(L.font_s))
         f_num = font("pixel", max(8, sc(L.font_s * 0.8)))
         for i, t in enumerate(doc.cells):
-            col, row = i // per_col, i % per_col
+            col, row = places[i]
             x = sc(sx + col * (col_w + GAP_PX * 2))
             yy = sc(sy + row * L.line_h + L.line_h / 2)
             num = f"{i + 1:02d}"
@@ -538,6 +661,15 @@ def render(doc: GridDoc) -> Image.Image:
             if not t:
                 continue
             max_w = col_w * S - nw
+            if plan[i] >= 2:
+                # 2 段。1 段目は曲名の前半、2 段目は残りとアーティスト名
+                f_title, f_artist, l1, l2, artist_s = _wrap_line(d, _one_line(t.title), _one_line(t.artist), font_s, max_w)
+                d.text((x + nw, yy), l1, font=f_title, fill=ink, anchor="lm")
+                y2 = sc(sy + (row + 1) * L.line_h + L.line_h / 2)
+                d.text((x + nw, y2), l2, font=f_title, fill=ink, anchor="lm")
+                if artist_s:
+                    d.text((x + nw + d.textlength(l2, font=f_title), y2), artist_s, font=f_artist, fill=muted, anchor="lm")
+                continue
             f_title, f_artist, title_s, artist_s = _fit_line(d, _one_line(t.title), _one_line(t.artist), font_s, max_w)
             d.text((x + nw, yy), title_s, font=f_title, fill=ink, anchor="lm")
             if artist_s:
