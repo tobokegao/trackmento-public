@@ -74,11 +74,27 @@ async function type(sel, text) {
   await loc.fill("");
   await loc.pressSequentially(text, { delay: 55 });
 }
-async function openSheet() { if (PC) { await wait(300); return; } await tap("#find-btn", "open-sheet"); await page.waitForSelector("#sheet:not([hidden])"); await wait(500); }
-async function pickFirstResult(label, source, match) {   // match: 候補のテキスト（アルバム名など）で絞る
+async function openSheet() {
+  if (PC) { await wait(300); return; }
+  // すでに開いているならそのまま使う（プレイリストの選択を通ったあとはシートが開いたまま残る。
+  // ここで #find-btn を押そうとすると、シートの下敷きに阻まれて固まる）
+  if (await page.locator("#sheet:not([hidden])").count()) { await wait(300); return; }
+  await tap("#find-btn", "open-sheet");
+  await page.waitForSelector("#sheet:not([hidden])");
+  await wait(500);
+}
+async function pickFirstResult(label, source, match, timeout = 120000) {   // match: 候補のテキスト（アルバム名など）で絞る
   let sel = source ? `#results .result:has(.badge[data-source="${source}"])` : "#results .result";
   if (match) sel += `:has-text("${match}")`;
-  await page.waitForSelector(sel, { timeout: 60000 });
+  // MusicBrainz はブラウザが直接叩く（サーバーのキャッシュが効かない）ので長めに待つ
+  try {
+    await page.waitForSelector(sel, { timeout });
+  } catch (e) {
+    const got = await page.locator("#results").innerText().catch(() => "(読めず)");
+    console.log(`!! ${label} の候補が出ない。いまの候補:
+${got.slice(0, 800)}`);
+    throw e;
+  }
   await wait(700);
   await tap(sel, `add:${label}`);
   await page.waitForSelector("#sheet[hidden]", { state: "attached" });
@@ -99,7 +115,17 @@ async function searchAdd(title, artist, label, source, opts = {}) {   // opts.ma
   await type("#q", title);
   if (artist) await type("#artist", artist);
   await tap("#search-btn", `search:${label}`);
-  await pickFirstResult(label, source, opts.match);
+  // MusicBrainz はブラウザから直接叩くので、続けて録り直すとレート制限で空が返ることがある。
+  // そのときは少し待って検索し直す（v1 と同じ並びにするには、この 1 件が入らないと困る）
+  for (let attempt = 0; ; attempt++) {
+    try { await pickFirstResult(label, source, opts.match, attempt ? 60000 : 90000); break; }
+    catch (e) {
+      if (attempt >= 2) throw e;
+      console.log(`   ${label}: 候補が出ないので検索し直す（${attempt + 1} 回目）`);
+      await wait(5000);
+      await page.locator("#search-btn").click();
+    }
+  }
 }
 async function urlAdd(url, label, source) {
   await openSheet();
@@ -155,7 +181,24 @@ async function featScene() {
   await wait(600);
   if (!PC) { await tap("#sheet-close", "look:close"); await wait(400); }
 
+  // ② 消えた動画の復活: 削除済みの ID を貼ると otoDB がタイトル・作者・サムネを埋める
+  // マスが空いているうちにやる（① のあとだと 256 マスが満杯で、候補をタップしても入らない）
+  await openSheet();
+  await expandSub("sub-bandcamp", "url-revive");
+  await page.locator("#bc-url").scrollIntoViewIfNeeded();
+  await wait(300);
+  await type("#bc-url", REVIVE);
+  await tap("#bc-btn", "revive:paste");
+  await pickFirstResult("revive", "otodb");
+  await mark("revive:done");
+  await wait(1500);
+
   // ③ マスを 16×16（256 マス）に広げる
+  // 出力オプションはスマホだと畳まれている。開いてからでないと #cols が見えない
+  {
+    const fold = page.locator(".pane-options .fold");
+    if ((await fold.getAttribute("aria-expanded")) !== "true") { await tap(fold, "open-options"); await wait(700); }
+  }
   await page.locator("#cols").scrollIntoViewIfNeeded();
   await wait(300);
   await type("#cols", "16");
@@ -178,18 +221,9 @@ async function featScene() {
   await wait(2500); await mark("pl:filled");
   await wait(1200);
 
-  // ② 消えた動画の復活: 削除済みの ID を貼ると otoDB がタイトル・作者・サムネを埋める
-  await openSheet();
-  await expandSub("sub-bandcamp", "url-revive");
-  await page.locator("#bc-url").scrollIntoViewIfNeeded();
-  await wait(300);
-  await type("#bc-url", REVIVE);
-  await tap("#bc-btn", "revive:paste");
-  await pickFirstResult("revive", "otodb");
-  await mark("revive:done");
-  await wait(1500);
-
   // ④ 日本語 / 英語の切り替え
+  // プレイリストを入れたあとはシートが開いたままなので、閉じてからでないと下敷きに阻まれる
+  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "sheet-close"); await wait(600); }
   await tap("#lang-switch", EN ? "lang:ja" : "lang:en");
   await wait(1600); await mark("lang:switched");
   await tap("#lang-switch", EN ? "lang:en-back" : "lang:ja-back");
@@ -240,13 +274,19 @@ async function mainScene() {
   await wait(400);
   for (const c of ["cerulean", "pink", "mustard"]) { await tap(`#swatches input[value="${c}"]`, `bg:${c}`); await wait(450); }
   await wait(400);
-  await page.locator("#bg-custom").scrollIntoViewIfNeeded();
-  { const box = await page.locator("#bg-custom").boundingBox(); await page.evaluate(([x, y]) => window.__tap(x, y), [box.x + box.width / 2, box.y + box.height / 2]); }
-  await wait(120); await mark("bg:custom");
-  await page.locator("#bg-custom").fill("#7c5cff");
-  await wait(700);
-  await page.locator("#bg-custom").fill("#ff7a59");
-  await wait(700);
+  // カスタムカラーは色相・彩度・明度のスライダー（2026-09 に色入力から変わった）
+  await tap("#bg-custom-btn", "bg:custom");
+  await page.waitForSelector("#bg-custom-panel:not([hidden])");
+  await wait(500);
+  // つまみを動かすところが見えるよう、少しずつ値を送る
+  for (const [h, sat, v] of [[262, 64, 100], [16, 65, 90]]) {
+    for (const [id, val] of [["hsv-h", h], ["hsv-s", sat], ["hsv-v", v]]) {
+      await page.locator(`#${id}`).fill(String(val));
+      await page.locator(`#${id}`).dispatchEvent("input");
+      await wait(220);
+    }
+    await wait(600);
+  }
   await tap(`#swatches input[value="mustard"]`, "bg:mustard2");
   await wait(400);
 
@@ -268,13 +308,15 @@ async function mainScene() {
   await page.mouse.wheel(0, 600); await wait(1200);
   await page.mouse.wheel(0, 600); await wait(1500);
   await mark("end");
+  return shareUrl;
 }
 
-if (FEAT) await featScene(); else await mainScene();
+let shareUrl = null;
+if (FEAT) await featScene(); else shareUrl = await mainScene();
 
 await ctx.close(); await browser.close();
 // 「共有ページを開く」で別タブが開くと短い webm がもう 1 本できるので、いちばん大きいもの（本編）を選ぶ
 const webm = fs.readdirSync(OUT).filter((f) => f.endsWith(".webm")).sort((a, b) => fs.statSync(path.join(OUT, b)).size - fs.statSync(path.join(OUT, a)).size)[0];
 fs.renameSync(path.join(OUT, webm), path.join(OUT, "session.webm"));
 fs.writeFileSync(path.join(OUT, "events.json"), JSON.stringify(events, null, 1));
-console.log("done", shareUrl);
+console.log("done", shareUrl ?? `(${OUT})`);
