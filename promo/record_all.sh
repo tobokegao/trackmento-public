@@ -7,9 +7,11 @@
 # 前提:
 #   - ローカルの uvicorn が 8000 番で動いていること。**共有の 1 日上限を外して立てる**
 #     （本番の共有数を復元するので、外さないと share で止まる）:
-#       PUBLIC_MODE=1 SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0 \
+#       PUBLIC_MODE=1 DISCOGS_TOKEN= SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0 \
 #         PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 #   - uploads/ に手入力用の 2 枚があること
+#   - **DISCOGS_TOKEN= を付けて立てる**。手元には .env にトークンがあるので検索ソースが 4 つ出るが、
+#     本番はトークンを置いていないので 3 つ（iTunes / MusicBrainz / otoDB）。画面を本番と揃える
 #   - SCAN_PY に numpy と pillow の入った python を渡すこと（.venv には numpy が無いので別環境）
 #
 # 使い方:

@@ -17,6 +17,12 @@ const OUT = path.resolve(`public/recordings${PC ? "-pc" : ""}${FEAT ? "-feat" : 
 // feat で使う素材。復活は sm7889666（作品ごと消えていて otoDB がタイトル・作者・サムネを持っている。選定の経緯は video-notes.md）
 const MYLIST = "https://www.nicovideo.jp/mylist/79113711";
 const REVIVE = "https://www.nicovideo.jp/watch/sm7889666";
+// 複数の URL を改行で区切ってまとめて貼る例。ちがうサイトを混ぜられることを見せたいので 3 つとも別のサイト
+const MULTI_URLS = [
+  "https://www.youtube.com/watch?v=x2Uj_ILuNw0",
+  "https://jamiepaige.bandcamp.com/track/birdbrain-with-ok-glass-2",
+  "https://on.soundcloud.com/QSnj7ttO5W4ErGhJ7U",
+].join(String.fromCharCode(10));
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -91,8 +97,10 @@ async function pickFirstResult(label, source, match, timeout = 120000) {   // ma
     await page.waitForSelector(sel, { timeout });
   } catch (e) {
     const got = await page.locator("#results").innerText().catch(() => "(読めず)");
-    console.log(`!! ${label} の候補が出ない。いまの候補:
-${got.slice(0, 800)}`);
+    const msg = await page.locator("#bc-msg").innerText().catch(() => "");
+    console.log(`!! ${label} の候補が出ない。URL 欄のメッセージ: ${msg || "(なし)"}
+いまの候補:
+${got.slice(0, 500)}`);
     throw e;
   }
   await wait(700);
@@ -147,6 +155,15 @@ async function manualAdd(image, title, artist, label) {
   await tap("#m-btn", `manual:${label}`);
   await pickFirstResult(label, "manual");   // 手入力は候補の先頭に入るので、それをタップして配置
 }
+async function setUrl(value, delay = 30) {
+  // 打ち込んだ様子を見せたいので 1 文字ずつ入れるが、入りきらないことがある。
+  // 弾かれると取得が走らないまま進んでしまうので、最後に値を確かめて、違えば入れ直す
+  const loc = page.locator("#bc-url");
+  await loc.click();
+  await loc.fill("");
+  await loc.pressSequentially(value, { delay });
+  if ((await loc.inputValue()) !== value) await loc.fill(value);
+}
 async function expandSub(id, name) {
   const b = page.locator(`#${id} .sub-title`);
   await b.scrollIntoViewIfNeeded();
@@ -181,13 +198,37 @@ async function featScene() {
   await wait(600);
   if (!PC) { await tap("#sheet-close", "look:close"); await wait(400); }
 
+  // 出力オプションは画面の下のほうにあるので、スクロールして全体を見せる
+  await page.locator(".pane-options").scrollIntoViewIfNeeded();
+  await wait(700);
+  await mark("look:options");
+  await wait(1400);
+  await page.locator("#grid").scrollIntoViewIfNeeded();
+  await wait(600);
+
+  // 複数の URL を改行で区切ってまとめて貼る（ちがうサイトを混ぜられる）
+  await openSheet();
+  await expandSub("sub-bandcamp", "url-multi");
+  await page.locator("#bc-url").scrollIntoViewIfNeeded();
+  await wait(300);
+  await setUrl(MULTI_URLS, 12);
+  await tap("#bc-btn", "multi:paste");
+  // 単体の URL を並べただけのときは「入れ方を選ぶ」オーバーレイは出ず、そのまま候補に入る
+  // （オーバーレイが出るのはプレイリストの URL を含むときだけ）
+  await page.waitForSelector("#results .result", { timeout: 120000 });
+  await wait(2000); await mark("multi:got");
+  await wait(1200);
+
+  // 複数 URL のあとはシートを開き直す。開いたまま次の URL を打つと入力が効かないことがあった
+  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "multi-close"); await wait(600); }
+
   // ② 消えた動画の復活: 削除済みの ID を貼ると otoDB がタイトル・作者・サムネを埋める
   // マスが空いているうちにやる（① のあとだと 256 マスが満杯で、候補をタップしても入らない）
   await openSheet();
   await expandSub("sub-bandcamp", "url-revive");
   await page.locator("#bc-url").scrollIntoViewIfNeeded();
   await wait(300);
-  await type("#bc-url", REVIVE);
+  await setUrl(REVIVE);
   await tap("#bc-btn", "revive:paste");
   await pickFirstResult("revive", "otodb");
   await mark("revive:done");
@@ -212,7 +253,7 @@ async function featScene() {
   await expandSub("sub-bandcamp", "url");
   await page.locator("#bc-url").scrollIntoViewIfNeeded();
   await wait(300);
-  await type("#bc-url", MYLIST);
+  await setUrl(MYLIST);
   await tap("#bc-btn", "pl:paste");
   await page.waitForSelector("#pl-modal:not([hidden])", { timeout: 300000 });
   await wait(1400); await mark("pl:overlay");

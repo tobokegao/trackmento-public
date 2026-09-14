@@ -62,13 +62,13 @@ export const evTime = (kind: Kind, lang: Lang, session: Session, name: string) =
 };
 
 // ---- 構成（拍番号は 0 始まり。小節 n の頭 = bar(n)） ----
-// 1–3 イントロ / 4–8 画面説明 / 9 ⑤見た目 / 10 カウントダウン / 11 タイトル /
-// 12–15 追加の説明 / 16–17 ①プレイリスト / 18–19 ②復活 / 20–24 並べる /
+// 1–3 イントロ / 4–8 画面説明（⑤見た目もここに畳む）/ 9 カウントダウン / 10 タイトル /
+// 11–14 入れ方 / 15 複数 URL / 16–17 ①プレイリスト / 18–19 ②復活 / 20–24 並べる /
 // 25–26 出力設定 / 27–28 ③256 マス / 29–32 色と共有 / 33 ④日英 /
 // 34 タイムラプス / 35–36 できあがり / 37 ⑥転送量 / 38–40 エンドカード
 export const INTRO_END = bar(4);            // イントロは 3 小節
-export const COUNTDOWN_BEAT = bar(10);      // 3, 2, 1, GO
-export const FLOW_BEAT = bar(11);           // 操作の流れはここから
+export const COUNTDOWN_BEAT = bar(9);       // 3, 2, 1, GO
+export const FLOW_BEAT = bar(10);           // 操作の流れはここから
 export const TIMELAPSE_BEAT = bar(34);
 export const SHOWCASE_BEAT = bar(35);       // できあがり（2 小節）
 export const BANDWIDTH_BEAT = bar(37);      // ⑥ 転送量削減（録画なしのシーン）
@@ -86,32 +86,36 @@ export type Shot = {
   zoom?: { x: number; y: number; s: number }; zoomPc?: { x: number; y: number; s: number };   // zoom = スマホ録画、zoomPc = PC 録画
   hl?: { x: number; y: number; w: number; h: number };                                           // スマホ録画で枠線で強調する範囲（割合）
   still?: boolean;                                                                                // 録画を最初のコマで止める（裏で操作が進まないように）
+  ab?: string;                                                                                    // 前半にこの画（v1 の見た目）を出して見くらべる。public/ のファイル名
   fx?: "glitchOut" | "flashIn";                                                                   // glitchOut: 末尾 1 小節のジャンプ演出、flashIn: 冒頭 1 拍の反転
 };
 
 export const SHOTS: Shot[] = [
-  // 4〜8 小節目: トップ画面の説明（5 小節）
+  // 4〜8 小節目: トップ画面の説明（5 小節）。⑤ の見た目もここに畳む
   { beat: bar(4), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "トップ画面はこれだけ", en: "This is the whole app" },
-  { beat: bar(5), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.027, y: 0.116, w: 0.946, h: 0.065 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
-  { beat: bar(6), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.031, y: 0.179, w: 0.938, h: 0.528 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
-  { beat: bar(7), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索のボタン", en: "Share and search below", hl: { x: 0.027, y: 0.747, w: 0.946, h: 0.12 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
-  { beat: bar(8), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "出力の設定もここに", en: "Output settings too", zoomPc: { x: 1, y: 0.5, s: 1.4 } },
-  // 9 小節目: ⑤ さらにダサくなった見た目（Mac OS 9 風）
-  { beat: bar(9), len: 4, ev: "look:scroll", off: -0.6, rec: "feat", speed: 1.2, jp: "見た目はもっとダサく", en: "Now even uglier", zoom: { x: 0.95, y: 0.6, s: 1.6 }, zoomPc: { x: 0.1, y: 0.6, s: 1.7 } },
-  // 10 小節目: カウントダウン（映像はトップ画面のまま）
-  { beat: bar(10), len: 4, ev: "start", off: 0.0, still: true, jp: "", en: "" },
-  // 11〜15 小節目: 入れ方
-  { beat: bar(11), len: 4, ev: "title-focus", off: -0.2, jp: "まずはタイトル", en: "Start with a title" },
-  { beat: bar(12), len: 4, ev: "cell-tap", off: -0.5, jp: "枠をタップ", en: "Tap a cell", zoomPc: { x: 0.52, y: 0.36, s: 1.8 } },
-  { beat: bar(13), len: 4, ev: "search:chikamichi", off: -1.6, speed: 2, jp: "曲を探す", en: "Find tracks", zoomPc: { x: 0, y: 0.3, s: 1.7 } },
-  { beat: bar(14), len: 4, ev: "src:musicbrainz", off: -0.4, jp: "検索ソースは 4 種類", en: "Four search sources", zoom: { x: 0.3, y: 0.6, s: 1.3 }, zoomPc: { x: 0, y: 0.43, s: 1.9 } },
-  { beat: bar(15), len: 4, ev: "url:talk", off: -1.6, speed: 1.4, jp: "URL 検索も対応", en: "Or paste a URL", zoomPc: { x: 0, y: 0.74, s: 1.7 } },
+  { beat: bar(5), len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.046, y: 0.13, w: 0.909, h: 0.063 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
+  { beat: bar(5) + 2, len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.049, y: 0.191, w: 0.872, h: 0.495 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
+  { beat: bar(6), len: 2, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索のボタン", en: "Share and search below", hl: { x: 0.046, y: 0.726, w: 0.909, h: 0.17 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
+  // 出力の設定は画面の外にあるので、スクロールして見せる
+  { beat: bar(6) + 2, len: 4, ev: "look:options", off: -0.4, rec: "feat", speed: 0.9, jp: "出力の設定もここに", en: "Output settings too", zoomPc: { x: 1, y: 0.5, s: 1.4 } },
+  // ⑤ さらにダサくなった見た目（1 小節 2 拍）。ウィンドウバーとスクロールバーを見せる
+  { beat: bar(7) + 2, len: 6, ev: "look:scroll", off: -0.6, rec: "feat", speed: 1.2, ab: "v1-look", jp: "見た目はもっとダサく", en: "Now even uglier" },
+  // 9 小節目: カウントダウン（映像はトップ画面のまま）
+  { beat: bar(9), len: 4, ev: "start", off: 0.0, still: true, jp: "", en: "" },
+  // 10〜14 小節目: 入れ方
+  { beat: bar(10), len: 4, ev: "title-focus", off: -0.2, jp: "まずはタイトル", en: "Start with a title" },
+  { beat: bar(11), len: 4, ev: "cell-tap", off: -0.5, jp: "枠をタップ", en: "Tap a cell", zoomPc: { x: 0.52, y: 0.36, s: 1.8 } },
+  { beat: bar(12), len: 4, ev: "search:chikamichi", off: -1.6, speed: 2, jp: "曲を探す", en: "Find tracks", zoomPc: { x: 0, y: 0.3, s: 1.7 } },
+  { beat: bar(13), len: 4, ev: "src:musicbrainz", off: -0.4, jp: "検索ソースは 3 種類", en: "Three search sources", zoomPc: { x: 0, y: 0.43, s: 1.9 } },
+  { beat: bar(14), len: 4, ev: "url:talk", off: -1.6, speed: 1.4, jp: "URL 検索も対応", en: "Or paste a URL", zoomPc: { x: 0, y: 0.74, s: 1.7 } },
+  // 15 小節目: 複数の URL をまとめて
+  { beat: bar(15), len: 4, ev: "multi:got", off: -1.8, rec: "feat", speed: 1.6, jp: "改行で区切ればまとめて", en: "One per line, all at once" },
   // 16〜17 小節目: ① プレイリストをまとめて挿入
-  { beat: bar(16), len: 4, ev: "pl:paste", off: -1.8, rec: "feat", speed: 1.6, jp: "プレイリストの URL を 1 本", en: "Paste one playlist URL", zoom: { x: 0.5, y: 0.72, s: 1.5 }, zoomPc: { x: 0, y: 0.74, s: 1.7 } },
+  { beat: bar(16), len: 4, ev: "pl:paste", off: -1.8, rec: "feat", speed: 1.6, jp: "プレイリストの URL でまとめて挿入", en: "A whole playlist in one paste" },
   { beat: bar(17), len: 4, ev: "pl:fill", off: -1.2, rec: "feat", jp: "最大 500 曲がまとめて入る", en: "Up to 500 tracks at once" },
   // 18〜19 小節目: ② 消えた動画の復活
-  { beat: bar(18), len: 4, ev: "revive:paste", off: -1.6, rec: "feat", speed: 1.5, jp: "消えた動画も", en: "Even deleted videos", zoom: { x: 0.5, y: 0.72, s: 1.5 }, zoomPc: { x: 0, y: 0.74, s: 1.7 } },
-  { beat: bar(19), len: 4, ev: "add:revive", off: -0.8, rec: "feat", jp: "otoDB からよみがえる", en: "come back from otoDB", zoom: { x: 0.5, y: 0.45, s: 1.4 }, zoomPc: { x: 0, y: 0.5, s: 1.6 } },
+  { beat: bar(18), len: 4, ev: "revive:paste", off: -1.6, rec: "feat", speed: 1.5, jp: "消えた動画も", en: "Even deleted videos" },
+  { beat: bar(19), len: 4, ev: "add:revive", off: -0.8, rec: "feat", jp: "otoDB からよみがえる", en: "come back from otoDB" },
   // 20〜24 小節目: 埋めて並べる
   { beat: bar(20), len: 4, ev: "manual:mitsuami", off: -0.6, speed: 1.2, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
   { beat: bar(21), len: 4, ev: "add:ilovelove", off: -0.4, jp: "枠が全部埋まったら", en: "All nine in", zoomPc: { x: 0.6, y: 0.45, s: 1.5 } },
@@ -134,7 +138,7 @@ export const SHOTS: Shot[] = [
 ];
 
 /** URL 検索の対応サイト（8 分音符 3 連で 1 つずつ出す） */
-export const SITES = ["YouTube", "ニコニコ動画", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];
+export const SITES = ["YouTube", "ニコニコ", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];
 export const SITES_EN = ["YouTube", "Niconico", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];
 
 /** ⑥ 転送量削減で出す数字（録画ではなく作った画で見せる） */
