@@ -366,7 +366,7 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
     右端をそろえる。
     """
     fonts = {"num": font("pixel", rnd(font_s * 0.8)), "title": font("bold", font_s), "artist": font("regular", font_s)}
-    gap = fonts["title"].getlength("　")   # 曲と曲のあいだは全角空白 1 つぶん
+    gap = float(rnd(fonts["title"].getlength("　")))   # 曲と曲のあいだは全角空白 1 つぶん
     rows: list[FlowRow] = []
     cur: list[tuple[str, str]] = []
     x = 0.0
@@ -382,7 +382,10 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
         nonlocal x
         f = fonts[kind]
         for ch in text:
-            w = f.getlength(ch)
+            # **折り返しの判定は 1px に丸めた字幅で行う**。PIL と Canvas の字幅は 1px 未満だけ違い、
+            # 生の値で足していくと境目の字で折る・折らないが入れ替わり、そこから先の行が全部ずれる。
+            # 丸めればほとんどの字で同じ値になり、両者が同じ位置で折る（描くときは実寸のまま）
+            w = float(rnd(f.getlength(ch)))
             if x + w > max_w and cur:
                 flush()
             if cur and cur[-1][0] == kind:
@@ -395,10 +398,13 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
         if not t:
             continue
         if cur:
-            x += gap
-            gaps += 1
-            if x > max_w:
+            # 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない
+            # 送りが入り、余りの配り方がずれる）
+            if x + gap > max_w:
                 flush()
+            else:
+                x += gap
+                gaps += 1
         put("num", f"{i + 1:02d}")
         put("title", " " + _one_line(t.title))
         if t.artist:
@@ -626,13 +632,17 @@ def render(doc: GridDoc) -> Image.Image:
                 # 余った幅を曲の切れ目に均等に配って右端をそろえる。最後の行は伸ばさない。
                 # ただし **配りすぎると切れ目が間延びする**ので、空白 1 つぶんまでしか広げない
                 # （切れ目は最大でも空白 2 つぶん）。余りきらないぶんは行末に残す
+                # 曲の切れ目は全角空白 1 つぶん。**これは必ず空ける**（描かずに幅だけ取ると、
+                # 余りの無い行で曲と曲がくっつく。「Chevon06」のように番号が前の曲名に貼り付く）。
+                # extra は右端をそろえるための上乗せで、空白 1 つぶんまで（切れ目は最大 2 つぶん）
+                sp = f_flow["title"].getlength("　")
                 extra = 0.0
                 if fr.gaps and row < len(flow) - 1:
-                    extra = min(max(0.0, sc(col_w) - sc(fr.width)) / fr.gaps, sc(f_flow["title"].getlength("　")))
+                    extra = min(max(0.0, sc(col_w) - sc(fr.width)) / fr.gaps, sp)
                 for j, (kind, text) in enumerate(fr.parts):
                     # 番号の手前が曲の切れ目（行頭は除く）
                     if kind == "num" and j > 0:
-                        x += extra
+                        x += sp + extra
                     f = f_flow[kind]
                     d.text((x, yy), text, font=f, fill=colors[kind], anchor="lm")
                     x += d.textlength(text, font=f)

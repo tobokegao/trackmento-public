@@ -19,8 +19,9 @@
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py clean <ID> <ID> ...
 
 見方: 差は**輪郭だけ**なら正常（文字のラスタライズと JPEG の違い）。マスや文字の位置がずれていれば
-面として差が出るので、ぼかしたあとにも差が残る。実測（2026-09-14、4x4 / 12x20 / 16x16）では
-ぼかし後の「差 > 32」が 0.00〜0.10% だった。ここが数 % に跳ねたらレイアウトがずれている。
+面として差が出るので、ぼかしたあとにも差が残る。**3px のぼかしで 1% 未満、または 6px で 0.3% 未満**なら正常。
+マスが少ないと文字が大きくなり、3px では輪郭が消えきらない（2026-09-14 の実測で 4x4 が 1.65%。
+6px まで掛けると 0.07% になり、行の位置は完全に一致していた）。
 """
 from __future__ import annotations
 
@@ -80,10 +81,14 @@ def diff(srv: str, web: str) -> int:
     n = a.size[0] * a.size[1]
     raw = ImageChops.difference(a, b).convert("L")
     soft = ImageChops.difference(a.filter(ImageFilter.GaussianBlur(3)), b.filter(ImageFilter.GaussianBlur(3))).convert("L")
-    rh, sh = raw.histogram(), soft.histogram()
+    # マスが少ないと文字が大きくなり、3px のぼかしでは輪郭の差が消えきらない（4x4 で 1.3% 出る）。
+    # 6px まで掛けても残るならレイアウトのずれ
+    soft6 = ImageChops.difference(a.filter(ImageFilter.GaussianBlur(6)), b.filter(ImageFilter.GaussianBlur(6))).convert("L")
+    rh, sh, sh6 = raw.histogram(), soft.histogram(), soft6.histogram()
     over = lambda h, t: sum(h[t + 1 :]) / n * 100   # noqa: E731
     print(f"そのまま: 差>8 {over(rh, 8):.2f}%  差>32 {over(rh, 32):.2f}%  差>128 {over(rh, 128):.2f}%")
-    print(f"ぼかし後: 差>32 {over(sh, 32):.2f}%  ← ここが 1% を超えるならレイアウトがずれている")
+    print(f"ぼかし後: 差>32 {over(sh, 32):.2f}%（3px） / {over(sh6, 32):.2f}%（6px）")
+    print("  ← 3px が 1% 未満、または 6px が 0.3% 未満なら正常（文字が大きいと 3px では輪郭が残る）")
     out = ROOT / "outputs" / f"compare-{srv}-{web}.jpg"
     out.parent.mkdir(exist_ok=True)
     w, h = a.size
@@ -94,7 +99,7 @@ def diff(srv: str, web: str) -> int:
     canvas.paste(raw.point(lambda v: min(255, v * 6)).convert("RGB").resize(sz, Image.LANCZOS), (0, sz[1] * 2 + 20))
     canvas.save(out, "JPEG", quality=88)
     print(f"比較画像: {out}（上=サーバー 中=ブラウザ 下=差分を 6 倍に強調）")
-    return 0 if over(sh, 32) < 1.0 else 1
+    return 0 if (over(sh, 32) < 1.0 or over(sh6, 32) < 0.3) else 1
 
 
 def clean(ids: list[str]) -> None:

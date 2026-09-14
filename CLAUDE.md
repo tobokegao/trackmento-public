@@ -299,7 +299,9 @@ claude --remote-control TRACKMENTO                                             #
 - 描画は 2 系統: Web は端末の Canvas で描いて `/share/upload` に送る（`frontend/index.html` の `renderShareCanvas`）。サーバー描画（`backend/render.py`）は CLI と、描けない端末のフォールバック（`/share`）。レイアウト・色・文字の省略規則は両方同じ式。**片方変更時は他方も変更**し、`scripts/compare_render.py` で両方の描画を突き合わせる（差は輪郭のみが正常）。
   手順はスクリプトの docstring。サーバーは `PUBLIC_MODE=1 SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0` で立てる（R2 が無料枠を超えていると 507、本番の共有数を復元して 1 日上限にも当たる）。
   **見るのは「ぼかし後の差 > 32」**。輪郭のズレはぼかすと消え、マスや文字の位置のズレだけが残る。
-  実測（2026-09-14、4x4 / 12x20 / 16x16）で 0.00〜0.24%。ここが 1% を超えたらレイアウトがずれている。
+  **3px のぼかしで 1% 未満、または 6px で 0.3% 未満**なら正常。マスが少ないと文字が大きく、3px では
+  輪郭が消えきらない（2026-09-14 の実測で 4x4 が 1.65%。6px まで掛けると 0.15%、行の位置は完全に一致）。
+  16x16 は 0.06%、12x20 は 0.15%、8x8（流し込み）は 0.66%。
   **テスト共有は必ず `clean` で R2 から消す**
 - フォント: Web は `fonts/split/`（`scripts/build_fonts.py` が IBM Plex Sans JP / DotGothic16 を unicode-range で分割した WOFF2 ＋ `fonts.<hash>.css`）を `<!--__FONT_LINK__-->` 経由で読む。**`frontend/index.html` の固定文字（ラベル・説明文）を変えたら次の 3 つを順に実行する**
   1. `python scripts/build_fonts.py` … 断片と `fonts.<hash>.css` を作り直す（先頭断片に UI の全文字を入れる設計。忘れると初回表示で断片を大量に読む）
@@ -437,6 +439,12 @@ claude --remote-control TRACKMENTO                                             #
     **両端そろえ有り 0.71%**。基準は 1%）。曲の単位で折れば 0.05% まで下がるが、
     行の頭がいつも番号になって規則的に見えるので採らなかった
     - 余りの配分は**空白 1 つぶんまで**。上限を付けないと、1 行の曲数が少ないときに切れ目が間延びする
+    - **曲の切れ目（全角空白 1 つぶん）は必ず描く**。幅だけ取って描かないでいると、余りの無い行で
+      曲と曲がくっつく（利用者の画像で「Chevon06 例え話」のように番号が前の曲名に貼り付いていた。
+      2026-09-14 に直した）。行末に来た切れ目は数に入れない（使っていない送りを幅に含めると余りの配分がずれる）
+    - **折り返しの判定は字幅を 1px に丸めてから行う**。PIL と Canvas の字幅は 1px 未満だけ違い、
+      生の値で足すと境目の字で折る・折らないが入れ替わって、そこから先の行が全部ずれる
+      （丸める前 2.28% → 丸めた後 0.66%）。描くときは実寸のまま
   - 検索の絞り込み: `backend/sources/itunes.py` と frontend の `itunesSearch`（ブラウザから直接 iTunes を叩くため）
   - 曲名の正規化: `backend/merge.py` の `_n()` と frontend の `nkey()`。
     **Python の `casefold()` は ß を ss に畳むが JS の `toLowerCase()` は畳まない**ので手で合わせてある
