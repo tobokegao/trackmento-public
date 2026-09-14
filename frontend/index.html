@@ -48,6 +48,15 @@
   --color-vermilion:oklch(62% 0.200 32);
   --color-mint:     oklch(84% 0.110 165);
   --color-pink:     oklch(78% 0.130 350);
+  /* もう 1 組のパレット（色見本から取った値なので oklch ではなく 16 進）。
+     この 6 色のどれかを背景に選ぶと、下の [data-palette="pop"] で画面の装飾色もこちらに入れ替わる。
+     **backend/render.py の TOKENS と frontend の TOKENS_RGB にも同じ値がある。片方だけ変えない** */
+  --color-lemon:       #fbd743;
+  --color-ultramarine: #4878da;
+  --color-coral:       #f0535a;
+  --color-sky:         #87d4ff;
+  --color-leaf:        #52a555;
+  --color-rose:        #f2418f;
   --color-accent:   var(--color-cerulean);
   --color-accent-ink: var(--color-paper);
   --color-focus:    oklch(58% 0.200 235);
@@ -91,6 +100,16 @@ button, input, select { font: inherit; color: inherit; }
 img { max-width: 100%; display: block; }
 :focus { outline: none; }
 :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+/* 背景色に新しい 6 色を選んだときは、画面の装飾色（ワードマークの下線・バッジ・強調）も入れ替える。
+   **スロットの名前は変えない**（36 か所の参照をそのまま活かすため。色だけ差し替わる） */
+:root[data-palette="pop"] {
+  --color-mustard:  var(--color-lemon);
+  --color-cerulean: var(--color-ultramarine);
+  --color-lavender: var(--color-sky);
+  --color-vermilion:var(--color-coral);
+  --color-mint:     var(--color-leaf);
+  --color-pink:     var(--color-rose);
+}
 ::selection { background: var(--color-mint); color: var(--color-ink); }
 
 /* ---------- toolbar (menubar) ---------- */
@@ -605,6 +624,27 @@ body.sheet-open { overflow: hidden; }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
 .swatches label { position: relative; flex: 1 1 28px; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに広がる（PC の列幅では 28px）。右に空きが残らない */
+/* 背景色の見出しの「パレット」ボタン。文字が入るので「?」用の四角ではなく横長にする */
+.pal-btn { font: inherit; font-size: var(--text-sm); line-height: 1; padding: 3px var(--space-2); margin-left: var(--space-2);
+  border: var(--line) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); cursor: pointer; }
+.pal-btn:hover { background: var(--color-paper-2); }
+.pal-btn:active { background: var(--color-ink); color: var(--color-paper); }
+/* パレットの一覧（モーダルの中）。1 行が 1 組の 6 色 */
+.pal-lanes { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0; }
+.pal-lane { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); border: var(--line) solid var(--color-rule); background: var(--color-paper-2); }
+.pal-lane[data-active="true"] { border-color: var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); }
+.pal-lane .pal-name { flex: 1 1 auto; min-width: 5em; font-size: var(--text-sm); }
+.pal-lane .pal-chips { display: flex; gap: 2px; }
+.pal-lane .pal-chips span, .pal-lane .pal-chips input { width: 22px; height: 22px; border: var(--line) solid var(--color-ink); padding: 0; }
+.pal-lane .pal-chips input[type="color"] { appearance: none; -webkit-appearance: none; background: none; cursor: pointer; }
+.pal-lane .pal-chips input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.pal-lane .pal-chips input[type="color"]::-webkit-color-swatch { border: 0; }
+.pal-lane .btn { padding: 2px var(--space-2); font-size: var(--text-sm); }
+.pal-actions { display: flex; gap: var(--space-2); }
+/* 6 色の受け渡し（コピー・貼り付け） */
+.pal-io { margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
+.pal-io-row { display: flex; gap: var(--space-2); }
+.pal-io-row .input { flex: 1 1 auto; min-width: 0; }
 .swatches input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .swatches span { display: block; width: 100%; height: 100%; border: var(--line) solid var(--color-ink); background: var(--sw); }
 .swatches input:checked + span { outline: 3px solid var(--color-ink); outline-offset: 2px; }
@@ -823,7 +863,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </fieldset>
 
       <fieldset class="field">
-        <legend>背景色</legend>
+        <legend>背景色 <button class="pal-btn" type="button" id="palette-btn" aria-haspopup="dialog" title="パレットを選ぶ">パレット</button></legend>
         <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
         <div class="custom-color">カスタムカラー <button type="button" id="bg-custom-btn" aria-label="カスタムカラーを設定" aria-expanded="false" aria-controls="bg-custom-panel"></button></div>
         <div class="hsv" id="bg-custom-panel" hidden>
@@ -883,6 +923,28 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>まとめて取る</b>: プレイリスト・マイリスト・セット・収藏夹・再生リストの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで</b>（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="pal-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pal-modal-title">
+  <div class="sheet-backdrop" id="pal-modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="sheet-head"><h2 id="pal-modal-title">パレット</h2><button class="btn" type="button" id="pal-modal-close">閉じる</button></div>
+    <div class="modal-body note">
+      <p>背景色に並ぶ 6 色と、画面の配色をまとめて切り替えます。</p>
+      <div class="pal-lanes" id="pal-lanes"></div>
+      <div class="pal-actions">
+        <button class="btn" type="button" id="pal-new">いまの色から作る</button>
+      </div>
+      <div class="pal-io">
+        <label for="pal-import">色コードを貼って読み込む</label>
+        <div class="pal-io-row">
+          <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（6 つ）" spellcheck="false" autocomplete="off">
+          <button class="btn" type="button" id="pal-import-btn">読み込む</button>
+        </div>
+        <p class="msg" id="pal-msg"></p>
+      </div>
     </div>
   </div>
 </div>
@@ -1054,6 +1116,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "ラベンダー": "Lavender",
         "ミント": "Mint",
         "ピンク": "Pink",
+    "レモン": "Lemon", "ウルトラマリン": "Ultramarine", "コーラル": "Coral",
+    "スカイ": "Sky", "リーフ": "Leaf", "ローズ": "Rose",
+    "パレット": "Palette", "パレットを選ぶ": "Choose a palette",
+    "背景色に並ぶ 6 色と、画面の配色をまとめて切り替えます。": "Switches the six background colours and the page's own colours together.",
+    "いまの色から作る": "Make one from these colours", "じぶんの色": "My colour",
+    "使う": "Use", "消す": "Delete", "リソ": "Riso", "ポップ": "Pop",
+    "コピー": "Copy", "読み込む": "Load", "色コードを貼って読み込む": "Paste colour codes to load",
+    "コピーしました。": "Copied.", "コピーできなかったので、欄に入れました。": "Could not copy, so we put it in the box.",
+    "読み込みました。": "Loaded.", "色コードを 6 つ入れてください。": "Six colour codes are needed.",
+    "#f2418f, #4878da, …（6 つ）": "#f2418f, #4878da, … (six)",
         "iTunes: サーバー経由は制限中（ブラウザから直接検索）": "iTunes: the server is rate-limited, searching from your browser instead",
         "接続OK": "Connected",
         "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）": "Cannot reach the server (search is limited to iTunes and MusicBrainz; saving and sharing are unavailable)",
@@ -1222,10 +1294,51 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
-  const SWATCHES = [
-    ["paper", "クリーム"], ["ink", "黒"], ["mustard", "マスタード"], ["cerulean", "セルリアン"],
-    ["vermilion", "朱赤"], ["lavender", "ラベンダー"], ["mint", "ミント"], ["pink", "ピンク"],
+  // ---- パレット（背景色に並ぶ 6 色 ＝ 画面の配色）----
+  // 6 色をひと組として切り替える。組み込みは「リソ」（もとからの 6 色）と「ポップ」（色見本から取った 6 色）。
+  // 自作の組も作れる（色は 16 進で持ち、書き出しではカスタムカラーとして扱う）
+  const BASE_SWATCHES = [["paper", "クリーム"], ["ink", "黒"]];
+  const BUILTIN_PALETTES = [
+    { id: "riso", name: "リソ", keys: ["mustard", "cerulean", "vermilion", "lavender", "mint", "pink"] },
+    { id: "pop", name: "ポップ", keys: ["lemon", "ultramarine", "coral", "sky", "leaf", "rose"] },
   ];
+  // 画面の配色として差し替えるスロット（並びは BUILTIN_PALETTES の keys と同じ順）
+  const PALETTE_SLOTS = ["--color-mustard", "--color-cerulean", "--color-vermilion", "--color-lavender", "--color-mint", "--color-pink"];
+  const KEY_LABEL = {
+    mustard: "マスタード", cerulean: "セルリアン", vermilion: "朱赤", lavender: "ラベンダー", mint: "ミント", pink: "ピンク",
+    lemon: "レモン", ultramarine: "ウルトラマリン", coral: "コーラル", sky: "スカイ", leaf: "リーフ", rose: "ローズ",
+  };
+  const PAL_STORE = "trackmento.palettes", PAL_ACTIVE = "trackmento.palette";
+  let userPalettes = [];
+  try { userPalettes = JSON.parse(localStorage.getItem(PAL_STORE) || "[]").filter(p => p && Array.isArray(p.hexes) && p.hexes.length === 6); } catch { userPalettes = []; }
+  let activePaletteId = "riso";
+  try { activePaletteId = localStorage.getItem(PAL_ACTIVE) || "riso"; } catch { /* ignore */ }
+  const allPalettes = () => BUILTIN_PALETTES.concat(userPalettes);
+  const activePalette = () => allPalettes().find(p => p.id === activePaletteId) || BUILTIN_PALETTES[0];
+  /* その組の 6 色を CSS の色で返す */
+  const paletteColors = (p) => (p.keys ? p.keys.map(k => cssRgb(TOKENS_RGB[k])) : p.hexes.slice());
+  function savePalettes() {
+    try { localStorage.setItem(PAL_STORE, JSON.stringify(userPalettes)); localStorage.setItem(PAL_ACTIVE, activePaletteId); } catch { /* ignore */ }
+  }
+  /* 画面の配色を今の組に合わせる。**もとからの 6 色（リソ）のときは指定を外す**（CSS の値に戻る） */
+  function applyPalette() {
+    const p = activePalette(), colors = paletteColors(p);
+    PALETTE_SLOTS.forEach((slot, i) => {
+      if (p.id === "riso") document.documentElement.style.removeProperty(slot);
+      else document.documentElement.style.setProperty(slot, colors[i]);
+    });
+  }
+  // 組み込みの色の名前ぜんぶ。**読み込んだ並びの色は、今の組に入っていなくても受け付ける**
+  // （別の組の色だった場合は、その組に切り替える。以前はここで弾かれて paper に戻っていた）
+  const ALL_BG_KEYS = BASE_SWATCHES.map(([k]) => k).concat(...BUILTIN_PALETTES.map(p => p.keys));
+  const paletteOf = (key) => (BUILTIN_PALETTES.find(p => p.keys.includes(key)) || {}).id;
+  /* 背景色に並べるもの: クリーム・黒 ＋ 今の組の 6 色。組み込みは色の名前、自作は 16 進をそのまま使う */
+  function bgChoices() {
+    const p = activePalette();
+    const six = p.keys ? p.keys.map(k => ({ value: k, css: cssRgb(TOKENS_RGB[k]), label: KEY_LABEL[k] || k }))
+                       : p.hexes.map((h, i) => ({ value: h, css: h, label: tr("じぶんの色") + " " + (i + 1) }));
+    return BASE_SWATCHES.map(([k, ja]) => ({ value: k, css: cssRgb(TOKENS_RGB[k]), label: ja })).concat(six);
+  }
 
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
@@ -1248,7 +1361,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"), optTitle: $("#opt-title"), optSidebar: $("#opt-sidebar"), optNumbers: $("#opt-numbers"),
-    swatches: $("#swatches"), bgCustomBtn: $("#bg-custom-btn"), bgCustomPanel: $("#bg-custom-panel"),
+    swatches: $("#swatches"), bgCustomBtn: $("#bg-custom-btn"), bgCustomPanel: $("#bg-custom-panel"), palImport: $("#pal-import"),
     hsvH: $("#hsv-h"), hsvS: $("#hsv-s"), hsvV: $("#hsv-v"), hsvHOut: $("#hsv-h-out"), hsvSOut: $("#hsv-s-out"), hsvVOut: $("#hsv-v-out"), hsvHex: $("#hsv-hex"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"), specMargin: $("#spec-margin"),
   };
@@ -2021,17 +2134,108 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     state.bg = "custom"; state.bgCustom = hsvToHex(Number(els.hsvH.value), Number(els.hsvS.value), Number(els.hsvV.value));
     updateSpec(); syncCustomColor();
   });
+  /* 背景色に選んだものを state に入れる。自作の色は 16 進なのでカスタムカラー扱いにする */
+  function pickBg(value) {
+    if (value.startsWith("#")) { state.bg = "custom"; state.bgCustom = value; }
+    else { state.bg = value; }
+    syncCustomColor(); updateSpec();
+  }
+  const bgIsChosen = (value) => (value.startsWith("#") ? state.bg === "custom" && (state.bgCustom || "").toLowerCase() === value.toLowerCase() : state.bg === value);
   function renderSwatches() {
     els.swatches.innerHTML = "";
-    for (const [key, ja] of SWATCHES) {
-      const label = tr(ja);
+    bgChoices().forEach((c, idx) => {
+      const label = tr(c.label);
       const l = document.createElement("label"); l.title = label;
-      const i = document.createElement("input"); i.type = "radio"; i.name = "bg"; i.value = key; i.checked = key === state.bg; i.setAttribute("aria-label", label);
-      const sp = document.createElement("span"); sp.style.setProperty("--sw", `var(--color-${key})`);
-      i.addEventListener("change", () => { state.bg = key; syncCustomColor(); updateSpec(); });
+      const i = document.createElement("input"); i.type = "radio"; i.name = "bg"; i.value = c.value; i.checked = bgIsChosen(c.value); i.setAttribute("aria-label", label);
+      // **見本は固定値で塗る**。var(--color-…) だと、組を入れ替えたときに見本の色まで変わる
+      const sp = document.createElement("span"); sp.style.setProperty("--sw", c.css);
+      i.addEventListener("change", () => pickBg(c.value));
       l.append(i, sp); els.swatches.append(l);
+    });
+  }
+
+  // ---- パレットのオーバーレイ ----
+  const palModal = $("#pal-modal"), palLanes = $("#pal-lanes");
+  const openPalModal = () => { renderPalLanes(); palModal.hidden = false; document.body.classList.add("sheet-open"); $("#pal-modal-close").focus({ preventScroll: true }); };
+  const closePalModal = () => { palModal.hidden = true; document.body.classList.remove("sheet-open"); $("#palette-btn").focus({ preventScroll: true }); };
+  $("#palette-btn").addEventListener("click", openPalModal);
+  $("#pal-modal-close").addEventListener("click", closePalModal);
+  $("#pal-modal-backdrop").addEventListener("click", closePalModal);
+  /* その組を使う。背景色が今の組の色だったら、同じ位置の色に付け替える（選び直さなくて済むように） */
+  function usePalette(id) {
+    const before = activePalette(), beforeColors = paletteColors(before);
+    const idx = bgChoices().findIndex(c => bgIsChosen(c.value)) - BASE_SWATCHES.length;
+    activePaletteId = id;
+    applyPalette(); savePalettes();
+    const after = activePalette();
+    if (idx >= 0 && idx < 6) {
+      const v = after.keys ? after.keys[idx] : after.hexes[idx];
+      pickBg(v);
+    }
+    renderSwatches(); renderPalLanes();
+    void beforeColors;
+  }
+  function renderPalLanes() {
+    palLanes.innerHTML = "";
+    for (const p of allPalettes()) {
+      const lane = document.createElement("div"); lane.className = "pal-lane"; lane.dataset.active = String(p.id === activePaletteId);
+      const name = document.createElement("span"); name.className = "pal-name"; name.textContent = tr(p.name);
+      const chips = document.createElement("div"); chips.className = "pal-chips";
+      paletteColors(p).forEach((col, i) => {
+        if (p.keys) {
+          const sp = document.createElement("span"); sp.style.background = col; sp.title = tr(KEY_LABEL[p.keys[i]] || "");
+          chips.append(sp);
+        } else {
+          // 自作の組は、その場で色を変えられる
+          const inp = document.createElement("input"); inp.type = "color"; inp.value = col; inp.setAttribute("aria-label", `${tr(p.name)} ${i + 1}`);
+          inp.addEventListener("input", () => {
+            p.hexes[i] = inp.value; savePalettes();
+            if (p.id === activePaletteId) { applyPalette(); renderSwatches(); }
+          });
+          chips.append(inp);
+        }
+      });
+      const use = document.createElement("button"); use.type = "button"; use.className = "btn"; use.textContent = tr("使う");
+      use.disabled = p.id === activePaletteId;
+      use.addEventListener("click", () => usePalette(p.id));
+      // 6 色を書き出す。人に渡したり、別の端末で読み込んだりできるように
+      const copy = document.createElement("button"); copy.type = "button"; copy.className = "btn"; copy.textContent = tr("コピー");
+      copy.addEventListener("click", async () => {
+        const text = paletteColors(p).map(c => rgbToHex(toRGB(c))).join(", ");
+        try { await navigator.clipboard.writeText(text); say($("#pal-msg"), tr("コピーしました。")); }
+        catch { els.palImport.value = text; els.palImport.select(); say($("#pal-msg"), tr("コピーできなかったので、欄に入れました。")); }
+      });
+      lane.append(name, chips, use, copy);
+      if (!p.keys) {
+        const del = document.createElement("button"); del.type = "button"; del.className = "btn"; del.textContent = tr("消す");
+        del.addEventListener("click", () => {
+          userPalettes = userPalettes.filter(x => x.id !== p.id);
+          if (activePaletteId === p.id) { activePaletteId = "riso"; applyPalette(); renderSwatches(); }
+          savePalettes(); renderPalLanes();
+        });
+        lane.append(del);
+      }
+      palLanes.append(lane);
     }
   }
+  /* 貼られた文字から 6 つの色コードを取り出す。区切りは何でもよい（, 空白 改行） */
+  function parseHexes(text) {
+    const found = (text || "").match(/#?[0-9a-f]{6}/gi) || [];
+    return found.slice(0, 7).map(h => "#" + h.replace("#", "").toLowerCase());
+  }
+  $("#pal-import-btn").addEventListener("click", () => {
+    const hexes = parseHexes(els.palImport.value);
+    if (hexes.length !== 6) { say($("#pal-msg"), tr("色コードを 6 つ入れてください。"), "error"); return; }
+    const p = { id: `u${Date.now().toString(36)}`, name: tr("じぶんの色") + " " + (userPalettes.length + 1), hexes };
+    userPalettes.push(p); els.palImport.value = "";
+    usePalette(p.id); say($("#pal-msg"), tr("読み込みました。"));
+  });
+  $("#pal-new").addEventListener("click", () => {
+    const base = paletteColors(activePalette()).map(c => rgbToHex(toRGB(c)));
+    const n = userPalettes.length + 1;
+    const p = { id: `u${Date.now().toString(36)}`, name: tr("じぶんの色") + " " + n, hexes: base };
+    userPalettes.push(p); usePalette(p.id);
+  });
 
   /* ---- colour helpers (CSS 変数 → 実 RGB) ---- */
   const probe = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
@@ -2355,12 +2559,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const o = d.options || {};
     state.ratio = o.ratio in RATIOS ? o.ratio : "16:9";
     state.showTitle = o.showTitle !== false; state.sidebar = o.sidebar !== false; state.numbers = o.numbers === true;
-    const bgKeys = SWATCHES.map(s => s[0]);
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
-    else { state.bg = bgKeys.includes(o.bg) ? o.bg : "paper"; }
+    else {
+      state.bg = ALL_BG_KEYS.includes(o.bg) ? o.bg : "paper";
+      // その色が別の組のものなら、組ごと切り替える（見本に出ていない色が選ばれたままにならないように）
+      const pid = paletteOf(state.bg);
+      if (pid && pid !== activePaletteId) { activePaletteId = pid; savePalettes(); }
+    }
     state.margin = clamp(o.margin, 0, 160, 16);
     state.gap = clamp(o.gap, 0, 96, 16);
     selected = null; target = null;
+    applyPalette();
     syncControls();
     renderGrid();
   }
@@ -2456,8 +2665,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "ink": oklchToRgb(0.20, 0.012, 250), "ink-2": oklchToRgb(0.28, 0.012, 250), "muted": oklchToRgb(0.46, 0.012, 250), "rule": oklchToRgb(0.76, 0.012, 250),
     "mustard": oklchToRgb(0.80, 0.150, 88), "cerulean": oklchToRgb(0.60, 0.140, 235), "lavender": oklchToRgb(0.74, 0.100, 295),
     "vermilion": oklchToRgb(0.62, 0.200, 32), "mint": oklchToRgb(0.84, 0.110, 165), "pink": oklchToRgb(0.78, 0.130, 350),
+    // もう 1 組のパレット（色見本から取った値。backend/render.py の TOKENS と同じ値を持つ）
+    "lemon": [251, 215, 67], "ultramarine": [72, 120, 218], "coral": [240, 83, 90],
+    "sky": [135, 212, 255], "leaf": [82, 165, 85], "rose": [242, 65, 143],
   };
   const hexToRgb = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const rgbToHex = ([r, g, b]) => "#" + [r, g, b].map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join("");
   const isLightRgb = ([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55;
   const mixRgb = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
   const cssRgb = ([r, g, b]) => `rgb(${r},${g},${b})`;
@@ -2796,6 +3009,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   mq.addEventListener("change", applyFold);
   applyFold();
 
+  applyPalette();   // 覚えておいた組を画面の配色に反映してから見本を描く
   renderSwatches();
   syncControls(); renderGrid();
   async function restoreFromShare() {

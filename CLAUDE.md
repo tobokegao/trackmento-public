@@ -396,6 +396,17 @@ claude --remote-control TRACKMENTO                                             #
 - リンクカード（`share.py` の `_og_jpeg` と frontend の `encodeShare`）は 1200×630 で、**四辺に 3% ずつ
   安全代を残す**（`OG_SAFE = 0.94`）。1200×630 は X の summary_large_image の比率だが、受け取る側
   （X の表示位置・Discord・LINE・スマホの幅）で数 % 切られることがあり、いっぱいに収めると端のマスや曲名が欠ける
+- **パレット（背景色の 6 色 ＝ 画面の配色）**（2026-09-15）。背景色の見出しの「パレット」ボタンでオーバーレイが開き、
+  6 色ひと組を選べる。組み込みは「リソ」（もとからの 6 色）と「ポップ」（色見本から取った 6 色）。自作の組も作れる
+  - 組を切り替えると**背景色の見本と画面の装飾色が同時に変わる**。装飾色は `--color-mustard` などの
+    6 スロットの中身を差し替える形（36 か所ある参照はそのまま）。**見本だけは固定値で塗る**
+    （`var(--color-…)` にすると、組を変えたときに見本の色まで変わってしまう）
+  - 自作の組は 16 進で持ち、選ぶと**カスタムカラー**（`bg: "custom"` ＋ `bgCustom`）として保存される。
+    描画の仕組みは触っていない。組み込みの色は今までどおり色の名前で保存する
+  - **読み込んだ並びの色は、今の組に入っていなくても受け付ける**（`ALL_BG_KEYS`）。別の組の色なら組ごと切り替える。
+    ここを今の組だけで見ていたとき、`rose` の共有を開くと `paper` に戻って**サーバー描画と 93% ずれた**
+  - 6 色は「コピー」で色コードとして書き出し、貼り付けて読み込める（区切りは何でもよい。6 つちょうど必要）
+  - 色の値は **`backend/render.py` の TOKENS・frontend の CSS 変数・TOKENS_RGB の 3 か所**にある。片方だけ変えない
 - UI デザインは Hallmark 方針（仕様書「UI デザイン方針」）。色・フォントは CSS 変数トークン経由、角丸なし
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）

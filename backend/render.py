@@ -80,6 +80,15 @@ TOKENS = {
     "vermilion": _oklch_to_hex(0.62, 0.200, 32),
     "mint": _oklch_to_hex(0.84, 0.110, 165),
     "pink": _oklch_to_hex(0.78, 0.130, 350),
+    # もう 1 組のパレット（2026-09-15 に追加）。リソグラフ寄りの上の 6 色より彩度が高い。
+    # **この 6 色は実際の色見本から取った値なので oklch ではなく生の 16 進で持つ**
+    # （frontend/index.html の TOKENS_RGB と POP_PALETTE にも同じ値がある。片方だけ変えない）
+    "lemon": "#fbd743",
+    "ultramarine": "#4878da",
+    "coral": "#f0535a",
+    "sky": "#87d4ff",
+    "leaf": "#52a555",
+    "rose": "#f2418f",   # コーラル（357°）と紛らわしかったので色相を 343° → 334° に振った（324° は紫に寄りすぎた）
 }
 
 
