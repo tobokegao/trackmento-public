@@ -2327,8 +2327,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // 直接読める配信元は直接（CORS）。失敗したらサーバー経由に切り替える
       // mzstatic は URL 自体にサイズが入るので、小さい版が欲しいときはサーバーに任せる（書き換えてもらう）
       const direct = isDirectImage(url) && !wantPx;
-      const targets = direct ? [url, api(`/image-proxy?url=${encodeURIComponent(url)}`)]
-                             : [proxied(url) + (proxied(url).includes("/image-proxy") ? q : "")];
+      const viaServer = proxied(url) + (proxied(url).includes("/image-proxy") ? q : "");
+      const targets = direct ? [url, api(`/image-proxy?url=${encodeURIComponent(url)}`)] : [viaServer];
+      // サーバーは 2 度目以降 R2 へ 302 で送るが、R2 の公開 URL はまとめて読むと落ちることがある。
+      // 落ちたぶんは本体を返してもらって取り直す（256 マスだとジャケットがごっそり抜けていた）
+      if (viaServer.includes("/image-proxy")) targets.push(viaServer + "&direct=1");
       let lastErr = null;
       for (const target of targets) {
         try {

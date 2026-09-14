@@ -899,10 +899,15 @@ def _image_to_r2_bg(url: str, ctype: str, data: bytes) -> None:
 
 @app.get("/image-proxy")
 async def image_proxy(url: str = Query(..., description="取得する画像URL", max_length=2048),
-                      px: int = Query(0, ge=0, le=2000, description="欲しい実寸（マスが小さいときだけ指定する）")) -> Response:
+                      px: int = Query(0, ge=0, le=2000, description="欲しい実寸（マスが小さいときだけ指定する）"),
+                      direct: int = Query(0, ge=0, le=1, description="1 なら R2 へ 302 せず本体を返す")) -> Response:
     """外部画像を同一オリジンで返す（Canvas の CORS/tainted 回避）。取得結果は SQLite にキャッシュ。
 
     二度目以降は本体を返さず R2 へ 302 で送る（_image_r2_redirect）。IMAGE_TO_R2=0 で止められる。
+
+    direct=1 は 302 を挟まず本体を返す。共有画像を描くブラウザは 1 枚ずつ fetch するが、
+    R2 の公開 URL（r2.dev）はまとまった数を続けて読むと落ちることがあり、256 マスだと
+    ジャケットがごっそり抜けた画像ができていた。ブラウザ側は R2 で失敗したらこれで取り直す。
     """
     if uploads.is_upload_url(url):
         got = await run_in_threadpool(uploads.read_bytes, url)
@@ -921,7 +926,7 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     # 大きさごとに別のキャッシュになるので、刻みを 200px 単位にして種類を 3 つ（200/400/600）に抑える
     shrink_px = min(600, -(-want // 200) * 200) if otodb.is_otodb_image(url) else 0
     ckey = f"{url}#px={shrink_px}" if shrink_px else url   # キャッシュと R2 のキー。取得元は url のまま
-    if (redirect := await _image_r2_redirect(ckey)) is not None:
+    if not direct and (redirect := await _image_r2_redirect(ckey)) is not None:
         return redirect
     hit = await asyncio.to_thread(cache.get_image, ckey)
     if hit:
