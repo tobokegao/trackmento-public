@@ -56,10 +56,18 @@ def _encode_image(im: Image.Image, limit: int) -> tuple[bytes, Image.Image]:
     return data, im
 
 
+OG_SAFE = 0.94   # カードの中で画像が占める割合。残りは余白（下の説明を参照）
+
+
 def _og_jpeg(im: Image.Image, bg: tuple[int, int, int]) -> bytes:
-    """カード用の 1200×630 JPEG。全体を収め、余白は背景色（切り取らない）。"""
+    """カード用の 1200×630 JPEG。全体を収め、余白は背景色（切り取らない）。
+
+    **四辺に 3% ずつ安全代を残す**。1200×630 は X の summary_large_image に合わせた比率だが、
+    受け取る側（X の表示位置、Discord、LINE、スマホの幅）で数 % 切られることがあり、
+    いっぱいに収めると端のマスや曲名が欠ける。
+    """
     canvas = Image.new("RGB", (OG_W, OG_H), bg)
-    f = min(OG_W / im.width, OG_H / im.height)
+    f = min(OG_W * OG_SAFE / im.width, OG_H * OG_SAFE / im.height)
     w, h = max(1, round(im.width * f)), max(1, round(im.height * f))
     canvas.paste(im.resize((w, h), Image.LANCZOS), ((OG_W - w) // 2, (OG_H - h) // 2))
     buf = io.BytesIO()

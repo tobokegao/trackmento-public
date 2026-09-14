@@ -386,6 +386,9 @@ claude --remote-control TRACKMENTO                                             #
     `main.py` の `_lang_for(request)` が **開いた人の Accept-Language** で選ぶ。共有ページは受け取った人が開くものなので、
     共有した人が画面で選んだ言語ではなく開く人の設定に合わせる
   - 連絡先は日本語 `/ja/about/`・英語 `/about/` でページが別。画面側は `#about-link` の href を切り替える
+- リンクカード（`share.py` の `_og_jpeg` と frontend の `encodeShare`）は 1200×630 で、**四辺に 3% ずつ
+  安全代を残す**（`OG_SAFE = 0.94`）。1200×630 は X の summary_large_image の比率だが、受け取る側
+  （X の表示位置・Discord・LINE・スマホの幅）で数 % 切られることがあり、いっぱいに収めると端のマスや曲名が欠ける
 - UI デザインは Hallmark 方針（仕様書「UI デザイン方針」）。色・フォントは CSS 変数トークン経由、角丸なし
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）
@@ -442,7 +445,8 @@ claude --remote-control TRACKMENTO                                             #
       境目をまたぐと逆に 16px ずれるので却下
     - 列の間隔は `LIST_COL_GAP`（マスの間隔の 5 倍）。マスと同じ間隔だと隣の列の曲名と近すぎて、
       どちらの列か迷う
-    - 曲名が 1 行に入らないときだけ 2 行に折る。折る位置は「(feat. …)」の手前が最優先。
+    - 曲名が 1 行に入らないときだけ 2 行に折る。**折る位置は「行の真ん中にいちばん近い切れ目」**
+      （2 行の長さがそろうように）。「(feat. …)」の手前は少し優遇していて、ちょうどよい位置なら選ばれる。
       2 行目がわずかにはみ出すだけなら**縮めて収める**（0.92 → 0.86 → 0.8）。「…」で切るのは最後
   - 曲名リストの流し込み: `render.py` の `_flow_rows` / `FLOW_*` と frontend の `flowRows` / `FLOW_*`。
     **折り返しは字の単位。ただし両端をそろえること**がずれを抑える鍵。

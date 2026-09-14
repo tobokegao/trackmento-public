@@ -314,30 +314,46 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
     return tuple(plan)
 
 
-def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, max_w: float) -> tuple[str, str]:
-    """曲名を 2 行に分ける。「(feat. …)」の手前で折れるならそこで折る。"""
-    head, feat = _split_feat(title)
-    if feat and d.textlength(head, font=f) <= max_w:
-        return head, feat
-    return _break_at(d, title, f, max_w)
-
-
-# 曲名を折るときに切りたい場所（優先度の高い順に見る）。空白のほか、区切りに使われる記号。
-# **閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
+# 曲名を折るときに切りたい場所。**閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
 _BREAK_AFTER = "　 ）)］]】〉》」』"
 _BREAK_BEFORE = "（([［[【〈《「『／/～-—"
 
 
 def _break_at(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_w: float) -> tuple[str, str]:
-    """max_w に収まる範囲で、いちばん後ろの切れ目を探して 2 つに分ける。切れ目が無ければ字の途中で折る。"""
+    """切れ目が見つからないときの保険。max_w に収まるところまで入れて、字の途中で折る。"""
     cut = len(text)
     while cut > 1 and d.textlength(text[:cut], font=f) > max_w:
         cut -= 1
-    # 収まる範囲の後ろから、区切りに使える位置を探す（行頭が空白や閉じ括弧にならないように）
-    for i in range(cut, max(1, cut // 3), -1):
-        if text[i - 1] in _BREAK_AFTER or (i < len(text) and text[i] in _BREAK_BEFORE):
-            return text[:i].rstrip(), text[i:].lstrip()
     return text[:cut].rstrip(), text[cut:].lstrip()
+
+
+def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, max_w: float) -> tuple[str, str]:
+    """曲名を 2 行に分ける。**なるべく 2 行の長さがそろう位置**で折る。
+
+    切れ目の候補は「区切りに使える記号の前後」。そのうち**行の真ん中にいちばん近いもの**を選ぶ。
+    「(feat. …)」の手前は少し優遇する（そこで折れれば曲名の本体が単独で読めるため）。
+    候補が無ければ字の途中で折る。
+    """
+    total = d.textlength(title, font=f)
+    target = total / 2
+    head, _feat = _split_feat(title)
+    feat_at = len(head) + 1 if _feat else -1   # 括弧の手前（空白を 1 つ挟む）
+    best: tuple[float, int] | None = None
+    for i in range(1, len(title)):
+        if not (title[i - 1] in _BREAK_AFTER or title[i] in _BREAK_BEFORE):
+            continue
+        w1 = d.textlength(title[:i].rstrip(), font=f)
+        if w1 > max_w:
+            break
+        score = abs(w1 - target)
+        if i == feat_at or (feat_at > 0 and abs(i - feat_at) <= 1):
+            score *= 0.6   # 「(feat. …)」の手前は優遇。ちょうどよい位置なら選ばれる
+        if best is None or score < best[0]:
+            best = (score, i)
+    if best is not None:
+        i = best[1]
+        return title[:i].rstrip(), title[i:].lstrip()
+    return _break_at(d, title, f, max_w)
 
 
 def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:

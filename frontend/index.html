@@ -2139,22 +2139,33 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   // 曲名を折るときに切りたい場所。**閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
   const BREAK_AFTER = "　 ）)］]】〉》」』", BREAK_BEFORE = "（([［[【〈《「『／/～-—";
-  /* maxW に収まる範囲で、いちばん後ろの切れ目を探して 2 つに分ける。切れ目が無ければ字の途中で折る */
+  /* 切れ目が見つからないときの保険。maxW に収まるところまで入れて、字の途中で折る */
   function breakAt(ctx, text, f, maxW) {
     ctx.font = f;
     let cut = text.length;
     while (cut > 1 && ctx.measureText(text.slice(0, cut)).width > maxW) cut--;
-    for (let i = cut; i > Math.max(1, Math.floor(cut / 3)); i--) {
-      if (BREAK_AFTER.includes(text[i - 1]) || (i < text.length && BREAK_BEFORE.includes(text[i])))
-        return [text.slice(0, i).replace(/\s+$/, ""), text.slice(i).replace(/^\s+/, "")];
-    }
     return [text.slice(0, cut).replace(/\s+$/, ""), text.slice(cut).replace(/^\s+/, "")];
   }
-  /* 曲名を 2 行に分ける。「(feat. …)」の手前で折れるならそこで折る */
+  /* 曲名を 2 行に分ける。**なるべく 2 行の長さがそろう位置**で折る（backend/render.py の _split_title と同じ）。
+     「(feat. …)」の手前は少し優遇する（そこで折れれば曲名の本体が単独で読めるため） */
   function splitTitle(ctx, title, f, maxW) {
-    const [head, feat] = splitFeat(title);
     ctx.font = f;
-    if (feat && ctx.measureText(head).width <= maxW) return [head, feat];
+    const total = ctx.measureText(title).width, target = total / 2;
+    const [head, feat] = splitFeat(title);
+    const featAt = feat ? head.length + 1 : -1;
+    let best = null;
+    for (let i = 1; i < title.length; i++) {
+      if (!(BREAK_AFTER.includes(title[i - 1]) || BREAK_BEFORE.includes(title[i]))) continue;
+      const w1 = ctx.measureText(title.slice(0, i).replace(/\s+$/, "")).width;
+      if (w1 > maxW) break;
+      let score = Math.abs(w1 - target);
+      if (i === featAt || (featAt > 0 && Math.abs(i - featAt) <= 1)) score *= 0.6;
+      if (best === null || score < best[0]) best = [score, i];
+    }
+    if (best !== null) {
+      const i = best[1];
+      return [title.slice(0, i).replace(/\s+$/, ""), title.slice(i).replace(/^\s+/, "")];
+    }
     return breakAt(ctx, title, f, maxW);
   }
   /* 内容に四辺 pad の余白を足し、比率が指定なら短い方の辺を伸ばして合わせる */
@@ -2646,7 +2657,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     for (let i = 0; i < 3 && png.size > LIMIT; i++) { c = scaledCanvas(c, Math.max(0.6, Math.sqrt(LIMIT / png.size) * 0.97)); png = await canvasToBlob(c, "image/jpeg", 0.9); }
     const og = document.createElement("canvas"); og.width = 1200; og.height = 630;   // カード用: 全体を収め、余白は背景色
     const g = og.getContext("2d", { alpha: false }); g.fillStyle = cssRgb(bg); g.fillRect(0, 0, 1200, 630);
-    const f = Math.min(1200 / c.width, 630 / c.height), w = Math.max(1, Math.round(c.width * f)), h = Math.max(1, Math.round(c.height * f));
+    // **四辺に 3% ずつ安全代を残す**（backend/share.py の OG_SAFE と同じ）。受け取る側で数 % 切られても
+    // 端のマスや曲名が欠けないように
+    const OG_SAFE = 0.94;
+    const f = Math.min(1200 * OG_SAFE / c.width, 630 * OG_SAFE / c.height), w = Math.max(1, Math.round(c.width * f)), h = Math.max(1, Math.round(c.height * f));
     g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high"; g.drawImage(c, Math.floor((1200 - w) / 2), Math.floor((630 - h) / 2), w, h);
     return { png, og: await canvasToBlob(og, "image/jpeg", 0.85), width: c.width, height: c.height };
   }
