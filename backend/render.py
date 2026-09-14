@@ -251,7 +251,61 @@ class Layout:
     W: int; H: int; scale: float; ox: int; oy: int
     gw: int; gh: int
     title: str; title_size: int; title_h: int
-    side: str; sb_w: int; sb_h: int; sb_cols: int; line_h: int; font_s: int; sb_gap: int
+    side: str; sb_w: int; sb_h: int; sb_cols: int; line_h: int; font_s: int; sb_gap: int; sb_flow: bool
+
+
+# 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
+# 続けて流し込み、幅で折り返す。区切りの記号は置かない。番号がピクセルフォントで
+# 本文と書体も色も違うので、それ自体が切れ目になる
+FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さくなるなら流し込みに切り替える
+# 入る限り大きく。曲が少ないほど大きな字になる（流し込みに切り替わるのは曲が多いときだけ）
+FLOW_FONT_STEPS = (96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
+
+
+def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
+    """max_w に収まるところまで切って「…」を付ける。"""
+    if f.getlength(text) <= max_w:
+        return text
+    while text and f.getlength(text + "…") > max_w:
+        text = text[:-1]
+    return text + "…"
+
+
+def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[list[tuple[str, str]]]:
+    """流し込んだときの各行を返す。行は ("num"|"title"|"artist", 文字列) の並び。
+
+    **折り返しは曲の単位で行う**。字の単位で折ると、サーバー（PIL）とブラウザ（Canvas）の
+    わずかな計測差が積み上がって折り返す位置がずれ、そこから先の行がすべて食い違う。
+    曲ごとに折れば、差は行の中に収まって位置は一致する。
+    """
+    fonts = {"num": font("pixel", rnd(font_s * 0.8)), "title": font("bold", font_s), "artist": font("regular", font_s)}
+    gap = font_s * 0.7        # 曲と曲のあいだ。記号を置かないぶん、ここで切れ目を作る
+    rows: list[list[tuple[str, str]]] = []
+    cur: list[tuple[str, str]] = []
+    x = 0.0
+    for i, t in enumerate(doc.cells):
+        if not t:
+            continue
+        parts = [("num", f"{i + 1:02d}"), ("title", " " + _one_line(t.title))]
+        if t.artist:
+            parts.append(("artist", " " + _one_line(t.artist)))
+        w = sum(fonts[k].getlength(v) for k, v in parts)
+        if w > max_w:
+            # 1 曲で 1 行に収まらないときは曲名を切る（アーティストは落とす）
+            parts = parts[:2]
+            head = fonts["num"].getlength(parts[0][1])
+            parts[1] = ("title", _clip_to(parts[1][1], fonts["title"], max_w - head))
+            w = head + fonts["title"].getlength(parts[1][1])
+        if cur and x + gap + w > max_w:
+            rows.append(cur)
+            cur, x = [], 0.0
+        elif cur:
+            x += gap
+        cur.extend(parts)
+        x += w
+    if cur:
+        rows.append(cur)
+    return rows
 
 
 def layout(doc: GridDoc) -> Layout:
@@ -282,17 +336,42 @@ def layout(doc: GridDoc) -> Layout:
         sb_cols = 2 if n > 12 or (ratio >= 0.8 and n >= 6) else 1
         sb_w, sb_h = gw, math.ceil(n / sb_cols) * line_h
     sb_gap = 0 if side == "none" else GAP_PX * 4
+
+    def _frame(sbw: int, sbh: int) -> tuple[int, int, float]:
+        cw = gw + sb_gap + sbw if side == "right" else gw
+        ch = title_top_h + gh + (sb_gap + sbh if side == "bottom" else 0)
+        w, h = _fit(cw, ch, m, ratio)
+        if ratio is not None and (w, h) != (cw + m * 2, ch + m * 2):
+            # 比率合わせで余りが出る辺は余白が広がる。反対の辺が指定値（既定 16px）のままだと上下（縦長なら左右）だけ
+            # 極端に狭く見えるため、余りが出るときは指定値と「内容の短辺の 4%」の大きい方を四辺の最小余白にする
+            w, h = _fit(cw, ch, max(m, rnd(min(cw, ch) * 0.04)), ratio)
+        from backend.config import max_side
+        return w, h, min(1.0, max_side() / max(w, h))
+
+    W, H, scale = _frame(sb_w, sb_h)
+    # 1 曲 1 行だと、曲が多いときに出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える。
+    # マスの数ではなく「出力で何 px になるか」で決める（比率・余白・タイトルの有無でも変わるため）
+    sb_flow = side != "none" and font_s * scale < FLOW_MIN_FONT
+    if sb_flow:
+        if side == "right" and ratio is not None:
+            # 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す
+            # （1 曲 1 行のときは「最長の行」に合わせていたが、流し込みでは広いほど行が減って字が大きくできる）
+            w_est = rnd((title_top_h + gh + m * 2) * ratio)
+            sb_w = max(sb_w, min(gw * 2, w_est - m * 2 - gw - sb_gap))
+        avail = (gh - title_h) if side == "right" else sb_h
+        for fs in FLOW_FONT_STEPS:
+            lh = rnd(fs * 1.5)
+            rows = _flow_rows(doc, fs, sb_w if side == "right" else gw)
+            if len(rows) * lh <= avail:
+                break
+        font_s, line_h, sb_cols = fs, lh, 1
+        if side == "bottom":
+            sb_h = len(rows) * line_h
+        W, H, scale = _frame(sb_w, sb_h)
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
-    W, H = _fit(content_w, content_h, m, ratio)
-    if ratio is not None and (W, H) != (content_w + m * 2, content_h + m * 2):
-        # 比率合わせで余りが出る辺は余白が広がる。反対の辺が指定値（既定 16px）のままだと上下（縦長なら左右）だけ
-        # 極端に狭く見えるため、余りが出るときは指定値と「内容の短辺の 4%」の大きい方を四辺の最小余白にする
-        W, H = _fit(content_w, content_h, max(m, rnd(min(content_w, content_h) * 0.04)), ratio)
-    from backend.config import max_side
-    scale = min(1.0, max_side() / max(W, H))
     return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
-                  title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap)
+                  title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap, sb_flow)
 
 
 def _fit(content_w: int, content_h: int, pad: int, ratio: float | None) -> tuple[int, int]:
@@ -398,6 +477,20 @@ def render(doc: GridDoc) -> Image.Image:
             # 字面の上端がグリッドの上端とそろうよう、行の中心でなく上寄せ（中心を上から 0.55 文字分）に置く
             d.text((sc(sx), sc(sy + L.title_size * 0.55)), _ellipsize(d, L.title, f_title, L.sb_w * S), font=f_title, fill=ink, anchor="lm")
             sy += L.title_h
+        if L.sb_flow:
+            # 曲名を続けて流し込む。行の中身は種類ごとに書体と色を変えて描く
+            fs = max(8, sc(L.font_s))
+            f_flow = {"num": font("pixel", max(8, sc(L.font_s * 0.8))), "title": font("bold", fs), "artist": font("regular", fs)}
+            colors = {"num": muted, "title": ink, "artist": muted}
+            for row, parts in enumerate(_flow_rows(doc, L.font_s, col_w)):
+                x = sc(sx)
+                yy = sc(sy + row * L.line_h + L.line_h / 2)
+                for kind, text in parts:
+                    f = f_flow[kind]
+                    d.text((x, yy), text, font=f, fill=colors[kind], anchor="lm")
+                    x += d.textlength(text, font=f)
+            _release_memory()
+            return im
         per_col = doc.size if L.side == "right" else math.ceil(doc.size / L.sb_cols)
         font_s = max(8, sc(L.font_s))
         f_num = font("pixel", max(8, sc(L.font_s * 0.8)))

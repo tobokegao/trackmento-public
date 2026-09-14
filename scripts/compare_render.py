@@ -10,6 +10,8 @@
 
     # 1) 比べたい並びでサーバー描画の共有を作る
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 16 16 1:1
+    #    曲名リストの流し込みを比べるときは fill を足して全マス埋める
+    PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 16 16 16:9 fill
     # 2) 出た URL をブラウザで開き「トラックを共有」を押す（ブラウザ描画の共有ができる）
     # 3) 2 つの共有 ID を比べる
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py diff <サーバーのID> <ブラウザのID>
@@ -36,14 +38,22 @@ NO_COVER_CELL = {"source": "manual", "title": "ジャケット無しの曲", "ar
                  "image": "/no-cover.png", "thumb": "/no-cover.png", "external_url": None}
 
 
-def make(cols: int, rows: int, ratio: str) -> None:
-    """grids/default.json の曲を使って比較用の並びを作り、サーバー描画の共有を 1 件作る。"""
+def make(cols: int, rows: int, ratio: str, fill: bool = False) -> None:
+    """grids/default.json の曲を使って比較用の並びを作り、サーバー描画の共有を 1 件作る。
+
+    fill=True なら曲を繰り返して全部のマスを埋める。曲名リストの流し込み（曲が多いときだけ
+    切り替わる）を比べるには、マスが埋まっていないと再現しない。
+    """
     src = json.loads((ROOT / "grids" / "default.json").read_text(encoding="utf-8"))
     tracks = [c for c in src["cells"] if c] + [NO_COVER_CELL]   # うちのアイコンの経路も通す
     cells: list[dict | None] = [None] * (cols * rows)
-    for i, t in enumerate(tracks[: cols * rows]):
-        cells[i] = t
-    name = f"u-rendercmp{cols}x{rows}"
+    if fill:
+        for i in range(cols * rows):
+            cells[i] = tracks[i % len(tracks)]
+    else:
+        for i, t in enumerate(tracks[: cols * rows]):
+            cells[i] = t
+    name = f"u-rendercmp{cols}x{rows}{'full' if fill else ''}"
     doc = {"app": "trackmento", "version": 1, "name": name, "cols": cols, "rows": rows,
            "cells": cells, "stash": [], "title": "描画くらべ",
            "options": {"ratio": ratio, "showTitle": True, "sidebar": True, "numbers": True,
@@ -113,7 +123,8 @@ def main() -> int:
         return 2
     cmd = sys.argv[1]
     if cmd == "make":
-        make(int(sys.argv[2]), int(sys.argv[3]), sys.argv[4] if len(sys.argv) > 4 else "16:9")
+        args = [a for a in sys.argv[2:] if a != "fill"]
+        make(int(args[0]), int(args[1]), args[2] if len(args) > 2 else "16:9", "fill" in sys.argv[2:])
         return 0
     if cmd == "diff":
         return diff(sys.argv[2], sys.argv[3])

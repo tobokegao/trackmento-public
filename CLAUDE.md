@@ -203,6 +203,10 @@ claude --remote-control TRACKMENTO                                             #
   - 描画: `backend/render.py` と `frontend/index.html` の `renderShareCanvas`（定数・レイアウト式・文字の省略規則）
     → `scripts/compare_render.py` で突き合わせられる。丸めは `render.py` の `rnd()` が JS の `Math.round` に
     合わせてある（**Python の `round()` は偶数丸めなので使ってはいけない**）
+  - 曲名リストの流し込み: `render.py` の `_flow_rows` / `FLOW_*` と frontend の `flowRows` / `FLOW_*`。
+    **折り返しは曲の単位で行う**。字の単位で折ると、PIL と Canvas のわずかな計測差が積み上がって
+    折り返す位置がずれ、そこから先の行が全部食い違う（実測で `compare_render.py` のぼかし後の差が
+    3.19%。曲の単位に変えて 0.05% になった）
   - 検索の絞り込み: `backend/sources/itunes.py` と frontend の `itunesSearch`（ブラウザから直接 iTunes を叩くため）
   - 曲名の正規化: `backend/merge.py` の `_n()` と frontend の `nkey()`。
     **Python の `casefold()` は ß を ss に畳むが JS の `toLowerCase()` は畳まない**ので手で合わせてある
