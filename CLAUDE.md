@@ -200,6 +200,11 @@ claude --remote-control TRACKMENTO                                             #
 ## 調べ直さないための覚え書き（一度引っかかったもの）
 
 - **Render の「プラン」は 2 つある**。課金アカウントの種別（Billing の Current Plan。Pro など）と、サービスのインスタンスタイプ（サービス画面のバッジ。Free / Standard など）は別物。**ワークスペースが Pro でもインスタンスが Free ならスリープするし 512MB 上限**。混同すると「スリープしないから keepalive は不要」のような誤った判断をする。インスタンスの実体は点検の「インスタンス: `1c_2g`」行か、`unbilled-charges.csv` の Services 行（`charge` が Free なら Free インスタンス）で確認する
+- **`Content-Type` を付けずに画像を返す配信元がある**。otoDB の CDN が実際にそうで、200 で中身も画像、
+  `Content-Length` も `ETag` もあるのに型だけ無い。ヘッダだけ見て弾いていたため、
+  **otoDB のサムネイルが 1 枚も表示できていなかった**（2026-09-14 に気付いて直した。音MAD のジャケットと、
+  消えた動画の復活で取れたサムネが全部 415）。`fetch_image` は型が無いときに中身の先頭
+  （マジックナンバー）で JPEG / PNG / GIF / WebP を見分ける。**ヘッダを信用しきってはいけない**
 - **画像が `/image-proxy` を通るかはホストで決まる**。`frontend/index.html` の `DIRECT_IMAGE_HOSTS`（mzstatic / coverartarchive.org / archive.org）はブラウザが直接読むので **Render の転送量に乗らない**。それ以外（Bandcamp・SoundCloud・YouTube・ニコニコ・bilibili・Discogs・otoDB）はサーバーを通る。帯域を調べるときは、まずここで対象を絞る
 - **`raise HTTPException(...)` で返した 5xx は `[error]` に出ない**。`http_error` が握るので `unhandled_error` を通らず、点検では「エラー行 0・5xx N」としか分からなかった。理由（detail）を見るために `[5xx]` という別の印を足してある（`main.py` の `_log_5xx` が理由ごとに数え、`_load_monitor` が `[stats]` と同じ 60 秒窓で `[5xx] <件数> <status> <パス種別> <理由>` を出す。上位 `_5XX_TOP` 件＋残りは「ほか」にまとめる）。
   **`[error]` に混ぜてはいけない**。あちらは「想定外の例外」を数えて判定に使う枠なので、配信元都合の 502 を入れると閾値が鈍る。`render_check.py` 側は `FIVEXX_RE` で拾って要約に内訳を出すだけで、判定は従来どおり `[stats]` の 5xx 合計で見る
