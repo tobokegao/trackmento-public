@@ -312,7 +312,7 @@ const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
   );
 };
 
-// ---- エンドカード（あなたは何曲オススメを？ 2 小節 → URL 1 小節 → 無料 1 小節） ----
+// ---- エンドカード（あなたは何曲オススメを？ → URL → 無料、1 小節ずつ） ----
 const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -330,7 +330,7 @@ const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
         <div style={{ marginTop: 24 }}><Stripe h={18} width={tall ? 1000 : 1400} /></div>
         <div style={{ marginTop: tall ? 80 : 56, display: "flex", flexDirection: tall ? "column" : "row", gap: tall ? 12 : 40, alignItems: tall ? "center" : "baseline", opacity: s2, transform: `translateY(${(1 - s2) * 30}px)` }}>
           {L.lang === "ja" && <div style={{ fontFamily: "Plex", fontWeight: 700, fontSize: tall ? 54 : 56, color: C.ink }}>あなたは何曲オススメを？</div>}
-          <div style={{ fontFamily: "Dot", fontSize: L.lang === "ja" ? (tall ? 38 : 40) : (tall ? 50 : 52), color: L.lang === "ja" ? C.muted : C.ink }}>What are your nine?</div>
+          <div style={{ fontFamily: "Dot", fontSize: L.lang === "ja" ? (tall ? 38 : 40) : (tall ? 50 : 52), color: L.lang === "ja" ? C.muted : C.ink }}>What would you pick?</div>
         </div>
         <div style={{ marginTop: tall ? 90 : 60, background: C.ink, color: C.paper, fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 44 : 48, padding: "18px 40px", letterSpacing: "0.04em", opacity: sUrl, transform: `scale(${0.8 + sUrl * 0.2})` }}>trackmento.onrender.com</div>
         <div style={{ marginTop: 28, fontFamily: "Dot", fontSize: 32, color: C.muted, opacity: sFree, transform: `translateY(${(1 - sFree) * 20}px)` }}>{L.lang === "ja" ? "無料・登録なし / Free, no sign-up" : "Free, no sign-up"}</div>

@@ -107,7 +107,7 @@ export const SHOTS: Shot[] = [
   // ---- 12〜16 小節目: トップ画面の説明（1 小節ずつ） ----
   { beat: bar(13), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "トップ画面はこれだけ", en: "This is the whole app" },
   { beat: bar(14), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "上にタイトル", en: "Title on top", hl: { x: 0.056, y: 0.138, w: 0.889, h: 0.047 }, zoomPc: { x: 0.6, y: 0.2, s: 1.5 } },
-  { beat: bar(15), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "Nine cells in the middle", hl: { x: 0.056, y: 0.197, w: 0.889, h: 0.483 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
+  { beat: bar(15), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "真ん中に 3×3 のマス", en: "A 3x3 grid in the middle", hl: { x: 0.056, y: 0.197, w: 0.889, h: 0.483 }, zoomPc: { x: 0.6, y: 0.45, s: 1.3 } },
   { beat: bar(16), len: 4, ev: "start", off: -0.9, speed: 0.5, jp: "下に共有と検索、データ保存", en: "Share, search and save below", hl: { x: 0.056, y: 0.734, w: 0.889, h: 0.154 }, zoomPc: { x: 0.6, y: 0.85, s: 1.5 } },
   { beat: bar(17), len: 4, ev: "look:options", off: -0.4, rec: "feat", speed: 0.9, jp: "出力の設定もここに", en: "Output settings too", hl: { x: 0.03, y: 0.308, w: 0.941, h: 0.692 }, zoomPc: { x: 1, y: 0.5, s: 1.4 } },
 
@@ -146,7 +146,7 @@ export const BANDWIDTH_ROWS: { jp: string; en: string; from: string; to: string 
   { jp: "日本語フォント", en: "Japanese fonts", from: "210KB", to: "ほぼ 0" },
   { jp: "Bandcamp のジャケット", en: "Bandcamp covers", from: "6.5MB", to: "19KB" },
   { jp: "otoDB のサムネ", en: "otoDB thumbnails", from: "166KB", to: "22KB" },
-  { jp: "画像の待ち時間", en: "Image wait", from: "3.8秒", to: "1.5秒" },
+  { jp: "画像の待ち時間", en: "Image loading", from: "3.8秒", to: "1.5秒" },
 ];
 
 /** タイムラプス: 録画の始まりから PNG 完成までを 16 分割して 1 小節に詰める */
