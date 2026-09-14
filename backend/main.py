@@ -956,6 +956,22 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
 _PROXY_SEM = asyncio.Semaphore(max(1, int(os.getenv("IMAGE_PROXY_CONCURRENCY", "16"))))
 
 
+def _sniff_image_type(data: bytes) -> str | None:
+    """中身の先頭から画像の種類を見分ける。分からなければ None。
+
+    Content-Type を付けずに返す配信元があるため（otoDB の CDN が実際にそう）。ヘッダを信じずに実データで確かめる。
+    """
+    if data[:3] == bytes((0xFF, 0xD8, 0xFF)):
+        return "image/jpeg"
+    if data[:8] == bytes((0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)):
+        return "image/png"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 async def fetch_image(url: str) -> tuple[str, bytes]:
     """画像を取得して (content-type, bytes) を返す。失敗は HTTPException。"""
     client: httpx.AsyncClient = app.state.http
@@ -971,7 +987,12 @@ async def fetch_image(url: str) -> tuple[str, bytes]:
         raise HTTPException(502, f"画像サーバーが {r.status_code} を返しました")
     ctype = r.headers.get("content-type", "").split(";")[0].strip()
     if not ctype.startswith("image/"):
-        raise HTTPException(415, f"画像ではありません: {ctype}")
+        # Content-Type を付けずに返す配信元がある（otoDB の CDN が実際にそう。
+        # 200 で中身も画像なのにヘッダが無く、ヘッダだけ見ていると全部 415 で弾いてしまう）。
+        # 中身の先頭を見て画像だと分かるなら、その型として通す
+        ctype = _sniff_image_type(r.content) or ""
+        if not ctype:
+            raise HTTPException(415, f"画像ではありません: {r.headers.get('content-type', '(型なし)')}")
     if len(r.content) > IMAGE_MAX_BYTES:
         raise HTTPException(413, "画像が大きすぎます")
     return ctype, r.content
