@@ -298,9 +298,9 @@ async function featScene() {
   await page.evaluate(() => window.scrollTo({ top: 0 }));
   await page.locator("#lang-switch").scrollIntoViewIfNeeded();
   await wait(2200);
-  await tap("#lang-switch", EN ? "lang:ja" : "lang:en");
+  await tap("#lang-switch", "lang:tap");        // 押した瞬間。英語版でも同じ名前にする（動画から名前で引くため）
   await wait(3000); await mark("lang:switched");   // 切り替わった画面を長めに映す
-  await tap("#lang-switch", EN ? "lang:en-back" : "lang:ja-back");
+  await tap("#lang-switch", "lang:back");       // 元の言語に戻す
   await wait(1200);
   await mark("end");
 }

@@ -97,7 +97,7 @@ export type Shot = {
 export const SHOTS: Shot[] = [
   // ---- 4〜11 小節目: v1 から新しくなったところ（先にここを見せる） ----
   // 翻訳ボタンは「押す瞬間」が 3 拍目に来るよう、押した印（lang:en）から 3 拍ぶん戻して始める
-  { beat: bar(4), len: 8, ev: "lang:en", off: -1.394, rec: "feat", jp: "翻訳ボタンが出来ました", en: "Now with a language switch", zoom: { x: 0.9, y: 0.06, s: 1.35 }, zoomPc: { x: 1, y: 0, s: 1.4 } },
+  { beat: bar(4), len: 8, ev: "lang:tap", off: -1.394, rec: "feat", jp: "翻訳ボタンが出来ました", en: "Now with a language switch", zoom: { x: 0.9, y: 0.06, s: 1.35 }, zoomPc: { x: 1, y: 0, s: 1.4 } },
   // 5〜6 小節目は ⑥「重たくなくなりました」（録画ではないので SHOTS には無い。Scenes.tsx が別に描く）
   { beat: bar(8), len: 8, ev: "look:scroll", off: -0.6, rec: "feat", speed: 1.2, ab: "v1-look", jp: "見た目はもっとダサく", en: "Even uglier now" },
   { beat: bar(10), len: 4, ev: "look:options", off: -0.4, rec: "feat", speed: 0.9, jp: "全体の細かい部分も整えました", en: "Lots of small touches", zoomPc: { x: 1, y: 0.5, s: 1.4 } },
