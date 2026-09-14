@@ -184,7 +184,7 @@ const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }>
 const BeforeAfter: React.FC<{ L: Layout; file: string; zoom?: Shot["zoom"]; children: React.ReactNode }> = ({ L, file, zoom, children }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const switchAt = beatFrame(BAR) - beatFrame(0);   // 1 小節で切り替える
+  const switchAt = beatFrame(2) - beatFrame(0);   // 2 拍で切り替える（見くらべは 1 小節ぶん）
   const before = frame < switchAt;
   const s = spring({ frame: frame - (before ? 0 : switchAt), fps, config: { damping: 13, stiffness: 220 } });
   const tall = L.kind === "tall";

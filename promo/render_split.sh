@@ -14,10 +14,12 @@ COMP="${1:?Composition の id（Promo / PromoWide / PromoEn / PromoWideEn）}"
 OUT="${2:?出力ファイル}"
 CHUNK="${3:-560}"
 FF="$PWD/node_modules/@remotion/compositor-win32-x64-msvc/ffmpeg.exe"
-# 総フレーム数は timeline.ts の DURATION_FRAMES（拍から出す）。第 4 引数で上書きできる
+# 総フレーム数は timeline.ts の DURATION_FRAMES（拍から出す）。第 4 引数で上書きできる。
+# **小節の割り付けを変えたら下の LAST も直す**（timeline.ts の LAST_BEAT と同じ拍番号）。
+# ずれていると Remotion が「frame range が durationInFrames の外」と言って止まる
 TOTAL="${4:-$(node -e '
 const b = require("./src/beats.json").beats;
-const FPS = 30, LAST = 160;                       // LAST_BEAT = bar(41) = 拍 160
+const FPS = 30, LAST = 156;                       // LAST_BEAT = bar(40) = 拍 156
 const t = LAST < b.length ? b[LAST] : b[b.length-1] + (b[b.length-1]-b[b.length-2])*(LAST-b.length+1);
 console.log(Math.round(t*FPS) + 12);
 ')}"
@@ -45,13 +47,12 @@ done
 echo "==== つなぐ（$i 本）===="
 "$FF" -y -hide_banner -loglevel error -f concat -safe 0 -i "$list" -c copy "$work/video.mp4"
 
-# 音を付ける。Remotion の Audio と同じで、エンドカードの頭からフェードアウトする
-DUR="$(node -e "console.log(($TOTAL / 30).toFixed(3))")"
-FADE_AT="$(node -e 'const b=require("./src/beats.json").beats; const END=144; console.log((END<b.length?b[END]:b[b.length-1]).toFixed(3));')"
-FADE_LEN="$(node -e "console.log(($DUR - $FADE_AT).toFixed(3))")"
-echo "     音: 0〜${DUR}s、${FADE_AT}s からフェードアウト"
-"$FF" -y -hide_banner -loglevel error -i "$work/video.mp4" -i public/sherbet.mp3 \
-  -filter_complex "[1:a]atrim=0:${DUR},asetpts=PTS-STARTPTS,afade=t=out:st=${FADE_AT}:d=${FADE_LEN}[a]" \
-  -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -movflags +faststart "$OUT"
+# 音を付ける。Remotion に音だけ書き出させる（映像を描かないのでメモリを食わないし、
+# フェードアウトの掛かり方も Scenes.tsx の Audio のまま。同梱の ffmpeg には afade が無いので、
+# こちらで作ろうとすると再現できない）
+echo "==== 音を書き出す ===="
+npx remotion render "$COMP" "$work/audio.mp3" --codec=mp3 --log=error
+"$FF" -y -hide_banner -loglevel error -i "$work/video.mp4" -i "$work/audio.mp3" \
+  -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart "$OUT"
 rm -rf "$work"
 ls -la "$OUT"
