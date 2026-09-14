@@ -386,6 +386,9 @@ claude --remote-control TRACKMENTO                                             #
     `main.py` の `_lang_for(request)` が **開いた人の Accept-Language** で選ぶ。共有ページは受け取った人が開くものなので、
     共有した人が画面で選んだ言語ではなく開く人の設定に合わせる
   - 連絡先は日本語 `/ja/about/`・英語 `/about/` でページが別。画面側は `#about-link` の href を切り替える
+- 書き出し画像は**四辺に最低でも内容の短辺の 3.5% の余白**を残す（`render.py` の `_frame` と frontend の `frame`）。
+  「余白」のスライダーの既定 16px は出力にすると 10px 足らずで、絵が枠に貼り付いて見えた。
+  スライダーはそのまま効く（3.5% は下限）。比率合わせで余りが出る辺だけ 4% に広がる、という不揃いも無くなる
 - リンクカード（`share.py` の `_og_jpeg` と frontend の `encodeShare`）は 1200×630 で、**四辺に 3% ずつ
   安全代を残す**（`OG_SAFE = 0.94`）。1200×630 は X の summary_large_image の比率だが、受け取る側
   （X の表示位置・Discord・LINE・スマホの幅）で数 % 切られることがあり、いっぱいに収めると端のマスや曲名が欠ける

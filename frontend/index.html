@@ -2220,8 +2220,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const frame = (sbw, sbh) => {
       const cw = side === "right" ? gw + sbGap + sbw : gw;
       const ch = titleTopH + gh + (side === "bottom" ? sbGap + sbh : 0);
-      let [w, h] = fit(cw, ch, m, ratio);
-      if (ratio !== null && (w !== cw + m * 2 || h !== ch + m * 2)) {
+      // **四辺に最低でも内容の短辺の 3.5% の余白を残す**（backend/render.py と同じ）。既定の 16px は
+      // 出力にすると 10px 足らずで、絵が枠に貼り付いて見える
+      const pad = Math.max(m, Math.round(Math.min(cw, ch) * 0.035));
+      let [w, h] = fit(cw, ch, pad, ratio);
+      if (ratio !== null && (w !== cw + pad * 2 || h !== ch + pad * 2)) {
         // 比率合わせで余りが出る辺は余白が広がる。反対の辺が指定値（既定 16px）のままだと上下（縦長なら左右）だけ
         // 極端に狭く見えるため、余りが出るときは指定値と「内容の短辺の 4%」の大きい方を四辺の最小余白にする
         [w, h] = fit(cw, ch, Math.max(m, Math.round(Math.min(cw, ch) * 0.04)), ratio);

@@ -473,10 +473,13 @@ def layout(doc: GridDoc) -> Layout:
     def _frame(sbw: int, sbh: int) -> tuple[int, int, float]:
         cw = gw + sb_gap + sbw if side == "right" else gw
         ch = title_top_h + gh + (sb_gap + sbh if side == "bottom" else 0)
-        w, h = _fit(cw, ch, m, ratio)
-        if ratio is not None and (w, h) != (cw + m * 2, ch + m * 2):
-            # 比率合わせで余りが出る辺は余白が広がる。反対の辺が指定値（既定 16px）のままだと上下（縦長なら左右）だけ
-            # 極端に狭く見えるため、余りが出るときは指定値と「内容の短辺の 4%」の大きい方を四辺の最小余白にする
+        # **四辺に最低でも内容の短辺の 3.5% の余白を残す**。既定の 16px は出力にすると 10px 足らずで、
+        # 絵が枠に貼り付いて見える。比率合わせで余りが出る辺だけ広い、という不揃いも無くなる
+        pad = max(m, rnd(min(cw, ch) * 0.035))
+        w, h = _fit(cw, ch, pad, ratio)
+        if ratio is not None and (w, h) != (cw + pad * 2, ch + pad * 2):
+            # 比率合わせで余りが出る辺は余白が広がる。反対の辺が狭いままだと上下（縦長なら左右）だけ
+            # 極端に狭く見えるため、余りが出るときは「内容の短辺の 4%」まで引き上げる
             w, h = _fit(cw, ch, max(m, rnd(min(cw, ch) * 0.04)), ratio)
         from backend.config import max_side
         return w, h, min(1.0, max_side() / max(w, h))
