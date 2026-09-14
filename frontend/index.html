@@ -1139,7 +1139,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     };
   const LANG_KEY = "trackmento.lang";
   let LANG = "";
-  try { LANG = localStorage.getItem(LANG_KEY) || ""; } catch { LANG = ""; }
+  // **URL の ?lang=en / ?lang=ja が最優先**。日本語環境の人が英語の画面を開くリンクを作れるようにする
+  // （海外向けの案内や、動画・SNS から誘導するとき）。指定されたら次回以降も覚える
+  const LANG_Q = (new URLSearchParams(location.search).get("lang") || "").toLowerCase();
+  if (LANG_Q === "en" || LANG_Q === "ja") {
+    LANG = LANG_Q;
+    try { localStorage.setItem(LANG_KEY, LANG); } catch { /* ignore */ }
+  }
+  if (!LANG) { try { LANG = localStorage.getItem(LANG_KEY) || ""; } catch { LANG = ""; } }
   if (LANG !== "ja" && LANG !== "en") LANG = /^ja/i.test(navigator.language || "") ? "ja" : "en";
 
   function tr(x, ...v) {

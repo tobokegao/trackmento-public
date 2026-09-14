@@ -269,6 +269,11 @@ def _lang_for(request: Request | None) -> str:
     共有ページは受け取った人が開くものなので、共有した人が画面で選んだ言語ではなく、
     開く人のブラウザの設定に合わせる。ヘッダが無ければ日本語（このサイトの元の言語）。
     """
+    if request is not None:
+        # **URL の ?lang=en / ?lang=ja が最優先**（画面側と同じ規則）。共有ページを英語で見せたいときに使う
+        q = (request.query_params.get("lang") or "").strip().lower()
+        if q in ("ja", "en"):
+            return q
     header = (request.headers.get("accept-language") or "") if request is not None else ""
     for part in header.split(","):
         tag = part.split(";")[0].strip().lower()

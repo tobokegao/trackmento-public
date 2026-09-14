@@ -386,6 +386,10 @@ claude --remote-control TRACKMENTO                                             #
     `main.py` の `_lang_for(request)` が **開いた人の Accept-Language** で選ぶ。共有ページは受け取った人が開くものなので、
     共有した人が画面で選んだ言語ではなく開く人の設定に合わせる
   - 連絡先は日本語 `/ja/about/`・英語 `/about/` でページが別。画面側は `#about-link` の href を切り替える
+  - **`?lang=en` / `?lang=ja` を付けると言語を指定できる**（2026-09-15）。画面（`frontend/index.html`）は
+    localStorage にも覚え、共有ページ・案内ページ（`main.py` の `_lang_for`）は Accept-Language より優先する。
+    **日本語環境の人に英語の画面を見せるリンクが作れる**（海外向けの案内、動画や SNS からの誘導）。
+    例: `https://trackmento.onrender.com/?lang=en`
 - 書き出し画像は**四辺に最低でも内容の短辺の 3.5% の余白**を残す（`render.py` の `_frame` と frontend の `frame`）。
   「余白」のスライダーの既定 16px は出力にすると 10px 足らずで、絵が枠に貼り付いて見えた。
   スライダーはそのまま効く（3.5% は下限）。比率合わせで余りが出る辺だけ 4% に広がる、という不揃いも無くなる
