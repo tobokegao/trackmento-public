@@ -2648,10 +2648,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
 
   /* タイトル 1 行の幅。右サイドバーの幅をこれ以上にして「…」で切れにくくする。サーバー側の _title_width と同じ */
+  // 1 字の幅を 1/64px にそろえてから 1px に丸める（PIL は字幅を 1/64px の固定小数で返すため）
+  const snapW1 = (w) => Math.round(Math.round(w * 64) / 64);
+  const charW1 = (f, ch) => {
+    const key = f + " " + ch;
+    let w = CHAR_W.get(key);
+    if (w === undefined) { probe.font = f; CHAR_W.set(key, w = snapW1(probe.measureText(ch).width)); }
+    return w;
+  };
   function titleWidth(title, titleSize) {
     if (!title) return 0;
-    probe.font = `700 ${titleSize}px "IBM Plex Sans JP", sans-serif`;
-    return Math.ceil(probe.measureText(oneLine(title)).width) + 8;
+    // **1 字ずつ 1px に丸めて足す**（backend/render.py の _title_width と同じ）。丸ごと測ると
+    // PIL と数 px 違い、その差がサイドバーの幅 → 枠 → 縮尺と伝わって出力の字が 1px 変わる
+    const f = `700 ${titleSize}px "IBM Plex Sans JP", sans-serif`;
+    let w = 0;
+    for (const ch of oneLine(title)) w += charW1(f, ch);
+    return Math.trunc(w) + 8;
   }
   /* サイドバー 1 行の最大幅（番号 + 曲名 + アーティスト）。サーバー側描画の _longest_line と同じ考え方 */
   // 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を続けて流し込み、
@@ -3013,12 +3025,28 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   // 曲名を折るときに切りたい場所。**閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
   const BREAK_AFTER = "　 ）)］]】〉》」』", BREAK_BEFORE = "（([［[【〈《「『／/～-—";
+  // 記号の切れ目を使う条件: 1 行目が「真ん中」のこの割合に届くこと（backend/render.py と同じ）
+  const SPLIT_HEAD_MIN = 0.45;
   /* 切れ目が見つからないときの保険。maxW に収まるところまで入れて、字の途中で折る */
   function breakAt(ctx, text, f, maxW) {
     ctx.font = f;
     let cut = text.length;
     while (cut > 1 && ctx.measureText(text.slice(0, cut)).width > maxW) cut--;
     return [text.slice(0, cut).replace(/\s+$/, ""), text.slice(cut).replace(/^\s+/, "")];
+  }
+  /* 字の途中で折る。**行の真ん中にいちばん近い所**を選ぶ（breakAt は右端まで詰める） */
+  function breakNear(ctx, text, f, maxW, target) {
+    ctx.font = f;
+    let best = null;
+    for (let i = 1; i < text.length; i++) {
+      const w1 = ctx.measureText(text.slice(0, i)).width;
+      if (w1 > maxW) break;
+      const score = Math.abs(w1 - target);
+      if (best === null || score < best[0]) best = [score, i];
+    }
+    if (best === null) return breakAt(ctx, text, f, maxW);
+    const i = best[1];
+    return [text.slice(0, i).replace(/\s+$/, ""), text.slice(i).replace(/^\s+/, "")];
   }
   /* 曲名を 2 行に分ける。**なるべく 2 行の長さがそろう位置**で折る（backend/render.py の _split_title と同じ）。
      「(feat. …)」の手前は少し優遇する（そこで折れれば曲名の本体が単独で読めるため） */
@@ -3027,20 +3055,24 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const total = ctx.measureText(title).width, target = total / 2;
     const [head, feat] = splitFeat(title);
     const featAt = feat ? head.length + 1 : -1;
-    let best = null;
+    let best = null;   // [真ん中からの遠さ, 位置, 「(feat. …)」の手前か]
     for (let i = 1; i < title.length; i++) {
       if (!(BREAK_AFTER.includes(title[i - 1]) || BREAK_BEFORE.includes(title[i]))) continue;
       const w1 = ctx.measureText(title.slice(0, i).replace(/\s+$/, "")).width;
       if (w1 > maxW) break;
       let score = Math.abs(w1 - target);
-      if (i === featAt || (featAt > 0 && Math.abs(i - featAt) <= 1)) score *= 0.6;
-      if (best === null || score < best[0]) best = [score, i];
+      const isFeat = i === featAt || (featAt > 0 && Math.abs(i - featAt) <= 1);
+      if (isFeat) score *= 0.6;
+      if (best === null || score < best[0]) best = [score, i, isFeat];
     }
-    if (best !== null) {
+    // **偏りすぎる切れ目は使わない**。括弧や【】が題の先頭近くにあると、そこしか候補が無いことがあり、
+    // 1 行目が数文字だけになる。「(feat. …)」の手前だけは偏っていても使う
+    if (best !== null && (best[2]
+        || ctx.measureText(title.slice(0, best[1]).replace(/\s+$/, "")).width >= target * SPLIT_HEAD_MIN)) {
       const i = best[1];
       return [title.slice(0, i).replace(/\s+$/, ""), title.slice(i).replace(/^\s+/, "")];
     }
-    return breakAt(ctx, title, f, maxW);
+    return breakNear(ctx, title, f, maxW, target);
   }
   /* 内容に四辺 pad の余白を足し、比率が指定なら短い方の辺を伸ばして合わせる */
   function fit(contentW, contentH, pad, ratio) {
@@ -3237,6 +3269,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   window.__flowRows = flowRows;   // 突き合わせ用
   window.__layoutFor = (q, ms) => { const b = state.ratio; state.ratio = q; try { return layout(ms); } finally { state.ratio = b; } };
+  // 突き合わせ用: 曲名の折り方だけを覗く（promo/dump_split.mjs）
+  window.__splitTitle = (title, px, maxW) => {
+    const c = document.createElement("canvas").getContext("2d");
+    return splitTitle(c, oneLine(title), fontBold(px), maxW);
+  };
+  window.__oneLine = (v) => oneLine(v);   // oneLine は後ろで const 宣言なので、遅延して呼ぶ
+  window.__titles = () => state.cells.filter(Boolean).map((t) => oneLine(t.title));
+  // 突き合わせ用: 曲ごとの行数の決め方を覗く（promo/dbg_split.mjs）
+  window.__rowPlanDbg = (px, avail) => {
+    const c = document.createElement("canvas").getContext("2d");
+    c.font = fontBold(px);
+    return state.cells.filter(Boolean).map((t) => {
+      const w = c.measureText(oneLine(t.title)).width;
+      return [Math.round(w), Math.round(avail), w > avail ? 3 : 2];
+    });
+  };
   window.__layout = layout;   // 突き合わせ（scripts/compare_render.py）から割り付けを覗くため
   window.__loadShareFonts = () => loadShareFonts();   // 割り付けを測る前に Web フォントを読む（promo/dump_layouts.mjs）
   window.__clearCharW = () => CHAR_W.clear();
@@ -3419,7 +3467,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // backend/render.py の _drawable 相当: 絵文字・私用領域・異体字セレクタは落とし、数学用の装飾文字は普通の文字に
   const STRIP_RE = /[\p{Extended_Pictographic}\u{E000}-\u{F8FF}\u{F0000}-\u{10FFFF}\uFE0F\u200D]/gu;
   const MATH_RE = /[\u{1D400}-\u{1D7FF}]/gu;
-  const oneLine = (v) => (v || "").replace(MATH_RE, (c) => c.normalize("NFKC")).replace(STRIP_RE, "").split(/\s+/).join(" ").trim();
+  // **まず NFC で合成する**（backend/render.py の _one_line と同じ）。濁点が結合文字（U+3099）で
+  // 入っている題があり、Pillow は合成しないので直さないとサーバー描画だけ濁点が消える
+  const oneLine = (v) => (v || "").normalize("NFC").replace(MATH_RE, (c) => c.normalize("NFKC")).replace(STRIP_RE, "").split(/\s+/).join(" ").trim();
   function ellipsizeText(ctx, text, maxW) {
     if (ctx.measureText(text).width <= maxW) return text;
     let lo = 0, hi = text.length;

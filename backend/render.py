@@ -165,8 +165,13 @@ def _drawable(s: str) -> str:
 
 def _one_line(s: str | None) -> str:
     """改行・タブを空白に。Pillow は改行入りの文字列を 1 行として測れない（ValueError）ので、描画前に必ず通す。
-    フォントに無い文字もここで落とす"""
-    return " ".join(_drawable(s or "").split())
+    フォントに無い文字もここで落とす。
+
+    **まず NFC で合成する**。濁点・半濁点が結合文字（U+3099 / U+309A）で入っている題があり
+    （利用者の「人生を歩む上で…」）、Pillow は合成せずに素の「て」と濁点を別々に置くので
+    **「上て」「及ひ」と濁点が消えて見える**。Canvas は合成するので、直さないと両描画がずれる
+    （字幅も変わるので折り返す位置まで変わり、突き合わせで 7.7% の差になっていた）"""
+    return " ".join(_drawable(unicodedata.normalize("NFC", s or "")).split())
 
 
 def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
@@ -392,6 +397,8 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
 # 曲名を折るときに切りたい場所。**閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
 _BREAK_AFTER = "　 ）)］]】〉》」』"
 _BREAK_BEFORE = "（([［[【〈《「『／/～-—"
+# 記号の切れ目を使う条件: 1 行目が「真ん中」のこの割合に届くこと。届かないなら字の途中で折る
+SPLIT_HEAD_MIN = 0.45
 
 
 def _break_at(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_w: float) -> tuple[str, str]:
@@ -400,6 +407,23 @@ def _break_at(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_
     while cut > 1 and d.textlength(text[:cut], font=f) > max_w:
         cut -= 1
     return text[:cut].rstrip(), text[cut:].lstrip()
+
+
+def _break_near(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont,
+                max_w: float, target: float) -> tuple[str, str]:
+    """字の途中で折る。**行の真ん中にいちばん近い所**を選ぶ（`_break_at` は右端まで詰める）。"""
+    best: tuple[float, int] | None = None
+    for i in range(1, len(text)):
+        w1 = d.textlength(text[:i], font=f)
+        if w1 > max_w:
+            break
+        score = abs(w1 - target)
+        if best is None or score < best[0]:
+            best = (score, i)
+    if best is None:
+        return _break_at(d, text, f, max_w)
+    i = best[1]
+    return text[:i].rstrip(), text[i:].lstrip()
 
 
 def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, max_w: float) -> tuple[str, str]:
@@ -413,7 +437,7 @@ def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, 
     target = total / 2
     head, _feat = _split_feat(title)
     feat_at = len(head) + 1 if _feat else -1   # 括弧の手前（空白を 1 つ挟む）
-    best: tuple[float, int] | None = None
+    best: tuple[float, int, bool] | None = None   # (真ん中からの遠さ, 位置, 「(feat. …)」の手前か)
     for i in range(1, len(title)):
         if not (title[i - 1] in _BREAK_AFTER or title[i] in _BREAK_BEFORE):
             continue
@@ -421,14 +445,20 @@ def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, 
         if w1 > max_w:
             break
         score = abs(w1 - target)
-        if i == feat_at or (feat_at > 0 and abs(i - feat_at) <= 1):
+        is_feat = i == feat_at or (feat_at > 0 and abs(i - feat_at) <= 1)
+        if is_feat:
             score *= 0.6   # 「(feat. …)」の手前は優遇。ちょうどよい位置なら選ばれる
         if best is None or score < best[0]:
-            best = (score, i)
-    if best is not None:
+            best = (score, i, is_feat)
+    # **偏りすぎる切れ目は使わない**。括弧や【】が題の先頭近くにあると、そこしか候補が無いことがあり、
+    # 「いき」＋「(稚拙な詩歌への…」のように 1 行目が数文字だけになる（利用者の画像で発覚）。
+    # 1 行目が真ん中の `SPLIT_HEAD_MIN` に届かないなら、字の途中でも真ん中に近い所で折る
+    # 「(feat. …)」の手前だけは偏っていても使う（曲名の本体が単独で読めるほうが分かりやすい）
+    if best is not None and (best[2]
+                             or d.textlength(title[:best[1]].rstrip(), font=f) >= target * SPLIT_HEAD_MIN):
         i = best[1]
         return title[:i].rstrip(), title[i:].lstrip()
-    return _break_at(d, title, f, max_w)
+    return _break_near(d, title, f, max_w, target)
 
 
 def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
@@ -1093,7 +1123,11 @@ def _fit(content_w: int, content_h: int, pad: int, ratio: float | None) -> tuple
 
 def _title_width(title: str, title_size: int) -> int:
     """タイトル 1 行の幅（px）。右サイドバーの幅をこれ以上にして、タイトルが「…」で切れにくくする。"""
-    return int(math.ceil(font("bold", title_size).getlength(title))) + 8 if title else 0
+    # **1 字ずつ 1px に丸めて足す**（`char_w`）。文字列を丸ごと測ると PIL と Canvas で数 px 違い、
+    # その差がサイドバーの幅 → 枠 → 縮尺の差になって、**出力での字の大きさが 1px 変わる**ことがある
+    # （利用者の長い題の並びで、サーバー 46px・ブラウザ 45px になり、折り返す位置まで変わっていた）。
+    # 流し込みの折り返しで同じ問題を解いたのと同じやり方
+    return int(sum(char_w("bold", title_size, ch) for ch in title)) + 8 if title else 0
 
 
 # ---------- 描画 ----------
