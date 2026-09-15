@@ -414,6 +414,14 @@ claude --remote-control TRACKMENTO                                             #
   溝を押した位置へ値が飛ぶのが既定だが、スマホで並びを触っているときに指が当たって値が変わる、と報告があった。
   つまみの上でない `pointerdown` は握りつぶす。**キーボード（矢印キー）はこれまでどおり効く**
   - 見た目も Mac OS 9 に合わせてある（溝は凹み、つまみは出っぱり＋握りの縞）。作りはスクロールバーと同じ言葉づかい
+- **つまみの四角と握りの縞は背景（`background-image` の重ね）で描く**（スライダーもスクロールバーも同じ規則）。
+  **面取りを `box-shadow: inset` で描かない**のは、内側の影が背景より上に乗るため**角の 1px だけ塗り分けられない**から。
+  - 縞は「白線（先頭の線幅ぶんだけ明るい白、以降は暗い白）＋ **隙間を開けず隣に置く濃いグレー線**」で 1 組。
+    グレーは線幅ぶんずらし、白線の端から線幅ぶんはみ出す。3 組を真ん中に置く
+  - 四角の**右上・左下の角の 1px は暗い白**（白い輪郭が回り込む所を落ち着かせる）
+- **指で操作する画面ではスクロールバーを 24px にする**（`@media (pointer: coarse)`）。16px は指の当たり判定として
+  狭く（Material は 48dp、Apple は 44pt）、つまみを掴み損ねて溝を押し、別の場所へ飛んでしまう。
+  つまみの最小の長さも 44px にしてある
 - UI デザインは Hallmark 方針（仕様書「UI デザイン方針」）。色・フォントは CSS 変数トークン経由、角丸なし
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）
