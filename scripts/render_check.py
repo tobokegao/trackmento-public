@@ -8,7 +8,7 @@
 
 見るもの:
   - イベント: デプロイ、再起動（server_failed / server_restarted）、停止（service_suspended）
-  - ログ: [stats]（経路ごとの件数・5xx）、[ua]（経路ごとの UA 種別）、[health] rss、[error]／Traceback、[loop] lag、[share] budget／quota、共有数の復元
+  - ログ: [stats]（経路ごとの件数・5xx）、[ua]（経路ごとの UA 種別）、[src]（`?src=` の内訳）、[health] rss、[error]／Traceback、[loop] lag、[share] budget／quota、共有数の復元
   - メトリクス: 帯域（1 時間ごと）、メモリ・CPU の最大
 判定の閾値は環境変数で変えられる（CHECK_BW_GB_PER_HOUR など。下の THRESHOLDS 参照）。
 """
@@ -23,7 +23,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -156,7 +156,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[ua]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
 
 
 def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, max_pages: int = 25) -> list[dict]:
@@ -233,6 +233,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     uptime_reset_at: list[str] = []
     last_reset_at = None
     last_uptime = None
+    src_counts: Counter[str] = Counter()
     for lg in logs:
         m, ts = lg.get("message", ""), lg.get("timestamp", "")
         if m.startswith("[stats]"):
@@ -242,6 +243,12 @@ def analyze_logs(logs: list[dict]) -> dict:
                 p["5xx"] += int(e5 or 0)
                 p["max_s"] = max(p["max_s"], float(mx))
                 p["peak_per_min"] = max(p["peak_per_min"], int(cnt))
+        elif m.startswith("[src]"):
+            # どこから来たか（`?src=…`）。貼る側が付けた印を数えるだけ
+            for pair in m[len("[src]"):].split():
+                name, _, n = pair.partition("=")
+                if n.isdigit():
+                    src_counts[name] += int(n)
         elif m.startswith("[ua]"):
             for path, kinds in UA_RE.findall(m[len("[ua]"):]):
                 for pair in kinds.split(","):
@@ -277,6 +284,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "lines": len(logs),
         "per_path": dict(per_path),
         "ua_by_path": {k: dict(v) for k, v in ua_by_path.items()},
+        "src_counts": dict(src_counts),
         "rss": rss,
         "errors": errors,
         "fivexx": dict(fivexx),
@@ -382,6 +390,12 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
             lines.append(f"  - `{path}` " + "、".join(
                 f"{k} {n}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
                 + f"（人以外 {(sub - human) * 100 // sub}%）")
+
+    # どこから来たか（`?src=…`）。投稿に貼ったリンクの印を数えるだけで、人は特定しない
+    src = la.get("src_counts") or {}
+    if src:
+        lines.append("- 流入の印（`?src=`）: " + "、".join(
+            f"{k} {n} 件" for k, n in sorted(src.items(), key=lambda kv: -kv[1])))
 
     # エラー・lag・予算
     lines.append(f"- エラー行: {len(la['errors'])}、[loop] lag: {len(la['lags'])} 行（最大 {max(la['lags']) if la['lags'] else 0:.1f} 秒）、検索失敗: {la['search_fail']}")

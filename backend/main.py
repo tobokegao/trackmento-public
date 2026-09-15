@@ -218,6 +218,20 @@ def _ua_kind(ua: str) -> str:
 
 
 _ua_stats: dict[tuple[str, str], int] = {}   # (パス種別, UA 種別) → 件数
+# どこから来たかの印（`?src=x` のように貼る側が付ける）。**数えるだけ**で、誰が来たかは残さない。
+# 名前は英数と - _ の 16 文字までに刈り込む（ログに変な文字を入れない・種類を増やしすぎない）
+_src_stats: dict[str, int] = {}
+_SRC_RE = re.compile(r"^[a-z0-9_-]{1,16}$")
+_SRC_MAX = 30   # 覚える種類の上限。いたずらで種類が増えても膨らまないように
+
+
+def _note_src(request: Request) -> None:
+    v = (request.query_params.get("src") or "").strip().lower()
+    if not v or not _SRC_RE.match(v):
+        return
+    if v not in _src_stats and len(_src_stats) >= _SRC_MAX:
+        v = "ほか"
+    _src_stats[v] = _src_stats.get(v, 0) + 1
 _5xx_stats: dict[str, int] = {}   # "status パス種別 理由" → 件数（_log_5xx が足し、1 分ごとに [5xx] 行で出す）
 _5XX_TOP = 6                      # 1 分あたりに出す理由の数（多すぎる理由はログを膨らませるので上位だけ）
 
@@ -259,6 +273,10 @@ async def _load_monitor():
                 f"{path}:" + ",".join(f"{k}={n}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
                 for path, kinds in top))
             _ua_stats.clear()
+        if tick % 60 == 0 and _src_stats:
+            # どこから来たか（`?src=…`）。多い順に出す。**人の識別になるものは含まない**
+            print("[src] " + " ".join(f"{k}={n}" for k, n in sorted(_src_stats.items(), key=lambda kv: -kv[1])))
+            _src_stats.clear()
 
 
 def _wants_html(request: Request) -> bool:
@@ -571,6 +589,7 @@ def _font_head() -> str:
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     # OG タグの絶対 URL（__BASE__）をこのサーバーの URL に置き換えて配る
+    _note_src(request)
     html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
     html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
     html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
@@ -1289,6 +1308,7 @@ async def share_upload(request: Request) -> dict:
 
 @app.get("/s/{sid}", response_class=HTMLResponse)
 async def share_page(request: Request, sid: str) -> HTMLResponse:
+    _note_src(request)   # 共有ページにも印を付けられる（投稿に貼るのはこちらのことが多い）
     # share.load は R2 への同期 GET。ループ内で呼ぶと閲覧が重なったときにサーバー全体が止まり、
     # Render のヘルスチェック（5 秒）に落ちて再起動される
     snap = await run_in_threadpool(share.load, sid)
