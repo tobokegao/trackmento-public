@@ -3093,14 +3093,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
       if (state.numbers) {
         const label = String(i + 1).padStart(2, "0");
-        // **枠は字の大きさから決める**（backend/render.py と同じ規則）。字は 8px を下限にしているのに
-        // 枠だけ縮み続けると、マスが小さいとき（16x16 で字 8px・枠 5px）に数字がはみ出す
-        const pad = Math.max(sc(12), Math.round(numPx * 0.5));
-        ctx.font = numF;
-        const bw = Math.ceil(ctx.measureText(label).width) + pad * 2, bh = Math.max(sc(40), Math.round(numPx * 1.8));
+        // **枠は字面（インク）に四辺の余白を足して作る**（backend/render.py と同じ規則）。
+        // ピクセルフォントは em ボックスの中で字面が上に寄るので、em の高さで枠を作ると数字が下に寄る
+        ctx.font = numF; ctx.textBaseline = "alphabetic";
+        const m2 = ctx.measureText(label);
+        const pad = Math.max(2, sc(12));
+        const iw = Math.ceil(m2.actualBoundingBoxLeft + m2.actualBoundingBoxRight);
+        const ih = Math.ceil(m2.actualBoundingBoxAscent + m2.actualBoundingBoxDescent);
+        const bw = iw + pad * 2, bh = ih + pad * 2;
         ctx.fillStyle = cssRgb(badgeBg); ctx.fillRect(x, y, bw, bh);
         ctx.fillStyle = cssRgb(ink); ctx.fillRect(x + bw, y, sc(3) + 1, bh); ctx.fillRect(x, y + bh, bw + sc(3) + 1, sc(3) + 1);
-        ctx.textBaseline = "middle"; ctx.fillText(label, x + pad, y + bh / 2 + 1);
+        ctx.fillText(label, x + pad + m2.actualBoundingBoxLeft, y + pad + m2.actualBoundingBoxAscent);
       }
     }
     if (L.side !== "none") {

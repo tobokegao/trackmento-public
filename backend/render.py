@@ -636,15 +636,16 @@ def render(doc: GridDoc) -> Image.Image:
                 covers[i] = None
         if o.numbers:
             label = f"{i + 1:02d}"
-            # **枠は字の大きさから決める**。字は 8px を下限にしているのに枠だけ縮み続けると、
-            # マスが小さいとき（16x16 で字 8px・枠 5px）に数字が枠からはみ出す
-            pad = max(sc(12), rnd(num_px * 0.5))
-            bw = math.ceil(d.textlength(label, font=num_font)) + pad * 2
-            bh = max(sc(40), rnd(num_px * 1.8))
+            # **枠は字面（インク）に四辺の余白を足して作る**。ピクセルフォントは em ボックスの中で
+            # 字面が上に寄るので、em の高さで枠を作ると数字が下に寄って見える。余白は 2px を下限にした
+            # （マスが小さいときは 2px、大きいときは今までどおり sc(12)）
+            bx0, by0, bx1, by1 = num_font.getbbox(label)
+            pad = max(2, sc(12))
+            bw, bh = (bx1 - bx0) + pad * 2, (by1 - by0) + pad * 2
             d.rectangle((x, y, x + bw - 1, y + bh - 1), fill=badge_bg)
             d.rectangle((x + bw, y, x + bw + sc(3), y + bh - 1), fill=ink)
             d.rectangle((x, y + bh, x + bw + sc(3), y + bh + sc(3)), fill=ink)
-            d.text((x + pad, y + bh / 2 + 1), label, font=num_font, fill=ink, anchor="lm")
+            d.text((x + pad - bx0, y + pad - by0), label, font=num_font, fill=ink)
     covers = None
 
     # サイドバー（曲名リスト）
