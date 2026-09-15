@@ -309,6 +309,12 @@ claude --remote-control TRACKMENTO                                             #
   3. `PYTHONUTF8=1 .venv/Scripts/python scripts/check_i18n.py` … 日本語の文言と EN 表のずれを見つける。
      **EN 表は日本語の文面そのものが鍵なので、文言を 1 文字直すだけで英語がそこだけ日本語に戻る**（警告は出ない）
 
+  **ピクセルフォント（Silkscreen）も R2 から配る**（2026-09-15）。分割していないので `<link>` ではなく、
+  `main.py` の `index()` が HTML 内の `@font-face` の **woff2 の URL だけ**を R2 に差し替える
+  （ttf の控えはサーバーのまま。woff2 を読めない環境用で、まず使われない）。共有ページは
+  `share.py` の `_silkscreen_url()`。点検で `/fonts/Silkscreen-Bold.woff2` が 2 時間に 253 件出ていたのを移した。
+  **ファイル名にハッシュが入っていない**ので、フォント自体を差し替えたときは `--force` で上げ直す
+
   断片は R2 から配る（`/fonts-css/<name>` が CSS の `src` を R2 の公開 URL に差し替えて返す）。Render 前段の Cloudflare は Web Service の応答をキャッシュせず、フォントが新規訪問 1 回あたり 210KB（実測）で転送量の大半を占めていたため。`FONTS_FROM_R2=0` で従来どおりサーバーから配る。R2 側の CORS 設定と、CSP の `font-src` / `connect-src` への公開 URL の追加が前提（`_r2_origin()` が組み立てる）。共有画像の描画前は `loadShareFonts` が描く文字を渡して必要断片だけ読む。サーバー描画は `fonts/*.ttf` のまま。共有ページはシステムフォント（Silkscreen のみ読む）
 - `/image-proxy` は一度取った画像を R2（`imgcache/`）にも置き、**二度目以降は本体を返さず 302 で R2 へ送る**。画像 1 枚 77KB に対して 302 の応答は数百バイトなので、Render の転送量がほぼ無くなる。`IMAGE_TO_R2=0` で従来どおり本体を返す
   - ブラウザは共有画像を作るとき `fetch` + `createImageBitmap` で読むので、別オリジンから返すには R2 の CORS と CSP の `connect-src` が要る（フォントを R2 に移したときに整えた）。`<img crossOrigin>` ではないので、この 2 つが揃っていれば Canvas は汚染されない
@@ -424,7 +430,7 @@ claude --remote-control TRACKMENTO                                             #
   - **大きさの違う背景どうしを同じ端にそろえるには、中央からのずらし量を size の差ぶん変える**。
     `calc(50% - 1px)`（8px の帯）と `calc(50% - 4px)`（2px の帯）で左端がそろう。同じ値にすると、
     小さいほうが真ん中に寄る（明るい白が線の真ん中に出ていた）
-  - 色相・彩度・明度の溝も同じ「凹み」にそろえてある（中身が色の帯なだけ）
+  - 色相・彩度・明度の溝も同じ「凹み」にそろえてある（中身が色の帯なだけ。高さは 12px、つまみは 1px 上へ）
 - **指で操作する画面ではスクロールバーを 24px にする**（`@media (pointer: coarse)`）。16px は指の当たり判定として
   狭く（Material は 48dp、Apple は 44pt）、つまみを掴み損ねて溝を押し、別の場所へ飛んでしまう。
   つまみの最小の長さも 44px にしてある

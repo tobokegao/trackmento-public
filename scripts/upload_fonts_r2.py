@@ -50,7 +50,9 @@ def main() -> int:
         print("R2_PUBLIC_URL がありません。公開 URL が無いと R2 から配れません", file=sys.stderr)
         return 1
 
-    files = sorted((ROOT / "fonts" / "split").glob("*.woff2"))
+    # 分割フォント（断片）＋ ピクセルフォント（Silkscreen）。Silkscreen は分割していないので
+    # fonts/ 直下にあり、本体と共有ページの両方が読む。R2 に置かないとサーバーから出続ける
+    files = sorted((ROOT / "fonts" / "split").glob("*.woff2")) + sorted((ROOT / "fonts").glob("Silkscreen-*.woff2"))
     if not files:
         print("fonts/split/*.woff2 がありません（python scripts/build_fonts.py で生成）", file=sys.stderr)
         return 1

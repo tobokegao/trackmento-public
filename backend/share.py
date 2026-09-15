@@ -267,13 +267,22 @@ def t(lang: str, key: str, **kw) -> str:
     return TEXT.get(lang if lang in TEXT else "ja", TEXT["ja"])[key].format(**kw)
 
 
+def _silkscreen_url() -> str:
+    """ピクセルフォントの場所。R2 が使えるならそちら（転送量が無料。共有ページは閲覧が多い）。"""
+    try:
+        return storage.get_storage().public_url("fonts/Silkscreen-Bold.woff2") or "/fonts/Silkscreen-Bold.woff2"
+    except Exception:
+        return "/fonts/Silkscreen-Bold.woff2"
+
+
 def _page_css(base: str) -> str:
     # フォントはこのサーバー（共有ページを配っているのと同じオリジン）から相対パスで読む。base（LAN IP や公開 URL）と
     # ページのオリジンが違うとフォントは CORS で読めず、ワードマークが代替フォントになる
+    silk = _silkscreen_url()
     return f"""
 /* 日本語フォントは読まない（IBM Plex Sans JP 1.1MB ＋ DotGothic16 0.5MB が 1 閲覧ごとに転送されていた。共有ページは X からの
    閲覧が多く、帯域の主因になっていた）。ワードマークと番号の Silkscreen（9KB）だけ読み、本文は端末のフォント */
-@font-face {{ font-family: "Silkscreen"; font-weight: 700; font-display: swap; src: url("/fonts/Silkscreen-Bold.woff2") format("woff2"), url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
+@font-face {{ font-family: "Silkscreen"; font-weight: 700; font-display: swap; src: url("{silk}") format("woff2"), url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
 * {{ box-sizing: border-box; border-radius: 0; }}
 body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.55; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}

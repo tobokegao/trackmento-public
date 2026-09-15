@@ -207,12 +207,12 @@ img { max-width: 100%; display: block; }
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
   background-size:
     1px 1px, 1px 1px,
-    2px 16px, 8px 16px, 8px 16px,
+    2px 16px, 6px 16px, 6px 16px,
     100% 1px, 1px 100%,
     100% 1px, 1px 100%;
   background-position:
     right 0 top 0, left 0 bottom 0,
-    calc(50% - 4px) center, calc(50% - 1px) center, calc(50% + 1px) center,
+    calc(50% - 3px) center, calc(50% - 1px) center, calc(50% + 1px) center,
     left 0 top 0, left 0 top 0,
     left 0 bottom 0, right 0 top 0;
   background-repeat: no-repeat;
@@ -228,12 +228,12 @@ img { max-width: 100%; display: block; }
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
   background-size:
     1px 1px, 1px 1px,
-    16px 2px, 16px 8px, 16px 8px,
+    16px 2px, 6px 16px, 6px 16px,
     100% 1px, 1px 100%,
     100% 1px, 1px 100%;
   background-position:
     right 0 top 0, left 0 bottom 0,
-    center calc(50% - 4px), center calc(50% - 1px), center calc(50% + 1px),
+    center calc(50% - 3px), center calc(50% - 1px), center calc(50% + 1px),
     left 0 top 0, left 0 top 0,
     left 0 bottom 0, right 0 top 0;
   background-repeat: no-repeat;
@@ -701,11 +701,11 @@ body.sheet-open { overflow: hidden; }
 /* 色相・彩度・明度の溝も、余白やマスの間隔と同じ「凹み」に見せる。中身が色の帯なだけで作りは同じ
    （枠は濃いグレー、左上に影、右下に白）。つまみは共通のものをそのまま使う */
 .hsv input[type="range"]::-webkit-slider-runnable-track {
-  height: 16px; box-sizing: border-box; background: var(--track);
+  height: 12px; box-sizing: border-box; background: var(--track);
   border: 1px solid var(--color-bar-dark);
   box-shadow: inset 1px 1px 0 rgb(0 0 0 / 0.16), inset -1px -1px 0 rgb(255 255 255 / 0.7);
 }
-.hsv input[type="range"]::-webkit-slider-thumb { margin-top: -1px; }
+.hsv input[type="range"]::-webkit-slider-thumb { margin-top: -4px; }   /* (12 - 18) / 2 から 1px 上へ。帯の凹みの中で少し浮いて見せる */
 .hsv .hex { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: right; font-variant-numeric: tabular-nums; }
 /* つまみと溝は Mac OS 9 の作り。スクロールバー（上）と同じ言葉づかいにそろえる。
    **溝は凹み**（左上が濃く右下が白）、**つまみは出っぱり**（左上が白く右下が濃い）＋ 真ん中に握りの縞 */
@@ -739,7 +739,7 @@ input[type="range"]::-webkit-slider-thumb {
     100% 1px, 1px 100%;
   background-position:
     right 0 top 0, left 0 bottom 0,
-    left 4px top 3px, left 4px top 4px, left 5px top 4px,
+    left 3px top 3px, left 3px top 4px, left 4px top 4px,
     left 0 top 0, left 0 top 0,
     left 0 bottom 0, right 0 top 0;
   background-repeat: no-repeat;

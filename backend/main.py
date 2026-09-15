@@ -575,6 +575,11 @@ async def index(request: Request) -> HTMLResponse:
     html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
     html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
     html = html.replace("<!--__FONT_LINK__-->", _font_head(), 1)   # 分割フォントの @font-face（<link>）
+    # ピクセルフォント（Silkscreen）も R2 から配る。分割していないので <link> ではなく HTML 内の
+    # @font-face を直接書き換える。**ttf の控えはサーバーのまま**（woff2 を読めない古い環境用で、まず使われない）
+    if (fbase := _fonts_r2_base()):
+        for _f in ("Silkscreen-Regular.woff2", "Silkscreen-Bold.woff2"):
+            html = html.replace(f'url("fonts/{_f}")', f'url("{fbase}/{_f}")')   # **woff2 だけ**（ttf は R2 に置いていない）
     # Google Search Console の所有権確認（HTML タグ方式）。GOOGLE_SITE_VERIFICATION が無ければタグごと消す
     token = os.getenv("GOOGLE_SITE_VERIFICATION", "").strip()
     html = html.replace("<!--__VERIFY__-->", f'<meta name="google-site-verification" content="{token}">' if token else "", 1)
