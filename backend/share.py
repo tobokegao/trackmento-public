@@ -311,6 +311,9 @@ li {{ display: flex; gap: 10px; align-items: baseline; }}
 .t {{ min-width: 0; overflow-wrap: anywhere; }}
 .n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
 .a {{ color: #53595f; }}
+/* 曲名から元のページへ。地の文と同じ色にして、触れたときだけ下線を出す（一覧の見た目を壊さない） */
+.t a {{ color: inherit; text-decoration: none; }}
+.t a:hover, .t a:focus-visible {{ text-decoration: underline; }}
 p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere; }}
 p.meta a {{ color: #12171b; }}
 p.note {{ margin: 0; padding: 12px 16px; border: 2px solid #12171b; background: #fff; overflow-wrap: anywhere; }}
@@ -402,8 +405,17 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
     title = html.escape(snap.get("title") or "TRACKMENTO")
     rows = []
     for i, c in enumerate(snap.get("cells") or [], 1):
-        if c:
-            rows.append(f"<li><span class=n>{i:02d}</span><span class=t><b>{html.escape(c.get('title') or '')}</b> <span class=a>{html.escape(c.get('artist') or '')}</span></span></li>")
+        if not c:
+            continue
+        inner = f"<b>{html.escape(c.get('title') or '')}</b> <span class=a>{html.escape(c.get('artist') or '')}</span>"
+        # 元のページ（YouTube・ニコニコ・Bandcamp など）へ飛べるようにする。
+        # **URL は利用者のデータなので、http(s) だけを通す**（javascript: などを弾く）。
+        # 外部へ出すリンクには noopener / noreferrer / nofollow を付ける
+        url = (c.get("external_url") or "").strip()
+        if url[:7].lower() == "http://" or url[:8].lower() == "https://":
+            inner = (f'<a href="{html.escape(url, quote=True)}" target="_blank" '
+                     f'rel="noopener noreferrer nofollow">{inner}</a>')
+        rows.append(f"<li><span class=n>{i:02d}</span><span class=t>{inner}</span></li>")
     n = len(rows)
     return f"""<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

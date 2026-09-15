@@ -388,6 +388,9 @@ claude --remote-control TRACKMENTO                                             #
   - 言語を変えたら `reRenderForLang()` が描き直す。**`renderResults` は候補が空のときに呼ぶと「該当なし」に化ける**ので、
     件数があるときだけ呼ぶ
   - `__RETENTION__` は `main.py` が HTML 全体を置換するので、EN 表の鍵と DOM の文字列は必ず同じ値になる（そこは心配しなくてよい）
+  - 共有ページの曲名リストは、**元のページ（YouTube・ニコニコ・Bandcamp など）へのリンク**になっている
+    （2026-09-15、利用者の要望）。`external_url` は利用者のデータなので **http(s) だけ通す**（`javascript:` を弾く）。
+    外部へ出すリンクには `noopener noreferrer nofollow` を付ける。見た目は地の文と同じ色で、触れたときだけ下線
   - **共有ページ・案内ページ**（`backend/share.py` の `TEXT` と `t()`）はサーバーで組み立てるので別仕組み。
     `main.py` の `_lang_for(request)` が **開いた人の Accept-Language** で選ぶ。共有ページは受け取った人が開くものなので、
     共有した人が画面で選んだ言語ではなく開く人の設定に合わせる
