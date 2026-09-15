@@ -44,7 +44,9 @@
   /* つまみの握り・面取りで使う 2 段の白。**暗い白は地色（--color-bar）との差が見えるところまで落とす**
      （半透明の白 55% では地色に溶けて、明るい白と区別が付かなかった） */
   --color-hl:      #ffffff;                 /* 明るい白 */
-  --color-hl-dim:  oklch(87% 0.010 250);    /* 暗い白 */
+  /* 暗い白。**つまみの地（--color-bar 91%）より明るくする**。87% だと地より暗く、
+     握りの縞が影に見えて立体感が消える（実機で確認）。明るい白（100%）との差は残す */
+  --color-hl-dim:  oklch(96% 0.008 250);
   /* the six riso inks — badges and one primary accent */
   --color-mustard:  oklch(80% 0.150 88);
   --color-cerulean: oklch(60% 0.140 235);
