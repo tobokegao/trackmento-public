@@ -82,8 +82,9 @@ def trim_letterbox_bytes(data: bytes, ctype: str) -> tuple[bytes, str]:
 def shrink_bytes(data: bytes, ctype: str, px: int) -> tuple[bytes, str]:
     """長辺を px 以下に縮めて JPEG（品質 85）で返す。既に px 以下ならそのまま返す。
 
-    配信元が小さい版を用意していない otoDB 専用の逃げ道。他の配信元は clamp_size で
-    URL を書き換えるだけにしてあり、こちらで再エンコードはしない（画質が原本と変わるため）。
+    配信元が小さい版を用意していないとき（otoDB と、利用者が手で貼った URL）の逃げ道。
+    うちが知っている配信元は clamp_size で URL を書き換えるだけにしてあり、再エンコードはしない
+    （画質が原本と変わるため）。
     otoDB は常に 1280x720 / 約 245KB を返すので、256 マスだと合計 60MB に達する。
     """
     import io
@@ -100,5 +101,11 @@ def shrink_bytes(data: bytes, ctype: str, px: int) -> tuple[bytes, str]:
     scale = px / short
     im = im.resize((max(1, round(im.width * scale)), max(1, round(im.height * scale))), Image.LANCZOS)
     out = io.BytesIO()
+    # **透明があるものは PNG のまま返す**。JPEG に倒すと透明が黒く潰れる
+    # （otoDB のサムネイルは不透明な JPEG なので、こちらの道は通らない）。
+    # 動く GIF は最初のコマだけになる（マスは静止画として描くので問題にならない）
+    if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
+        im.convert("RGBA").save(out, "PNG", optimize=True)
+        return out.getvalue(), "image/png"
     im.convert("RGB").save(out, "JPEG", quality=85, optimize=True)
     return out.getvalue(), "image/jpeg"

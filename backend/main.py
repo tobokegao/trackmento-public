@@ -814,6 +814,16 @@ async def from_url(body: BandcampBody) -> Track:
         raise HTTPException(502, f"取得失敗: {e}") from e
 
 
+def _known_image_host(url: str) -> bool:
+    """うちが扱いを知っている配信元（IMAGE_HOST_ALLOWLIST）か。**知らないホスト＝手で貼られた URL**。"""
+    from urllib.parse import urlsplit
+    try:
+        host = (urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return False
+    return any(host == d or host.endswith("." + d) for d in IMAGE_HOST_ALLOWLIST)
+
+
 def _host_allowed(url: str) -> bool:
     """許可ホスト（末尾一致）か公開アドレスだけ。私設・ループバック宛て（SSRF）は拒否。リダイレクト先も netguard が検査する。"""
     return netguard.url_ok(url, IMAGE_HOST_ALLOWLIST)
@@ -970,7 +980,12 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
         url = _src.clamp_size(url, want)
     # otoDB だけは URL に大きさを指定できないので、取ったあとにこちらで縮める。
     # 大きさごとに別のキャッシュになるので、刻みを 200px 単位にして種類を 3 つ（200/400/600）に抑える
-    shrink_px = min(600, -(-want // 200) * 200) if otodb.is_otodb_image(url) else 0
+    # 小さい版を選べない画像は、こちらで縮めてから返す。対象は 2 つ:
+    #   ・otoDB … URL に大きさを指定する仕組みが無い
+    #   ・**利用者が手で貼った URL** … どこのサイトか分からないので clamp_size が効かない。
+    #     原寸のまま通すと、マス（600px）には過剰な画素をブラウザが毎回読むことになる
+    #     （実測: 3000x3000 がそのまま出ていた）
+    shrink_px = min(600, -(-want // 200) * 200) if (otodb.is_otodb_image(url) or not _known_image_host(url)) else 0
     ckey = f"{url}#px={shrink_px}" if shrink_px else url   # キャッシュと R2 のキー。取得元は url のまま
     if not direct and (redirect := await _image_r2_redirect(ckey)) is not None:
         return redirect
