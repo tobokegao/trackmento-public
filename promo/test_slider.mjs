@@ -1,33 +1,49 @@
-// スライダーの「掴まないと動かない」を確かめる: 連打・溝タップ・ドラッグ
-import { chromium } from "playwright";
+// スライダーの「掴まないと動かない」を確かめる
+//   1) つまみの上を連打  2) つまみの真横（溝）を連打  3) 真横をドラッグ
+//   4) 見出しの文字を長押し  5) つまみを掴んでドラッグ（これだけ動く）
+import { chromium, devices } from "playwright";
+const touch = process.argv[2] === "touch";
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1100, height: 900 }, locale: "ja-JP" });
+const ctx = await browser.newContext(touch ? { ...devices["Pixel 7"], locale: "ja-JP" }
+                                           : { viewport: { width: 1100, height: 900 }, locale: "ja-JP" });
 const page = await ctx.newPage();
 await page.goto("http://127.0.0.1:8000/", { waitUntil: "networkidle" });
-await page.waitForTimeout(2000);
+await page.waitForTimeout(2200);
 const fold = page.locator(".pane-options .fold").first();
 if ((await fold.getAttribute("aria-expanded")) !== "true") { await fold.click(); await page.waitForTimeout(400); }
 const el = page.locator("#margin");
 await el.scrollIntoViewIfNeeded().catch(() => {});
 const box = await el.boundingBox();
-const val = async () => await el.inputValue();
-const info = await page.evaluate(() => { const e = document.querySelector("#margin"); return { min: e.min, max: e.max, v: e.value }; });
+const info = await page.evaluate(() => { const e = document.querySelector("#margin"); return { min: +e.min, max: +e.max }; });
 const thumbX = (v) => box.x + 19 / 2 + ((v - info.min) / (info.max - info.min)) * (box.width - 19);
 const y = box.y + box.height / 2;
-
-const before = await val();
-// 1) つまみの上を 8 回連打
-for (let i = 0; i < 8; i++) { await page.mouse.click(thumbX(Number(before)), y); await page.waitForTimeout(30); }
-const afterTaps = await val();
-// 2) 溝（右端寄り）をタップ
-await page.mouse.click(box.x + box.width - 6, y); await page.waitForTimeout(60);
-const afterGroove = await val();
-// 3) つまみを掴んで右へドラッグ
-await page.mouse.move(thumbX(Number(afterGroove)), y);
-await page.mouse.down();
-await page.mouse.move(thumbX(Number(afterGroove)) + 60, y, { steps: 8 });
-await page.mouse.up();
+const val = async () => await el.inputValue();
+const tap = async (x, yy) => touch ? page.touchscreen.tap(x, yy) : page.mouse.click(x, yy);
+const out = {};
+out.before = await val();
+for (let i = 0; i < 8; i++) { await tap(thumbX(+out.before), y); await page.waitForTimeout(30); }
+out.つまみ連打 = await val();
+for (let i = 0; i < 8; i++) { await tap(thumbX(+out.つまみ連打) + 14, y); await page.waitForTimeout(30); }
+out.真横連打 = await val();
+// 真横からドラッグ
+const sx = thumbX(+out.真横連打) + 14;
+if (touch) { /* タッチのドラッグは touchscreen に無いので pointer で */ }
+await page.mouse.move(sx, y); await page.mouse.down();
+await page.mouse.move(sx + 70, y, { steps: 8 }); await page.mouse.up();
 await page.waitForTimeout(80);
-const afterDrag = await val();
-console.log(JSON.stringify({ before, afterTaps, afterGroove, afterDrag }));
+out.真横ドラッグ = await val();
+// 見出しの長押し
+const lab = page.locator('label[for="margin"]');
+const lb = await lab.boundingBox();
+await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2);
+await page.mouse.down(); await page.waitForTimeout(700); await page.mouse.up();
+await page.waitForTimeout(60);
+out.見出し長押し = await val();
+// つまみを掴んでドラッグ
+const tx = thumbX(+out.見出し長押し);
+await page.mouse.move(tx, y); await page.mouse.down();
+await page.mouse.move(tx + 70, y, { steps: 8 }); await page.mouse.up();
+await page.waitForTimeout(80);
+out.つまみドラッグ = await val();
+console.log(JSON.stringify(out, null, 1));
 await ctx.close(); await browser.close();
