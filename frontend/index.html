@@ -661,9 +661,16 @@ body.sheet-open { overflow: hidden; }
 .pal-btn:active { background: var(--color-ink); color: var(--color-paper); }
 /* パレットの一覧（モーダルの中）。1 行が 1 組の 6 色 */
 .pal-lanes { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0; }
-.pal-lane { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); border: var(--line) solid var(--color-rule); background: var(--color-paper-2); }
+/* 1 行に入りきらない幅（スマホ）では折り返す。名前・6 色・ボタンの順に段が増える */
+.pal-lane { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); border: var(--line) solid var(--color-rule); background: var(--color-paper-2); }
 .pal-lane[data-active="true"] { border-color: var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); }
 .pal-lane .pal-name { flex: 1 1 auto; min-width: 5em; font-size: var(--text-sm); }
+.pal-lane .pal-btns { display: flex; gap: var(--space-2); margin-left: auto; }
+@media (max-width: 560px) {
+  .pal-lane .pal-name { flex-basis: 100%; }   /* 名前を 1 段目に独立させ、色とボタンを下の段へ送る */
+  .pal-lane .pal-chips { flex: 1 1 auto; }
+  .pal-lane .pal-btns { flex-basis: 100%; margin-left: 0; }
+}
 .pal-lane .pal-chips { display: flex; gap: 2px; }
 .pal-lane .pal-chips span, .pal-lane .pal-chips button { width: 22px; height: 22px; border: var(--line) solid var(--color-ink); padding: 0; }
 /* 自作の組の色は押して直せる。編集中のものは黒い輪で示す */
@@ -2310,7 +2317,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         try { await navigator.clipboard.writeText(text); say($("#pal-msg"), tr("コピーしました。")); }
         catch { els.palImport.value = text; els.palImport.select(); say($("#pal-msg"), tr("コピーできなかったので、欄に入れました。")); }
       });
-      lane.append(name, chips, use, copy);
+      const btns = document.createElement("div"); btns.className = "pal-btns"; btns.append(use, copy);
+      lane.append(name, chips, btns);
       if (!p.keys) {
         const del = document.createElement("button"); del.type = "button"; del.className = "btn"; del.textContent = tr("消す");
         del.addEventListener("click", () => {
@@ -2319,7 +2327,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           if (activePaletteId === p.id) { activePaletteId = "riso"; applyPalette(); renderSwatches(); }
           savePalettes(); renderPalLanes();
         });
-        lane.append(del);
+        btns.append(del);
       }
       palLanes.append(lane);
     }
