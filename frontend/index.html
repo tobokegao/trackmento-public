@@ -2824,7 +2824,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const baseRows = state.cells.reduce((a, t) => a + (t && oneLine(t.artist) ? 2 : 1), 0);
     const availH = gh - titleH;
     let sbW = 0, sbH = 0, sbCols = 1;
-    const sbGap = side === "none" ? 0 : GAP_PX * 4;
+    // **マスの塊と曲名リストのすきま**。定数だと枠が大きいときに出力で 3px にしかならない。
+    // 内容の高さに比例させる（backend/render.py と同じ）
+    const sbGap = side === "none" ? 0 : Math.max(GAP_PX * 4, Math.round((titleTopH + gh) * 0.02));
     let cap = gw;
     if (side === "right" && ratio !== null) {
       // **比率が決まっているときは、横に余る幅を先にサイドバーへ回す**。グリッド幅で下駄を履かせない

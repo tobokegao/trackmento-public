@@ -686,7 +686,9 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     avail_h = gh - title_h
     sb_w = sb_h = 0
     sb_cols = 1
-    sb_gap = 0 if side == "none" else GAP_PX * 4
+    # **マスの塊と曲名リストのすきま**。定数だと枠が大きいときに出力で 3px にしかならない
+    # （1x32 を 16:9 にしたとき）。内容の高さに比例させて、出力でおよそ 25px になるようにする
+    sb_gap = 0 if side == "none" else max(GAP_PX * 4, rnd((title_top_h + gh) * 0.02))
     cap = gw
     if side == "right" and ratio is not None:
         # **比率が決まっているときは、横に余る幅を先にサイドバーへ回す**。高さはグリッドで決まるので、
