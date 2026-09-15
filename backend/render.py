@@ -263,6 +263,10 @@ class Layout:
     title: str; title_size: int; title_h: int
     side: str; sb_w: int; sb_h: int; sb_cols: int; line_h: int; font_s: int; sb_gap: int; sb_flow: bool
     sb_plan: tuple[int, ...] = ()   # 曲ごとの段数（1 か 2）。2 は「(feat. …)」を次の段へ落とすもの
+    # 回り込み（マスの塊を中央に置き、まわりの余白に曲名を流し込む）
+    wrap: bool = False
+    wrap_pad: int = 0                                   # 四辺の余白
+    wrap_segs: tuple[tuple[int, int, int], ...] = ()    # 行ごとの (x, y, 幅)。左段 → 右段の順
 
 
 # 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
@@ -275,6 +279,15 @@ class FlowRow(NamedTuple):
 
 
 FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さくなるなら流し込みに切り替える
+# 回り込み（正方形以下の比率で曲が多いとき）。マスの塊を中央に置き、左上から右下へ文字を流す。
+# 塊にぶつかる行は「左の段 → 塊の向こう側の右の段」と続ける
+WRAP_GAP_EM = 0.75        # マスの塊と文字（字面）のあいだ。文字の大きさに対する割合
+WRAP_MIN_SEG = 8          # 段の最小幅（文字の大きさの何倍か）。これ未満の隙間には流さない
+WRAP_GRID_MAX = 0.72      # マスの塊は枠の短辺のこの割合まで。**これが無いと塊が大きくなりすぎる**
+                          # （枠をいちばん小さくする探し方なので、左右が数文字ぶんの細い隙間になる）
+WRAP_MAX_PCT = 400        # 枠をマスの塊の何 % まで広げてよいか
+WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
+
 # 入る限り大きく。曲が少ないほど大きな字になる（流し込みに切り替わるのは曲が多いときだけ）
 FLOW_FONT_STEPS = (132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
 
@@ -374,8 +387,12 @@ def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
     return text + "…"
 
 
-def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
+def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
+               seg_w: list[float] | None = None, max_rows: int | None = None) -> list[FlowRow]:
     """流し込んだときの各行を返す。
+
+    `seg_w` を渡すと**行ごとに幅が変わる**（マスの塊を避ける回り込み。`_wrap_plan` から使う）。
+    `max_rows` はそこまで作ったら打ち切る合図で、「入るかどうか」を試すときだけ使う。
 
     **折り返しは字の単位**。曲の単位で折ると行の頭がいつも番号になって、規則的に見えてしまう。
     字で折れば文章のように流れる。そのかわりサーバー（PIL）とブラウザ（Canvas）で
@@ -390,6 +407,14 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
     cur: list[tuple[str, str]] = []
     x = 0.0
     gaps = 0
+    # 今から埋める行の幅。回り込みでは行ごとに違う（足りなくなったら最後の幅を使い回す）
+    def cw() -> float:
+        if not seg_w:
+            return max_w
+        return seg_w[len(rows)] if len(rows) < len(seg_w) else seg_w[-1]
+
+    def full() -> bool:
+        return max_rows is not None and len(rows) >= max_rows
 
     def flush() -> None:
         nonlocal cur, x, gaps
@@ -401,11 +426,13 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
         nonlocal x
         f = fonts[kind]
         for ch in text:
+            if full():
+                return
             # **折り返しの判定は 1px に丸めた字幅で行う**。PIL と Canvas の字幅は 1px 未満だけ違い、
             # 生の値で足していくと境目の字で折る・折らないが入れ替わり、そこから先の行が全部ずれる。
             # 丸めればほとんどの字で同じ値になり、両者が同じ位置で折る（描くときは実寸のまま）
             w = float(rnd(f.getlength(ch)))
-            if x + w > max_w and cur:
+            if x + w > cw() and cur:
                 flush()
             if cur and cur[-1][0] == kind:
                 cur[-1] = (kind, cur[-1][1] + ch)
@@ -416,10 +443,12 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
     for i, t in enumerate(doc.cells):
         if not t:
             continue
+        if full():
+            break
         if cur:
             # 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない
             # 送りが入り、余りの配り方がずれる）
-            if x + gap > max_w:
+            if x + gap > cw():
                 flush()
             else:
                 x += gap
@@ -427,7 +456,7 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
         num, title = f"{i + 1:02d}", _one_line(t.title)
         # **番号だけが行末に取り残されないようにする**。番号と曲名の頭 2 字が入らないなら先に折る
         head = fonts["num"].getlength(num) + fonts["title"].getlength(" " + title[:2])
-        if cur and x + head > max_w:
+        if cur and x + head > cw():
             flush()
         put("num", num)
         put("title", " " + title)
@@ -435,6 +464,88 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
             put("artist", " " + _one_line(t.artist))
     flush()
     return rows
+
+
+class WrapPlan(NamedTuple):
+    W: int; H: int; scale: float; font_s: int; line_h: int
+    title_size: int; title_h: int
+    pad: int; gx: int; gy: int
+    segs: tuple[tuple[int, int, int], ...]
+    rows: list[FlowRow]
+
+
+def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
+               max_side_v: int) -> WrapPlan | None:
+    """**マスの塊を中央に置き、まわりの余白に曲名を流し込む**割り付けを探す。
+
+    正方形以下の比率で曲が多いと、今までは「上にマス・下に曲名」で組んでいた。
+    内容が縦長なので比率合わせで**左右にごっそり余白が残り**、そのぶんマスが小さくなる。
+    まわりに流し込めば余白を使い切れるので、同じ出力サイズでマスを大きくできる。
+
+    決め方は「**出力での文字の大きさを FLOW_MIN_FONT に固定し、入る範囲で枠をいちばん小さくする**」
+    （枠が小さいほど、出力に占めるマスの塊が大きい）。枠の大きさは塊に対する % で二分探索する。
+    入らなければ None を返し、呼び出し側は今までの組み方に戻す。
+    """
+    pad0 = max(m, rnd(min(gw, title_h + gh) * 0.035))
+    Wb, Hb = _fit(gw, title_h + gh, pad0, ratio)
+
+    def build(pct: int) -> WrapPlan | None:
+        W, H = rnd(Wb * pct / 100), rnd(Hb * pct / 100)
+        scale = min(1.0, max_side_v / max(W, H))
+        font_s = max(18, rnd(FLOW_MIN_FONT / scale))
+        line_h = rnd(font_s * 1.5)
+        pad = max(m, rnd(min(W, H) * 0.035))
+        gx = rnd((W - gw) / 2)
+        # **タイトルの大きさは本文から決める**。ふだんの規則（マスの幅の 4.5%・上限 96）は
+        # マスが多いと枠に対して極端に小さくなる（16x16 で出力 14px だった）。
+        # まわりを囲む文字の帯に負けない大きさにしたいので、本文の WRAP_TITLE_SCALE 倍にする
+        t_size = rnd(font_s * WRAP_TITLE_SCALE) if title_h else 0
+        t_h = rnd(t_size * 1.9) if title_h else 0
+        top, bot = pad + t_h, H - pad
+        # **塊のまわりの余白を四辺そろえる**。行は「箱」で、字面はその中央にある（上下に a ずつ空く）。
+        # 行を等間隔に並べただけだと、格子の余りが塊の上下に溜まって左右より広く見える。
+        # 上の帯の行数から塊の位置を逆算し、字面から wgap だけ離れた所に塊を置く
+        a = rnd((line_h - rnd(font_s * 0.9)) / 2)
+        wgap = rnd(font_s * WRAP_GAP_EM)
+        n_top = max(0, rnd((top + rnd((bot - top - gh) / 2) - wgap + a * 2 - top) / line_h))
+        gy = top + n_top * line_h - a * 2 + wgap
+        if gx < pad or gy < top or gy + gh > bot:      # 塊が枠に入らない
+            return None
+        x0, x1 = pad, W - pad
+        ox0, ox1 = gx - wgap, gx + gw + wgap
+        min_w = font_s * WRAP_MIN_SEG
+        segs: list[tuple[int, int, int]] = []
+        for r in range(n_top):                          # 塊の上の帯（枠いっぱい）
+            segs.append((x0, top - a + r * line_h, x1 - x0))
+        # 塊の左右。**左の段をぜんぶ埋めてから右の段へ移る**（1 行ごとに左右へ飛ぶと読みにくい、
+        # と実際に読んでみての指摘があった）。新聞の段組みと同じ読み方になる
+        n_side = (gh + a * 2) // line_h
+        if ox0 - x0 >= min_w:
+            segs += [(x0, gy - a + r * line_h, ox0 - x0) for r in range(n_side)]
+        if x1 - ox1 >= min_w:
+            segs += [(ox1, gy - a + r * line_h, x1 - ox1) for r in range(n_side)]
+        y = gy + gh + wgap - a                          # 塊の下の帯（枠いっぱい）
+        while y + line_h - a <= bot:
+            segs.append((x0, y, x1 - x0))
+            y += line_h
+        if not segs:
+            return None
+        rows = _flow_rows(doc, font_s, 0.0, [float(sg[2]) for sg in segs], len(segs) + 1)
+        if len(rows) > len(segs):
+            return None
+        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, gx, gy, tuple(segs), rows)
+
+    # 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始める
+    lo = max(100, math.ceil(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MAX))
+    lo, hi, best = lo, WRAP_MAX_PCT, None
+    while lo <= hi:                     # 入る中でいちばん小さい枠（＝いちばん大きいマス）を探す
+        mid = (lo + hi) // 2
+        got = build(mid)
+        if got:
+            best, hi = got, mid - 1
+        else:
+            lo = mid + 1
+    return best
 
 
 def layout(doc: GridDoc) -> Layout:
@@ -531,6 +642,15 @@ def layout(doc: GridDoc) -> Layout:
             W, H, scale = _frame(sb_w, sb_h)
     # 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     sb_flow = side != "none" and font_s * scale < FLOW_MIN_FONT
+    if sb_flow and side == "bottom" and ratio is not None:
+        # **正方形以下の比率では、曲名をマスの塊のまわりに回り込ませる**（下に並べない）。
+        # 内容が縦長なので比率合わせで左右に余白が残り、そのぶんマスが小さくなっていた
+        from backend.config import max_side
+        wp = _wrap_plan(doc, gw, gh, title_h, ratio, m, max_side())
+        if wp:
+            return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
+                          side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (),
+                          True, wp.pad, wp.segs)
     if sb_flow:
         if side == "right" and ratio is not None:
             # 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す
@@ -614,7 +734,12 @@ def render(doc: GridDoc) -> Image.Image:
     # タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
     y0 = L.oy
     f_title = font("bold", max(8, sc(L.title_size)))
-    if L.title and L.side != "right":
+    if L.wrap:
+        # 回り込みでは ox / oy がマスの塊の左上そのもの。タイトルは枠の左上に置く
+        if L.title:
+            d.text((sc(L.wrap_pad), sc(L.wrap_pad + L.title_h / 2)),
+                   _ellipsize(d, L.title, f_title, (L.W - L.wrap_pad * 2) * S), font=f_title, fill=ink, anchor="lm")
+    elif L.title and L.side != "right":
         d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f_title, L.gw * S), font=f_title, fill=ink, anchor="lm")
         y0 += L.title_h
 
@@ -647,6 +772,32 @@ def render(doc: GridDoc) -> Image.Image:
             d.rectangle((x, y + bh, x + bw + sc(3), y + bh + sc(3)), fill=ink)
             d.text((x + pad - bx0, y + pad - by0), label, font=num_font, fill=ink)
     covers = None
+
+    # 曲名（マスの塊のまわりに回り込ませる）
+    if L.wrap:
+        fs = max(8, sc(L.font_s))
+        f_flow = {"num": font("pixel", max(8, sc(L.font_s * 0.8))), "title": font("bold", fs), "artist": font("regular", fs)}
+        colors = {"num": muted, "title": ink, "artist": muted}
+        flow = _flow_rows(doc, L.font_s, 0.0, [float(sg[2]) for sg in L.wrap_segs])
+        sp = f_flow["title"].getlength("　")
+        for row, fr in enumerate(flow):
+            if row >= len(L.wrap_segs):
+                break
+            sx0, sy0, sw = L.wrap_segs[row]
+            x = sc(sx0)
+            yy = sc(sy0 + L.line_h / 2)
+            # 余った幅を曲の切れ目に配って段の右端をそろえる（配りすぎない規則は下の流し込みと同じ）
+            extra = 0.0
+            if fr.gaps and row < len(flow) - 1:
+                extra = min(max(0.0, sc(sw) - sc(fr.width)) / fr.gaps, sp)
+            for j, (kind, text) in enumerate(fr.parts):
+                if kind == "num" and j > 0:
+                    x += sp + extra
+                f = f_flow[kind]
+                d.text((x, yy), text, font=f, fill=colors[kind], anchor="lm")
+                x += d.textlength(text, font=f)
+        _release_memory()
+        return im
 
     # サイドバー（曲名リスト）
     if L.side != "none":

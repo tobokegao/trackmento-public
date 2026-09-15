@@ -2535,42 +2535,105 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     while (text && ctx.measureText(text + "…").width > maxW) text = text.slice(0, -1);
     return text + "…";
   }
-  function flowRows(fontS, maxW) {
+  function flowRows(fontS, maxW, segW = null, maxRows = null) {
+    // segW があれば**行ごとに幅が変わる**（マスの塊を避ける回り込み。wrapPlan から使う）。
+    // maxRows は「入るかどうか」を試すときの打ち切り（backend/render.py の _flow_rows と同じ）
     // 折り返しは字の単位。曲の単位で折ると行の頭がいつも番号になって規則的に見えるため。
     // そのかわりサーバー（PIL）とブラウザ（Canvas）で折り返す位置がわずかにずれる
     const ctx = probe;
     const fonts = { num: fontPixel(Math.round(fontS * 0.8)), title: fontBold(fontS), artist: fontRegular(fontS) };
     const width = (kind, text) => { ctx.font = fonts[kind]; return ctx.measureText(text).width; };
-    const gap = Math.round(width("title", "　"));   // 曲と曲のあいだは全角空白 1 つぶん
+    // **PIL は字幅を 1/64 px の固定小数で返す**。Canvas の実数をそこへ丸めてから 1px に丸めないと、
+    // 実寸がちょうど .5 になる字（IBM Plex の e / r / -）だけ両者の丸めが 1px 食い違い、
+    // その字から先の折り返しが全部ずれる（回り込みの突き合わせで 2.9% の差になっていた）
+    const snapW = (w) => Math.round(Math.round(w * 64) / 64);
+    const gap = snapW(width("title", "　"));   // 曲と曲のあいだは全角空白 1 つぶん
     const rows = [];
     let cur = [], x = 0, gaps = 0;
+    // 今から埋める行の幅（足りなくなったら最後の幅を使い回す）
+    const cw = () => (segW ? (rows.length < segW.length ? segW[rows.length] : segW[segW.length - 1]) : maxW);
+    const full = () => maxRows !== null && rows.length >= maxRows;
     const flush = () => { if (cur.length) rows.push({ parts: cur, width: x, gaps }); cur = []; x = 0; gaps = 0; };
     const put = (kind, text) => {
       ctx.font = fonts[kind];
       for (const ch of text) {
+        if (full()) return;
         // **折り返しの判定は 1px に丸めた字幅で行う**（PIL と Canvas の 1px 未満の差で
         // 折る位置が入れ替わり、そこから先の行が全部ずれるため。描くときは実寸のまま）
-        const w = Math.round(ctx.measureText(ch).width);
-        if (x + w > maxW && cur.length) { flush(); ctx.font = fonts[kind]; }
+        const w = snapW(ctx.measureText(ch).width);
+        if (x + w > cw() && cur.length) { flush(); ctx.font = fonts[kind]; }
         if (cur.length && cur[cur.length - 1][0] === kind) cur[cur.length - 1][1] += ch;
         else cur.push([kind, ch]);
         x += w;
       }
     };
     state.cells.forEach((t, i) => {
-      if (!t) return;
+      if (!t || full()) return;
       // 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない送りが入る）
-      if (cur.length) { if (x + gap > maxW) flush(); else { x += gap; gaps += 1; } }
+      if (cur.length) { if (x + gap > cw()) flush(); else { x += gap; gaps += 1; } }
       const num = String(i + 1).padStart(2, "0"), title2 = oneLine(t.title);
       // **番号だけが行末に取り残されないようにする**（backend/render.py と同じ規則）
       const head = width("num", num) + width("title", " " + title2.slice(0, 2));
-      if (cur.length && x + head > maxW) flush();
+      if (cur.length && x + head > cw()) flush();
       put("num", num);
       put("title", " " + title2);
       if (t.artist) put("artist", " " + oneLine(t.artist));
     });
     flush();
     return rows;
+  }
+  // 回り込み（正方形以下の比率で曲が多いとき）。マスの塊を中央に置き、左上から右下へ文字を流す。
+  // 塊にぶつかる行は「左の段 → 塊の向こう側の右の段」と続ける（backend/render.py の WRAP_* と同じ値）
+  const WRAP_GAP_EM = 0.75, WRAP_MIN_SEG = 8, WRAP_GRID_MAX = 0.72, WRAP_MAX_PCT = 400, WRAP_TITLE_SCALE = 4.0;
+  /* マスの塊を中央に置き、まわりの余白に曲名を流し込む割り付けを探す（backend/render.py の _wrap_plan）。
+     出力での文字を FLOW_MIN_FONT に固定し、入る範囲で枠をいちばん小さくする（＝塊をいちばん大きく）。
+     入らなければ null を返し、呼び出し側は今までの組み方に戻す */
+  function wrapPlan(gw, gh, titleH, ratio, m, maxSide) {
+    const pad0 = Math.max(m, Math.round(Math.min(gw, titleH + gh) * 0.035));
+    const [Wb, Hb] = fit(gw, titleH + gh, pad0, ratio);
+    const build = (pct) => {
+      const W = Math.round(Wb * pct / 100), H = Math.round(Hb * pct / 100);
+      const scale = Math.min(1, maxSide / Math.max(W, H));
+      const fontS = Math.max(18, Math.round(FLOW_MIN_FONT / scale));
+      const lineH = Math.round(fontS * 1.5);
+      const pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
+      const gx = Math.round((W - gw) / 2);
+      // **タイトルの大きさは本文から決める**（マスの幅からだと、マスが多いとき極端に小さくなる）。
+      // まわりを囲む文字の帯に負けない大きさにしたいので、本文の WRAP_TITLE_SCALE 倍
+      const tSize = titleH ? Math.round(fontS * WRAP_TITLE_SCALE) : 0;
+      const tH = titleH ? Math.round(tSize * 1.9) : 0;
+      const top = pad + tH, bot = H - pad;
+      // **塊のまわりの余白を四辺そろえる**。行は「箱」で、字面はその中央にある（上下に a ずつ空く）。
+      // 行を等間隔に並べただけだと、格子の余りが塊の上下に溜まって左右より広く見える
+      const a = Math.round((lineH - Math.round(fontS * 0.9)) / 2);
+      const wgap = Math.round(fontS * WRAP_GAP_EM);
+      const nTop = Math.max(0, Math.round((top + Math.round((bot - top - gh) / 2) - wgap + a * 2 - top) / lineH));
+      const gy = top + nTop * lineH - a * 2 + wgap;
+      if (gx < pad || gy < top || gy + gh > bot) return null;   // 塊が枠に入らない
+      const x0 = pad, x1 = W - pad;
+      const ox0 = gx - wgap, ox1 = gx + gw + wgap;
+      const minW = fontS * WRAP_MIN_SEG;
+      const segs = [];
+      for (let r = 0; r < nTop; r++) segs.push([x0, top - a + r * lineH, x1 - x0]);   // 塊の上の帯
+      // 塊の左右。**左の段をぜんぶ埋めてから右の段へ移る**（1 行ごとに左右へ飛ぶと読みにくい）
+      const nSide = Math.floor((gh + a * 2) / lineH);
+      if (ox0 - x0 >= minW) for (let r = 0; r < nSide; r++) segs.push([x0, gy - a + r * lineH, ox0 - x0]);
+      if (x1 - ox1 >= minW) for (let r = 0; r < nSide; r++) segs.push([ox1, gy - a + r * lineH, x1 - ox1]);
+      for (let y = gy + gh + wgap - a; y + lineH - a <= bot; y += lineH) segs.push([x0, y, x1 - x0]);   // 塊の下の帯
+      if (!segs.length) return null;
+      const rows = flowRows(fontS, 0, segs.map((sg) => sg[2]), segs.length + 1);
+      if (rows.length > segs.length) return null;
+      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, gx, gy, segs };
+    };
+    // 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始める
+    let lo = Math.max(100, Math.ceil(100 * Math.max(gw / Wb, (titleH + gh) / Hb) / WRAP_GRID_MAX));
+    let hi = WRAP_MAX_PCT, best = null;
+    while (lo <= hi) {                                    // 入る中でいちばん小さい枠を探す
+      const mid = Math.floor((lo + hi) / 2);
+      const got = build(mid);
+      if (got) { best = got; hi = mid - 1; } else lo = mid + 1;
+    }
+    return best;
   }
   // 曲名の末尾の「(feat. …)」。**ここだけは 2 行目に落とせる**（曲名の本体を守るため）。
   // backend/render.py の _FEAT_RE と同じ規則
@@ -2739,6 +2802,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     // 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     const sbFlow = side !== "none" && fontS * scale < FLOW_MIN_FONT;
+    if (sbFlow && side === "bottom" && ratio !== null) {
+      // **正方形以下の比率では、曲名をマスの塊のまわりに回り込ませる**（下に並べない）。
+      // 内容が縦長なので比率合わせで左右に余白が残り、そのぶんマスが小さくなっていた
+      const wp = wrapPlan(gw, gh, titleH, ratio, m, maxSide);
+      if (wp) {
+        return { W: wp.W, H: wp.H, scale: wp.scale, ox: wp.gx, oy: wp.gy, gw, gh, title,
+                 titleSize: wp.titleSize, titleH: wp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
+                 lineH: wp.lineH, fontS: wp.fontS, sbGap, sbFlow: true, sbPlan: [],
+                 wrap: true, wrapPad: wp.pad, wrapSegs: wp.segs };
+      }
+    }
     if (sbFlow) {
       if (side === "right" && ratio !== null) {
         // 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す
@@ -2758,8 +2832,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
     const contentH = titleTopH + gh + (side === "bottom" ? sbGap + sbH : 0);
     const ox = Math.round((W - contentW) / 2), oy = Math.round((H - contentH) / 2);
-    return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow, sbPlan: sbFlow ? [] : sbPlan };
+    return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow,
+             sbPlan: sbFlow ? [] : sbPlan, wrap: false, wrapPad: 0, wrapSegs: [] };
   }
+  window.__layout = layout;   // 突き合わせ（scripts/compare_render.py）から割り付けを覗くため
   function updateSpec() {
     const L = layout();
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
@@ -3056,7 +3132,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
     let y0 = L.oy;
     const titleFont = fontBold(Math.max(8, sc(L.titleSize)));
-    if (L.title && L.side !== "right") {
+    if (L.wrap) {
+      // 回り込みでは ox / oy がマスの塊の左上そのもの。タイトルは枠の左上に置く
+      if (L.title) {
+        ctx.font = titleFont; ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
+        ctx.fillText(ellipsizeText(ctx, oneLine(L.title), (L.W - L.wrapPad * 2) * S), sc(L.wrapPad), sc(L.wrapPad + L.titleH / 2));
+      }
+    } else if (L.title && L.side !== "right") {
       ctx.font = titleFont; ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
       ctx.fillText(ellipsizeText(ctx, oneLine(L.title), L.gw * S), sc(L.ox), sc(y0 + L.titleH / 2));
       y0 += L.titleH;
@@ -3105,6 +3187,32 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         ctx.fillStyle = cssRgb(ink); ctx.fillRect(x + bw, y, sc(3) + 1, bh); ctx.fillRect(x, y + bh, bw + sc(3) + 1, sc(3) + 1);
         ctx.fillText(label, x + pad + m2.actualBoundingBoxLeft, y + pad + m2.actualBoundingBoxAscent);
       }
+    }
+    if (L.wrap) {
+      // 曲名をマスの塊のまわりに回り込ませる（backend/render.py と同じ規則）
+      const fs = Math.max(8, sc(L.fontS));
+      const fonts = { num: fontPixel(Math.max(8, sc(L.fontS * 0.8))), title: fontBold(fs), artist: fontRegular(fs) };
+      const colors = { num: cssRgb(muted), title: cssRgb(ink), artist: cssRgb(muted) };
+      ctx.textBaseline = "middle";
+      const flow = flowRows(L.fontS, 0, L.wrapSegs.map((sg) => sg[2]));
+      ctx.font = fonts.title;
+      const sp = ctx.measureText("　").width;
+      flow.forEach((fr, row) => {
+        if (row >= L.wrapSegs.length) return;
+        const [sx0, sy0, sw] = L.wrapSegs[row];
+        let x = sc(sx0);
+        const yy = sc(sy0 + L.lineH / 2);
+        // 余った幅を曲の切れ目に配って段の右端をそろえる（配りすぎない規則は下の流し込みと同じ）
+        const extra = fr.gaps && row < flow.length - 1
+          ? Math.min(Math.max(0, sc(sw) - sc(fr.width)) / fr.gaps, sp) : 0;
+        fr.parts.forEach(([kind, text], j) => {
+          if (kind === "num" && j > 0) x += sp + extra;
+          ctx.font = fonts[kind]; ctx.fillStyle = colors[kind];
+          ctx.fillText(text, x, yy);
+          x += ctx.measureText(text).width;
+        });
+      });
+      return { canvas, bg };
     }
     if (L.side !== "none") {
       const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox;

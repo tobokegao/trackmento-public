@@ -313,9 +313,13 @@ li {{ display: flex; gap: 10px; align-items: baseline; }}
 .t {{ min-width: 0; overflow-wrap: anywhere; }}
 .n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
 .a {{ color: #53595f; }}
-/* 曲名から元のページへ。地の文と同じ色にして、触れたときだけ下線を出す（一覧の見た目を壊さない） */
+/* 曲名から元のページへ。**リンクだと一目で分かるようにする**（触れるまで分からないと気付かれない）。
+   色は変えず、曲名に点線の下線と外部リンクの印を付ける。リンクの無い曲と並んでも一覧が騒がしくならない */
 .t a {{ color: inherit; text-decoration: none; }}
-.t a:hover, .t a:focus-visible {{ text-decoration: underline; }}
+.t a b {{ text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }}
+.t a::after {{ content: "↗"; margin-left: .3em; font-size: .8em; color: #53595f; }}
+.t a:hover b, .t a:focus-visible b {{ text-decoration-style: solid; }}
+.t a:hover::after, .t a:focus-visible::after {{ color: #12171b; }}
 p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere; }}
 p.meta a {{ color: #12171b; }}
 p.note {{ margin: 0; padding: 12px 16px; border: 2px solid #12171b; background: #fff; overflow-wrap: anywhere; }}
