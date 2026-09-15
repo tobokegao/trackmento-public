@@ -154,13 +154,15 @@ def _r2_origin() -> str:
     p = urlsplit(st.public_url("") or "")
     return f" {p.scheme}://{p.netloc}" if p.scheme and p.netloc else ""
 
-# ---------- 描画は専用の 1 本の低優先度スレッドで直列に ----------
-# 無料ホスト（0.1 vCPU）では描画（画像デコード・PNG 圧縮）が重なるとイベントループが CPU を取れず、
-# Render のヘルスチェック（5 秒）に落ちて再起動される。同時に 1 件だけ描き、待ちが多ければ 503 で断る
+# ---------- 描画は専用の低優先度スレッドで ----------
+# もとは無料ホスト（0.1 vCPU）向けに 1 本・待ち 2 件だった（描画が重なるとイベントループが CPU を
+# 取れず、Render のヘルスチェック（5 秒）に落ちて再起動されるため）。**Standard（1 vCPU / 2048MB）に
+# 上げたので広げる**。2026-09-15 の点検で CPU 最大 0.118 / 1.0・メモリ 203 / 2048MB と余っているのに、
+# 2 時間で `/share` の 503 が 15 件出ていた
 from concurrent.futures import ThreadPoolExecutor
 
-_RENDER_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="render", initializer=render.lower_thread_priority)
-MAX_RENDER_QUEUE = 2   # サーバー描画（フォールバック）は 1 件 40〜80 秒かかる。待たせるより早めに断る
+_RENDER_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="render", initializer=render.lower_thread_priority)
+MAX_RENDER_QUEUE = 4   # サーバー描画（フォールバック）は 1 件 40〜80 秒かかる。待たせるより早めに断る
 _render_waiting = [0]
 
 
@@ -1319,7 +1321,10 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
     return await _finish_share(request, run_render(share.create, doc, budget))
 
 
-_UPLOAD_SEM = asyncio.Semaphore(3)   # 同時に受け付ける共有アップロード。超えたら待たせず 503（本文を抱えたまま並ぶとメモリが膨らむ）
+# 同時に受け付ける共有アップロード。超えたら待たせず 503（本文を抱えたまま並ぶとメモリが膨らむ）。
+# **3 は無料ホスト時代の値**。回線の遅い端末が枠を握ると後続が全部断られ、2026-09-15 の点検で
+# 2 時間に 21 件の 503 が出ていた（`/share/upload` の最大応答 85.2 秒）。Standard なら 8 で足りる
+_UPLOAD_SEM = asyncio.Semaphore(8)
 
 
 @app.post("/share/upload")
