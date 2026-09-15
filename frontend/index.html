@@ -207,12 +207,12 @@ img { max-width: 100%; display: block; }
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
   background-size:
     1px 1px, 1px 1px,
-    2px 16px, 6px 16px, 6px 16px,
+    2px 16px, 7px 16px, 7px 16px,
     100% 1px, 1px 100%,
     100% 1px, 1px 100%;
   background-position:
     right 0 top 0, left 0 bottom 0,
-    calc(50% - 3px) center, calc(50% - 1px) center, calc(50% + 1px) center,
+    calc(50% - 3.5px) center, calc(50% - 1px) center, calc(50% + 1px) center,
     left 0 top 0, left 0 top 0,
     left 0 bottom 0, right 0 top 0;
   background-repeat: no-repeat;
@@ -228,12 +228,12 @@ img { max-width: 100%; display: block; }
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
   background-size:
     1px 1px, 1px 1px,
-    16px 2px, 6px 16px, 6px 16px,
+    16px 2px, 7px 16px, 7px 16px,
     100% 1px, 1px 100%,
     100% 1px, 1px 100%;
   background-position:
     right 0 top 0, left 0 bottom 0,
-    center calc(50% - 3px), center calc(50% - 1px), center calc(50% + 1px),
+    center calc(50% - 3.5px), center calc(50% - 1px), center calc(50% + 1px),
     left 0 top 0, left 0 top 0,
     left 0 bottom 0, right 0 top 0;
   background-repeat: no-repeat;
@@ -703,20 +703,21 @@ body.sheet-open { overflow: hidden; }
 .hsv input[type="range"]::-webkit-slider-runnable-track {
   height: 12px; box-sizing: border-box; background: var(--track);
   border: 1px solid var(--color-bar-dark);
-  box-shadow: inset 1px 1px 0 rgb(0 0 0 / 0.16), inset -1px -1px 0 rgb(255 255 255 / 0.7);
+  box-shadow: inset 0 1px 0 rgb(0 0 0 / 0.16);
 }
 .hsv input[type="range"]::-webkit-slider-thumb { margin-top: -4px; }   /* (12 - 18) / 2 から 1px 上へ。帯の凹みの中で少し浮いて見せる */
 .hsv .hex { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: right; font-variant-numeric: tabular-nums; }
 /* つまみと溝は Mac OS 9 の作り。スクロールバー（上）と同じ言葉づかいにそろえる。
    **溝は凹み**（左上が濃く右下が白）、**つまみは出っぱり**（左上が白く右下が濃い）＋ 真ん中に握りの縞 */
-input[type="range"] { appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: default; touch-action: none; }
+input[type="range"] { appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: default; touch-action: pan-y; }
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 5px; box-sizing: border-box; background: var(--color-paper-2);
+  /* **影は上辺だけ**。右下に白を入れると、枠線と合わさって二重線に見える（スマホの実機で顕著だった） */
+  height: 7px; box-sizing: border-box; background: var(--color-paper-2);
   border: 1px solid var(--color-bar-dark);
-  box-shadow: inset 1px 1px 0 rgb(0 0 0 / 0.16), inset -1px -1px 0 #fff;
+  box-shadow: inset 0 1px 0 rgb(0 0 0 / 0.16);
 }
 input[type="range"]::-webkit-slider-thumb {
-  appearance: none; width: 19px; height: 18px; margin-top: -7px; box-sizing: border-box;
+  appearance: none; width: 19px; height: 18px; margin-top: -6px; box-sizing: border-box;
   background-color: var(--color-bar); border: 1px solid var(--color-bar-dark);
   /* **面取りも握りの縞も背景で描く**（box-shadow の内側の影は背景より上に乗るので、角の 1px だけ色を変えられない）。
      上に重なる順で:
@@ -2366,13 +2367,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      キーボード（矢印キー）はこれまでどおり効く */
   function thumbOnly(el) {
     const THUMB = 19;   // CSS の ::-webkit-slider-thumb と同じ幅
-    el.addEventListener("pointerdown", (e) => {
+    const offThumb = (clientX) => {
       const r = el.getBoundingClientRect();
       const min = Number(el.min || 0), max = Number(el.max || 100), val = Number(el.value);
       const t = max > min ? (val - min) / (max - min) : 0;
       const cx = r.left + THUMB / 2 + t * (r.width - THUMB);
-      if (Math.abs(e.clientX - cx) > THUMB / 2 + 6) { e.preventDefault(); e.stopPropagation(); }
+      return Math.abs(clientX - cx) > THUMB / 2 + 8;   // 指は太いので少し広めに見る
+    };
+    el.addEventListener("pointerdown", (e) => {
+      if (offThumb(e.clientX)) { e.preventDefault(); e.stopPropagation(); }
     });
+    // **指の操作は touchstart でも止める**。Android では pointerdown を止めても
+    // タッチの既定の動き（押した位置へ値が飛ぶ）が残る
+    el.addEventListener("touchstart", (e) => {
+      const t0 = e.touches[0];
+      if (t0 && offThumb(t0.clientX)) { e.preventDefault(); e.stopPropagation(); }
+    }, { passive: false });
   }
   for (const el of [els.margin, els.gap, els.hsvH, els.hsvS, els.hsvV, palHsv.h, palHsv.s, palHsv.v]) thumbOnly(el);
 
