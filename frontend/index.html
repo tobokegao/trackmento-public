@@ -798,13 +798,18 @@ input[type="range"]::-webkit-slider-runnable-track {
 }
 input[type="range"]::-webkit-slider-thumb {
   appearance: none; width: 19px; height: 18px; margin-top: -6px; box-sizing: border-box;
-  background-color: var(--color-bar); border: 1px solid var(--color-bar-dark);
-  /* **面取りも握りの縞も背景で描く**（box-shadow の内側の影は背景より上に乗るので、角の 1px だけ色を変えられない）。
+  background-color: var(--color-bar);
+  /* **外枠も `border` ではなく背景で描く**。枠と背景は別々に端末の画素へ丸められるので、
+     画素密度が整数でない端末（実機は 2.625 倍）では**外枠と面取りの間に 1 デバイス画素の
+     すきまが開く**（つまみの位置によって開いたり開かなかったりする。実機で報告）。
+     全部を 1 枚の背景にすれば同じ丸めで描かれ、線どうしが必ず接する。
+     **面取りを box-shadow で描かない**理由も同じ（内側の影は背景より上に乗るので角の 1px を塗り分けられない）。
      上に重なる順で:
        ① 右上・左下の角の 1px … 暗い白（白い輪郭が回り込んだ所を落ち着かせる）
        ② 握りの縞 … 白線 1px（上端 1px だけ明るい白、以下は暗い白）＋ **隙間を開けず右隣に**濃いグレー線。
           グレーは線の太さ（1px）ぶん下にずらし、白線の下から 1px はみ出す。3 本を真ん中に置く
-       ③ 面取り … 上辺・左辺が白、下辺・右辺が濃いグレー */
+       ③ 面取り … 上辺・左辺が白、下辺・右辺が濃いグレー（外枠の 1px 内側）
+       ④ 外枠 … 四辺とも濃いグレー */
   background-image:
     linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
     linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
@@ -812,17 +817,21 @@ input[type="range"]::-webkit-slider-thumb {
     repeating-linear-gradient(to right, var(--color-hl-dim) 0 1px, transparent 1px 4px),
     repeating-linear-gradient(to right, var(--color-bar-dark) 0 1px, transparent 1px 4px),
     linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
+    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark)),
+    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark)),
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
   background-size:
     1px 1px, 1px 1px,
     10px 1px, 10px 7px, 10px 8px,
-    100% 1px, 1px 100%,
-    100% 1px, 1px 100%;
+    calc(100% - 2px) 1px, 1px calc(100% - 2px),
+    calc(100% - 2px) 1px, 1px calc(100% - 2px),
+    100% 1px, 100% 1px, 1px 100%, 1px 100%;
   background-position:
-    right 0 top 0, left 0 bottom 0,
-    left 3px top 3px, left 3px top 4px, left 4px top 4px,
-    left 0 top 0, left 0 top 0,
-    left 0 bottom 0, right 0 top 0;
+    right 1px top 1px, left 1px bottom 1px,
+    left 4px top 4px, left 4px top 5px, left 5px top 5px,
+    left 1px top 1px, left 1px top 1px,
+    left 1px bottom 1px, right 1px top 1px,
+    left 0 top 0, left 0 bottom 0, left 0 top 0, right 0 top 0;
   background-repeat: no-repeat;
 }
 
@@ -833,6 +842,11 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-moz-range-track { height: 5px; background: var(--color-paper-2); border: 1px solid var(--color-bar-dark); }
 input[type="range"]::-moz-range-thumb { width: 17px; height: 16px; border-radius: 0; background: var(--color-bar); border: 1px solid var(--color-bar-dark); }
 input[type="range"]:focus-visible { outline-offset: 4px; }
+/* **指やマウスで掴んだときは焦点の輪を出さない**。受け皿（.range-pad）に入力を移したので、
+   `el.focus()` が「部品を触っていない所からの焦点当て」になり、Chrome がキーボード操作とみなして
+   `:focus-visible` が当たるようになった（つまみの外に輪が出る。実機で報告）。
+   矢印キーを押したら外して、キーボードのときはこれまでどおり輪を出す */
+input[type="range"].no-ring:focus-visible { outline: none; }
 /* **つまみの操作はすべて受け皿（.range-pad）で受ける**。`input` 自身は `pointer-events: none` で
    入力をいっさい受け取らないので、ブラウザ既定の「押した位置へ値が飛ぶ」が**起こりようがない**。
    CSS の `touch-action` や `preventDefault` に頼る形は、Android の実機で何度直しても
@@ -2498,7 +2512,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       dragging = true;
       grabDX = e.clientX - thumbCenter();
       try { pad.setPointerCapture(e.pointerId); } catch { /* 古いブラウザ */ }
-      el.classList.add("is-grabbed");
+      el.classList.add("is-grabbed", "no-ring");
       el.focus({ preventScroll: true });
     });
     pad.addEventListener("pointermove", (e) => {
@@ -2515,6 +2529,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     };
     pad.addEventListener("pointerup", end);
     pad.addEventListener("pointercancel", end);
+    el.addEventListener("keydown", () => el.classList.remove("no-ring"));
+    el.addEventListener("blur", () => el.classList.remove("no-ring"));
     // 指の既定の動き（スクロール・長押しの選択）も受け皿の側で止める
     pad.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
     pad.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });

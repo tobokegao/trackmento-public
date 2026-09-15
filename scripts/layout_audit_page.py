@@ -187,7 +187,7 @@ footer{margin-top:44px;border-top:2px solid var(--line);padding-top:14px;color:v
   <div class="tile"><b>__SHOTS__</b><span>この頁に載せた実物</span></div>
   <div class="tile"><b id="t-worst">—</b><span>いちばん小さい曲名（px）</span></div>
 </div>
-<p class="sub">判定のしきい値は、曲名 12px 未満／マス 40px 未満／文字の埋まり 0.70 未満／
+<p class="sub">判定のしきい値は、曲名 12px 未満／マス 40px 未満／文字の埋まり 0.60 未満／
 タイトルが曲名の 1.2 倍未満／回り込みの段が 14 字未満。
 実物は<b>ひどい順に各 30 件</b>まで。残りは下の表で全件見られる。</p>
 
@@ -207,7 +207,8 @@ footer{margin-top:44px;border-top:2px solid var(--line);padding-top:14px;color:v
   </tr></thead><tbody></tbody></table></div>
 </section>
 
-<footer>2026-09-15 に <code>scripts/layout_audit.py</code> で測定。
+<footer>2026-09-15 21:50 に <code>scripts/layout_audit.py --render</code> で測定（割り付けのコードは <code>749c67d</code>）。
+前回（同日 19:48）の測定と <b>全 2950 件が 1 件も違わなかった</b>ので、その後の画面まわりの直しは割り付けに触れていない。
 画像はジャケットを数枚だけ使い回して組んだもので、割り付けを見るためのもの。</footer>
 </div>
 
