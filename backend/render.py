@@ -561,6 +561,10 @@ SLAB_TITLE_BAND = 0.10
 # （マスが小さくなるほど 1 曲ぶんの高さも縮むため。1x32 を 16:9 にすると 12px になる）
 SLAB_ROW_FONT = 0.30
 SLAB_ROW_MIN = FLOW_MIN_FONT
+# **比率なしのとき**の段の幅（文字の大きさの何倍か＝だいたい何字入るか）。比率が決まっていれば
+# 枠から残りが決まるが、比率なしでは決め手が無いので字数で決める。
+# **文字を測って決めてはいけない**（PIL と Canvas で幅が数 px 違い、枠ごとずれる）
+SLAB_ROW_SEG = 30
 # 出力での曲名の大きさ。大きいほうから試して、**入る中でいちばん大きいもの**を採る
 SLAB_TARGET_PX = (96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14)
 # **文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る**。
@@ -597,29 +601,45 @@ def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool) -> tuple[int, 
     return W, H, pad
 
 
-def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
+def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None, m: int,
                max_side_v: int) -> WrapPlan | None:
     """柱のとき、**曲名をマス 1 つ 1 つの横に並べる**割り付け（1 列の並びだけ）。
 
     枠の大きさは塊とタイトルの帯だけで決まり、曲名の大きさもマスの送りから決まるので、
     探索は要らない。出力での曲名が小さくなりすぎるときだけ None を返して流し込みに戻す。
+    **比率なし**（`ratio is None`）でも使える。そのときは段の幅を `SLAB_ROW_SEG` 字ぶんに取り、
+    枠は中身に合わせて伸ばす（比率が無いので枠から残りを逆算できない）。
     """
     pitch = CELL_PX + doc.options.gap          # マス 1 つぶんの送り
     font_s = rnd(pitch * SLAB_ROW_FONT)
     wgap = rnd(font_s * WRAP_GAP_EM)
-    t_h = min(rnd(font_s * SLAB_TITLE_SCALE * 1.9), rnd(gh * SLAB_TITLE_BAND)) if title_h else 0
+    # タイトルの帯は塊の高さの `SLAB_TITLE_BAND` まで。**ただし本文の `SLAB_TITLE_MIN` 倍は必ず確保する**
+    # （マスが少ないと 10% では足りず、短い並びだけこの組み方を使えなくなる）
+    need = rnd(math.ceil(font_s * SLAB_TITLE_MIN) * 1.9)
+    cap = max(rnd(gh * SLAB_TITLE_BAND), need)
+    t_h = min(rnd(font_s * SLAB_TITLE_SCALE * 1.9), cap) if title_h else 0
     t_size = rnd(t_h / 1.9) if title_h else 0
     if title_h and t_size < font_s * SLAB_TITLE_MIN:
         return None
-    W, H, pad = _slab_frame(gh + t_h + (wgap if t_h else 0), ratio, m, True)
+    top_h = t_h + (wgap if t_h else 0)
+    if ratio is None:
+        # 余白は枠の短い辺の 3.5%（`_frame` と同じ規則）で、枠と余白が互いを参照する。0 から 3 回回す
+        seg_w = font_s * SLAB_ROW_SEG
+        pad = m
+        for _ in range(3):
+            W, H = gw + wgap + seg_w + pad * 2, top_h + gh + pad * 2
+            pad = max(m, rnd(min(W, H) * 0.035))
+        W, H = gw + wgap + seg_w + pad * 2, top_h + gh + pad * 2
+    else:
+        W, H, pad = _slab_frame(gh + top_h, ratio, m, True)
+        seg_w = (W - pad) - (pad + gw + wgap)
     if W <= 0 or H <= 0:
         return None
     scale = min(1.0, max_side_v / max(W, H))
     if font_s * scale < SLAB_ROW_MIN:          # 1 曲ぶんの高さが足りない → 流し込みに戻す
         return None
-    gx, gy = pad, pad + t_h + (wgap if t_h else 0)
+    gx, gy = pad, pad + top_h
     x0 = gx + gw + wgap
-    seg_w = (W - pad) - x0
     if seg_w < LIST_MIN_COL:
         return None
     segs = tuple((x0, gy + i * pitch, seg_w) for i in range(len(doc.cells)))
@@ -996,6 +1016,16 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     #     WRAP_CELL_KEEP まで。32x1 を 1:1 にすると、従来 16px / 回り込み 64px だった
     # **無条件には切り替えない**。9:16 に正方形の並びを入れたときのように、
     # 塊を中央に置くと左右の帯のぶんマスが小さくなるだけ、という組み合わせがある
+    # **比率なしの 1 列の並びも、曲名をマスの横に並べる**（利用者の要望）。比率が無いと
+    # サイドバーの幅がマス 1 つぶん（600 論理 px）しか取れず、出力が細長い帯になって
+    # 文字も小さくなっていた（1x8 で 666x2400・本文 26px）
+    if ratio is None and doc.cols == 1 and side != "none":
+        from backend.config import max_side
+        rp = _slab_rows(doc, gw, gh, title_h, None, m, max_side())
+        if rp:
+            return Layout(rp.W, rp.H, rp.scale, rp.gx, rp.gy, gw, gh, title, rp.title_size, rp.title_h,
+                          side, 0, 0, 1, rp.line_h, rp.font_s, sb_gap, True, (),
+                          True, rp.pad, rp.top, rp.segs, True)
     if sb_flow and ratio is not None:
         from backend.config import max_side
         wp = _wrap_plan(doc, gw, gh, title_h, ratio, m, max_side())
@@ -1152,12 +1182,21 @@ def render(doc: GridDoc) -> Image.Image:
                 continue
             max_w = sc(sw) - nw
             title, artist = _one_line(t.title), _one_line(t.artist)
-            # 曲名は行の中心より上、アーティスト名はすぐ下（1 曲ぶんの高さの真ん中で上下に分ける）
-            ty = cy - (rnd(fs * 0.62) if artist else 0)
-            d.text((x + nw, ty), _ellipsize(d, title, f_t, max_w), font=f_t, fill=ink, anchor="lm")
-            if artist:
-                d.text((x + nw, cy + rnd(fs * 0.62)), _ellipsize(d, artist, f_a, max_w),
-                       font=f_a, fill=muted, anchor="lm")
+            # **1 行に入らない曲名は 2 行に折る**（「…」で切ると曲名が読めなくなる。
+            # 折る位置の決め方はサイドバーと同じ `_split_title`）
+            lines = [title]
+            if d.textlength(title, font=f_t) > max_w:
+                l1, l2 = _split_title(d, title, f_t, max_w)
+                lines = [l1, l2] if l2 else [l1]
+            rows = lines + ([artist] if artist else [])
+            # 行の間隔。3 行（曲名 2 行＋アーティスト名）のときは詰めて 1 マスの高さに収める
+            step = rnd(fs * (1.24 if len(rows) <= 2 else 1.12))
+            top = cy - rnd(step * (len(rows) - 1) / 2)
+            for j, text in enumerate(rows):
+                is_artist = artist and j == len(rows) - 1
+                f = f_a if is_artist else f_t
+                d.text((x + nw, top + j * step), _ellipsize(d, text, f, max_w),
+                       font=f, fill=muted if is_artist else ink, anchor="lm")
         _release_memory()
         return im
 

@@ -2758,20 +2758,38 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 柱で 1 列の並びのときは、曲名をマス 1 つ 1 つの横に並べる（流し込まない）。
   // 曲名の大きさは 1 マスの送りから決め、出力で SLAB_ROW_MIN を下回るなら流し込みに戻す
   const SLAB_ROW_FONT = 0.30, SLAB_ROW_MIN = FLOW_MIN_FONT;
+  // 比率なしのときの段の幅（文字の大きさの何倍か＝だいたい何字入るか）。**文字を測って決めない**
+  const SLAB_ROW_SEG = 30;
   /* 柱のとき、曲名をマス 1 つ 1 つの横に並べる割り付け（backend/render.py の _slab_rows） */
   function slabRows(gw, gh, titleH, ratio, m, maxSide) {
     const pitch = CELL_PX + state.gap;
     const fontS = Math.round(pitch * SLAB_ROW_FONT);
     const wgap = Math.round(fontS * WRAP_GAP_EM);
-    const tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), Math.round(gh * SLAB_TITLE_BAND)) : 0;
+    // タイトルの帯は塊の高さの SLAB_TITLE_BAND まで。ただし本文の SLAB_TITLE_MIN 倍は必ず確保する
+    const need = Math.round(Math.ceil(fontS * SLAB_TITLE_MIN) * 1.9);
+    const cap = Math.max(Math.round(gh * SLAB_TITLE_BAND), need);
+    const tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), cap) : 0;
     const tSize = titleH ? Math.round(tH / 1.9) : 0;
     if (titleH && tSize < fontS * SLAB_TITLE_MIN) return null;
-    const [W, H, pad] = slabFrame(gh + tH + (tH ? wgap : 0), ratio, m, true);
+    const topH = tH + (tH ? wgap : 0);
+    let W, H, pad, segW;
+    if (ratio === null) {
+      // 比率が無いので枠から残りを逆算できない。段の幅を字数で決め、枠は中身に合わせて伸ばす
+      segW = fontS * SLAB_ROW_SEG;
+      pad = m;
+      for (let i = 0; i < 3; i++) {
+        W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
+        pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
+      }
+      W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
+    } else {
+      [W, H, pad] = slabFrame(gh + topH, ratio, m, true);
+      segW = (W - pad) - (pad + gw + wgap);
+    }
     if (W <= 0 || H <= 0) return null;
     const scale = Math.min(1, maxSide / Math.max(W, H));
     if (fontS * scale < SLAB_ROW_MIN) return null;
-    const gx = pad, gy = pad + tH + (tH ? wgap : 0);
-    const x0 = gx + gw + wgap, segW = (W - pad) - x0;
+    const gx = pad, gy = pad + topH, x0 = gx + gw + wgap;
     if (segW < LIST_MIN_COL) return null;
     const segs = state.cells.map((_, i) => [x0, gy + i * pitch, segW]);
     return { W, H, scale, fontS, lineH: pitch, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
@@ -3167,6 +3185,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // **曲名をマスの塊のまわりに回り込ませる**（backend/render.py と同じ条件）。切り替えるのは
     //   - マスが小さくならないとき（比率合わせで余っていた余白を曲名に使える）
     //   - マスが小さくなっても、今の組み方では文字がまったく読めないとき
+    // **比率なしの 1 列の並びも、曲名をマスの横に並べる**（比率が無いとサイドバーの幅が
+    // マス 1 つぶんしか取れず、出力が細長い帯になって文字も小さくなっていた）
+    if (ratio === null && cols === 1 && side !== "none") {
+      const rp = slabRows(gw, gh, titleH, null, m, maxSide);
+      if (rp) {
+        return { W: rp.W, H: rp.H, scale: rp.scale, ox: rp.gx, oy: rp.gy, gw, gh, title,
+                 titleSize: rp.titleSize, titleH: rp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
+                 lineH: rp.lineH, fontS: rp.fontS, sbGap, sbFlow: true, sbPlan: [],
+                 wrap: true, wrapPad: rp.pad, wrapTop: rp.top, wrapSegs: rp.segs, wrapRows: true };
+      }
+    }
     if (sbFlow && ratio !== null) {
       let wp = wrapPlan(gw, gh, titleH, ratio, m, maxSide);
       // **辺にぴったり付く組み方（柱・帯）があればそちらを優先する**。塊が片方の辺を使い切るので
@@ -3596,12 +3625,23 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         if (!t) continue;
         const maxW = sc(sw) - nw;
         const title = oneLine(t.title), artist = oneLine(t.artist);
+        // **1 行に入らない曲名は 2 行に折る**（「…」で切ると曲名が読めなくなる。backend/render.py と同じ）
+        ctx.font = fT;
+        let lines = [title];
+        if (ctx.measureText(title).width > maxW) {
+          const [l1, l2] = splitTitle(ctx, title, fT, maxW);
+          lines = l2 ? [l1, l2] : [l1];
+        }
+        const rowsTxt = artist ? lines.concat([artist]) : lines;
+        // 行の間隔。3 行（曲名 2 行＋アーティスト名）のときは詰めて 1 マスの高さに収める
+        const step = Math.round(fs * (rowsTxt.length <= 2 ? 1.24 : 1.12));
+        const y0row = cy - Math.round(step * (rowsTxt.length - 1) / 2);
         ctx.textBaseline = "middle";
-        ctx.font = fT; ctx.fillStyle = cssRgb(ink);
-        ctx.fillText(ellipsizeText(ctx, title, maxW), x + nw, cy - (artist ? Math.round(fs * 0.62) : 0));
-        if (artist) {
-          ctx.font = fA; ctx.fillStyle = cssRgb(muted);
-          ctx.fillText(ellipsizeText(ctx, artist, maxW), x + nw, cy + Math.round(fs * 0.62));
+        for (let j = 0; j < rowsTxt.length; j++) {
+          const isArtist = artist && j === rowsTxt.length - 1;
+          ctx.font = isArtist ? fA : fT;
+          ctx.fillStyle = cssRgb(isArtist ? muted : ink);
+          ctx.fillText(ellipsizeText(ctx, rowsTxt[j], maxW), x + nw, y0row + j * step);
         }
       }
     } else if (L.wrap) {
