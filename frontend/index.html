@@ -41,6 +41,10 @@
   --color-rule-2:   oklch(82% 0.012 250);
   --color-bar:      oklch(91% 0.006 250);   /* タイトルバーの下地（OS 9 プラチナのグレー。題名が読めるよう明るめ） */
   --color-bar-dark: oklch(66% 0.012 250);   /* タイトルバーの縞の影線 */
+  /* つまみの握り・面取りで使う 2 段の白。**暗い白は地色（--color-bar）との差が見えるところまで落とす**
+     （半透明の白 55% では地色に溶けて、明るい白と区別が付かなかった） */
+  --color-hl:      #ffffff;                 /* 明るい白 */
+  --color-hl-dim:  oklch(87% 0.010 250);    /* 暗い白 */
   /* the six riso inks — badges and one primary accent */
   --color-mustard:  oklch(80% 0.150 88);
   --color-cerulean: oklch(60% 0.140 235);
@@ -194,10 +198,10 @@ img { max-width: 100%; display: block; }
    縦のバーは横線、横のバーは縦線。 */
 ::-webkit-scrollbar-thumb:vertical {
   background-image:
-    linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55)),
-    linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55)),
+    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
+    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
     repeating-linear-gradient(to bottom, #fff 0 2px, transparent 2px 6px),
-    repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.55) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(to bottom, var(--color-hl-dim) 0 2px, transparent 2px 6px),
     repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px, transparent 4px 6px),
     linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
@@ -208,17 +212,17 @@ img { max-width: 100%; display: block; }
     100% 1px, 1px 100%;
   background-position:
     right 0 top 0, left 0 bottom 0,
-    left 2px center, left 2px center, left 4px center,
+    calc(50% - 4px) center, calc(50% - 1px) center, calc(50% + 1px) center,
     left 0 top 0, left 0 top 0,
     left 0 bottom 0, right 0 top 0;
   background-repeat: no-repeat;
 }
 ::-webkit-scrollbar-thumb:horizontal {
   background-image:
-    linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55)),
-    linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55)),
+    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
+    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
     repeating-linear-gradient(to right, #fff 0 2px, transparent 2px 6px),
-    repeating-linear-gradient(to right, rgb(255 255 255 / 0.55) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(to right, var(--color-hl-dim) 0 2px, transparent 2px 6px),
     repeating-linear-gradient(to right, transparent 0 2px, var(--color-bar-dark) 2px 4px, transparent 4px 6px),
     linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
@@ -229,7 +233,7 @@ img { max-width: 100%; display: block; }
     100% 1px, 1px 100%;
   background-position:
     right 0 top 0, left 0 bottom 0,
-    center top 2px, center top 2px, center top 4px,
+    center calc(50% - 4px), center calc(50% - 1px), center calc(50% + 1px),
     left 0 top 0, left 0 top 0,
     left 0 bottom 0, right 0 top 0;
   background-repeat: no-repeat;
@@ -694,8 +698,14 @@ body.sheet-open { overflow: hidden; }
 .hsv { display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-1); border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
 .hsv[hidden] { display: none; }   /* display: grid が hidden 属性の display: none に勝ってしまうため明示 */
 .hsv label { display: flex; justify-content: space-between; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
-.hsv input[type="range"]::-webkit-slider-runnable-track { height: 16px; border: var(--line) solid var(--color-ink); background: var(--track); box-sizing: border-box; box-shadow: none; }
-.hsv input[type="range"]::-webkit-slider-thumb { margin-top: -2px; height: 20px; }
+/* 色相・彩度・明度の溝も、余白やマスの間隔と同じ「凹み」に見せる。中身が色の帯なだけで作りは同じ
+   （枠は濃いグレー、左上に影、右下に白）。つまみは共通のものをそのまま使う */
+.hsv input[type="range"]::-webkit-slider-runnable-track {
+  height: 16px; box-sizing: border-box; background: var(--track);
+  border: 1px solid var(--color-bar-dark);
+  box-shadow: inset 1px 1px 0 rgb(0 0 0 / 0.16), inset -1px -1px 0 rgb(255 255 255 / 0.7);
+}
+.hsv input[type="range"]::-webkit-slider-thumb { margin-top: -1px; }
 .hsv .hex { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: right; font-variant-numeric: tabular-nums; }
 /* つまみと溝は Mac OS 9 の作り。スクロールバー（上）と同じ言葉づかいにそろえる。
    **溝は凹み**（左上が濃く右下が白）、**つまみは出っぱり**（左上が白く右下が濃い）＋ 真ん中に握りの縞 */
@@ -715,10 +725,10 @@ input[type="range"]::-webkit-slider-thumb {
           グレーは線の太さ（1px）ぶん下にずらし、白線の下から 1px はみ出す。3 本を真ん中に置く
        ③ 面取り … 上辺・左辺が白、下辺・右辺が濃いグレー */
   background-image:
-    linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55)),
-    linear-gradient(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.55)),
+    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
+    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
     repeating-linear-gradient(to right, #fff 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(to right, rgb(255 255 255 / 0.55) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(to right, var(--color-hl-dim) 0 1px, transparent 1px 4px),
     repeating-linear-gradient(to right, var(--color-bar-dark) 0 1px, transparent 1px 4px),
     linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
