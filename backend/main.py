@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import gzip as gziplib
 import hashlib
 import json
 import os
@@ -18,7 +19,7 @@ from datetime import datetime, timezone
 from collections import defaultdict, deque
 
 from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
-from starlette.datastructures import UploadFile as StarletteUploadFile
+from starlette.datastructures import Headers, MutableHeaders, UploadFile as StarletteUploadFile
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import ClientDisconnect
 from fastapi.concurrency import run_in_threadpool
@@ -352,9 +353,62 @@ async def unhandled_error(request: Request, exc: Exception) -> Response:
     return _error_response(request, 500, f"サーバー内部でエラーが起きました（{type(exc).__name__}）。時間をおいて再試行しても直らない場合は連絡先へ")
 
 
+# gzip をかける種類。画像・フォント・動画は既に圧縮済みで、かけてもほとんど縮まず CPU だけ使う
+_GZIP_TYPES = ("text/", "application/json", "application/javascript", "application/xml", "image/svg+xml")
+_GZIP_MIN = 900          # これより小さい応答は掛けない（ヘッダのほうが重くなる）
+_GZIP_LEVEL = 6          # 9 との差は数 % で、時間は 3 倍かかる
+
+
+class GZipText:
+    """**text と JSON だけ gzip で返す**。
+
+    Render の課金対象は「Render が送るバイト数」で、**前段の Cloudflare が付ける brotli は
+    そこには効かない**（`Content-Encoding: br` が返っていても、Render → Cloudflare は生のまま）。
+    画面の HTML は 273KB あり、2 時間の転送量の 39% を占めていた。gzip で 82KB（3.34 分の 1）になる。
+
+    Starlette の `GZipMiddleware` を使わないのは**内容の種類で分けてくれない**ため。
+    `/shares/*.jpg`（1 件 490KB）まで圧縮しようとして CPU を捨てることになる。
+    分割して送る応答（`more_body`）も素通しする（画像の中継など）。
+    """
+
+    def __init__(self, app, minimum_size: int = _GZIP_MIN) -> None:
+        self.app, self.minimum_size = app, minimum_size
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http" or "gzip" not in Headers(scope=scope).get("accept-encoding", ""):
+            return await self.app(scope, receive, send)
+        start: dict | None = None
+
+        async def send_wrapper(message: dict) -> None:
+            nonlocal start
+            if message["type"] == "http.response.start":
+                start = message          # 本文の種類と大きさを見てから送る
+                return
+            if message["type"] != "http.response.body" or start is None:
+                return await send(message)
+            body = message.get("body", b"")
+            hdrs = MutableHeaders(raw=start["headers"])
+            ctype = hdrs.get("content-type", "")
+            if (message.get("more_body") or len(body) < self.minimum_size
+                    or hdrs.get("content-encoding") or not ctype.startswith(_GZIP_TYPES)):
+                head, start = start, None
+                await send(head)
+                return await send(message)
+            packed = await asyncio.to_thread(gziplib.compress, body, _GZIP_LEVEL)
+            hdrs["content-encoding"] = "gzip"
+            hdrs["content-length"] = str(len(packed))
+            hdrs.add_vary_header("Accept-Encoding")
+            head, start = start, None
+            await send(head)
+            await send({"type": "http.response.body", "body": packed, "more_body": False})
+
+        await self.app(scope, receive, send_wrapper)
+
+
 if cors_origins():
     # GitHub Pages など別オリジンのフロントから呼べるようにする（Cookie は使わないので credentials は不要）
     app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["*"], max_age=600)
+app.add_middleware(GZipText)
 
 # ---------- 簡易レートリミット（IP ごと・1 分間の回数。公開時の連打・スクレイピング対策） ----------
 _RATE_PATHS = ("/search", "/from-url", "/from-playlist", "/bandcamp", "/upload", "/share", "/share/upload", "/render", "/grids")
@@ -1325,6 +1379,12 @@ async def share_grid(request: Request, body: RenderBody = Body(default_factory=R
 # **3 は無料ホスト時代の値**。回線の遅い端末が枠を握ると後続が全部断られ、2026-09-15 の点検で
 # 2 時間に 21 件の 503 が出ていた（`/share/upload` の最大応答 85.2 秒）。Standard なら 8 で足りる
 _UPLOAD_SEM = asyncio.Semaphore(8)
+# **受け取り中と、検査・保存は分けて数える**。一緒にすると、回線の細い端末が 1 件で枠を握り、
+# その間の後続が全部 503 になる（2026-09-15 の点検で `/share/upload` の最大応答が 122.7 秒、
+# 653 件中 5 件が 503）。受け取りは待つだけなので広く取ってよい。本文の大きい部分は
+# Starlette が一時ファイルに逃がすので、待たせてもメモリは膨らまない。
+# **バイト列に読むのは内側（8 枠）の中**で行う（外で読むと 32 件ぶん抱えることになる）
+_UPLOAD_RECV = asyncio.Semaphore(int(os.getenv("SHARE_UPLOAD_RECV", "32") or 32))
 
 
 @app.post("/share/upload")
@@ -1333,9 +1393,9 @@ async def share_upload(request: Request) -> dict:
     （無料ホストの 0.1 vCPU では描画がヘルスチェックを止めるため、描画は端末側で行う）。
     フォーム: doc（JSON 文字列）, image（旧名 png）, og"""
     _check_share_quota(request)   # 本文（数 MB）を読む前に断る。上限到達中に受け取ってから 429 にしない
-    if _UPLOAD_SEM.locked():
+    if _UPLOAD_RECV.locked():
         raise HTTPException(503, "共有が混み合っています。10 秒ほど待ってからもう一度お試しください", headers={"Retry-After": "10"})
-    async with _UPLOAD_SEM:
+    async with _UPLOAD_RECV:      # 受け取り（回線が細いと数十秒かかる）
         try:
             form = await request.form()
         except ClientDisconnect:   # 利用者が送信途中で離脱（アプリ内ブラウザや回線切替）。サーバー側の異常ではないので 5xx にしない
@@ -1350,15 +1410,16 @@ async def share_upload(request: Request) -> dict:
         except Exception as e:
             raise HTTPException(400, f"並びの JSON が不正です（{type(e).__name__}）") from e
         gdoc = _doc_for_share(body)
-        img_b = await image.read(share.MAX_UPLOAD_IMAGE + 1)
-        og_b = await og.read(share.MAX_UPLOAD_OG + 1)
-        try:
-            w, h, ext = await asyncio.to_thread(share.check_uploaded, img_b, og_b)
-        except ValueError as e:
-            raise HTTPException(400, str(e)) from e
-        _check_share_quota(request)
-        budget = share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0
-        return await _finish_share(request, run_in_threadpool(share.store, gdoc, img_b, og_b, w, h, budget, ext))
+        async with _UPLOAD_SEM:   # 検査と保存（CPU と R2。数百 ms で終わる）
+            img_b = await image.read(share.MAX_UPLOAD_IMAGE + 1)
+            og_b = await og.read(share.MAX_UPLOAD_OG + 1)
+            try:
+                w, h, ext = await asyncio.to_thread(share.check_uploaded, img_b, og_b)
+            except ValueError as e:
+                raise HTTPException(400, str(e)) from e
+            _check_share_quota(request)
+            budget = share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0
+            return await _finish_share(request, run_in_threadpool(share.store, gdoc, img_b, og_b, w, h, budget, ext))
 
 
 @app.get("/s/{sid}", response_class=HTMLResponse)
