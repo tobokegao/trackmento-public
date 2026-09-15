@@ -40,7 +40,7 @@ THUMB_W = 360        # 一覧に並べるサムネの幅
 # 判定のしきい値。**ここに引っかかったものを「要確認」として一覧の上に出す**
 MIN_FONT = 12        # 出力での曲名の大きさ（px）。これ未満は読めない
 MIN_CELL = 40        # 出力でのマスの大きさ（px）。これ未満はジャケットが判別できない
-MIN_FILL = 0.70      # 文字が埋めた割合。これ未満は下が大きく空く
+MIN_FILL = 0.60      # 描いたものが枠を覆う割合。これ未満は使われない余白が目立つ
 MIN_TITLE_RATIO = 1.2   # タイトル ÷ 曲名。これ未満はタイトルが目立たない
 
 
@@ -94,7 +94,11 @@ def measure(doc: GridDoc) -> dict:
     out["title_ratio"] = round(out["title"] / out["font"], 2) if out["font"] else 0
     if L.wrap:
         rows_used = R._flow_rows(doc, L.font_s, 0.0, [float(sg[2]) for sg in L.wrap_segs])
-        out["fill"] = round(len(rows_used) / len(L.wrap_segs), 2) if L.wrap_segs else 0
+        # **埋まり＝描いたものが枠をどれだけ覆うか**（マスの塊 ＋ 実際に置いた文字の面積）。
+        # 「行数 ÷ 段の数」では測れない（余った段は割り付けの時点で捨てているので必ず 1.0 になる）
+        area = (L.W - L.wrap_pad * 2) * (L.H - L.wrap_top - L.wrap_pad)
+        ink = L.gw * L.gh + sum(fr.width * L.line_h for fr in rows_used)
+        out["fill"] = round(ink / area, 2) if area else 0
         widths = sorted({sg[2] for sg in L.wrap_segs})
         out["seg_min"] = round(widths[0] * S)
         out["seg_chars"] = round(widths[0] / L.font_s)
@@ -112,7 +116,7 @@ def measure(doc: GridDoc) -> dict:
     if out["cell"] < MIN_CELL:
         bad.append(f"マスが小さい（{out['cell']}px）")
     if out["fill"] is not None and out["fill"] < MIN_FILL:
-        bad.append(f"下が空く（埋まり {out['fill']}）")
+        bad.append(f"余白が目立つ（埋まり {int(out['fill'] * 100)}%）")
     if out["title_ratio"] < MIN_TITLE_RATIO:
         bad.append(f"タイトルが目立たない（本文の {out['title_ratio']} 倍）")
     if out["seg_chars"] is not None and out["seg_chars"] < 14:
