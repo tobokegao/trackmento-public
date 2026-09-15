@@ -320,6 +320,10 @@ WRAP_TARGET_PX = (FLOW_MIN_FONT, 18, 16, 14, 12)
 # 大きく（＝マスが少し小さく）なるので、**マスが WRAP_CELL_KEEP を割らない範囲まで**にする
 WRAP_TARGET_UP = (22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72)
 WRAP_CELL_KEEP = 0.85
+# **マスがもともと小さいときは守る意味が薄い**ので、文字を大きくする許容を緩める。
+# 守りすぎると文字が途中で尽きて、マスの脇と下が大きく空く（1x32 を 16:9 にすると埋まり 32%）
+WRAP_CELL_OK = 40         # 出力でのマスの大きさ（px）。これ以上なら今までどおり守る
+WRAP_CELL_KEEP_SMALL = 0.6
 # 逆に、**文字を 1〜2 段落とすとマスが大きく取れる**ことがある。塊の形と枠の比率が食い違うと、
 # 大きい文字のままでは塊を横いっぱいにできず、左右に使えない空白が残る（32x7 を 9:16 にすると
 # 塊が枠の 66% の幅で、左右に 182px ずつ死んでいた）。この倍率以上大きくなるなら落とす
@@ -500,8 +504,11 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
                 x += gap
                 gaps += 1
         num, title = f"{i + 1:02d}", _one_line(t.title)
-        # **番号だけが行末に取り残されないようにする**。番号と曲名の頭 2 字が入らないなら先に折る
-        head = fonts["num"].getlength(num) + fonts["title"].getlength(" " + title[:2])
+        # **番号だけが行末に取り残されないようにする**。番号と曲名の頭 2 字が入らないなら先に折る。
+        # **ここも 1 字ごとの丸めた幅で測る**。文字列まるごとの実寸で比べると PIL と Canvas で
+        # 判定が入れ替わり、行数が 1 つずれる。行数は中央寄せの量に効くので、**全体がずれる**
+        head = (sum(char_w(*sizes["num"], ch) for ch in num)
+                + sum(char_w(*sizes["title"], ch) for ch in " " + title[:2]))
         if cur and x + head > cw():
             flush()
         put("num", num)
@@ -623,7 +630,8 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         best = base
         # **余地があれば文字を大きくする**。**最初に見つけた大きさ**のマスから
         # WRAP_CELL_KEEP を割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
-        floor = base.scale * WRAP_CELL_KEEP
+        floor = base.scale * (WRAP_CELL_KEEP if CELL_PX * base.scale >= WRAP_CELL_OK
+                              else WRAP_CELL_KEEP_SMALL)
         for up in WRAP_TARGET_UP:
             if up <= target:
                 continue
