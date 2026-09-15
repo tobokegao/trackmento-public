@@ -2772,6 +2772,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SLAB_ROW_FONT = 0.30, SLAB_ROW_MIN = FLOW_MIN_FONT;
   // 比率なしのときの段の幅（文字の大きさの何倍か＝だいたい何字入るか）。**文字を測って決めない**
   const SLAB_ROW_SEG = 30;
+  // 段の幅は塊の高さまで。曲が少ないと段のほうが長くなり、枠が横に伸びてマスが潰れる
+  const SLAB_ROW_WIDE = 1.0;
   /* 柱のとき、曲名をマス 1 つ 1 つの横に並べる割り付け（backend/render.py の _slab_rows） */
   function slabRows(gw, gh, titleH, ratio, m, maxSide) {
     const pitch = CELL_PX + state.gap;
@@ -2787,7 +2789,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     let W, H, pad, segW;
     if (ratio === null) {
       // 比率が無いので枠から残りを逆算できない。段の幅を字数で決め、枠は中身に合わせて伸ばす
-      segW = fontS * SLAB_ROW_SEG;
+      segW = Math.min(fontS * SLAB_ROW_SEG, Math.max(LIST_MIN_COL, Math.round(gh * SLAB_ROW_WIDE)));
       pad = m;
       for (let i = 0; i < 3; i++) {
         W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;

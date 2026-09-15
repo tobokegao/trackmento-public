@@ -595,6 +595,10 @@ SLAB_ROW_MIN = FLOW_MIN_FONT
 # 枠から残りが決まるが、比率なしでは決め手が無いので字数で決める。
 # **文字を測って決めてはいけない**（PIL と Canvas で幅が数 px 違い、枠ごとずれる）
 SLAB_ROW_SEG = 30
+# ただし**段の幅は塊の高さまで**。曲が少ないと 30 字ぶんの段のほうが塊よりずっと長くなり、
+# 枠が横に伸びて**マスが潰れる**（1x3 を比率なしで 600 → 223px にしていた）。
+# 塊の高さで頭打ちにすると、短い並びは今までどおりの大きなマス、長い並びは広い段になる
+SLAB_ROW_WIDE = 1.0
 # 出力での曲名の大きさ。大きいほうから試して、**入る中でいちばん大きいもの**を採る
 SLAB_TARGET_PX = (96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14)
 # **文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る**。
@@ -654,7 +658,7 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
     top_h = t_h + (wgap if t_h else 0)
     if ratio is None:
         # 余白は枠の短い辺の 3.5%（`_frame` と同じ規則）で、枠と余白が互いを参照する。0 から 3 回回す
-        seg_w = font_s * SLAB_ROW_SEG
+        seg_w = min(font_s * SLAB_ROW_SEG, max(LIST_MIN_COL, rnd(gh * SLAB_ROW_WIDE)))
         pad = m
         for _ in range(3):
             W, H = gw + wgap + seg_w + pad * 2, top_h + gh + pad * 2
