@@ -320,10 +320,16 @@ WRAP_TARGET_PX = (FLOW_MIN_FONT, 18, 16, 14, 12)
 # 大きく（＝マスが少し小さく）なるので、**マスが WRAP_CELL_KEEP を割らない範囲まで**にする
 WRAP_TARGET_UP = (22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72)
 WRAP_CELL_KEEP = 0.85
+# 逆に、**文字を 1〜2 段落とすとマスが大きく取れる**ことがある。塊の形と枠の比率が食い違うと、
+# 大きい文字のままでは塊を横いっぱいにできず、左右に使えない空白が残る（32x7 を 9:16 にすると
+# 塊が枠の 66% の幅で、左右に 182px ずつ死んでいた）。この倍率以上大きくなるなら落とす
+WRAP_CELL_GAIN = 1.25
+WRAP_TARGET_FLOOR = 14    # ただし、マスのために文字をここまでしか落とさない
 WRAP_SWITCH_PX = 12       # 出力での文字がこれを下回るなら回り込みに切り替える
 WRAP_SWITCH_GAIN = 1.3    # 文字がこの倍率以上大きくなるなら、マスが少し小さくなっても切り替える
 WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
 WRAP_TITLE_MAX = 0.3      # ただしタイトルの高さは「塊を除いた高さ」のこの割合まで
+TITLE_MIN_SCALE = 1.6     # 曲名リストに対するタイトルの最低倍率（回り込み以外の組み方）
 WRAP_TITLE_MIN = 1.6      # **タイトルは本文の最低これだけ倍**。上限に当たってこれを割るなら、
                           # その枠は使わない（枠を広げて取り直す）。曲名リストのほうが大きいと逆さま
 
@@ -610,13 +616,14 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
                 lo = mid + 1
         return best
 
-    for target in WRAP_TARGET_PX:
-        best = search(target)
-        if not best:
+    for i, target in enumerate(WRAP_TARGET_PX):
+        base = search(target)
+        if not base:
             continue
+        best = base
         # **余地があれば文字を大きくする**。**最初に見つけた大きさ**のマスから
         # WRAP_CELL_KEEP を割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
-        floor = best.scale * WRAP_CELL_KEEP
+        floor = base.scale * WRAP_CELL_KEEP
         for up in WRAP_TARGET_UP:
             if up <= target:
                 continue
@@ -624,22 +631,35 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             if not got or got.scale < floor:
                 break
             best = got
+        # **逆に、落とすとマスが大きく取れるなら落とす**（左右に使えない空白が残るのを避ける）
+        for down in WRAP_TARGET_PX[i + 1:i + 3]:
+            if down < WRAP_TARGET_FLOOR:
+                break
+            got = search(down)
+            if not got or got.scale < base.scale * WRAP_CELL_GAIN:
+                break
+            best = got
         return best
     return None
 
 
-def layout(doc: GridDoc) -> Layout:
+def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     o = doc.options
     cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
     title = _one_line(doc.title) if o.showTitle else ""
     gw = cols * CELL_PX + (cols - 1) * g
     gh = rows * CELL_PX + (rows - 1) * g
-    title_size = rnd(min(96, max(48, gw * 0.045)))
+    # `_title_px` は「曲名リストより十分大きく」するための組み直し（下の TITLE_MIN_SCALE を参照）
+    title_size = _title_px or rnd(min(96, max(48, gw * 0.045)))
     title_h = rnd(title_size * 1.9) if title else 0
     ratio = RATIOS[o.ratio]
-    # サイドバー: 横長・設定なしなら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
-    # 正方形で右に置くと内容が横長になり、上下の余白ばかり広がるため
-    side = ("right" if ratio is None or ratio > 1 else "bottom") if o.sidebar else "none"
+    # サイドバー: 横長なら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
+    # 正方形で右に置くと内容が横長になり、上下の余白ばかり広がるため。
+    # **比率なしのときは「マスの塊が縦長なら右・横長なら下」**。枠は内容に合わせて伸びるので、
+    # 長いほうの辺にさらに足すと極端な形になる（32x1 を右に足すと出力 2400x39 だった）
+    side = ("none" if not o.sidebar
+            else ("right" if gh >= gw else "bottom") if ratio is None
+            else "right" if ratio > 1 else "bottom")
     # 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）に置く。グリッドの上に置くと内容が縦長になり、
     # 横長の比率（16:9）で左右の余白ばかり広がるため
     title_top_h = 0 if side == "right" else title_h
@@ -758,9 +778,19 @@ def layout(doc: GridDoc) -> Layout:
                           True, wp.pad, wp.top, wp.segs)
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
-    return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
-                  title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap, sb_flow,
-                  () if sb_flow else sb_plan)
+    L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
+               title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap, sb_flow,
+               () if sb_flow else sb_plan)
+    # **タイトルは曲名リストより十分大きくする**。ふだんの規則（マスの幅の 4.5%・上限 96）は
+    # マスの数だけで決まるので、曲が少なくて曲名が大きくなると**タイトルのほうが小さくなる**
+    # （1x6・16:9 で本文 46.6px にタイトル 16.9px ＝ 0.36 倍だった）。
+    # 曲名の大きさが決まってから組み直す。タイトルを大きくすると曲名は同じか小さくなるので、
+    # **1 回で必ず収まる**（回り込みは `_wrap_plan` の中で既に本文から決めているので対象外）
+    if L.title and _title_px is None:
+        want = rnd(L.font_s * TITLE_MIN_SCALE)
+        if want > L.title_size:
+            return layout(doc, want)
+    return L
 
 
 def _plan_rows(plan: tuple[int, ...], cols: int) -> int:

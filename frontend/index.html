@@ -2607,6 +2607,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 入る大きさが見つかったあと、余っている余地で文字を大きくする。大きくすると枠も少し大きく
   // （＝マスが少し小さく）なるので、マスが WRAP_CELL_KEEP を割らない範囲まで
   const WRAP_TARGET_UP = [22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72], WRAP_CELL_KEEP = 0.85;
+  // 逆に、文字を 1〜2 段落とすとマスが大きく取れることがある（塊の形と枠の比率が食い違うと、
+  // 大きい文字のままでは塊を横いっぱいにできず、左右に使えない空白が残る）
+  const WRAP_CELL_GAIN = 1.25, WRAP_TARGET_FLOOR = 14;
+  const TITLE_MIN_SCALE = 1.6;   // 曲名リストに対するタイトルの最低倍率（回り込み以外の組み方）
   /* マスの塊を中央に置き、まわりの余白に曲名を流し込む割り付けを探す（backend/render.py の _wrap_plan）。
      出力での文字を FLOW_MIN_FONT に固定し、入る範囲で枠をいちばん小さくする（＝塊をいちばん大きく）。
      入らなければ null を返し、呼び出し側は今までの組み方に戻す */
@@ -2676,16 +2680,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
       return best;
     };
-    for (const target of WRAP_TARGET_PX) {
-      let best = search(target);
-      if (!best) continue;
+    for (let i = 0; i < WRAP_TARGET_PX.length; i++) {
+      const target = WRAP_TARGET_PX[i];
+      const base = search(target);
+      if (!base) continue;
+      let best = base;
       // **余地があれば文字を大きくする**。最初に見つけた大きさのマスから WRAP_CELL_KEEP を
       // 割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
-      const floor = best.scale * WRAP_CELL_KEEP;
+      const floor = base.scale * WRAP_CELL_KEEP;
       for (const up of WRAP_TARGET_UP) {
         if (up <= target) continue;
         const got = search(up);
         if (!got || got.scale < floor) break;
+        best = got;
+      }
+      // **逆に、落とすとマスが大きく取れるなら落とす**（左右に使えない空白が残るのを避ける）
+      for (const down of WRAP_TARGET_PX.slice(i + 1, i + 3)) {
+        if (down < WRAP_TARGET_FLOOR) break;
+        const got = search(down);
+        if (!got || got.scale < base.scale * WRAP_CELL_GAIN) break;
         best = got;
       }
       return best;
@@ -2771,19 +2784,23 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return [W, H];
   }
   /* レイアウト計算。描画せずにサイズだけ求める（右ペインの「出力サイズ」表示にも使う） */
-  function layout(maxSide = MAX_SIDE) {
+  // `titlePx` は「曲名リストより十分大きく」するための組み直し（TITLE_MIN_SCALE を参照）
+  function layout(maxSide = MAX_SIDE, titlePx = null) {
     const { cols, rows } = state;
     const m = state.margin;
     const title = state.showTitle ? state.title.trim() : "";
     const n = state.cells.length;
     const g = state.gap;
     const gw = cols * CELL_PX + (cols - 1) * g, gh = rows * CELL_PX + (rows - 1) * g;
-    const titleSize = Math.round(Math.min(96, Math.max(48, gw * 0.045)));
+    const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
     const titleH = title ? Math.round(titleSize * 1.9) : 0;
     const ratio = RATIOS[state.ratio];
-    // サイドバー: 横長・設定なしなら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
-    // 正方形で右に置くと内容が横長になり、上下の余白ばかり広がるため
-    const side = state.sidebar ? (ratio === null || ratio > 1 ? "right" : "bottom") : "none";
+    // サイドバー: 横長なら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
+    // **比率なしのときは「マスの塊が縦長なら右・横長なら下」**（backend/render.py と同じ）。
+    // 枠は内容に合わせて伸びるので、長いほうの辺にさらに足すと極端な形になる
+    const side = !state.sidebar ? "none"
+      : ratio === null ? (gh >= gw ? "right" : "bottom")
+      : ratio > 1 ? "right" : "bottom";
     // 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）。グリッドの上に置くと内容が縦長になり、
     // 横長の比率（16:9）で左右の余白ばかり広がるため
     const titleTopH = side === "right" ? 0 : titleH;
@@ -2891,6 +2908,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
     const contentH = titleTopH + gh + (side === "bottom" ? sbGap + sbH : 0);
     const ox = Math.round((W - contentW) / 2), oy = Math.round((H - contentH) / 2);
+    // **タイトルは曲名リストより十分大きくする**（backend/render.py と同じ）。ふだんの規則は
+    // マスの数だけで決まるので、曲が少なくて曲名が大きくなるとタイトルのほうが小さくなる。
+    // タイトルを大きくすると曲名は同じか小さくなるので、組み直しは 1 回で必ず収まる
+    if (title && titlePx === null) {
+      const want = Math.round(fontS * TITLE_MIN_SCALE);
+      if (want > titleSize) return layout(maxSide, want);
+    }
     return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow,
              sbPlan: sbFlow ? [] : sbPlan, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [] };
   }
