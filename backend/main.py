@@ -953,6 +953,41 @@ def _image_to_r2_bg(url: str, ctype: str, data: bytes) -> None:
     t.add_done_callback(_R2_TASKS.discard)
 
 
+class ImageWant(BaseModel):
+    u: str = Field(max_length=2048)
+    px: int = Field(0, ge=0, le=2000)
+
+
+class ImageWantList(BaseModel):
+    items: list[ImageWant] = Field(default_factory=list, max_length=300)
+
+
+@app.post("/image-r2")
+async def image_r2(body: ImageWantList) -> dict:
+    """それぞれの画像が R2 のどこにあるかを、まとめて答える（取得はしない）。
+
+    **ブラウザが共有画像を描くときは、302 を挟まずに R2 を直接読む**ためのもの。
+    `/image-proxy` の 302 を追わせると、ブラウザは別オリジンへのリダイレクトとして
+    `Origin: null` で取りに行くことになり、まとめて読むと総崩れになることがある
+    （2026-09-15 に実測: R2 直読み 240/240 成功、302 経由は 120/120 失敗）。
+    R2 に無いものは null を返し、呼ぶ側は今までどおり `/image-proxy` に取りに行く。
+    """
+    out: list[str | None] = []
+    for it in body.items:
+        url = it.u
+        if not url or uploads.is_upload_url(url) or not await asyncio.to_thread(_host_allowed, url):
+            out.append(None)
+            continue
+        want = max(100, min(600, it.px or 600))
+        for _src in (itunes, bandcamp, video, soundcloud, musicbrainz):
+            url = _src.clamp_size(url, want)
+        shrink_px = min(600, -(-want // 200) * 200) if (otodb.is_otodb_image(url) or not _known_image_host(url)) else 0
+        ckey = f"{url}#px={shrink_px}" if shrink_px else url
+        key = await asyncio.to_thread(cache.get_image_r2key, ckey) or _image_index_get(ckey)
+        out.append((storage.get_storage().public_url(key) if key else None) or None)
+    return {"urls": out}
+
+
 @app.get("/image-proxy")
 async def image_proxy(url: str = Query(..., description="取得する画像URL", max_length=2048),
                       px: int = Query(0, ge=0, le=2000, description="欲しい実寸（マスが小さいときだけ指定する）"),
