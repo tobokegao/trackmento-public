@@ -337,14 +337,16 @@ img { max-width: 100%; display: block; }
   --bar-inset-x: 8px;   /* 縞を描かない左端の余白（縞とボックス・題名の間隔と同じ） */
   position: relative; display: flex; align-items: center;
   min-height: calc(28px + var(--line)); padding: 0 0 0 var(--space-2);   /* 右は .tail が端まで塗る（ボックスより右に縞を出さない） */
-  /* 縞の帯 = 高さ 28px − 上下 4px = 20px = 白 2px＋影 2px の 5 組ちょうど（border-box なので下線の分を足す。足りないと最後の影線が欠ける） */
+  /* **縞の帯は 20px で固定**（白 2px＋影 2px の 5 組ちょうど）。`100% - 上下の余白` にしていたときは、
+     バーの高さが端数になる端末で 6 本目の白線が 0.5px だけはみ出して見えた（スマホで報告） */
+  --bar-stripes: 20px;
   border-bottom: var(--line) solid var(--color-ink);
   /* **白線は先頭の 1 本だけ明るい白、以降は暗い白**（つまみの握りと同じ規則）。
      全部を純白にすると光が当たっている面が分からず、のっぺり見える */
   background:
     linear-gradient(#fff, #fff) var(--bar-inset-x) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) 2px no-repeat,
-    repeating-linear-gradient(to bottom, var(--color-hl-dim) 0 2px, transparent 2px 4px) var(--bar-inset-x) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) calc(100% - 2 * var(--bar-inset)) no-repeat,
-    repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px) calc(var(--bar-inset-x) + 2px) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) calc(100% - 2 * var(--bar-inset)) no-repeat,
+    repeating-linear-gradient(to bottom, var(--color-hl-dim) 0 2px, transparent 2px 4px) var(--bar-inset-x) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
+    repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px) calc(var(--bar-inset-x) + 2px) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
     var(--color-bar);
 }
 .pane-title h2 {
@@ -743,6 +745,8 @@ body.sheet-open { overflow: hidden; }
   box-shadow: inset 0 1px 0 rgb(0 0 0 / 0.16);
 }
 .hsv input[type="range"]::-webkit-slider-thumb { margin-top: -4px; }   /* (12 - 18) / 2 から 1px 上へ。帯の凹みの中で少し浮いて見せる */
+/* **つまみの操作はこちらで全部やる**ので、ブラウザ独自のジェスチャ（スクロール・値の追従）は切る */
+input[type="range"] { touch-action: none; }
 .hsv .hex { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: right; font-variant-numeric: tabular-nums; }
 /* つまみと溝は Mac OS 9 の作り。スクロールバー（上）と同じ言葉づかいにそろえる。
    **溝は凹み**（左上が濃く右下が白）、**つまみは出っぱり**（左上が白く右下が濃い）＋ 真ん中に握りの縞 */
@@ -2452,9 +2456,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     };
     el.addEventListener("pointerup", end);
     el.addEventListener("pointercancel", end);
-    // **指の操作は touchstart でも止める**。Android では pointerdown を止めても
-    // タッチの既定の動き（押した位置へ値が飛ぶ）が残る。縦のスクロールも奪わない
+    // **指の操作は touchstart と touchmove の両方で止める**。Android では pointerdown を
+    // 止めてもタッチの既定の動き（押した位置へ飛ぶ・滑らせると追従する）が残る。
+    // **touchmove を止めていなかったので「タップして滑らせる」と動いていた**（実機で報告）
     el.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
+    el.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
     // **見出しの文字を押しても反応させない**。<label for> は押すと中の部品を動かす決まりなので、
     // 「余白 16 px」の行を長押しするとつまみが押されたように見えていた
     const lab = el.id ? document.querySelector(`label[for="${el.id}"]`) : null;

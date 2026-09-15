@@ -45,5 +45,21 @@ await page.mouse.move(tx, y); await page.mouse.down();
 await page.mouse.move(tx + 70, y, { steps: 8 }); await page.mouse.up();
 await page.waitForTimeout(80);
 out.つまみドラッグ = await val();
+// 6) 指で「真横をタップして滑らせる」（touchstart → touchmove）。実機で動いていた操作
+if (touch) {
+  const v0 = await val();
+  const sx2 = thumbX(+v0) + 16;
+  await page.evaluate(([x, y]) => {
+    const el = document.querySelector("#margin");
+    const mk = (type, cx) => { const t = new Touch({ identifier: 1, target: el, clientX: cx, clientY: y });
+      return new TouchEvent(type, { touches: type === "touchend" ? [] : [t], targetTouches: type === "touchend" ? [] : [t],
+        changedTouches: [t], bubbles: true, cancelable: true }); };
+    el.dispatchEvent(mk("touchstart", x));
+    for (let i = 1; i <= 8; i++) el.dispatchEvent(mk("touchmove", x + i * 10));
+    el.dispatchEvent(mk("touchend", x + 80));
+  }, [sx2, y]);
+  await page.waitForTimeout(80);
+  out["真横タップして滑らせる"] = await val();
+}
 console.log(JSON.stringify(out, null, 1));
 await ctx.close(); await browser.close();
