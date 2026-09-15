@@ -281,6 +281,7 @@ class Layout:
     wrap_pad: int = 0                                   # 四辺の余白
     wrap_top: int = 0                                   # タイトルの帯の上端（余り分を上下に分けて下げる）
     wrap_segs: tuple[tuple[int, int, int], ...] = ()    # 行ごとの (x, y, 幅)。左段 → 右段の順
+    wrap_rows: bool = False                             # 段が 1 曲ずつ（マスの横に並べる）
 
 
 # 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
@@ -533,7 +534,8 @@ class WrapPlan(NamedTuple):
     pad: int; top: int; gx: int; gy: int
     segs: tuple[tuple[int, int, int], ...]
     rows: list[FlowRow]
-    use: float = 1.0   # 文字の置き場所のうち実際に使った割合（帯・柱でだけ 1 未満になる）
+    use: float = 1.0      # 文字の置き場所のうち実際に使った割合（帯・柱でだけ 1 未満になる）
+    rows_mode: bool = False   # 段を 1 曲ずつマスの横に並べる（柱・1 列の並びだけ）
 
 
 # ---- 帯・柱: マスの塊を枠の辺にぴったり付ける組み方 ----
@@ -553,6 +555,12 @@ SLAB_TITLE_MAX = 0.28   # 帯のとき、タイトルは曲名リストの場所
 # 帯のぶんだけ枠が縦に伸び、そのぶんマスが小さくなる）。塊の高さに対する割合で頭打ちにする。
 # ここを緩めると本文は大きくなるがマスが目に見えて小さくなる（1x8 を 1:1 で 273 → 213px）
 SLAB_TITLE_BAND = 0.10
+# **柱で 1 列の並びのときは、曲名をマス 1 つ 1 つの横に並べる**（流し込まない）。
+# マスと曲名が 1 対 1 で並ぶので、どのジャケットがどの曲か一目で分かる。
+# 曲名の大きさは 1 マスの送りから決め、出力で `SLAB_ROW_MIN` を下回るなら流し込みに戻す
+# （マスが小さくなるほど 1 曲ぶんの高さも縮むため。1x32 を 16:9 にすると 12px になる）
+SLAB_ROW_FONT = 0.30
+SLAB_ROW_MIN = FLOW_MIN_FONT
 # 出力での曲名の大きさ。大きいほうから試して、**入る中でいちばん大きいもの**を採る
 SLAB_TARGET_PX = (96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14)
 # **文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る**。
@@ -589,6 +597,35 @@ def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool) -> tuple[int, 
     return W, H, pad
 
 
+def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
+               max_side_v: int) -> WrapPlan | None:
+    """柱のとき、**曲名をマス 1 つ 1 つの横に並べる**割り付け（1 列の並びだけ）。
+
+    枠の大きさは塊とタイトルの帯だけで決まり、曲名の大きさもマスの送りから決まるので、
+    探索は要らない。出力での曲名が小さくなりすぎるときだけ None を返して流し込みに戻す。
+    """
+    pitch = CELL_PX + doc.options.gap          # マス 1 つぶんの送り
+    font_s = rnd(pitch * SLAB_ROW_FONT)
+    wgap = rnd(font_s * WRAP_GAP_EM)
+    t_h = min(rnd(font_s * SLAB_TITLE_SCALE * 1.9), rnd(gh * SLAB_TITLE_BAND)) if title_h else 0
+    t_size = rnd(t_h / 1.9) if title_h else 0
+    if title_h and t_size < font_s * SLAB_TITLE_MIN:
+        return None
+    W, H, pad = _slab_frame(gh + t_h + (wgap if t_h else 0), ratio, m, True)
+    if W <= 0 or H <= 0:
+        return None
+    scale = min(1.0, max_side_v / max(W, H))
+    if font_s * scale < SLAB_ROW_MIN:          # 1 曲ぶんの高さが足りない → 流し込みに戻す
+        return None
+    gx, gy = pad, pad + t_h + (wgap if t_h else 0)
+    x0 = gx + gw + wgap
+    seg_w = (W - pad) - x0
+    if seg_w < LIST_MIN_COL:
+        return None
+    segs = tuple((x0, gy + i * pitch, seg_w) for i in range(len(doc.cells)))
+    return WrapPlan(W, H, scale, font_s, pitch, t_size, t_h, pad, pad, gx, gy, segs, [], 1.0, True)
+
+
 def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
                max_side_v: int) -> WrapPlan | None:
     """塊を枠の辺にぴったり付ける割り付け（柱・帯）。合わなければ None。
@@ -604,6 +641,11 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         vertical = False
     else:
         return None
+    # **1 列の並びなら、まず「マスの横に 1 曲ずつ」を試す**（流し込みより読みやすい）
+    if vertical and doc.cols == 1:
+        got = _slab_rows(doc, gw, gh, title_h, ratio, m, max_side_v)
+        if got:
+            return got
 
     def build(target: int) -> WrapPlan | None:
         # **タイトルの帯の高さは文字の大きさから決まり、文字の大きさは枠（縮尺）から決まる**ので、
@@ -969,7 +1011,7 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
                        and wp.scale >= scale * WRAP_CELL_KEEP)):
             return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
                           side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (),
-                          True, wp.pad, wp.top, wp.segs)
+                          True, wp.pad, wp.top, wp.segs, wp.rows_mode)
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
@@ -1089,6 +1131,35 @@ def render(doc: GridDoc) -> Image.Image:
             d.rectangle((x, y + bh, x + bw + sc(3), y + bh + sc(3)), fill=ink)
             d.text((x + pad - bx0, y + pad - by0), label, font=num_font, fill=ink)
     covers = None
+
+    # 曲名をマス 1 つ 1 つの横に並べる（柱・1 列の並び）。番号 → 曲名、その下にアーティスト名
+    if L.wrap and L.wrap_rows:
+        fs = max(8, sc(L.font_s))
+        f_num = font("pixel", max(8, sc(L.font_s * 0.8)))
+        f_t = font("bold", fs)
+        f_a = font("regular", max(8, rnd(fs * ARTIST_SCALE)))
+        for i, t in enumerate(doc.cells):
+            if i >= len(L.wrap_segs):
+                break
+            sx0, sy0, sw = L.wrap_segs[i]
+            x, cy = sc(sx0), sc(sy0 + L.line_h / 2)
+            num = f"{i + 1:02d}"
+            # ピクセルフォントは em ボックスの中で字面が上に寄るので、字面の中心を行の中心に置く
+            _, top, _, bottom = f_num.getbbox(num, anchor="ls")
+            d.text((x, rnd(cy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
+            nw = d.textlength(num, font=f_num) + sc(L.font_s * 0.8)
+            if not t:
+                continue
+            max_w = sc(sw) - nw
+            title, artist = _one_line(t.title), _one_line(t.artist)
+            # 曲名は行の中心より上、アーティスト名はすぐ下（1 曲ぶんの高さの真ん中で上下に分ける）
+            ty = cy - (rnd(fs * 0.62) if artist else 0)
+            d.text((x + nw, ty), _ellipsize(d, title, f_t, max_w), font=f_t, fill=ink, anchor="lm")
+            if artist:
+                d.text((x + nw, cy + rnd(fs * 0.62)), _ellipsize(d, artist, f_a, max_w),
+                       font=f_a, fill=muted, anchor="lm")
+        _release_memory()
+        return im
 
     # 曲名（マスの塊のまわりに回り込ませる）
     if L.wrap:

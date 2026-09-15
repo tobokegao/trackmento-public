@@ -2755,6 +2755,28 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SLAB_ASPECT = 4.0, SLAB_MIN_FONT = 14, SLAB_TITLE_SCALE = 2.4, SLAB_TITLE_MIN = 1.3, SLAB_TITLE_MAX = 0.28;
   // 柱のときはタイトルの帯が枠の高さをそのまま押し広げるので、塊の高さに対する割合で頭打ちにする
   const SLAB_TITLE_BAND = 0.10;
+  // 柱で 1 列の並びのときは、曲名をマス 1 つ 1 つの横に並べる（流し込まない）。
+  // 曲名の大きさは 1 マスの送りから決め、出力で SLAB_ROW_MIN を下回るなら流し込みに戻す
+  const SLAB_ROW_FONT = 0.30, SLAB_ROW_MIN = FLOW_MIN_FONT;
+  /* 柱のとき、曲名をマス 1 つ 1 つの横に並べる割り付け（backend/render.py の _slab_rows） */
+  function slabRows(gw, gh, titleH, ratio, m, maxSide) {
+    const pitch = CELL_PX + state.gap;
+    const fontS = Math.round(pitch * SLAB_ROW_FONT);
+    const wgap = Math.round(fontS * WRAP_GAP_EM);
+    const tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), Math.round(gh * SLAB_TITLE_BAND)) : 0;
+    const tSize = titleH ? Math.round(tH / 1.9) : 0;
+    if (titleH && tSize < fontS * SLAB_TITLE_MIN) return null;
+    const [W, H, pad] = slabFrame(gh + tH + (tH ? wgap : 0), ratio, m, true);
+    if (W <= 0 || H <= 0) return null;
+    const scale = Math.min(1, maxSide / Math.max(W, H));
+    if (fontS * scale < SLAB_ROW_MIN) return null;
+    const gx = pad, gy = pad + tH + (tH ? wgap : 0);
+    const x0 = gx + gw + wgap, segW = (W - pad) - x0;
+    if (segW < LIST_MIN_COL) return null;
+    const segs = state.cells.map((_, i) => [x0, gy + i * pitch, segW]);
+    return { W, H, scale, fontS, lineH: pitch, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
+             segs, rows: [], use: 1, rowsMode: true };
+  }
   const SLAB_TARGET_PX = [96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14];
   // 文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る
   const SLAB_USE_MIN = 0.7, SLAB_CELL_GAIN = 1.02;
@@ -2778,6 +2800,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (ratio / ga >= SLAB_ASPECT) vertical = true;
     else if (ga / ratio >= SLAB_ASPECT) vertical = false;
     else return null;
+    // **1 列の並びなら、まず「マスの横に 1 曲ずつ」を試す**（流し込みより読みやすい）
+    if (vertical && state.cols === 1) {
+      const got = slabRows(gw, gh, titleH, ratio, m, maxSide);
+      if (got) return got;
+    }
     const build = (target) => {
       // タイトルの帯の高さは文字の大きさから決まり、文字の大きさは枠（縮尺）から決まるので、
       // 帯 0 から始めて何回か回す。3 回で動かなくなる
@@ -3152,7 +3179,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         return { W: wp.W, H: wp.H, scale: wp.scale, ox: wp.gx, oy: wp.gy, gw, gh, title,
                  titleSize: wp.titleSize, titleH: wp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
                  lineH: wp.lineH, fontS: wp.fontS, sbGap, sbFlow: true, sbPlan: [],
-                 wrap: true, wrapPad: wp.pad, wrapTop: wp.top, wrapSegs: wp.segs };
+                 wrap: true, wrapPad: wp.pad, wrapTop: wp.top, wrapSegs: wp.segs,
+                 wrapRows: wp.rowsMode === true };
       }
     }
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
@@ -3166,7 +3194,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (want > titleSize) return layout(maxSide, want);
     }
     return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow,
-             sbPlan: sbFlow ? [] : sbPlan, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [] };
+             sbPlan: sbFlow ? [] : sbPlan, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [], wrapRows: false };
   }
   // **ジャケットが極端に小さくなるときは知らせる**（選択は塞がない）。並びの形と枠の比率が
   // 食い違うと、曲名を読める大きさにしたぶんマスが潰れる（1x32 を 16:9 にすると 23px）。
@@ -3550,7 +3578,33 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         ctx.fillText(label, x + pad + m2.actualBoundingBoxLeft, y + pad + m2.actualBoundingBoxAscent);
       }
     }
-    if (L.wrap) {
+    if (L.wrap && L.wrapRows) {
+      // 曲名をマス 1 つ 1 つの横に並べる（柱・1 列の並び）。番号 → 曲名、その下にアーティスト名
+      const fs = Math.max(8, sc(L.fontS));
+      const fNum = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
+      const fT = fontBold(fs), fA = fontRegular(Math.max(8, Math.round(fs * ARTIST_SCALE)));
+      for (let i = 0; i < state.cells.length && i < L.wrapSegs.length; i++) {
+        const t = state.cells[i];
+        const [sx0, sy0, sw] = L.wrapSegs[i];
+        const x = sc(sx0), cy = sc(sy0 + L.lineH / 2);
+        const num = String(i + 1).padStart(2, "0");
+        // ピクセルフォントは em ボックスの中で字面が上に寄るので、字面の中心を行の中心に置く
+        ctx.font = fNum; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(muted);
+        const mm = ctx.measureText(num), top = -mm.actualBoundingBoxAscent, bottom = mm.actualBoundingBoxDescent;
+        ctx.fillText(num, x, Math.round(cy - (top + bottom) / 2));
+        const nw = mm.width + sc(L.fontS * 0.8);
+        if (!t) continue;
+        const maxW = sc(sw) - nw;
+        const title = oneLine(t.title), artist = oneLine(t.artist);
+        ctx.textBaseline = "middle";
+        ctx.font = fT; ctx.fillStyle = cssRgb(ink);
+        ctx.fillText(ellipsizeText(ctx, title, maxW), x + nw, cy - (artist ? Math.round(fs * 0.62) : 0));
+        if (artist) {
+          ctx.font = fA; ctx.fillStyle = cssRgb(muted);
+          ctx.fillText(ellipsizeText(ctx, artist, maxW), x + nw, cy + Math.round(fs * 0.62));
+        }
+      }
+    } else if (L.wrap) {
       // 曲名をマスの塊のまわりに回り込ませる（backend/render.py と同じ規則）
       const fs = Math.max(8, sc(L.fontS));
       const fonts = { num: fontPixel(Math.max(8, sc(L.fontS * 0.8))), title: fontBold(fs), artist: fontRegular(fs) };
