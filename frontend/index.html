@@ -2594,12 +2594,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 塊にぶつかる行は「左の段 → 塊の向こう側の右の段」と続ける（backend/render.py の WRAP_* と同じ値）
   // WRAP_MIN_SEG は段の最小幅（文字の大きさの何倍か＝だいたい何字入るか）。8 字だと曲名が数文字ごとに折れて読めない
   const WRAP_GAP_EM = 0.75, WRAP_MIN_SEG = 20, WRAP_GRID_MAX = 0.96, WRAP_GRID_MIN = 0.45;
-  const WRAP_MAX_PCT = 400, WRAP_TITLE_SCALE = 4.0, WRAP_TITLE_MAX = 0.3, WRAP_SWITCH_PX = 12;
+  const WRAP_MAX_PCT = 400, WRAP_TITLE_SCALE = 4.0, WRAP_TITLE_MAX = 0.3, WRAP_TITLE_MIN = 1.6, WRAP_SWITCH_PX = 12;
   // 出力での文字の大きさ（px）。上から順に試し、入る中でいちばん大きいものを使う
   const WRAP_TARGET_PX = [FLOW_MIN_FONT, 18, 16, 14, 12];
   // 入る大きさが見つかったあと、余っている余地で文字を大きくする。大きくすると枠も少し大きく
   // （＝マスが少し小さく）なるので、マスが WRAP_CELL_KEEP を割らない範囲まで
-  const WRAP_TARGET_UP = [22, 24, 26, 28, 32, 36, 40, 44, 48], WRAP_CELL_KEEP = 0.95;
+  const WRAP_TARGET_UP = [22, 24, 26, 28, 32, 36, 40, 44, 48], WRAP_CELL_KEEP = 0.90;
   /* マスの塊を中央に置き、まわりの余白に曲名を流し込む割り付けを探す（backend/render.py の _wrap_plan）。
      出力での文字を FLOW_MIN_FONT に固定し、入る範囲で枠をいちばん小さくする（＝塊をいちばん大きく）。
      入らなければ null を返し、呼び出し側は今までの組み方に戻す */
@@ -2621,6 +2621,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const tH = titleH ? Math.min(Math.round(fontS * WRAP_TITLE_SCALE * 1.9),
                                    Math.round((H - pad * 2 - gh) * WRAP_TITLE_MAX)) : 0;
       const tSize = titleH ? Math.round(tH / 1.9) : 0;
+      // **タイトルは本文より十分大きく**。上限に当たって WRAP_TITLE_MIN 倍を割るならこの枠は使わない
+      if (titleH && tSize < fontS * WRAP_TITLE_MIN) return null;
       const top = pad + tH, bot = H - pad;
       // **塊のまわりの余白を四辺そろえる**。行は「箱」で、字面はその中央にある（上下に a ずつ空く）。
       // 行を等間隔に並べただけだと、格子の余りが塊の上下に溜まって左右より広く見える

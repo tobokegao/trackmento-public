@@ -313,10 +313,12 @@ WRAP_TARGET_PX = (FLOW_MIN_FONT, 18, 16, 14, 12)
 # 入る大きさが見つかったあと、**余っている余地で文字を大きくする**。大きくすると枠も少し
 # 大きく（＝マスが少し小さく）なるので、**マスが WRAP_CELL_KEEP を割らない範囲まで**にする
 WRAP_TARGET_UP = (22, 24, 26, 28, 32, 36, 40, 44, 48)
-WRAP_CELL_KEEP = 0.95
+WRAP_CELL_KEEP = 0.90
 WRAP_SWITCH_PX = 12       # 右に並べたとき、出力での文字がこれを下回るなら回り込みに切り替える
 WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
 WRAP_TITLE_MAX = 0.3      # ただしタイトルの高さは「塊を除いた高さ」のこの割合まで
+WRAP_TITLE_MIN = 1.6      # **タイトルは本文の最低これだけ倍**。上限に当たってこれを割るなら、
+                          # その枠は使わない（枠を広げて取り直す）。曲名リストのほうが大きいと逆さま
 
 # 入る限り大きく。曲が少ないほど大きな字になる（流し込みに切り替わるのは曲が多いときだけ）
 FLOW_FONT_STEPS = (132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
@@ -539,6 +541,8 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         # 「まだ入るのに文字を大きくできない」状態になっていた）
         t_h = min(rnd(font_s * WRAP_TITLE_SCALE * 1.9), rnd((H - pad * 2 - gh) * WRAP_TITLE_MAX)) if title_h else 0
         t_size = rnd(t_h / 1.9) if title_h else 0
+        if title_h and t_size < font_s * WRAP_TITLE_MIN:
+            return None
         top, bot = pad + t_h, H - pad
         # **塊のまわりの余白を四辺そろえる**。行は「箱」で、字面はその中央にある（上下に a ずつ空く）。
         # 行を等間隔に並べただけだと、格子の余りが塊の上下に溜まって左右より広く見える。
