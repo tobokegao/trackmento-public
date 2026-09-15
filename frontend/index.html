@@ -1943,7 +1943,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const b = document.createElement("button");
       b.type = "button"; b.className = "result";
       b.setAttribute("aria-label", tr`${t.title} / ${t.artist} をグリッドに追加`);
-      const img = document.createElement("img"); img.crossOrigin = "anonymous";   // 上と同じ理由
+      const img = document.createElement("img");
       img.src = proxied(t.thumb || t.image); img.alt = ""; img.loading = "lazy"; img.width = 56; img.height = 56;
       const box = document.createElement("div");
       const tt = document.createElement("div"); tt.className = "t"; tt.textContent = t.title;
@@ -2153,10 +2153,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (t) {
         li.draggable = true;
         li.setAttribute("aria-label", tr`${i + 1} 番: ${t.title} / ${t.artist}`);
-        // **CORS 付きで読む**。付けずに読むと、その画像は「CORS 無し」としてブラウザのキャッシュに載り、
-        // 共有画像を描くときの fetch（CORS 必須）がそのキャッシュに当たって**即座に失敗する**
-        // （2026-09-15 に 256 マスで実測: R2 への読み取りが 510 件すべて失敗していた）
-        const img = document.createElement("img"); img.crossOrigin = "anonymous";
+        // **CORS は付けない**。付けると 302 で R2 へ送られたときに Origin: null の取得になり、
+        // 一覧の画像が 1 枚も出なくなる（2026-09-15 に本番で実際に起きた）。
+        // 描画側は R2 の URL を直接読むので、キャッシュの枠が別になりぶつからない
+        const img = document.createElement("img");
         img.src = proxied(t.thumb || t.image); img.alt = ""; img.draggable = false;   // 表示は小さい方（転送量）。フル解像度は共有画像を描くときだけ
         const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.setAttribute("aria-label", tr`${i + 1} 番の ${t.title} を外す`);
         rm.addEventListener("click", (e) => { e.stopPropagation(); removeAt(i); });
@@ -3004,7 +3004,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       let lastErr = null;
       for (const target of targets) {
         try {
-          const r = await fetch(target, { signal: ctrl.signal, mode: "cors" });
+          // **キャッシュを使わない**。一覧の <img> が同じ URL を CORS 無しで先に読んでいると、
+          // その控えが CORS の取得に使えず即座に失敗する（256 マスで 510 件すべて失敗していた）。
+          // 画像は R2（転送量が無料）から出るので、取り直しても費用は増えない
+          const r = await fetch(target, { signal: ctrl.signal, mode: "cors", cache: "reload" });
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return await createImageBitmap(await r.blob());
         } catch (err) { lastErr = err; if (ctrl.signal.aborted) break; }
