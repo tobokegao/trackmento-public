@@ -295,9 +295,14 @@ FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さ�
 # 回り込み（正方形以下の比率で曲が多いとき）。マスの塊を中央に置き、左上から右下へ文字を流す。
 # 塊にぶつかる行は「左の段 → 塊の向こう側の右の段」と続ける
 WRAP_GAP_EM = 0.75        # マスの塊と文字（字面）のあいだ。文字の大きさに対する割合
-WRAP_MIN_SEG = 8          # 段の最小幅（文字の大きさの何倍か）。これ未満の隙間には流さない
-WRAP_GRID_MAX = 0.72      # マスの塊は枠の短辺のこの割合まで。**これが無いと塊が大きくなりすぎる**
-                          # （枠をいちばん小さくする探し方なので、左右が数文字ぶんの細い隙間になる）
+WRAP_MIN_SEG = 20         # 段の最小幅（文字の大きさの何倍か＝だいたい何字入るか）。
+                          # これ未満の隙間には流さない。**8 字だと曲名が数文字ごとに折れて読めない**
+                          # （実測で 8x12・9:16 の左右が 8 字ぶんしかなかった）。
+                          # 上げてもマスはほとんど小さくならない（全組み合わせの中央値で 96px → 91px）
+WRAP_GRID_MAX = 0.96      # マスの塊は枠のこの割合まで（詰まっているほうの辺で見る）。
+                          # 細い隙間は WRAP_MIN_SEG が弾き、半端な左右はコの字にまとめるので、
+                          # ここは余白ぶん空けば足りる。0.72 に絞っていたときはマスが無駄に
+                          # 小さかった（全組み合わせのマスの中央値 91px → 108px）
 WRAP_GRID_MIN = 0.45      # 逆に、塊が枠のこの割合を下回るなら文字のほうを小さくする。
                           # **文字を優先しすぎるとジャケットが豆粒になる**（21x12 を 16:9 で 30% だった）
 WRAP_MAX_PCT = 400        # 枠をマスの塊の何 % まで広げてよいか
@@ -305,8 +310,13 @@ WRAP_MAX_PCT = 400        # 枠をマスの塊の何 % まで広げてよいか
 # 曲が多くて比率が横長（21x12 を 16:9 など）だと、20px ではどう組んでも入らない
 # （2400x1350 に 30px 行間で 45 行しか置けない）。そこだけ落とす
 WRAP_TARGET_PX = (FLOW_MIN_FONT, 18, 16, 14, 12)
+# 入る大きさが見つかったあと、**余っている余地で文字を大きくする**。大きくすると枠も少し
+# 大きく（＝マスが少し小さく）なるので、**マスが WRAP_CELL_KEEP を割らない範囲まで**にする
+WRAP_TARGET_UP = (22, 24, 26, 28, 32, 36, 40, 44, 48)
+WRAP_CELL_KEEP = 0.95
 WRAP_SWITCH_PX = 12       # 右に並べたとき、出力での文字がこれを下回るなら回り込みに切り替える
 WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
+WRAP_TITLE_MAX = 0.3      # ただしタイトルの高さは「塊を除いた高さ」のこの割合まで
 
 # 入る限り大きく。曲が少ないほど大きな字になる（流し込みに切り替わるのは曲が多いときだけ）
 FLOW_FONT_STEPS = (132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
@@ -516,12 +526,19 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         font_s = max(18, rnd(target / scale))
         line_h = rnd(font_s * 1.5)
         pad = max(m, rnd(min(W, H) * 0.035))
+        # **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む）。
+        # 中央に置くと左右が両方とも「文字を流すには狭い」幅になり、両方とも使えず捨てになる。
+        # 片側に寄せれば 2 つぶんの幅が 1 本にまとまる。塊を左・文字を上／右／下に置くと
+        # 文字の並びがちょうど「コ」の形になり、上の帯 → 右の段 → 下の帯と読める
         gx = rnd((W - gw) / 2)
         # **タイトルの大きさは本文から決める**。ふだんの規則（マスの幅の 4.5%・上限 96）は
         # マスが多いと枠に対して極端に小さくなる（16x16 で出力 14px だった）。
         # まわりを囲む文字の帯に負けない大きさにしたいので、本文の WRAP_TITLE_SCALE 倍にする
-        t_size = rnd(font_s * WRAP_TITLE_SCALE) if title_h else 0
-        t_h = rnd(t_size * 1.9) if title_h else 0
+        # **ただし、塊を除いた高さの WRAP_TITLE_MAX までにする**。本文に連動して伸びるので、
+        # 上限が無いと文字を大きくしたぶんタイトルも伸びて上下の余地を食い潰す（そのせいで
+        # 「まだ入るのに文字を大きくできない」状態になっていた）
+        t_h = min(rnd(font_s * WRAP_TITLE_SCALE * 1.9), rnd((H - pad * 2 - gh) * WRAP_TITLE_MAX)) if title_h else 0
+        t_size = rnd(t_h / 1.9) if title_h else 0
         top, bot = pad + t_h, H - pad
         # **塊のまわりの余白を四辺そろえる**。行は「箱」で、字面はその中央にある（上下に a ずつ空く）。
         # 行を等間隔に並べただけだと、格子の余りが塊の上下に溜まって左右より広く見える。
@@ -532,9 +549,11 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         gy = top + n_top * line_h - a * 2 + wgap
         if gx < pad or gy < top or gy + gh > bot:      # 塊が枠に入らない
             return None
+        min_w = font_s * WRAP_MIN_SEG
+        if gx - wgap - pad < min_w and W - pad * 2 - gw - wgap >= min_w:
+            gx = pad                   # コの字（塊は左端の中央、文字は上・右・下）
         x0, x1 = pad, W - pad
         ox0, ox1 = gx - wgap, gx + gw + wgap
-        min_w = font_s * WRAP_MIN_SEG
         segs: list[tuple[int, int, int]] = []
         for r in range(n_top):                          # 塊の上の帯（枠いっぱい）
             segs.append((x0, top - a + r * line_h, x1 - x0))
@@ -560,17 +579,33 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
     lo0 = max(100, math.ceil(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MAX))
     # 塊が WRAP_GRID_MIN を下回るほど枠を広げない。ここに当たったら次（小さい）文字で探し直す
     hi0 = min(WRAP_MAX_PCT, int(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MIN))
-    for target in WRAP_TARGET_PX:
+    def search(target: int) -> WrapPlan | None:
+        """その文字の大きさで入る中の、いちばん小さい枠（＝いちばん大きいマス）。"""
         lo, hi, best = lo0, hi0, None
-        while lo <= hi:                 # 入る中でいちばん小さい枠（＝いちばん大きいマス）を探す
+        while lo <= hi:
             mid = (lo + hi) // 2
             got = build(mid, target)
             if got:
                 best, hi = got, mid - 1
             else:
                 lo = mid + 1
-        if best:
-            return best
+        return best
+
+    for target in WRAP_TARGET_PX:
+        best = search(target)
+        if not best:
+            continue
+        # **余地があれば文字を大きくする**。**最初に見つけた大きさ**のマスから
+        # WRAP_CELL_KEEP を割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
+        floor = best.scale * WRAP_CELL_KEEP
+        for up in WRAP_TARGET_UP:
+            if up <= target:
+                continue
+            got = search(up)
+            if not got or got.scale < floor:
+                break
+            best = got
+        return best
     return None
 
 

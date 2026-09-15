@@ -19,8 +19,12 @@ services:
         value: trackmento/0.1 (https://github.com/tobokegao/trackmento-public)   # MusicBrainz の要件（連絡先入り）
       - key: RATE_LIMIT
         value: "120"
+      # 共有は 30 日で消える（2026-09-15 に 7 日から延ばした）。実測で 1 日 2.55GB・約 2,800 件なので
+      # 30 日で約 82GB。R2 は 10GB まで無料・超過分 $0.015/GB・月なので月 $1 ほど
+      - key: SHARE_RETENTION_DAYS
+        value: "30"
       - key: SHARE_BUDGET_GB
-        value: "9.5"
+        value: "120"
       - key: SHARE_LIMIT_PER_IP_DAY
         value: "20"
       - key: SHARE_LIMIT_PER_DAY

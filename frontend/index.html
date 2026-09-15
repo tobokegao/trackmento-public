@@ -2592,10 +2592,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   // 回り込み（正方形以下の比率で曲が多いとき）。マスの塊を中央に置き、左上から右下へ文字を流す。
   // 塊にぶつかる行は「左の段 → 塊の向こう側の右の段」と続ける（backend/render.py の WRAP_* と同じ値）
-  const WRAP_GAP_EM = 0.75, WRAP_MIN_SEG = 8, WRAP_GRID_MAX = 0.72, WRAP_GRID_MIN = 0.45;
-  const WRAP_MAX_PCT = 400, WRAP_TITLE_SCALE = 4.0, WRAP_SWITCH_PX = 12;
+  // WRAP_MIN_SEG は段の最小幅（文字の大きさの何倍か＝だいたい何字入るか）。8 字だと曲名が数文字ごとに折れて読めない
+  const WRAP_GAP_EM = 0.75, WRAP_MIN_SEG = 20, WRAP_GRID_MAX = 0.96, WRAP_GRID_MIN = 0.45;
+  const WRAP_MAX_PCT = 400, WRAP_TITLE_SCALE = 4.0, WRAP_TITLE_MAX = 0.3, WRAP_SWITCH_PX = 12;
   // 出力での文字の大きさ（px）。上から順に試し、入る中でいちばん大きいものを使う
   const WRAP_TARGET_PX = [FLOW_MIN_FONT, 18, 16, 14, 12];
+  // 入る大きさが見つかったあと、余っている余地で文字を大きくする。大きくすると枠も少し大きく
+  // （＝マスが少し小さく）なるので、マスが WRAP_CELL_KEEP を割らない範囲まで
+  const WRAP_TARGET_UP = [22, 24, 26, 28, 32, 36, 40, 44, 48], WRAP_CELL_KEEP = 0.95;
   /* マスの塊を中央に置き、まわりの余白に曲名を流し込む割り付けを探す（backend/render.py の _wrap_plan）。
      出力での文字を FLOW_MIN_FONT に固定し、入る範囲で枠をいちばん小さくする（＝塊をいちばん大きく）。
      入らなければ null を返し、呼び出し側は今までの組み方に戻す */
@@ -2608,11 +2612,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const fontS = Math.max(18, Math.round(target / scale));
       const lineH = Math.round(fontS * 1.5);
       const pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
-      const gx = Math.round((W - gw) / 2);
+      // **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む。下を参照）
+      let gx = Math.round((W - gw) / 2);
       // **タイトルの大きさは本文から決める**（マスの幅からだと、マスが多いとき極端に小さくなる）。
       // まわりを囲む文字の帯に負けない大きさにしたいので、本文の WRAP_TITLE_SCALE 倍
-      const tSize = titleH ? Math.round(fontS * WRAP_TITLE_SCALE) : 0;
-      const tH = titleH ? Math.round(tSize * 1.9) : 0;
+      // **ただし、塊を除いた高さの WRAP_TITLE_MAX までにする**（本文に連動して伸びるので、
+      // 上限が無いと文字を大きくしたぶんタイトルも伸びて上下の余地を食い潰す）
+      const tH = titleH ? Math.min(Math.round(fontS * WRAP_TITLE_SCALE * 1.9),
+                                   Math.round((H - pad * 2 - gh) * WRAP_TITLE_MAX)) : 0;
+      const tSize = titleH ? Math.round(tH / 1.9) : 0;
       const top = pad + tH, bot = H - pad;
       // **塊のまわりの余白を四辺そろえる**。行は「箱」で、字面はその中央にある（上下に a ずつ空く）。
       // 行を等間隔に並べただけだと、格子の余りが塊の上下に溜まって左右より広く見える
@@ -2621,9 +2629,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const nTop = Math.max(0, Math.round((top + Math.round((bot - top - gh) / 2) - wgap + a * 2 - top) / lineH));
       const gy = top + nTop * lineH - a * 2 + wgap;
       if (gx < pad || gy < top || gy + gh > bot) return null;   // 塊が枠に入らない
+      const minW = fontS * WRAP_MIN_SEG;
+      // 中央に置くと左右が両方とも「文字を流すには狭い」幅になって捨てになる。塊を左・文字を
+      // 上／右／下に置くと文字がちょうど「コ」の形になる（backend/render.py と同じ規則）
+      if (gx - wgap - pad < minW && W - pad * 2 - gw - wgap >= minW) gx = pad;
       const x0 = pad, x1 = W - pad;
       const ox0 = gx - wgap, ox1 = gx + gw + wgap;
-      const minW = fontS * WRAP_MIN_SEG;
       const segs = [];
       for (let r = 0; r < nTop; r++) segs.push([x0, top - a + r * lineH, x1 - x0]);   // 塊の上の帯
       // 塊の左右。**左の段をぜんぶ埋めてから右の段へ移る**（1 行ごとに左右へ飛ぶと読みにくい）
@@ -2640,14 +2651,29 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const tight = Math.max(gw / Wb, (titleH + gh) / Hb);
     const lo0 = Math.max(100, Math.ceil(100 * tight / WRAP_GRID_MAX));
     const hi0 = Math.min(WRAP_MAX_PCT, Math.floor(100 * tight / WRAP_GRID_MIN));
-    for (const target of WRAP_TARGET_PX) {
+    /* その文字の大きさで入る中の、いちばん小さい枠（＝いちばん大きいマス） */
+    const search = (target) => {
       let lo = lo0, hi = hi0, best = null;
-      while (lo <= hi) {                                  // 入る中でいちばん小さい枠を探す
+      while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
         const got = build(mid, target);
         if (got) { best = got; hi = mid - 1; } else lo = mid + 1;
       }
-      if (best) return best;
+      return best;
+    };
+    for (const target of WRAP_TARGET_PX) {
+      let best = search(target);
+      if (!best) continue;
+      // **余地があれば文字を大きくする**。最初に見つけた大きさのマスから WRAP_CELL_KEEP を
+      // 割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
+      const floor = best.scale * WRAP_CELL_KEEP;
+      for (const up of WRAP_TARGET_UP) {
+        if (up <= target) continue;
+        const got = search(up);
+        if (!got || got.scale < floor) break;
+        best = got;
+      }
+      return best;
     }
     return null;
   }

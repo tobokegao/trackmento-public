@@ -40,7 +40,7 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           PYTHONUTF8: "1"
         run: |
-          hours="${{ inputs.hours || '168' }}"
+          hours="${{ inputs.hours || '720' }}"
           if [ "${{ inputs.apply || 'true' }}" = "true" ]; then
             python scripts/r2_prune.py --older-than-hours "$hours" --apply | tee -a "$GITHUB_STEP_SUMMARY"
           else

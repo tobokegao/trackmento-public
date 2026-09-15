@@ -83,9 +83,9 @@ def share_limits() -> tuple[int, int]:
 
 def share_retention_days() -> int:
     """共有ファイルが消えるまでの日数（画面の説明文に使う）。実際の削除は R2 のライフサイクル規則（scripts/r2_setup.py --days N）。
-    SHARE_RETENTION_DAYS、既定 7"""
+    SHARE_RETENTION_DAYS、既定 30"""
     try:
-        return max(1, int(os.getenv("SHARE_RETENTION_DAYS", "7")))
+        return max(1, int(os.getenv("SHARE_RETENTION_DAYS", "30")))
     except ValueError:
         return 7
 
