@@ -605,6 +605,11 @@ SLAB_ROW_SEG = 30
 # 枠が横に伸びて**マスが潰れる**（1x3 を比率なしで 600 → 223px にしていた）。
 # 塊の高さで頭打ちにすると、短い並びは今までどおりの大きなマス、長い並びは広い段になる
 SLAB_ROW_WIDE = 0.75
+# **曲名の大きさは、段の幅にこれだけの字が入るところまで下げる**。1 曲ぶんの高さから決めるので、
+# 曲が少ないと 1 曲にマス 1 つぶん（600px）が割り当たり、文字が出力 185px まで育っていた。
+# 段の幅は塊の高さで頭打ちなので広がらず、曲名が 2〜3 文字で「…」に切れていた（1x1・1x2）。
+# 曲名は 2 行まで折れるので、1 行 14 字あれば 28 字ぶん入る
+SLAB_ROW_FIT = 14
 # **この列数までは「マスごと」に並べられる**。1 段ぶんの高さに列の数だけ曲名を積むので、
 # 列が増えるほど 1 曲ぶんが薄くなる（3 列で 1/3）。4 列にすると出力の文字が読めない大きさになる
 SLAB_ROW_MAX_COLS = 3
@@ -708,31 +713,38 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
     side_by_side = beside
     per = pitch if side_by_side else rnd(pitch / cols)   # 曲名 1 曲ぶんの高さ
     font_s = rnd(per * SLAB_ROW_FONT)
-    wgap = rnd(font_s * WRAP_GAP_EM)
-    # タイトルの帯は塊の高さの `SLAB_TITLE_BAND` まで。**ただし本文の `SLAB_TITLE_MIN` 倍は必ず確保する**
-    # （マスが少ないと 10% では足りず、短い並びだけこの組み方を使えなくなる）
-    need = rnd(math.ceil(font_s * SLAB_TITLE_MIN) * 1.9)
-    cap = max(rnd(gh * SLAB_TITLE_BAND), need)
-    t_h = min(rnd(font_s * SLAB_TITLE_SCALE * 1.9), cap) if title_h else 0
-    t_size = rnd(t_h / 1.9) if title_h else 0
-    if title_h and t_size < font_s * SLAB_TITLE_MIN:
-        return None
-    top_h = t_h + (wgap if t_h else 0)
-    t_capped = False   # 枠が決まってから天井を当てる（下の W / H が出たところ）
-    t_fit_done = False
-    if ratio is None:
-        # 余白は枠の短い辺の 3.5%（`_frame` と同じ規則）で、枠と余白が互いを参照する。0 から 3 回回す
-        seg_w = min(font_s * SLAB_ROW_SEG, max(LIST_MIN_COL, rnd(gh * SLAB_ROW_WIDE)))
-        pad = m
-        for _ in range(3):
+    # **段の幅に曲名が入らない大きさにはしない**。1 曲ぶんの高さから決めるので、曲が少ないと
+    # 1 曲にマス 1 つぶん（600px）が割り当たり、文字が出力 185px まで育っていた（1x1・1x2）。
+    # 段の幅は塊の高さから決まるので広がらず、曲名が数文字で「…」に切れる。
+    # **段の幅に `SLAB_ROW_FIT` 字が入る大きさ**まで下げる。文字を下げると帯も枠も縮むので 3 回回す
+    for _ in range(3):
+        wgap = rnd(font_s * WRAP_GAP_EM)
+        # タイトルの帯は塊の高さの `SLAB_TITLE_BAND` まで。**ただし本文の `SLAB_TITLE_MIN` 倍は必ず確保する**
+        # （マスが少ないと 10% では足りず、短い並びだけこの組み方を使えなくなる）
+        need = rnd(math.ceil(font_s * SLAB_TITLE_MIN) * 1.9)
+        cap = max(rnd(gh * SLAB_TITLE_BAND), need)
+        t_h = min(rnd(font_s * SLAB_TITLE_SCALE * 1.9), cap) if title_h else 0
+        t_size = rnd(t_h / 1.9) if title_h else 0
+        if title_h and t_size < font_s * SLAB_TITLE_MIN:
+            return None
+        top_h = t_h + (wgap if t_h else 0)
+        if ratio is None:
+            # 余白は枠の短い辺の 3.5%（`_frame` と同じ規則）で、枠と余白が互いを参照する。0 から 3 回回す
+            seg_w = min(font_s * SLAB_ROW_SEG, max(LIST_MIN_COL, rnd(gh * SLAB_ROW_WIDE)))
+            pad = m
+            for _ in range(3):
+                W, H = gw + wgap + seg_w + pad * 2, top_h + gh + pad * 2
+                pad = max(m, rnd(min(W, H) * 0.035))
             W, H = gw + wgap + seg_w + pad * 2, top_h + gh + pad * 2
-            pad = max(m, rnd(min(W, H) * 0.035))
-        W, H = gw + wgap + seg_w + pad * 2, top_h + gh + pad * 2
-    else:
-        W, H, pad = _slab_frame(gh + top_h, ratio, m, True)
-        seg_w = (W - pad) - (pad + gw + wgap)
-    if W <= 0 or H <= 0:
-        return None
+        else:
+            W, H, pad = _slab_frame(gh + top_h, ratio, m, True)
+            seg_w = (W - pad) - (pad + gw + wgap)
+        if W <= 0 or H <= 0:
+            return None
+        lim = rnd(seg_w / SLAB_ROW_FIT)
+        if font_s <= lim:
+            break
+        font_s = max(SLAB_ROW_MIN, lim)
     scale = min(1.0, max_side_v / max(W, H))
     if font_s * scale < SLAB_ROW_MIN:          # 1 曲ぶんの高さが足りない → 流し込みに戻す
         return None

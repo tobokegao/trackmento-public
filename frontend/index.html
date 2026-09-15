@@ -2789,6 +2789,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SLAB_ROW_SEG = 30;
   // 段の幅は塊の高さまで。曲が少ないと段のほうが長くなり、枠が横に伸びてマスが潰れる
   const SLAB_ROW_WIDE = 0.75;
+  // 曲名は段の幅にこれだけの字が入るところまで下げる（曲が少ないと 1 曲にマス 1 つぶんの
+  // 高さが割り当たり、文字が育ちすぎて曲名が数文字で切れていた）。2 行折れるので 14 字で 28 字ぶん
+  const SLAB_ROW_FIT = 14;
   // この列数までは「マスごと」に並べられる（1 段ぶんの高さに列の数だけ曲名を積むため）
   const SLAB_ROW_MAX_COLS = 3;
   // 横一列に近い並びでは、塊を上に敷いて曲名を 1 曲 1 行の縦一列で下に置く
@@ -2804,30 +2807,36 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 段の中で縦に積むか横に並べるか。縦に積むほうが 1 行を長く取れるので既定。
     // 段が多いと 1 曲ぶんが薄くなりすぎるので（2x32 で出力 10.8px）、そのときは横に並べる
     const per = beside ? pitch : Math.round(pitch / cols);   // 曲名 1 曲ぶんの高さ
-    const fontS = Math.round(per * SLAB_ROW_FONT);
-    const wgap = Math.round(fontS * WRAP_GAP_EM);
-    // タイトルの帯は塊の高さの SLAB_TITLE_BAND まで。ただし本文の SLAB_TITLE_MIN 倍は必ず確保する
-    const need = Math.round(Math.ceil(fontS * SLAB_TITLE_MIN) * 1.9);
-    const cap = Math.max(Math.round(gh * SLAB_TITLE_BAND), need);
-    let tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), cap) : 0;
-    let tSize = titleH ? Math.round(tH / 1.9) : 0;
-    if (titleH && tSize < fontS * SLAB_TITLE_MIN) return null;
-    let topH = tH + (tH ? wgap : 0);
-    let W, H, pad, segW;
-    if (ratio === null) {
-      // 比率が無いので枠から残りを逆算できない。段の幅を字数で決め、枠は中身に合わせて伸ばす
-      segW = Math.min(fontS * SLAB_ROW_SEG, Math.max(LIST_MIN_COL, Math.round(gh * SLAB_ROW_WIDE)));
-      pad = m;
-      for (let i = 0; i < 3; i++) {
+    let fontS = Math.round(per * SLAB_ROW_FONT);
+    let wgap, tH = 0, tSize = 0, topH = 0, W, H, pad, segW;
+    // 段の幅に SLAB_ROW_FIT 字が入る大きさまで下げる。下げると帯も枠も縮むので 3 回回す
+    for (let k = 0; k < 3; k++) {
+      wgap = Math.round(fontS * WRAP_GAP_EM);
+      // タイトルの帯は塊の高さの SLAB_TITLE_BAND まで。ただし本文の SLAB_TITLE_MIN 倍は必ず確保する
+      const need = Math.round(Math.ceil(fontS * SLAB_TITLE_MIN) * 1.9);
+      const cap = Math.max(Math.round(gh * SLAB_TITLE_BAND), need);
+      tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), cap) : 0;
+      tSize = titleH ? Math.round(tH / 1.9) : 0;
+      if (titleH && tSize < fontS * SLAB_TITLE_MIN) return null;
+      topH = tH + (tH ? wgap : 0);
+      if (ratio === null) {
+        // 比率が無いので枠から残りを逆算できない。段の幅を字数で決め、枠は中身に合わせて伸ばす
+        segW = Math.min(fontS * SLAB_ROW_SEG, Math.max(LIST_MIN_COL, Math.round(gh * SLAB_ROW_WIDE)));
+        pad = m;
+        for (let i = 0; i < 3; i++) {
+          W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
+          pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
+        }
         W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
-        pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
+      } else {
+        [W, H, pad] = slabFrame(gh + topH, ratio, m, true);
+        segW = (W - pad) - (pad + gw + wgap);
       }
-      W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
-    } else {
-      [W, H, pad] = slabFrame(gh + topH, ratio, m, true);
-      segW = (W - pad) - (pad + gw + wgap);
+      if (W <= 0 || H <= 0) return null;
+      const lim = Math.round(segW / SLAB_ROW_FIT);
+      if (fontS <= lim) break;
+      fontS = Math.max(SLAB_ROW_MIN, lim);
     }
-    if (W <= 0 || H <= 0) return null;
     const scale = Math.min(1, maxSide / Math.max(W, H));
     if (fontS * scale < SLAB_ROW_MIN) return null;
     if (titleH) {   // 枠が決まったので天井を当てる
