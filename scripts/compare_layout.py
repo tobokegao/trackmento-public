@@ -30,7 +30,7 @@ from backend import render as R  # noqa: E402
 from backend.grids import GridDoc  # noqa: E402
 
 FIELDS = ["W", "H", "scale", "font", "line_h", "ox", "oy", "title_size", "title_h",
-          "wrap", "wrap_pad", "wrap_top", "segs", "tx", "tw", "side", "flow"]
+          "wrap", "wrap_pad", "wrap_top", "segs", "cols", "side", "flow"]
 SIDES = (1, 2, 3, 5, 8, 12, 16, 20, 26, 31, 32)
 RATIOS = ("1:1", "4:5", "9:16", "16:9", "free")
 
@@ -65,7 +65,7 @@ def main() -> int:
                                      "bg": "mustard", "bgCustom": None}})
         L = R.layout(doc)
         py = [L.W, L.H, round(L.scale * 1e9), L.font_s, L.line_h, L.ox, L.oy, L.title_size, L.title_h,
-              1 if L.wrap else 0, L.wrap_pad, L.wrap_top, len(L.wrap_segs), L.wrap_tx, L.wrap_tw,
+              1 if L.wrap else 0, L.wrap_pad, L.wrap_top, len(L.wrap_segs), L.sb_cols,
               L.side, 1 if L.sb_flow else 0]
         got = js.get((c, rr, q))
         if got != py:

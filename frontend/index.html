@@ -2753,6 +2753,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 塊の縦横比と枠の縦横比が極端に食い違うとき、塊を真ん中に置く回り込みでは四辺に細い余白が残り、
   // そのぶんマスが小さくなる。辺にぴったり付けて残りを 1 つの長方形として文字に使えば両方大きくできる
   const SLAB_ASPECT = 4.0, SLAB_MIN_FONT = 14, SLAB_TITLE_SCALE = 2.4, SLAB_TITLE_MIN = 1.3, SLAB_TITLE_MAX = 0.28;
+  // 柱のときはタイトルの帯が枠の高さをそのまま押し広げるので、塊の高さに対する割合で頭打ちにする
+  const SLAB_TITLE_BAND = 0.10;
   const SLAB_TARGET_PX = [96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14];
   // 文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る
   const SLAB_USE_MIN = 0.7, SLAB_CELL_GAIN = 1.02;
@@ -2767,42 +2769,45 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     return [W, H, pad];
   }
-  /* 塊を枠の辺にぴったり付ける割り付け（backend/render.py の _slab_plan）。合わなければ null */
+  /* 塊を枠の辺にぴったり付ける割り付け（backend/render.py の _slab_plan）。合わなければ null。
+     どちらもタイトルは枠の上端いっぱい。柱は塊がその下から枠の下端まで（曲名リストは塊の右）、
+     帯は塊がその下に横いっぱい（曲名リストはその下） */
   function slabPlan(gw, gh, titleH, ratio, m, maxSide) {
     const ga = gw / gh;
-    let vertical, W, H, pad;
-    if (ratio / ga >= SLAB_ASPECT) { vertical = true; [W, H, pad] = slabFrame(gh, ratio, m, true); }
-    else if (ga / ratio >= SLAB_ASPECT) { vertical = false; [W, H, pad] = slabFrame(gw, ratio, m, false); }
+    let vertical;
+    if (ratio / ga >= SLAB_ASPECT) vertical = true;
+    else if (ga / ratio >= SLAB_ASPECT) vertical = false;
     else return null;
-    if (W <= 0 || H <= 0) return null;
-    const scale = Math.min(1, maxSide / Math.max(W, H));
     const build = (target) => {
-      const fontS = Math.max(18, Math.round(target / scale));
-      const lineH = Math.round(fontS * 1.5);
-      const wgap = Math.round(fontS * WRAP_GAP_EM);
-      const a = Math.round((lineH - Math.round(fontS * 0.9)) / 2);
-      let gx, gy, tx, ty, tw, th = 0;
-      if (vertical) {
-        gx = pad; gy = pad; tx = gx + gw + wgap; ty = pad;
-        tw = W - pad - tx; th = H - pad * 2;
-      } else {
-        gx = pad; tx = pad; tw = W - pad * 2;
+      // タイトルの帯の高さは文字の大きさから決まり、文字の大きさは枠（縮尺）から決まるので、
+      // 帯 0 から始めて何回か回す。3 回で動かなくなる
+      let extra = 0, W = 0, H = 0, pad = 0, fontS = 0, lineH = 0, wgap = 0, tH = 0, tSize = 0;
+      for (let i = 0; i < 4; i++) {
+        const fixed = vertical ? gh + extra : gw;
+        [W, H, pad] = slabFrame(fixed, ratio, m, vertical);
+        if (W <= 0 || H <= 0) return null;
+        const sc0 = Math.min(1, maxSide / Math.max(W, H));
+        fontS = Math.max(18, Math.round(target / sc0));
+        lineH = Math.round(fontS * 1.5);
+        wgap = Math.round(fontS * WRAP_GAP_EM);
+        const cap = vertical ? Math.round(gh * SLAB_TITLE_BAND)
+                             : Math.round((H - pad * 2 - gh) * SLAB_TITLE_MAX);
+        tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), cap) : 0;
+        tSize = titleH ? Math.round(tH / 1.9) : 0;
+        extra = tH + (tH ? wgap : 0);
+        if (!vertical) break;
       }
-      const boxH = vertical ? th : (H - pad * 2 - gh - wgap);
-      const tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), Math.round(boxH * SLAB_TITLE_MAX)) : 0;
-      const tSize = titleH ? Math.round(tH / 1.9) : 0;
+      const scale = Math.min(1, maxSide / Math.max(W, H));
       if (titleH && tSize < fontS * SLAB_TITLE_MIN) return null;
-      let y0, y1;
-      if (!vertical) {
-        gy = pad + tH + (tH ? wgap : 0);
-        ty = pad;
-        y0 = gy + gh + wgap; y1 = H - pad;
-      } else {
-        y0 = pad + tH + (tH ? wgap : 0); y1 = H - pad;
-      }
-      if (tw < fontS * WRAP_MIN_SEG || y1 - y0 < lineH) return null;
+      const a = Math.round((lineH - Math.round(fontS * 0.9)) / 2);
+      const gx = pad, gy = pad + tH + (tH ? wgap : 0);
+      let x0, y0, y1;
+      if (vertical) { x0 = gx + gw + wgap; y0 = gy; y1 = H - pad; }
+      else { x0 = pad; y0 = gy + gh + wgap; y1 = H - pad; }
+      const segW = (W - pad) - x0;
+      if (segW < fontS * WRAP_MIN_SEG || y1 - y0 < lineH) return null;
       const segs = [];
-      for (let y = y0; y + lineH - a <= y1; y += lineH) segs.push([tx, y, tw]);
+      for (let y = y0; y + lineH - a <= y1; y += lineH) segs.push([x0, y, segW]);
       if (!segs.length) return null;
       const nSeg = segs.length;
       const rows = flowRows(fontS, 0, segs.map((sg) => sg[2]), nSeg + 1);
@@ -2811,9 +2816,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const last = out[out.length - 1][1] + lineH - a;
       const dy = Math.max(0, Math.floor((y1 - last) / 2));
       if (dy) out = out.map(([sx, sy, sw]) => [sx, sy + dy, sw]);
-      const top = ty + (vertical ? dy : 0);
-      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top, gx, gy, segs: out, rows, tx, tw,
-               use: rows.length / nSeg };
+      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
+               segs: out, rows, use: rows.length / nSeg };
     };
     for (const target of SLAB_TARGET_PX) {
       if (target < SLAB_MIN_FONT) break;
@@ -2932,6 +2936,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const LIST_MIN_COL = 640, LIST_COMFY_FONT = 26, LIST_MAX_COLS = 3, ARTIST_SCALE = 0.78;
   // 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
   const LIST_COL_GAP = GAP_PX * 5;
+  const LIST_COL_GAIN = 1.02;   // 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
   /* 曲ごとの行数。アーティスト名があれば 2 行（曲名 + アーティスト）、曲名が入らなければ +1 行 */
   function rowPlan(fontS, maxW) {
     const ctx = probe;
@@ -3064,14 +3069,24 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     let [W, H, scale] = frame(sbW, sbH);
     // **文字が小さくなるなら、まず列を増やす**。1 列のまま縦に詰めるより、列を割って 1 列あたりの
     // 行数を減らしたほうが行間も文字も大きく取れる（25 曲で 2 列）。
-    // 判断は論理 px ではなく**出力で何 px になるか**で行う
-    if (side === "right") {
-      while (sbCols < LIST_MAX_COLS && fontS * scale < LIST_COMFY_FONT) {
+    // 判断は論理 px ではなく**出力で何 px になるか**で行う。
+    // **下に置くときも増やす**（2026-09-15）。右に置くときだけ増やしていたので、正方形以下の比率では
+    // 曲名リストが必ず 1 列で、縦に長いぶん枠が縦に伸び、そのぶんマスが小さくなっていた
+    // 流し込みに落ちる並びでは列を増やさない（増やすと縮尺が上がって「1 曲 1 行」のまま残り、
+    // 回り込みを試さなくなる。回り込みのほうがマスを大きく取れる並びで損をする）
+    const flow1 = fontS * scale < FLOW_MIN_FONT;
+    if (side !== "none" && (side === "right" || !flow1)) {
+      while (sbCols < LIST_MAX_COLS) {
+        // 増やす理由が右と下で違う。右は「文字が大きくなる」から（だから文字が小さいときだけ）、
+        // 下は「リストが縦に縮んで枠ごと小さくなり、マスが大きくなる」から（文字の大きさに関わらず）
+        if (side === "right" && fontS * scale >= LIST_COMFY_FONT) break;
         const [lh, fs, w] = sidebar(sbCols + 1, baseRows);
         if (Math.floor((w - LIST_COL_GAP * sbCols) / (sbCols + 1)) < LIST_MIN_COL) break;
-        const scale2 = frame(w, sbH)[2];
-        if (fs * scale2 <= fontS * scale) break;   // 増やしても大きくならないならやめる
-        sbCols += 1; lineH = lh; fontS = fs; sbW = w;
+        const sbH2 = side === "right" ? sbH : Math.ceil(baseRows / (sbCols + 1)) * lh;
+        const scale2 = frame(w, sbH2)[2];
+        // 増やしても大きくならないならやめる（下に置くときは端数の差で行き来しないよう少し余裕を見る）
+        if (fs * scale2 <= fontS * scale * (side === "right" ? 1.0 : LIST_COL_GAIN)) break;
+        sbCols += 1; lineH = lh; fontS = fs; sbW = w; sbH = sbH2;
         [W, H, scale] = frame(sbW, sbH);
       }
     }
@@ -3137,8 +3152,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         return { W: wp.W, H: wp.H, scale: wp.scale, ox: wp.gx, oy: wp.gy, gw, gh, title,
                  titleSize: wp.titleSize, titleH: wp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
                  lineH: wp.lineH, fontS: wp.fontS, sbGap, sbFlow: true, sbPlan: [],
-                 wrap: true, wrapPad: wp.pad, wrapTop: wp.top, wrapSegs: wp.segs,
-                 wrapTx: wp.tx || 0, wrapTw: wp.tw || 0 };
+                 wrap: true, wrapPad: wp.pad, wrapTop: wp.top, wrapSegs: wp.segs };
       }
     }
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
@@ -3152,7 +3166,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (want > titleSize) return layout(maxSide, want);
     }
     return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow,
-             sbPlan: sbFlow ? [] : sbPlan, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [], wrapTx: 0, wrapTw: 0 };
+             sbPlan: sbFlow ? [] : sbPlan, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [] };
   }
   // **ジャケットが極端に小さくなるときは知らせる**（選択は塞がない）。並びの形と枠の比率が
   // 食い違うと、曲名を読める大きさにしたぶんマスが潰れる（1x32 を 16:9 にすると 23px）。
@@ -3483,8 +3497,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         // **字面（インク）の中心を帯の中心に置く**（backend/render.py と同じ。基準線の取り方が
         // PIL と Canvas で違い、タイトルが大きいと出力で 15px ほど食い違う）
         ctx.font = titleFont; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(ink);
-        const ttx = L.wrapTx || L.wrapPad, ttw = L.wrapTw || (L.W - L.wrapPad * 2);
-        ctx.fillText(ellipsizeText(ctx, oneLine(L.title), ttw * S), sc(ttx),
+        ctx.fillText(ellipsizeText(ctx, oneLine(L.title), (L.W - L.wrapPad * 2) * S), sc(L.wrapPad),
                      sc(L.wrapTop + L.titleH / 2) + Math.round(Math.max(8, sc(L.titleSize)) * BASELINE));
       }
     } else if (L.title && L.side !== "right") {
