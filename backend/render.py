@@ -620,7 +620,8 @@ def render(doc: GridDoc) -> Image.Image:
 
     # グリッド（画像は並列に取得し、取得スレッドの中でマスの大きさに切り抜く。原寸を抱えない）
     cell = sc(CELL_PX)
-    num_font = font("pixel", max(8, sc(22)))
+    num_px = max(8, sc(22))       # 番号の字の大きさ。**8px を下限にする**（ピクセルフォントはこれ以下で潰れる）
+    num_font = font("pixel", num_px)
     from backend.config import public_mode
     with ThreadPoolExecutor(max_workers=2 if public_mode() else 6, initializer=lower_thread_priority) as ex:   # 公開時は控えめに（0.1 vCPU）
         covers = list(ex.map(lambda t: load_cover(t, cell) if t else None, doc.cells))
@@ -635,11 +636,15 @@ def render(doc: GridDoc) -> Image.Image:
                 covers[i] = None
         if o.numbers:
             label = f"{i + 1:02d}"
-            bw, bh = math.ceil(d.textlength(label, font=num_font)) + sc(24), sc(40)
+            # **枠は字の大きさから決める**。字は 8px を下限にしているのに枠だけ縮み続けると、
+            # マスが小さいとき（16x16 で字 8px・枠 5px）に数字が枠からはみ出す
+            pad = max(sc(12), rnd(num_px * 0.5))
+            bw = math.ceil(d.textlength(label, font=num_font)) + pad * 2
+            bh = max(sc(40), rnd(num_px * 1.8))
             d.rectangle((x, y, x + bw - 1, y + bh - 1), fill=badge_bg)
             d.rectangle((x + bw, y, x + bw + sc(3), y + bh - 1), fill=ink)
             d.rectangle((x, y + bh, x + bw + sc(3), y + bh + sc(3)), fill=ink)
-            d.text((x + sc(12), y + bh / 2 + 1), label, font=num_font, fill=ink, anchor="lm")
+            d.text((x + pad, y + bh / 2 + 1), label, font=num_font, fill=ink, anchor="lm")
     covers = None
 
     # サイドバー（曲名リスト）

@@ -3061,7 +3061,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       ctx.fillText(ellipsizeText(ctx, oneLine(L.title), L.gw * S), sc(L.ox), sc(y0 + L.titleH / 2));
       y0 += L.titleH;
     }
-    const cell = sc(CELL_PX), numF = fontPixel(Math.max(8, sc(22)));
+    const numPx = Math.max(8, sc(22));   // 番号の字の大きさ。**8px を下限にする**
+    const cell = sc(CELL_PX), numF = fontPixel(numPx);
     // 描く前に R2 の場所をまとめて聞く（302 を追わないため。上の preloadR2Map を参照）
     const wantPx = cell < CELL_PX * 0.55 ? Math.ceil(cell / 50) * 50 : 0;
     await preloadR2Map(state.cells.flatMap(t => (t ? [t.image, t.thumb] : [])).filter(Boolean).map(url => ({ url, px: wantPx })));
@@ -3092,10 +3093,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
       if (state.numbers) {
         const label = String(i + 1).padStart(2, "0");
-        ctx.font = numF; const bw = Math.ceil(ctx.measureText(label).width) + sc(24), bh = sc(40);
+        // **枠は字の大きさから決める**（backend/render.py と同じ規則）。字は 8px を下限にしているのに
+        // 枠だけ縮み続けると、マスが小さいとき（16x16 で字 8px・枠 5px）に数字がはみ出す
+        const pad = Math.max(sc(12), Math.round(numPx * 0.5));
+        ctx.font = numF;
+        const bw = Math.ceil(ctx.measureText(label).width) + pad * 2, bh = Math.max(sc(40), Math.round(numPx * 1.8));
         ctx.fillStyle = cssRgb(badgeBg); ctx.fillRect(x, y, bw, bh);
         ctx.fillStyle = cssRgb(ink); ctx.fillRect(x + bw, y, sc(3) + 1, bh); ctx.fillRect(x, y + bh, bw + sc(3) + 1, sc(3) + 1);
-        ctx.textBaseline = "middle"; ctx.fillText(label, x + sc(12), y + bh / 2 + 1);
+        ctx.textBaseline = "middle"; ctx.fillText(label, x + pad, y + bh / 2 + 1);
       }
     }
     if (L.side !== "none") {
