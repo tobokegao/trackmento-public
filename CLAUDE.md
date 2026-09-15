@@ -521,6 +521,8 @@ claude --remote-control TRACKMENTO                                             #
     「押した位置へ値が飛ぶ」が**起こりようがない**。掴んでいる間の色は `.is-grabbed` で出す
     （`:active` は入力を受け取らなくなったので効かない）。
     **キーボード（矢印キー）は触っていないので今までどおり効く**
+    - **つまみの色に `:active` を使ってはいけない**。`<label for>` を長押しすると、押されたのが
+      見出しでも関連付けられた `input` が `:active` になり、**つまみが押されたように見える**
     - そこへ至るまでに `pointerdown` / `touchstart` / `touchmove` の `preventDefault` と
       CSS の `touch-action: none` を順に足したが、**Android の実機ではすり抜けが残り 3 回報告された**。
       エミュレータでは毎回すべて再現しない。**止める側で戦わず、届かなくする**のが正解だった
@@ -555,10 +557,17 @@ claude --remote-control TRACKMENTO                                             #
     今は 5 組を % で書き下した非反復のグラデーション（`--stripe-hl` / `--stripe-dim` / `--stripe-dark` と、
     列用の `--stripe-gap-hl` / `--stripe-gap-dark`）にしてあり、6 本目が存在しない。
     確かめ方は `node promo/probe_bar2.mjs`（画素密度 1〜12 倍で白線の本数を数える）
-  - **高さを `bottom` で伸ばさない**。題名・右端の列の前後 2px（`h2::before` / `h2::after` /
-    `.tail::before`）は `height: var(--bar-stripes)` で帯と同じ高さに固定する。
-    `bottom` で伸ばすと、バーが 30px より高くなる端末でその列だけ帯からはみ出す
+  - **題名・右端の列の前後 2px（`h2::before` / `h2::after` / `.tail::before`）は、箱をバーと同じ高さ
+    （`top: 0; bottom: 0`）にして、帯は背景の位置と大きさ（`0 var(--bar-inset) / 100% var(--bar-stripes)`）
+    で作る**。`top: var(--bar-inset); height: var(--bar-stripes)` と書くと、**この列だけ別の箱として
+    端末の画素へ丸められ、バー本体の縞から 1 画素ずれる**（実機で 3 組目から下が段ズレして見えた）。
+    箱の上端をバーの背景の原点にそろえれば、同じ式・同じ丸めで描かれる。
+    確かめ方は `node promo/probe_bar3.mjs`（本体と 2 つの列で影線の行がそろうか）
   - 四角の**右上・左下の角の 1px は暗い白**（白い輪郭が回り込む所を落ち着かせる）
+  - **ボタンの影（市松模様 `--dither`）は右下の角を基準に敷く**（`background-position: right bottom`）。
+    左上を基準にすると、実際に見えるのは右辺と下辺なので、**ボタンの幅・高さが奇数のときだけ
+    市松の白黒が入れ替わり**、ボタンごとにドットの始まりが違って見える（実機で報告）。
+    確かめ方は `node promo/probe_btn2.mjs`（幅 40 / 41 / 42 / 43 / 60.5px を並べる）
   - **暗い白は半透明ではなく実色**（`--color-hl-dim`）。半透明の白 55% では地色に溶けて、
     明るい白との差が見えなかった（「まだ明るい白のまま」と報告があった）
   - **暗い白は「つまみの地」（`--color-bar` = oklch 91%）より明るくする**。oklch 87% にしていたとき、
