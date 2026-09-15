@@ -533,6 +533,21 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .modal[hidden] { display: none; }
 .modal-panel { position: relative; width: min(100%, 40rem); max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--line) solid var(--color-ink); background: var(--color-paper); box-shadow: var(--shadow); }
 .modal-body { overflow-y: auto; }
+/* グリッドを大きく見る窓。**画面いっぱいに広げる**（16x16 だと欄の中では 1 マス 26px しかない） */
+.modal-wide { padding: var(--space-2); }
+/* **max-height を外す**。もとの .modal-panel は 88dvh で頭打ちにしていて、
+   height を指定してもそちらが勝っていた（16x16 で 1 マス 42px から伸びなかった） */
+.modal-wide .modal-panel { width: min(100%, 96rem); height: min(100%, 98dvh); max-height: none; }
+/* 上がグリッド（余りの高さいっぱい）、下が選択中のマスの編集。**編集は窓の中へ移す**。
+   もとの場所（検索ペインの中）は窓の裏に隠れてしまい、マスを選んでも何も起きないように見える */
+.zoom-slot { display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center;
+             gap: var(--space-2); padding: var(--space-2); min-height: 0; overflow: auto; }
+.zoom-slot .editor { width: min(100%, 48rem); }
+/* 拡大窓では全部入る大きさにするので、溝のぶんを空けておく必要がない */
+.grid-scroll.is-zoom { scrollbar-gutter: auto; }
+/* 「大きく見る」ボタン。タイトル欄の右に置く（タイトルバーの縞の規則に触らないため） */
+.grid-head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.grid-head .btn { white-space: nowrap; }
 .pl-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2); }
 .note p { margin: 0; overflow-wrap: anywhere; }
 .note a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
@@ -1000,6 +1015,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <label for="title">タイトル（省略可）</label>
           <input class="input" id="title" type="text" placeholder="例: 私を構成する9曲" maxlength="60">
         </div>
+        <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
@@ -1122,6 +1138,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
+  </div>
+</div>
+
+<div class="modal modal-wide" id="zoom-modal" hidden role="dialog" aria-modal="true" aria-labelledby="zoom-modal-title">
+  <div class="sheet-backdrop" id="zoom-modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="sheet-head"><h2 id="zoom-modal-title">グリッドを大きく見る</h2><button class="btn" type="button" id="zoom-modal-close">閉じる</button></div>
+    <div class="zoom-slot" id="zoom-slot"></div>
   </div>
 </div>
 
@@ -1325,6 +1349,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "ピンク": "Pink",
     "レモン": "Lemon", "ウルトラマリン": "Ultramarine", "コーラル": "Coral",
     "スカイ": "Sky", "リーフ": "Leaf", "ローズ": "Rose",
+    "大きく見る": "Enlarge", "グリッドを大きく見る": "The grid, enlarged",
+    "グリッドを画面いっぱいに開いて並べ替える": "Open the grid at full size to rearrange it",
     "パレット": "Palette", "パレットを選ぶ": "Choose a palette",
     "背景色に並ぶ 8 色と、画面の配色をまとめて切り替えます。": "Switches the eight background colours and the page's own colours together.",
     "いまの色から作る": "Make one from these colours", "じぶんの色": "My colour",
@@ -2184,8 +2210,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function clearSelection() { if (selected !== null) { selected = null; renderGrid(); } }
   function renderEditor() {
     const t = selected !== null ? state.cells[selected] : null;
-    if (!t) { els.editor.hidden = true; return; }
+    if (!t) { els.editor.hidden = true; if (gridZoomed) syncPreview(); return; }
     els.editor.hidden = false;
+    if (gridZoomed) syncPreview();   // 拡大窓では編集欄のぶんグリッドに使える高さが変わる
     els.eNum.textContent = String(selected + 1).padStart(2, "0");
     els.eSource.textContent = tr(SOURCE_LABEL[t.source] || t.source); els.eSource.dataset.source = t.source;
     if (document.activeElement !== els.eTitleIn) els.eTitleIn.value = t.title;
@@ -2213,6 +2240,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (plOpen()) { closePlModal(); say(els.bcMsg, tr("やめました。")); return; }
+    if (gridZoomed) { closeZoom(); return; }
     if (!srcModal.hidden) { closeSrcModal(); return; }
     if (sheetOpen()) { closeSheet(); return; }
     if (selected !== null) { clearSelection(); say(els.gridMsg, tr("選択を解除しました。")); return; }
@@ -3460,17 +3488,66 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   /* グリッドのプレビューを出力と同じ比率にする: 余白・マスの間隔を幅に合わせて縮尺し、背景色も反映 */
   function syncPreview() {
+    const gw = state.cols * CELL_PX + (state.cols - 1) * state.gap;
+    const gh = state.rows * CELL_PX + (state.rows - 1) * state.gap;
+    const ar = (gw + state.margin * 2) / (gh + state.margin * 2);   // 中身の縦横比
+    if (gridZoomed) {
+      // **拡大窓では並び全体がそのまま入る大きさにする**（縦・横のうち先に当たるほうに合わせる）。
+      // **測る前にいったん 0 にする**。中身が入ったまま測ると、入れ物が中身に押し広げられた
+      // 大きさを返し、そこから決めた枠が窓からはみ出す（16x16 で下が切れていた）
+      els.gridScroll.style.width = els.gridScroll.style.height = "0px";
+      const cs = getComputedStyle(zoomSlot);
+      const pad = (a, b) => parseFloat(cs[a]) + parseFloat(cs[b]);
+      // 枠線（上下・左右 2px ずつ）と、下で高さに足す 4px のぶんを引いておく
+      const availW = zoomSlot.clientWidth - pad("paddingLeft", "paddingRight") - 8;
+      // **編集欄の高さも引く**。窓の高さ全部で計算すると、選択中のマスの編集が出たときに
+      // グリッドがそのぶんはみ出して、編集欄と重なって見える
+      const edH = els.editor.hidden ? 0 : els.editor.offsetHeight + parseFloat(cs.rowGap || 0);
+      const availH = zoomSlot.clientHeight - pad("paddingTop", "paddingBottom") - edH - 8;
+      els.gridScroll.style.width = `${Math.round(Math.max(160, Math.min(availW, availH * ar)))}px`;
+    } else {
+      els.gridScroll.style.width = "";
+    }
     const W = els.grid.getBoundingClientRect().width;
     if (!W) return;
-    const gw = state.cols * CELL_PX + (state.cols - 1) * state.gap;
     const k = W / (gw + state.margin * 2);
     const pad = state.margin * k, gap = state.gap * k;
     els.grid.style.padding = `${pad}px`;
     els.grid.style.gap = `${gap}px`;
     els.grid.style.background = bgColor();
-    // 枠の大きさは列数・行数によらず 3×3 のときと同じ正方形に固定。行が列より多いとスクロールバーが出る
-    els.gridScroll.style.height = `${Math.round(W) + 4}px`;
+    // 欄の中では、枠の大きさは列数・行数によらず 3×3 のときと同じ正方形に固定
+    // （行が列より多いとスクロールバーが出る）。拡大窓では中身の比のままにして全部見せる
+    els.gridScroll.style.height = `${Math.round(gridZoomed ? W / ar : W) + 4}px`;
   }
+
+  // ---- グリッドを大きく見る窓 ----
+  // **同じ要素をそのまま動かす**（作り直さないので、選択・掴んでの入れ替え・番号バッジがそのまま効く）。
+  // 16x16 だと欄の中では 1 マス 26px しかなく、PC でも狙って掴めない、という報告から
+  const zoomModal = $("#zoom-modal"), zoomSlot = $("#zoom-slot");
+  const editorHome = els.editor.parentNode;   // 閉じるときに戻す先（検索ペイン）
+  let gridZoomed = false;
+  function openZoom() {
+    if (gridZoomed) return;
+    zoomSlot.append(els.gridScroll, els.editor);
+    els.gridScroll.classList.add("is-zoom");
+    gridZoomed = true; zoomModal.hidden = false; document.body.classList.add("sheet-open");
+    syncPreview();
+    $("#zoom-modal-close").focus({ preventScroll: true });
+  }
+  function closeZoom() {
+    if (!gridZoomed) return;
+    els.gridMsg.parentNode.insertBefore(els.gridScroll, els.gridMsg);   // もとの場所（説明文の上）へ戻す
+    editorHome.append(els.editor);
+    els.gridScroll.classList.remove("is-zoom");
+    gridZoomed = false; zoomModal.hidden = true;
+    if (!sheetOpen()) document.body.classList.remove("sheet-open");
+    syncPreview();
+    $("#zoom-btn").focus({ preventScroll: true });
+  }
+  $("#zoom-btn").addEventListener("click", openZoom);
+  $("#zoom-modal-close").addEventListener("click", closeZoom);
+  $("#zoom-modal-backdrop").addEventListener("click", closeZoom);
+  window.addEventListener("resize", () => { if (gridZoomed) syncPreview(); });
   new ResizeObserver(() => syncPreview()).observe(els.gridScroll);
 
   /* ---- persistence: localStorage + JSON ----
