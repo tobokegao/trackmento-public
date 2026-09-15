@@ -207,8 +207,9 @@ footer{margin-top:44px;border-top:2px solid var(--line);padding-top:14px;color:v
   </tr></thead><tbody></tbody></table></div>
 </section>
 
-<footer>2026-09-15 21:50 に <code>scripts/layout_audit.py --render</code> で測定（割り付けのコードは <code>749c67d</code>）。
-前回（同日 19:48）の測定と <b>全 2950 件が 1 件も違わなかった</b>ので、その後の画面まわりの直しは割り付けに触れていない。
+<footer>2026-09-15 に <code>scripts/layout_audit.py --render</code> で測定。
+「柱・帯」（塊を枠の辺にぴったり付ける組み方）と「マスごと」（1 列の並びで曲名をマスの横に並べる）を足し、
+下に置く曲名リストも列を割るようにした回。<b>2950 件のうち 505 件でマスが大きくなり、小さくなったのは 1 件</b>。
 画像はジャケットを数枚だけ使い回して組んだもので、割り付けを見るためのもの。</footer>
 </div>
 

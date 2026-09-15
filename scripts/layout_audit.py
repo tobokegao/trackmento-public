@@ -88,11 +88,13 @@ def measure(doc: GridDoc) -> dict:
         "cell": round(R.CELL_PX * S),
         "font": round(L.font_s * S, 1),
         "title": round(L.title_size * S, 1),
-        "mode": "回り込み" if L.wrap else ("流し込み" if L.sb_flow else "1 曲 1 行"),
+        "mode": ("マスごと" if L.wrap_rows else "回り込み") if L.wrap else ("流し込み" if L.sb_flow else "1 曲 1 行"),
         "side": L.side,
     }
     out["title_ratio"] = round(out["title"] / out["font"], 2) if out["font"] else 0
-    if L.wrap:
+    # **「マスごと」は埋まりを測らない**。1 曲 1 行と同じで、曲の数ぶんの行しか無いのが正しい姿で、
+    # まわりに空きがあるのは欠陥ではない（流し込みのように余白を埋めにいく組み方ではない）
+    if L.wrap and not L.wrap_rows:
         rows_used = R._flow_rows(doc, L.font_s, 0.0, [float(sg[2]) for sg in L.wrap_segs])
         # **埋まり＝描いたものが枠をどれだけ覆うか**（マスの塊 ＋ 実際に置いた文字の面積）。
         # 「行数 ÷ 段の数」では測れない（余った段は割り付けの時点で捨てているので必ず 1.0 になる）
