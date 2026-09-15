@@ -663,6 +663,35 @@ body.sheet-open { overflow: hidden; }
   border: var(--line) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); cursor: pointer; }
 .pal-btn:hover { background: var(--color-paper-2); }
 .pal-btn:active { background: var(--color-ink); color: var(--color-paper); }
+/* 指で触る画面のスクロールバー（自前）。**スマホのブラウザはスクロールバーを「触れる部品」として
+   扱わない**（指の入力はつまみの上にあっても中身のスクロールに回る）ので、ブラウザ任せだと掴めない。
+   溝の位置に自分の要素を重ね、指の操作を自分で受ける。見た目は ::-webkit-scrollbar と同じ規則 */
+.tsb-wrap { position: relative; }
+.tsb { display: none; }
+@media (pointer: coarse) {
+  .tsb-host { padding-right: 24px; }                       /* 自前のバーのぶんを空ける */
+  .tsb-host::-webkit-scrollbar { width: 0; height: 0; }    /* ブラウザのものは出さない（二重になる） */
+  .tsb { display: block; position: absolute; top: var(--line); right: var(--line); width: 24px;
+    height: calc(100% - var(--line) * 2); background: var(--color-paper-3);
+    box-shadow: inset 1px 0 0 var(--color-bar-dark), inset -1px 0 0 var(--color-bar-dark); touch-action: none; }
+  .tsb[hidden] { display: none; }
+  .tsb-thumb { position: absolute; left: 0; width: 100%; min-height: 44px; box-sizing: border-box;
+    background-color: var(--color-bar); border: 1px solid var(--color-bar-dark);
+    background-image:
+      linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
+      linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
+      repeating-linear-gradient(to bottom, #fff 0 2px, transparent 2px 6px),
+      repeating-linear-gradient(to bottom, var(--color-hl-dim) 0 2px, transparent 2px 6px),
+      repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px, transparent 4px 6px),
+      linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
+      linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
+    background-size: 1px 1px, 1px 1px, 2px 16px, 7px 16px, 7px 16px, 100% 1px, 1px 100%, 100% 1px, 1px 100%;
+    background-position: right 0 top 0, left 0 bottom 0,
+      calc(50% - 3.5px) center, calc(50% - 1px) center, calc(50% + 1px) center,
+      left 0 top 0, left 0 top 0, left 0 bottom 0, right 0 top 0;
+    background-repeat: no-repeat; }
+  .tsb-thumb:active { background-color: var(--color-rule-2); }
+}
 /* パレットの一覧（モーダルの中）。1 行が 1 組の 6 色 */
 .pal-lanes { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0; }
 /* 1 行に入りきらない幅（スマホ）では折り返す。名前・6 色・ボタンの順に段が増える */
@@ -2385,6 +2414,64 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }, { passive: false });
   }
   for (const el of [els.margin, els.gap, els.hsvH, els.hsvS, els.hsvV, palHsv.h, palHsv.s, palHsv.v]) thumbOnly(el);
+
+  /* 指で触る画面だけ、自前のスクロールバーを付ける。
+     **スマホのブラウザはスクロールバーを触れる部品として扱わない**ため、ブラウザ任せでは掴めない */
+  function attachTouchScrollbar(el) {
+    if (!el || el.dataset.tsb) return;
+    el.dataset.tsb = "1";
+    const wrap = document.createElement("div"); wrap.className = "tsb-wrap";
+    el.parentNode.insertBefore(wrap, el); wrap.append(el);
+    el.classList.add("tsb-host");
+    const bar = document.createElement("div"); bar.className = "tsb";
+    const thumb = document.createElement("div"); thumb.className = "tsb-thumb";
+    bar.append(thumb); wrap.append(bar);
+
+    const layout = () => {
+      const h = el.clientHeight, sh = el.scrollHeight;
+      if (sh <= h + 1) { bar.hidden = true; return; }
+      bar.hidden = false;
+      const trackH = bar.clientHeight;
+      const th = Math.max(44, Math.round(trackH * h / sh));
+      const max = sh - h;
+      const top = max > 0 ? Math.round((trackH - th) * el.scrollTop / max) : 0;
+      thumb.style.height = th + "px";
+      thumb.style.top = top + "px";
+    };
+    el.addEventListener("scroll", layout, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(layout).observe(el);
+    layout();
+
+    // つまみを掴んで動かす。指が離れるまで pointer を捕まえておく
+    let grabbed = null;
+    thumb.addEventListener("pointerdown", (e) => {
+      grabbed = { y: e.clientY, top: el.scrollTop };
+      thumb.setPointerCapture(e.pointerId);
+      e.preventDefault(); e.stopPropagation();
+    });
+    thumb.addEventListener("pointermove", (e) => {
+      if (!grabbed) return;
+      const trackH = bar.clientHeight, th = thumb.offsetHeight, max = el.scrollHeight - el.clientHeight;
+      const per = trackH - th > 0 ? max / (trackH - th) : 0;
+      el.scrollTop = grabbed.top + (e.clientY - grabbed.y) * per;
+      e.preventDefault();
+    });
+    for (const t of ["pointerup", "pointercancel"]) thumb.addEventListener(t, () => { grabbed = null; });
+    // 溝を押したら 1 画面ぶん送る（Mac OS 9 と同じ）
+    bar.addEventListener("pointerdown", (e) => {
+      if (e.target === thumb) return;
+      const r = thumb.getBoundingClientRect();
+      el.scrollBy({ top: (e.clientY < r.top ? -1 : 1) * el.clientHeight * 0.9, behavior: "smooth" });
+      e.preventDefault();
+    });
+    return layout;
+  }
+  if (matchMedia("(pointer: coarse)").matches) {
+    const relayout = [attachTouchScrollbar(els.gridScroll), attachTouchScrollbar($("#sheet-body"))].filter(Boolean);
+    // マスの数や候補が変わると中身の高さが変わるので、描き直しの後にも合わせ直す
+    window.addEventListener("resize", () => relayout.forEach(f => f()));
+    setInterval(() => relayout.forEach(f => f()), 1000);   // 中身の入れ替えは種類が多いので、軽く見張る
+  }
 
   /* ---- colour helpers (CSS 変数 → 実 RGB) ---- */
   const probe = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
