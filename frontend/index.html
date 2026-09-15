@@ -377,15 +377,17 @@ img { max-width: 100%; display: block; }
 }
 .pane-title .tail { position: relative; margin-left: auto; align-self: stretch; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: var(--color-bar); }   /* 縞→件数、件数→ボックス、ボックス→右端をすべて 8px に */
 /* 縞が題名・右端の列にぶつかる所: 白線より影線が 2px 右へ飛び出す（左隣 2px 列は影線だけ）。縞が再開する所: 白線が 2px 先に始まる（右隣 2px 列は白線だけ） */
-/* **高さは帯と同じ 20px で固定**（`bottom` で伸ばさない）。バーが 30px より高くなる端末では
-   この列だけ 20px を超えて伸び、5 組の下に 6 本目の白線が細く覗いていた（スマホで報告） */
+/* **箱はバーと同じ高さ（`top: 0; bottom: 0`）にして、帯は背景の位置と大きさで作る**。
+   `top: var(--bar-inset); height: var(--bar-stripes)` と書くと、この列だけ別の箱として
+   端末の画素へ丸められ、バー本体の縞から 1 画素ずれる（3 組目から下が下へ段ズレして見えた）。
+   箱の上端をバーの背景の原点にそろえれば、同じ式・同じ丸めで描かれる */
 .pane-title h2::before, .pane-title .tail::before {
-  content: ""; position: absolute; left: -2px; top: var(--bar-inset); height: var(--bar-stripes); width: 2px;
-  background: linear-gradient(to bottom, var(--stripe-gap-dark));
+  content: ""; position: absolute; left: -2px; top: 0; bottom: 0; width: 2px;
+  background: linear-gradient(to bottom, var(--stripe-gap-dark)) 0 var(--bar-inset) / 100% var(--bar-stripes) no-repeat;
 }
 .pane-title h2::after {
-  content: ""; position: absolute; right: -2px; top: var(--bar-inset); height: var(--bar-stripes); width: 2px;
-  background: linear-gradient(to bottom, var(--stripe-gap-hl));
+  content: ""; position: absolute; right: -2px; top: 0; bottom: 0; width: 2px;
+  background: linear-gradient(to bottom, var(--stripe-gap-hl)) 0 var(--bar-inset) / 100% var(--bar-stripes) no-repeat;
 }
 .pane-title .count { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--line) solid var(--color-ink); padding: 0 var(--space-1); }
 /* Explorer 風の最小化ボタン。タイトル行のクリックでも開閉できる */
@@ -449,11 +451,15 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
   white-space: nowrap; cursor: pointer;
   transition: transform var(--dur-tick) var(--ease-out), background-color var(--dur-short) var(--ease-out);
 }
-/* 影: 市松模様（--dither）。ボタン本体と重ならない L 字だけを clip-path で残す */
+/* 影: 市松模様（--dither）。ボタン本体と重ならない L 字だけを clip-path で残す。
+   **模様は右下の角を基準に敷く**（`background-position: right bottom`）。左上を基準にすると、
+   実際に見えるのは右辺と下辺なので、**ボタンの幅・高さが奇数のときだけ市松の白黒が入れ替わり**、
+   ボタンごとにドットの始まりが違って見えた（実機で報告） */
 .btn::after, .seg span::after {
   content: ""; position: absolute; inset: calc(-1 * var(--line)); pointer-events: none;
   transform: translate(var(--sh), var(--sh));
   background: var(--dither);
+  background-position: right bottom;
   clip-path: polygon(calc(100% - var(--sh)) 0, 100% 0, 100% 100%, 0 100%, 0 calc(100% - var(--sh)), calc(100% - var(--sh)) calc(100% - var(--sh)));
 }
 @media (hover: hover) and (pointer: fine) {
@@ -811,7 +817,9 @@ input[type="range"]::-webkit-slider-thumb {
   background-repeat: no-repeat;
 }
 
-input[type="range"]:active::-webkit-slider-thumb { background-color: var(--color-rule-2); }
+/* 掴んでいる間の色は `.is-grabbed`（下）で出す。**`:active` は使わない**:
+   `<label for>` を長押しすると、押されたのが見出しでも `input` が `:active` になり、
+   つまみが押されたように見えてしまう（実機で報告） */
 /* Firefox（::-webkit-* が効かないので同じ見た目を別に指定する） */
 input[type="range"]::-moz-range-track { height: 5px; background: var(--color-paper-2); border: 1px solid var(--color-bar-dark); }
 input[type="range"]::-moz-range-thumb { width: 17px; height: 16px; border-radius: 0; background: var(--color-bar); border: 1px solid var(--color-bar-dark); }
