@@ -344,11 +344,31 @@ img { max-width: 100%; display: block; }
   /* **白線は「左端 2px だけ明るい白、それより右は暗い白」**（つまみの握りとまったく同じ規則。
      つまみでは明るい白の層を 2px 幅で左に置き、その右に暗い白の層を並べている）。
      線の向きを取り違えて「いちばん上の 1 本だけ純白」にしていた（2026-09-15 に指摘） */
+  /* **反復（repeating-linear-gradient）ではなく 5 組を書き下す**。反復だと 1 周期（4px）を
+     端末の画素に丸めた誤差が積もり、20px の帯の終わりぎわで 6 周期目が 1 画素だけ始まる
+     （実機の拡大表示で、5 組の下に極細の白線として見えていた）。%
+     で書けば帯の高さに比例して割り付けられるので、**6 本目は存在しない** */
   background:
-    repeating-linear-gradient(to bottom, #fff 0 2px, transparent 2px 4px) var(--bar-inset-x) var(--bar-inset) / 2px var(--bar-stripes) no-repeat,
-    repeating-linear-gradient(to bottom, var(--color-hl-dim) 0 2px, transparent 2px 4px) var(--bar-inset-x) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
-    repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px) calc(var(--bar-inset-x) + 2px) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / 2px var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-dim)) var(--bar-inset-x) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + 2px) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
     var(--color-bar);
+}
+/* 縞 1 組ぶん = 帯の 20%（白 10% ＋ 空き 10%）。5 組で 100% ちょうど */
+.pane-title {
+  --stripe-hl: #fff 0 10%, transparent 10% 20%, #fff 20% 30%, transparent 30% 40%, #fff 40% 50%,
+    transparent 50% 60%, #fff 60% 70%, transparent 70% 80%, #fff 80% 90%, transparent 90% 100%;
+  --stripe-dim: var(--color-hl-dim) 0 10%, transparent 10% 20%, var(--color-hl-dim) 20% 30%, transparent 30% 40%,
+    var(--color-hl-dim) 40% 50%, transparent 50% 60%, var(--color-hl-dim) 60% 70%, transparent 70% 80%,
+    var(--color-hl-dim) 80% 90%, transparent 90% 100%;
+  --stripe-dark: transparent 0 10%, var(--color-bar-dark) 10% 20%, transparent 20% 30%, var(--color-bar-dark) 30% 40%,
+    transparent 40% 50%, var(--color-bar-dark) 50% 60%, transparent 60% 70%, var(--color-bar-dark) 70% 80%,
+    transparent 80% 90%, var(--color-bar-dark) 90% 100%;
+  --stripe-gap-dark: var(--color-bar) 0 10%, var(--color-bar-dark) 10% 20%, var(--color-bar) 20% 30%, var(--color-bar-dark) 30% 40%,
+    var(--color-bar) 40% 50%, var(--color-bar-dark) 50% 60%, var(--color-bar) 60% 70%, var(--color-bar-dark) 70% 80%,
+    var(--color-bar) 80% 90%, var(--color-bar-dark) 90% 100%;
+  --stripe-gap-hl: #fff 0 10%, var(--color-bar) 10% 20%, #fff 20% 30%, var(--color-bar) 30% 40%, #fff 40% 50%,
+    var(--color-bar) 50% 60%, #fff 60% 70%, var(--color-bar) 70% 80%, #fff 80% 90%, var(--color-bar) 90% 100%;
 }
 .pane-title h2 {
   position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: fit-content; margin-inline: auto;   /* transform で中央寄せしない（半端な位置になり境の 1px 線がにじむ） */
@@ -361,11 +381,11 @@ img { max-width: 100%; display: block; }
    この列だけ 20px を超えて伸び、5 組の下に 6 本目の白線が細く覗いていた（スマホで報告） */
 .pane-title h2::before, .pane-title .tail::before {
   content: ""; position: absolute; left: -2px; top: var(--bar-inset); height: var(--bar-stripes); width: 2px;
-  background: repeating-linear-gradient(to bottom, var(--color-bar) 0 2px, var(--color-bar-dark) 2px 4px);
+  background: linear-gradient(to bottom, var(--stripe-gap-dark));
 }
 .pane-title h2::after {
   content: ""; position: absolute; right: -2px; top: var(--bar-inset); height: var(--bar-stripes); width: 2px;
-  background: repeating-linear-gradient(to bottom, #fff 0 2px, var(--color-bar) 2px 4px);
+  background: linear-gradient(to bottom, var(--stripe-gap-hl));
 }
 .pane-title .count { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--line) solid var(--color-ink); padding: 0 var(--space-1); }
 /* Explorer 風の最小化ボタン。タイトル行のクリックでも開閉できる */
@@ -796,6 +816,15 @@ input[type="range"]:active::-webkit-slider-thumb { background-color: var(--color
 input[type="range"]::-moz-range-track { height: 5px; background: var(--color-paper-2); border: 1px solid var(--color-bar-dark); }
 input[type="range"]::-moz-range-thumb { width: 17px; height: 16px; border-radius: 0; background: var(--color-bar); border: 1px solid var(--color-bar-dark); }
 input[type="range"]:focus-visible { outline-offset: 4px; }
+/* **つまみの操作はすべて受け皿（.range-pad）で受ける**。`input` 自身は `pointer-events: none` で
+   入力をいっさい受け取らないので、ブラウザ既定の「押した位置へ値が飛ぶ」が**起こりようがない**。
+   CSS の `touch-action` や `preventDefault` に頼る形は、Android の実機で何度直しても
+   すり抜けが残った（2026-09-15、3 回の報告）。キーボード（矢印キー）は今までどおり効く */
+.range-wrap { position: relative; display: block; }
+.range-wrap input[type="range"] { pointer-events: none; }
+.range-pad { position: absolute; inset: 0; touch-action: none; cursor: default; }
+/* 掴んでいる間の色。`:active` は入力を受け取らなくなったので効かない */
+input[type="range"].is-grabbed::-webkit-slider-thumb { background-color: var(--color-rule-2); }
 output { font-variant-numeric: tabular-nums; }
 
 /* ---------- output ---------- */
@@ -2437,17 +2466,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const v = min + Math.min(1, Math.max(0, t)) * (max - min);
       return Math.min(max, Math.max(min, Math.round(v / step) * step));
     };
+    // **入力そのものを受け皿に移す**。`input` は `pointer-events: none`（CSS）なので、
+    // 指もマウスも届かない＝ブラウザ既定の「押した位置へ値が飛ぶ」が起こりようがない。
+    // `preventDefault` で止める形は Android の実機ですり抜けが残った
+    const wrap = document.createElement("span"); wrap.className = "range-wrap";
+    el.replaceWith(wrap); wrap.append(el);
+    const pad = document.createElement("span"); pad.className = "range-pad";
+    wrap.append(pad);
+
     let dragging = false, grabDX = 0;
-    el.addEventListener("pointerdown", (e) => {
-      e.preventDefault();            // **既定の「押した位置へ飛ぶ」は必ず止める**
-      e.stopPropagation();
+    pad.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
       if (Math.abs(e.clientX - thumbCenter()) > THUMB / 2) return;   // つまみの上でなければ何もしない
       dragging = true;
       grabDX = e.clientX - thumbCenter();
-      try { el.setPointerCapture(e.pointerId); } catch { /* 古いブラウザ */ }
+      try { pad.setPointerCapture(e.pointerId); } catch { /* 古いブラウザ */ }
+      el.classList.add("is-grabbed");
       el.focus({ preventScroll: true });
     });
-    el.addEventListener("pointermove", (e) => {
+    pad.addEventListener("pointermove", (e) => {
       if (!dragging) return;
       const v = String(valueAt(e.clientX - grabDX));
       if (v !== el.value) { el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); }
@@ -2455,16 +2492,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const end = (e) => {
       if (!dragging) return;
       dragging = false;
-      try { el.releasePointerCapture(e.pointerId); } catch { /* 解放済み */ }
+      el.classList.remove("is-grabbed");
+      try { pad.releasePointerCapture(e.pointerId); } catch { /* 解放済み */ }
       el.dispatchEvent(new Event("change", { bubbles: true }));
     };
-    el.addEventListener("pointerup", end);
-    el.addEventListener("pointercancel", end);
-    // **指の操作は touchstart と touchmove の両方で止める**。Android では pointerdown を
-    // 止めてもタッチの既定の動き（押した位置へ飛ぶ・滑らせると追従する）が残る。
-    // **touchmove を止めていなかったので「タップして滑らせる」と動いていた**（実機で報告）
-    el.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
-    el.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+    pad.addEventListener("pointerup", end);
+    pad.addEventListener("pointercancel", end);
+    // 指の既定の動き（スクロール・長押しの選択）も受け皿の側で止める
+    pad.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
+    pad.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
     // **見出しの文字を押しても反応させない**。<label for> は押すと中の部品を動かす決まりなので、
     // 「余白 16 px」の行を長押しするとつまみが押されたように見えていた
     const lab = el.id ? document.querySelector(`label[for="${el.id}"]`) : null;
