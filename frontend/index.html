@@ -2656,6 +2656,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (w === undefined) { probe.font = f; CHAR_W.set(key, w = snapW1(probe.measureText(ch).width)); }
     return w;
   };
+  /* タイトルの大きさを枠に収まる範囲に抑える（backend/render.py の _title_cap）。
+     幅は「…」で切れない大きさまで、大きさは枠の短い辺の WRAP_TITLE_FRAME まで。
+     ただし floor（本文の何倍か）より小さくはしない。天井のあとに大きさを見直す組み方では渡さない */
+  function titleCap(title, tSize, W, H, pad, floor = 0) {
+    const fit = titleFit(title, tSize, W - pad * 2);
+    return Math.max(Math.min(fit, Math.round(Math.min(W, H) * WRAP_TITLE_FRAME)), Math.min(fit, floor));
+  }
+  /* タイトルが availW に収まる最大の大きさ（字幅は大きさに比例するので 1 回の割り算で出る） */
+  function titleFit(title, tSize, availW) {
+    if (!title || tSize <= 0 || availW <= 0) return tSize;
+    const w = titleWidth(title, tSize);
+    return w <= availW ? tSize : Math.max(8, Math.trunc(tSize * availW / w));
+  }
   function titleWidth(title, titleSize) {
     if (!title) return 0;
     // **1 字ずつ 1px に丸めて足す**（backend/render.py の _title_width と同じ）。丸ごと測ると
@@ -2754,7 +2767,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const WRAP_TARGET_PX = [FLOW_MIN_FONT, 18, 16, 14, 12];
   // 入る大きさが見つかったあと、余っている余地で文字を大きくする。大きくすると枠も少し大きく
   // （＝マスが少し小さく）なるので、マスが WRAP_CELL_KEEP を割らない範囲まで
-  const WRAP_TARGET_UP = [22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72], WRAP_CELL_KEEP = 0.85;
+  const WRAP_TARGET_UP = [22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72, 84, 96, 112, 128], WRAP_CELL_KEEP = 0.85;
   // 逆に、文字を 1〜2 段落とすとマスが大きく取れることがある（塊の形と枠の比率が食い違うと、
   // 大きい文字のままでは塊を横いっぱいにできず、左右に使えない空白が残る）
   const WRAP_CELL_GAIN = 1.25, WRAP_TARGET_FLOOR = 14;
@@ -2769,28 +2782,37 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SLAB_TITLE_BAND = 0.10;
   // 柱で 1 列の並びのときは、曲名をマス 1 つ 1 つの横に並べる（流し込まない）。
   // 曲名の大きさは 1 マスの送りから決め、出力で SLAB_ROW_MIN を下回るなら流し込みに戻す
-  const SLAB_ROW_FONT = 0.30, SLAB_ROW_MIN = FLOW_MIN_FONT;
+  // タイトルの大きさの天井（枠の短い辺に対する割合）。どの組み方でも共通
+  const WRAP_TITLE_FRAME = 0.06;
+  const SLAB_ROW_FONT = 0.30, SLAB_ROW_MIN = 18;   // 流し込みの下限（20px）より低くてよい（1 曲 1 行は行間が広いので読める）
   // 比率なしのときの段の幅（文字の大きさの何倍か＝だいたい何字入るか）。**文字を測って決めない**
   const SLAB_ROW_SEG = 30;
   // 段の幅は塊の高さまで。曲が少ないと段のほうが長くなり、枠が横に伸びてマスが潰れる
   const SLAB_ROW_WIDE = 0.75;
   // この列数までは「マスごと」に並べられる（1 段ぶんの高さに列の数だけ曲名を積むため）
   const SLAB_ROW_MAX_COLS = 3;
+  // 横一列に近い並びでは、塊を上に敷いて曲名を 1 曲 1 行の縦一列で下に置く
+  // 曲がこれより多いときは縦一列にしない（長い列になり、同じグループの中で見た目が変わる）
+  const SLAB_STACK_MAX_ROWS = 2, SLAB_STACK_LINE = 2.4, SLAB_STACK_MAX_SONGS = 16;
+  // 段の中で横に並べるときの、1 曲ぶんの最小の幅（文字の大きさの何倍か）
+  const SLAB_ROW_BESIDE_SEG = 12;
   /* 柱のとき、曲名をマス 1 つ 1 つの横に並べる割り付け（backend/render.py の _slab_rows） */
-  function slabRows(gw, gh, titleH, ratio, m, maxSide) {
+  function slabRows(gw, gh, titleH, ratio, m, maxSide, beside = false) {
     const cols = state.cols;
     if (cols > SLAB_ROW_MAX_COLS) return null;
     const pitch = CELL_PX + state.gap;   // マスの段 1 つぶんの送り
-    const per = Math.round(pitch / cols);   // 曲名 1 曲ぶんの高さ
+    // 段の中で縦に積むか横に並べるか。縦に積むほうが 1 行を長く取れるので既定。
+    // 段が多いと 1 曲ぶんが薄くなりすぎるので（2x32 で出力 10.8px）、そのときは横に並べる
+    const per = beside ? pitch : Math.round(pitch / cols);   // 曲名 1 曲ぶんの高さ
     const fontS = Math.round(per * SLAB_ROW_FONT);
     const wgap = Math.round(fontS * WRAP_GAP_EM);
     // タイトルの帯は塊の高さの SLAB_TITLE_BAND まで。ただし本文の SLAB_TITLE_MIN 倍は必ず確保する
     const need = Math.round(Math.ceil(fontS * SLAB_TITLE_MIN) * 1.9);
     const cap = Math.max(Math.round(gh * SLAB_TITLE_BAND), need);
-    const tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), cap) : 0;
-    const tSize = titleH ? Math.round(tH / 1.9) : 0;
+    let tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), cap) : 0;
+    let tSize = titleH ? Math.round(tH / 1.9) : 0;
     if (titleH && tSize < fontS * SLAB_TITLE_MIN) return null;
-    const topH = tH + (tH ? wgap : 0);
+    let topH = tH + (tH ? wgap : 0);
     let W, H, pad, segW;
     if (ratio === null) {
       // 比率が無いので枠から残りを逆算できない。段の幅を字数で決め、枠は中身に合わせて伸ばす
@@ -2808,18 +2830,35 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (W <= 0 || H <= 0) return null;
     const scale = Math.min(1, maxSide / Math.max(W, H));
     if (fontS * scale < SLAB_ROW_MIN) return null;
+    if (titleH) {   // 枠が決まったので天井を当てる
+      // 本文より小さくはしない（この組み方は天井のあとに大きさを見直さない）
+      tSize = titleCap(oneLine(state.title), tSize, W, H, pad, Math.round(Math.ceil(fontS * SLAB_TITLE_MIN)));
+      tH = Math.round(tSize * 1.9);
+      topH = tH + wgap;
+    }
     const gx = pad, gy = pad + topH, x0 = gx + gw + wgap;
     if (segW < LIST_MIN_COL) return null;
-    // 段のマスと同じ数だけ曲名を積む。余った端数は段の中で上下に分ける
-    const off = Math.round((pitch - per * cols) / 2);
-    const segs = state.cells.map((_, i) =>
-      [x0, gy + Math.floor(i / cols) * pitch + off + (i % cols) * per, segW]);
+    let segs;
+    if (beside) {
+      // 段のマスと同じ並びで横に置く（マスと同じ「左から右へ、次の段へ」の順）
+      const colW = Math.floor((segW - wgap * (cols - 1)) / cols);
+      if (colW < fontS * SLAB_ROW_BESIDE_SEG) return null;
+      segs = state.cells.map((_, i) =>
+        [x0 + (i % cols) * (colW + wgap), gy + Math.floor(i / cols) * pitch, colW]);
+    } else {
+      // 段のマスと同じ数だけ曲名を積む。余った端数は段の中で上下に分ける
+      const off = Math.round((pitch - per * cols) / 2);
+      segs = state.cells.map((_, i) =>
+        [x0, gy + Math.floor(i / cols) * pitch + off + (i % cols) * per, segW]);
+    }
     return { W, H, scale, fontS, lineH: per, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
              segs, rows: [], use: 1, rowsMode: true };
   }
   const SLAB_TARGET_PX = [96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14];
   // 文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る
   const SLAB_USE_MIN = 0.7, SLAB_CELL_GAIN = 1.02;
+  // 帯・柱は回り込みよりマスがこの割合まで小さくても採る（並びのほうが分かりやすい）
+  const SLAB_PREFER = 0.98;
   /* 塊が使い切る辺の長さから枠と余白を出す（backend/render.py の _slab_frame）。
      余白は枠の短い辺の 3.5% なので互いを参照する。0 から 3 回回せば収束する */
   function slabFrame(fixed, ratio, m, vertical) {
@@ -2855,7 +2894,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const cap = vertical ? Math.round(gh * SLAB_TITLE_BAND)
                              : Math.round((H - pad * 2 - gh) * SLAB_TITLE_MAX);
         tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), cap) : 0;
-        tSize = titleH ? Math.round(tH / 1.9) : 0;
+        tSize = titleCap(oneLine(state.title), titleH ? Math.round(tH / 1.9) : 0, W, H, pad);
+        tH = titleH ? Math.round(tSize * 1.9) : 0;
         extra = tH + (tH ? wgap : 0);
         if (!vertical) break;
       }
@@ -2877,14 +2917,52 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       let out = segs.slice(0, rows.length);
       const last = out[out.length - 1][1] + lineH - a;
       const dy = Math.max(0, Math.floor((y1 - last) / 2));
-      if (dy) out = out.map(([sx, sy, sw]) => [sx, sy + dy, sw]);
-      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
+      // **余った高さは中身ごと下げて上下の余白をそろえる**（帯は「タイトル → 塊 → 曲名」を
+      // ひとかたまりで動かす。柱は塊が枠の高さを使い切るので動かさない）
+      let gy2 = gy, top = pad;
+      if (dy) {
+        out = out.map(([sx, sy, sw]) => [sx, sy + dy, sw]);
+        if (!vertical) { gy2 = gy + dy; top = pad + dy; }
+      }
+      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top, gx, gy: gy2,
                segs: out, rows, use: rows.length / nSeg };
     };
     for (const target of SLAB_TARGET_PX) {
       if (target < SLAB_MIN_FONT) break;
       const got = build(target);
       if (got) return got;
+    }
+    return null;
+  }
+  /* **塊を上に敷き、曲名を 1 曲 1 行の縦一列で下に置く**割り付け（backend/render.py の _slab_stack）。
+     段の少ない横長の並び（7x1 など）だと下に大きな空きが残るので、1 曲 1 行で縦に積んで真ん中に置く */
+  function slabStack(gw, gh, titleH, ratio, m, maxSide) {
+    const n = state.cells.length;
+    if (!n || state.rows > SLAB_STACK_MAX_ROWS || n > SLAB_STACK_MAX_SONGS) return null;
+    const [W, H, pad] = slabFrame(gw, ratio, m, false);
+    if (W <= 0 || H <= 0) return null;
+    const scale = Math.min(1, maxSide / Math.max(W, H));
+    const segW = W - pad * 2;
+    for (const target of SLAB_TARGET_PX) {
+      if (target < SLAB_ROW_MIN) break;
+      const fontS = Math.max(18, Math.round(target / scale));
+      if (segW < fontS * WRAP_MIN_SEG) continue;
+      const wgap = Math.round(fontS * WRAP_GAP_EM);
+      const cap = Math.max(Math.round((H - pad * 2 - gh) * SLAB_TITLE_MAX),
+                           Math.round(Math.ceil(fontS * SLAB_TITLE_MIN) * 1.9));
+      let tH = titleH ? Math.min(Math.round(fontS * SLAB_TITLE_SCALE * 1.9), cap) : 0;
+      const tSize = titleCap(oneLine(state.title), titleH ? Math.round(tH / 1.9) : 0, W, H, pad);
+      tH = titleH ? Math.round(tSize * 1.9) : 0;
+      if (titleH && tSize < fontS * SLAB_TITLE_MIN) continue;
+      const gy = pad + tH + (tH ? wgap : 0);
+      const y0 = gy + gh + wgap;
+      const per = Math.round(fontS * SLAB_STACK_LINE);
+      const avail = (H - pad) - y0;
+      if (per * n > avail) continue;
+      const dy = Math.max(0, Math.floor((avail - per * n) / 2));
+      const segs = Array.from({ length: n }, (_, i) => [pad, y0 + dy + i * per, segW]);
+      return { W, H, scale, fontS, lineH: per, titleSize: tSize, titleH: tH, pad, top: pad,
+               gx: pad, gy, segs, rows: [], use: 1, rowsMode: true };
     }
     return null;
   }
@@ -2906,9 +2984,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // まわりを囲む文字の帯に負けない大きさにしたいので、本文の WRAP_TITLE_SCALE 倍
       // **ただし、塊を除いた高さの WRAP_TITLE_MAX までにする**（本文に連動して伸びるので、
       // 上限が無いと文字を大きくしたぶんタイトルも伸びて上下の余地を食い潰す）
-      const tH = titleH ? Math.min(Math.round(fontS * WRAP_TITLE_SCALE * 1.9),
-                                   Math.round((H - pad * 2 - gh) * WRAP_TITLE_MAX)) : 0;
-      const tSize = titleH ? Math.round(tH / 1.9) : 0;
+      let tH = titleH ? Math.min(Math.round(fontS * WRAP_TITLE_SCALE * 1.9),
+                                 Math.round((H - pad * 2 - gh) * WRAP_TITLE_MAX)) : 0;
+      // 「…」で切れない大きさまで下げる（backend/render.py の _title_fit と同じ）
+      const tSize = titleCap(oneLine(state.title), titleH ? Math.round(tH / 1.9) : 0, W, H, pad);
+      tH = titleH ? Math.round(tSize * 1.9) : 0;
       // **タイトルは本文より十分大きく**。上限に当たって WRAP_TITLE_MIN 倍を割るならこの枠は使わない
       if (titleH && tSize < fontS * WRAP_TITLE_MIN) return null;
       const top = pad + tH, bot = H - pad;
@@ -3226,7 +3306,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // マス 1 つぶんしか取れず、出力が細長い帯になって文字も小さくなっていた。
     // 比率があるときは、流し込みに落ちるか、マスが今の組み方より小さくならないときだけ使う
     if (cols <= SLAB_ROW_MAX_COLS && side !== "none") {
-      const rp = slabRows(gw, gh, titleH, ratio, m, maxSide);
+      let rp = slabRows(gw, gh, titleH, ratio, m, maxSide);
+      if (rp === null && cols > 1) rp = slabRows(gw, gh, titleH, ratio, m, maxSide, true);
       if (rp && (ratio === null || sbFlow || rp.scale >= scale)) {
         return { W: rp.W, H: rp.H, scale: rp.scale, ox: rp.gx, oy: rp.gy, gw, gh, title,
                  titleSize: rp.titleSize, titleH: rp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
@@ -3238,9 +3319,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       let wp = wrapPlan(gw, gh, titleH, ratio, m, maxSide);
       // **辺にぴったり付く組み方（柱・帯）があればそちらを優先する**。塊が片方の辺を使い切るので
       // 枠に余りが出ず、マスは回り込みと同じか大きくなる
-      const sp = slabPlan(gw, gh, titleH, ratio, m, maxSide);
-      if (sp && (!wp || sp.scale > wp.scale * SLAB_CELL_GAIN
-                 || (sp.scale >= wp.scale && sp.use >= SLAB_USE_MIN))) wp = sp;
+      let sp = slabPlan(gw, gh, titleH, ratio, m, maxSide);
+      // **横一列に近い並びは、曲名を 1 曲 1 行の縦一列で下に置く**
+      const st = slabStack(gw, gh, titleH, ratio, m, maxSide);
+      if (st && (!sp || st.scale >= sp.scale)) sp = st;
+      // マスが小さくならないなら帯・柱を採る（回り込みは塊が真ん中に行き、横長の並びだと
+      // マスが下端に落ちてタイトルだけ上に残る）
+      // わずかな差なら辺に付ける側を採る（塊が真ん中に落ちてタイトルと離れるのを防ぐ）
+      if (sp && (!wp || sp.scale >= wp.scale * SLAB_PREFER)) wp = sp;
       if (wp && (wp.scale >= scale || fontS * scale < WRAP_SWITCH_PX
                  || (wp.fontS * wp.scale >= fontS * scale * WRAP_SWITCH_GAIN && wp.scale >= scale * WRAP_CELL_KEEP))) {
         return { W: wp.W, H: wp.H, scale: wp.scale, ox: wp.gx, oy: wp.gy, gw, gh, title,

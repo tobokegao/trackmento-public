@@ -324,7 +324,8 @@ WRAP_MAX_PCT = 400        # 枠をマスの塊の何 % まで広げてよいか
 WRAP_TARGET_PX = (FLOW_MIN_FONT, 18, 16, 14, 12)
 # 入る大きさが見つかったあと、**余っている余地で文字を大きくする**。大きくすると枠も少し
 # 大きく（＝マスが少し小さく）なるので、**マスが WRAP_CELL_KEEP を割らない範囲まで**にする
-WRAP_TARGET_UP = (22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72)
+# 上限を 72 で止めていたため、枠が縦長で文字の場所が広いときに埋まりきらなかった
+WRAP_TARGET_UP = (22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72, 84, 96, 112, 128)
 WRAP_CELL_KEEP = 0.85
 # **マスがもともと小さいときは守る意味が薄い**ので、文字を大きくする許容を緩める。
 # 守りすぎると文字が途中で尽きて、マスの脇と下が大きく空く（1x32 を 16:9 にすると埋まり 32%）
@@ -340,6 +341,8 @@ WRAP_SWITCH_GAIN = 1.3    # 文字がこの倍率以上大きくなるなら、�
 WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
 WRAP_TITLE_MAX = 0.3      # ただしタイトルの高さは「塊を除いた高さ」のこの割合まで
 TITLE_MIN_SCALE = 1.6     # 曲名リストに対するタイトルの最低倍率（回り込み以外の組み方）
+# タイトルの大きさの天井（枠の短い辺に対する割合）。どの組み方でも共通
+WRAP_TITLE_FRAME = 0.06
 WRAP_TITLE_MIN = 1.6      # **タイトルは本文の最低これだけ倍**。上限に当たってこれを割るなら、
                           # その枠は使わない（枠を広げて取り直す）。曲名リストのほうが大きいと逆さま
 
@@ -590,7 +593,10 @@ SLAB_TITLE_BAND = 0.10
 # 曲名の大きさは 1 マスの送りから決め、出力で `SLAB_ROW_MIN` を下回るなら流し込みに戻す
 # （マスが小さくなるほど 1 曲ぶんの高さも縮むため。1x32 を 16:9 にすると 12px になる）
 SLAB_ROW_FONT = 0.30
-SLAB_ROW_MIN = FLOW_MIN_FONT
+# **流し込みの下限（20px）より少し低くてよい**。流し込みは字を詰めるので 20px を切ると読めないが、
+# マスごとは 1 曲 1 行で行間も広いため 18px でも読める。20px のままだと 3x11 を 1:1 にしたときに
+# 19.5px で弾かれ、その並びだけコの字になっていた（利用者の指摘）
+SLAB_ROW_MIN = 18
 # **比率なしのとき**の段の幅（文字の大きさの何倍か＝だいたい何字入るか）。比率が決まっていれば
 # 枠から残りが決まるが、比率なしでは決め手が無いので字数で決める。
 # **文字を測って決めてはいけない**（PIL と Canvas で幅が数 px 違い、枠ごとずれる）
@@ -602,6 +608,16 @@ SLAB_ROW_WIDE = 0.75
 # **この列数までは「マスごと」に並べられる**。1 段ぶんの高さに列の数だけ曲名を積むので、
 # 列が増えるほど 1 曲ぶんが薄くなる（3 列で 1/3）。4 列にすると出力の文字が読めない大きさになる
 SLAB_ROW_MAX_COLS = 3
+# 横一列に近い並び（N×1 など）では、塊を上に敷いて曲名を 1 曲 1 行の縦一列で下に置く。
+# この段数まで（段が増えると曲数が増えて縦に入らなくなる）
+SLAB_STACK_MAX_ROWS = 2
+# **曲がこれより多いときは縦一列にしない**。1 曲 1 行は「少ない曲の一覧」として読みやすいが、
+# 30 曲を超えると単なる長い列になり、同じ 32xN のグループの中で 32x1 だけ見た目が変わってしまう
+# （利用者の指摘）。多いときは今までどおり流し込んで、塊の下の場所を隅々まで使う
+SLAB_STACK_MAX_SONGS = 16
+SLAB_STACK_LINE = 2.4      # 1 曲ぶんの高さ（曲名の行 + アーティストの行）。文字の大きさに対する倍率
+# 段の中で横に並べるときの、1 曲ぶんの最小の幅（文字の大きさの何倍か＝だいたい何字入るか）
+SLAB_ROW_BESIDE_SEG = 12
 # 出力での曲名の大きさ。大きいほうから試して、**入る中でいちばん大きいもの**を採る
 SLAB_TARGET_PX = (96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14)
 # **文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る**。
@@ -611,6 +627,8 @@ SLAB_USE_MIN = 0.7
 # マスが**はっきり**大きくなるとき（この倍率以上）は、置き場所が余っていても辺に付けるほうを採る。
 # 1% ほどの差で選んでしまうと、見た目は同じ大きさなのに空白だけ増える
 SLAB_CELL_GAIN = 1.02
+# 帯・柱は回り込みよりマスがこの割合まで小さくても採る（並びのほうが分かりやすいため）
+SLAB_PREFER = 0.98
 
 
 def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool) -> tuple[int, int, int]:
@@ -638,8 +656,37 @@ def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool) -> tuple[int, 
     return W, H, pad
 
 
+def _title_cap(title: str, t_size: int, W: int, H: int, pad: int, floor: int = 0) -> int:
+    """タイトルの大きさを枠に収まる範囲に抑える。**どの組み方でも同じ規則**。
+
+    - 幅 … 「…」で切れない大きさまで下げる（`_title_fit`）
+    - 大きさ … **枠の短い辺の `WRAP_TITLE_FRAME` まで**。タイトルは本文に連動して伸びるので、
+      曲が少ないと極端に大きくなる（18x1 を 1:1 にすると出力 288px あった）。
+      1:1 なら 144px、16:9 / 9:16 なら 81px が天井になる
+    - ただし **`floor`（たいていは本文の何倍か）より小さくはしない**。曲が少ないと本文が大きいので、
+      天井だけ当てると**タイトルが本文より小さくなる**（1x1 を 16:9 にすると本文の 0.42 倍だった）。
+      幅で切れない範囲でだけ持ち上げる。天井のあとに大きさを見直す組み方（回り込み・帯）では
+      `floor` を渡さず、見直しのほうに任せる
+    """
+    fit = _title_fit(title, t_size, W - pad * 2)
+    return max(min(fit, rnd(min(W, H) * WRAP_TITLE_FRAME)), min(fit, floor))
+
+
+def _title_fit(title: str, t_size: int, avail_w: int) -> int:
+    """タイトルが `avail_w` に収まる最大の大きさ。
+
+    **字幅は大きさに比例する**ので 1 回の割り算で出る。これが無いと、枠が縦長のときに
+    タイトルだけ極端に大きくなって「…」で切れていた（7x1 を 9:16 にすると
+    幅 1350px に対して 288px のタイトルが入り、「私を構…」になっていた）。
+    """
+    if not title or t_size <= 0 or avail_w <= 0:
+        return t_size
+    w = _title_width(title, t_size)
+    return t_size if w <= avail_w else max(8, int(t_size * avail_w / w))
+
+
 def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None, m: int,
-               max_side_v: int) -> WrapPlan | None:
+               max_side_v: int, beside: bool = False) -> WrapPlan | None:
     """**曲名をマスの横に、マスと同じ並び順で置く**割り付け（1〜3 列の並び）。
 
     塊は左端に立て、その右の段に曲名を置く。**マスの段 1 つぶんの高さに、その段のマスと
@@ -655,7 +702,11 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
     if cols > SLAB_ROW_MAX_COLS:
         return None
     pitch = CELL_PX + doc.options.gap          # マスの段 1 つぶんの送り
-    per = rnd(pitch / cols)                    # 曲名 1 曲ぶんの高さ
+    # **段の中で縦に積むか、横に並べるか**。縦に積むほうが 1 行が長く取れて読みやすいので既定。
+    # ただし段が多いと 1 曲ぶんが薄くなりすぎるので（2x32 で出力 10.8px）、そのときは横に並べる
+    # （マスと同じ「左から右へ、次の段へ」の順になる）
+    side_by_side = beside
+    per = pitch if side_by_side else rnd(pitch / cols)   # 曲名 1 曲ぶんの高さ
     font_s = rnd(per * SLAB_ROW_FONT)
     wgap = rnd(font_s * WRAP_GAP_EM)
     # タイトルの帯は塊の高さの `SLAB_TITLE_BAND` まで。**ただし本文の `SLAB_TITLE_MIN` 倍は必ず確保する**
@@ -667,6 +718,8 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
     if title_h and t_size < font_s * SLAB_TITLE_MIN:
         return None
     top_h = t_h + (wgap if t_h else 0)
+    t_capped = False   # 枠が決まってから天井を当てる（下の W / H が出たところ）
+    t_fit_done = False
     if ratio is None:
         # 余白は枠の短い辺の 3.5%（`_frame` と同じ規則）で、枠と余白が互いを参照する。0 から 3 回回す
         seg_w = min(font_s * SLAB_ROW_SEG, max(LIST_MIN_COL, rnd(gh * SLAB_ROW_WIDE)))
@@ -683,15 +736,76 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
     scale = min(1.0, max_side_v / max(W, H))
     if font_s * scale < SLAB_ROW_MIN:          # 1 曲ぶんの高さが足りない → 流し込みに戻す
         return None
+    if title_h:                                # 枠が決まったので天井を当てる
+        # **本文より小さくはしない**。この組み方は天井を当てたあとに大きさを見直さないので、
+        # 下限を渡さないと 1x1・16:9 で本文の 0.42 倍まで潰れる
+        t_size = _title_cap(_one_line(doc.title), t_size, W, H, pad,
+                            rnd(math.ceil(font_s * SLAB_TITLE_MIN)))
+        t_h = rnd(t_size * 1.9)
+        top_h = t_h + wgap
     gx, gy = pad, pad + top_h
     x0 = gx + gw + wgap
     if seg_w < LIST_MIN_COL:
         return None
-    # 段のマスと同じ数だけ曲名を積む。余った端数は段の中で上下に分ける
-    off = rnd((pitch - per * cols) / 2)
-    segs = tuple((x0, gy + (i // cols) * pitch + off + (i % cols) * per, seg_w)
-                 for i in range(len(doc.cells)))
+    if side_by_side:
+        # 段のマスと同じ並びで横に置く（マスと同じ「左から右へ、次の段へ」の順）
+        col_w = (seg_w - wgap * (cols - 1)) // cols
+        if col_w < font_s * SLAB_ROW_BESIDE_SEG:
+            return None
+        segs = tuple((x0 + (i % cols) * (col_w + wgap), gy + (i // cols) * pitch, col_w)
+                     for i in range(len(doc.cells)))
+    else:
+        # 段のマスと同じ数だけ曲名を積む。余った端数は段の中で上下に分ける
+        off = rnd((pitch - per * cols) / 2)
+        segs = tuple((x0, gy + (i // cols) * pitch + off + (i % cols) * per, seg_w)
+                     for i in range(len(doc.cells)))
     return WrapPlan(W, H, scale, font_s, per, t_size, t_h, pad, pad, gx, gy, segs, [], 1.0, True)
+
+
+def _slab_stack(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
+                max_side_v: int) -> WrapPlan | None:
+    """**塊を上に敷き、曲名を 1 曲 1 行の縦一列で下に置く**割り付け（段の少ない横長の並び）。
+
+    7x1 を 9:16 に入れたときのように、塊が横一列だと下に大きな空きが残る。曲名を流し込むと
+    行が長くて読みにくいので、**1 曲 1 行で縦に積み、まとめて真ん中に置く**（利用者の提案）。
+    並びは「タイトル → 塊 → 曲名リスト」。曲名の大きさは、縦に全部入って、かつ 1 行が
+    `WRAP_MIN_SEG` 字ぶんの幅を持てる中でいちばん大きいものを選ぶ。
+    """
+    n = len(doc.cells)
+    if not n or doc.rows > SLAB_STACK_MAX_ROWS or n > SLAB_STACK_MAX_SONGS:
+        return None
+    W, H, pad = _slab_frame(gw, ratio, m, False)
+    if W <= 0 or H <= 0:
+        return None
+    scale = min(1.0, max_side_v / max(W, H))
+    seg_w = W - pad * 2
+    for target in SLAB_TARGET_PX:
+        if target < SLAB_ROW_MIN:
+            break
+        font_s = max(18, rnd(target / scale))
+        if seg_w < font_s * WRAP_MIN_SEG:      # 1 行が短すぎる
+            continue
+        wgap = rnd(font_s * WRAP_GAP_EM)
+        # 帯ではタイトルの帯が枠の高さを押し広げない（高さは比率で決まる）ので、
+        # 塊の高さではなく「文字の場所の高さ」で頭打ちにする
+        cap = max(rnd((H - pad * 2 - gh) * SLAB_TITLE_MAX), rnd(math.ceil(font_s * SLAB_TITLE_MIN) * 1.9))
+        t_h = min(rnd(font_s * SLAB_TITLE_SCALE * 1.9), cap) if title_h else 0
+        t_size = _title_cap(_one_line(doc.title), rnd(t_h / 1.9) if title_h else 0, W, H, pad)
+        t_h = rnd(t_size * 1.9) if title_h else 0
+        if title_h and t_size < font_s * SLAB_TITLE_MIN:
+            continue
+        gy = pad + t_h + (wgap if t_h else 0)
+        y0 = gy + gh + wgap
+        per = rnd(font_s * SLAB_STACK_LINE)    # 1 曲ぶんの高さ（曲名の行 + アーティストの行）
+        avail = (H - pad) - y0
+        if per * n > avail:                    # 縦に入らない → 次の（小さい）大きさ
+            continue
+        # **中身ごと下げて上下の余白をそろえる**（曲名だけ真ん中に置くと塊から離れて見える）
+        dy = max(0, (avail - per * n) // 2)
+        segs = tuple((pad, y0 + dy + i * per, seg_w) for i in range(n))
+        return WrapPlan(W, H, scale, font_s, per, t_size, t_h, pad, pad, pad, gy,
+                        segs, [], 1.0, True)
+    return None
 
 
 def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
@@ -727,7 +841,8 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             # ただし枠の高さの SLAB_TITLE_MAX まで
             cap = rnd(gh * SLAB_TITLE_BAND) if vertical else rnd((H - pad * 2 - gh) * SLAB_TITLE_MAX)
             t_h = min(rnd(font_s * SLAB_TITLE_SCALE * 1.9), cap) if title_h else 0
-            t_size = rnd(t_h / 1.9) if title_h else 0
+            t_size = _title_cap(_one_line(doc.title), rnd(t_h / 1.9) if title_h else 0, W, H, pad)
+            t_h = rnd(t_size * 1.9) if title_h else 0
             extra = t_h + (wgap if t_h else 0)
             if not vertical:
                 break
@@ -736,6 +851,7 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             return None
         a = rnd((line_h - rnd(font_s * 0.9)) / 2)   # 行の箱と字面のすきま（上下）
         gx, gy = pad, pad + t_h + (wgap if t_h else 0)
+        ty = pad          # タイトルの帯の上端
         if vertical:
             # 柱: 塊はタイトルの下から枠の下端まで。曲名リストは塊の右、同じ高さから始める
             x0, y0, y1 = gx + gw + wgap, gy, H - pad
@@ -757,13 +873,19 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         if len(rows) > n_seg:
             return None
         segs = segs[:len(rows)]
-        # **使わなかった行のぶんは上下に半分ずつ分ける**（文字が途中で終わって下だけ空くのを防ぐ）。
-        # 塊とタイトルは辺に付けたままなので動かさない
+        # **余った高さは中身ごと下げて、上下の余白をそろえる**。文字の場所だけ動かすと、
+        # 塊と曲名リストのあいだに大きな空きができて「途中で切れた」ように見える
+        # （7x1 を 9:16 にしたときに、タイトル・マス・曲名が離れ離れになっていた）。
+        # 帯は「タイトル → 塊 → 曲名」をひとかたまりで動かす。柱は塊が枠の高さを使い切るので動かさない
         last = segs[-1][1] + line_h - a
         dy = max(0, (y1 - last) // 2)
-        if dy:
+        if dy and not vertical:
+            gy += dy
+            ty += dy
             segs = [(sx, sy + dy, sw) for sx, sy, sw in segs]
-        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, pad, gx, gy,
+        elif dy:
+            segs = [(sx, sy + dy, sw) for sx, sy, sw in segs]
+        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, ty, gx, gy,
                         tuple(segs), rows, len(rows) / n_seg)
 
     for target in SLAB_TARGET_PX:
@@ -809,6 +931,8 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         # 「まだ入るのに文字を大きくできない」状態になっていた）
         t_h = min(rnd(font_s * WRAP_TITLE_SCALE * 1.9), rnd((H - pad * 2 - gh) * WRAP_TITLE_MAX)) if title_h else 0
         t_size = rnd(t_h / 1.9) if title_h else 0
+        t_size = _title_cap(_one_line(doc.title), t_size, W, H, pad)
+        t_h = rnd(t_size * 1.9) if title_h else 0
         if title_h and t_size < font_s * WRAP_TITLE_MIN:
             return None
         top, bot = pad + t_h, H - pad
@@ -1065,6 +1189,8 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     if doc.cols <= SLAB_ROW_MAX_COLS and side != "none":
         from backend.config import max_side
         rp = _slab_rows(doc, gw, gh, title_h, ratio, m, max_side())
+        if rp is None and doc.cols > 1:   # 縦に積むと薄すぎる → 段の中で横に並べる
+            rp = _slab_rows(doc, gw, gh, title_h, ratio, m, max_side(), beside=True)
         # 流し込みに落ちる並びは、今の組み方の字が読めない大きさなので無条件で置き換える
         if rp and (ratio is None or sb_flow or rp.scale >= scale):
             return Layout(rp.W, rp.H, rp.scale, rp.gx, rp.gy, gw, gh, title, rp.title_size, rp.title_h,
@@ -1077,8 +1203,17 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         # 使い切るので枠に余りが出ず、マスは回り込みと同じか大きくなる。
         # 回り込みのほうがマスを大きく取れるときだけ、そちらを残す
         sp = _slab_plan(doc, gw, gh, title_h, ratio, m, max_side())
-        if sp and (wp is None or sp.scale > wp.scale * SLAB_CELL_GAIN
-                   or (sp.scale >= wp.scale and sp.use >= SLAB_USE_MIN)):
+        # **横一列に近い並びは、曲名を 1 曲 1 行の縦一列で下に置く**（流し込みより読みやすく、
+        # 下の空きも埋まる）。マスが小さくならないときだけ
+        st = _slab_stack(doc, gw, gh, title_h, ratio, m, max_side())
+        if st and (sp is None or st.scale >= sp.scale):
+            sp = st
+        # **マスが小さくならないなら帯・柱を採る**。回り込みは塊を真ん中に置くので、
+        # 横長の並び（7x1 など）だと**マスが下端に行ってタイトルだけが上に残る**。
+        # 利用者の指摘「タイトルの下にマス画像があってほしい」に合わせて、辺に付ける側を優先する
+        # **わずかな差なら辺に付ける側を採る**。ほぼ同じ大きさなのに回り込みが選ばれると、
+        # 塊が真ん中に落ちてタイトルとのあいだに文字が挟まる（18x1 を 1:1 にしたときに起きた）
+        if sp and (wp is None or sp.scale >= wp.scale * SLAB_PREFER):
             wp = sp
         if wp and (wp.scale >= scale or font_s * scale < WRAP_SWITCH_PX
                    or (wp.font_s * wp.scale >= font_s * scale * WRAP_SWITCH_GAIN
