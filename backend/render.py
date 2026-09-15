@@ -279,6 +279,7 @@ class Layout:
     # 回り込み（マスの塊を中央に置き、まわりの余白に曲名を流し込む）
     wrap: bool = False
     wrap_pad: int = 0                                   # 四辺の余白
+    wrap_top: int = 0                                   # タイトルの帯の上端（余り分を上下に分けて下げる）
     wrap_segs: tuple[tuple[int, int, int], ...] = ()    # 行ごとの (x, y, 幅)。左段 → 右段の順
 
 
@@ -292,6 +293,11 @@ class FlowRow(NamedTuple):
 
 
 FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さくなるなら流し込みに切り替える
+# 行の中心からベースラインまでの下向きの量（字の大きさに対する比）。**実測せず固定比にする**。
+# PIL の字面（getbbox）と Canvas の actualBoundingBox は数 px 違い、実測で決めると
+# 小さい文字ほど食い違いが目立つ。IBM Plex Sans JP の「あ」で 10〜128px を測ると 0.375〜0.406、
+# 平均 0.38。両者で同じ式を使えば必ず同じ位置になる
+BASELINE = 0.38
 # 回り込み（正方形以下の比率で曲が多いとき）。マスの塊を中央に置き、左上から右下へ文字を流す。
 # 塊にぶつかる行は「左の段 → 塊の向こう側の右の段」と続ける
 WRAP_GAP_EM = 0.75        # マスの塊と文字（字面）のあいだ。文字の大きさに対する割合
@@ -312,9 +318,10 @@ WRAP_MAX_PCT = 400        # 枠をマスの塊の何 % まで広げてよいか
 WRAP_TARGET_PX = (FLOW_MIN_FONT, 18, 16, 14, 12)
 # 入る大きさが見つかったあと、**余っている余地で文字を大きくする**。大きくすると枠も少し
 # 大きく（＝マスが少し小さく）なるので、**マスが WRAP_CELL_KEEP を割らない範囲まで**にする
-WRAP_TARGET_UP = (22, 24, 26, 28, 32, 36, 40, 44, 48)
-WRAP_CELL_KEEP = 0.90
-WRAP_SWITCH_PX = 12       # 右に並べたとき、出力での文字がこれを下回るなら回り込みに切り替える
+WRAP_TARGET_UP = (22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72)
+WRAP_CELL_KEEP = 0.85
+WRAP_SWITCH_PX = 12       # 出力での文字がこれを下回るなら回り込みに切り替える
+WRAP_SWITCH_GAIN = 1.3    # 文字がこの倍率以上大きくなるなら、マスが少し小さくなっても切り替える
 WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
 WRAP_TITLE_MAX = 0.3      # ただしタイトルの高さは「塊を除いた高さ」のこの割合まで
 WRAP_TITLE_MIN = 1.6      # **タイトルは本文の最低これだけ倍**。上限に当たってこれを割るなら、
@@ -502,7 +509,7 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
 class WrapPlan(NamedTuple):
     W: int; H: int; scale: float; font_s: int; line_h: int
     title_size: int; title_h: int
-    pad: int; gx: int; gy: int
+    pad: int; top: int; gx: int; gy: int
     segs: tuple[tuple[int, int, int], ...]
     rows: list[FlowRow]
 
@@ -577,7 +584,15 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         rows = _flow_rows(doc, font_s, 0.0, [float(sg[2]) for sg in segs], len(segs) + 1)
         if len(rows) > len(segs):
             return None
-        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, gx, gy, tuple(segs), rows)
+        # **使わなかった行のぶんは、上下に半分ずつ分ける**。文字が下の帯の途中で終わると
+        # 下だけ大きく空いて「途中で終わった」ように見える。中身ごと下げれば上下が同じ余白になる
+        segs = segs[:len(rows)]
+        last = (segs[-1][1] + line_h - a) if segs else top
+        dy = max(0, (bot - max(gy + gh, last)) // 2)
+        if dy:
+            gy += dy
+            segs = [(sx, sy + dy, sw) for sx, sy, sw in segs]
+        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, pad + dy, gx, gy, tuple(segs), rows)
 
     # 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始める
     lo0 = max(100, math.ceil(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MAX))
@@ -728,15 +743,19 @@ def layout(doc: GridDoc) -> Layout:
     #     正方形（1:1）では今までより大きなマスで、しかも大きな文字になる
     #   - マスが小さくなっても、**今の組み方では文字がまったく読めない**とき
     #     （21x12 を 16:9 にすると右に幅が残らず、文字が出力 4px になっていた）
+    #   - **文字が段違いに大きくなる**とき（WRAP_SWITCH_GAIN 倍以上）。ただしマスの縮みは
+    #     WRAP_CELL_KEEP まで。32x1 を 1:1 にすると、従来 16px / 回り込み 64px だった
     # **無条件には切り替えない**。9:16 に正方形の並びを入れたときのように、
     # 塊を中央に置くと左右の帯のぶんマスが小さくなるだけ、という組み合わせがある
     if sb_flow and ratio is not None:
         from backend.config import max_side
         wp = _wrap_plan(doc, gw, gh, title_h, ratio, m, max_side())
-        if wp and (wp.scale >= scale or font_s * scale < WRAP_SWITCH_PX):
+        if wp and (wp.scale >= scale or font_s * scale < WRAP_SWITCH_PX
+                   or (wp.font_s * wp.scale >= font_s * scale * WRAP_SWITCH_GAIN
+                       and wp.scale >= scale * WRAP_CELL_KEEP)):
             return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
                           side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (),
-                          True, wp.pad, wp.segs)
+                          True, wp.pad, wp.top, wp.segs)
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
@@ -807,8 +826,12 @@ def render(doc: GridDoc) -> Image.Image:
     if L.wrap:
         # 回り込みでは ox / oy がマスの塊の左上そのもの。タイトルは枠の左上に置く
         if L.title:
-            d.text((sc(L.wrap_pad), sc(L.wrap_pad + L.title_h / 2)),
-                   _ellipsize(d, L.title, f_title, (L.W - L.wrap_pad * 2) * S), font=f_title, fill=ink, anchor="lm")
+            # **字面（インク）の中心を帯の中心に置く**。PIL の anchor="lm"（上下の伸びの中心）と
+            # Canvas の textBaseline="middle"（em ボックスの中心）は基準がずれていて、
+            # 回り込みではタイトルが大きいぶん出力で 15px ほど食い違った
+            t = _ellipsize(d, L.title, f_title, (L.W - L.wrap_pad * 2) * S)
+            d.text((sc(L.wrap_pad), sc(L.wrap_top + L.title_h / 2) + rnd(max(8, sc(L.title_size)) * BASELINE)),
+                   t, font=f_title, fill=ink, anchor="ls")
     elif L.title and L.side != "right":
         d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f_title, L.gw * S), font=f_title, fill=ink, anchor="lm")
         y0 += L.title_h
@@ -846,26 +869,34 @@ def render(doc: GridDoc) -> Image.Image:
     # 曲名（マスの塊のまわりに回り込ませる）
     if L.wrap:
         fs = max(8, sc(L.font_s))
-        f_flow = {"num": font("pixel", max(8, sc(L.font_s * 0.8))), "title": font("bold", fs), "artist": font("regular", fs)}
+        sizes = {"num": ("pixel", max(8, sc(L.font_s * 0.8))), "title": ("bold", fs), "artist": ("regular", fs)}
+        f_flow = {k: font(*v) for k, v in sizes.items()}
         colors = {"num": muted, "title": ink, "artist": muted}
         flow = _flow_rows(doc, L.font_s, 0.0, [float(sg[2]) for sg in L.wrap_segs])
-        sp = f_flow["title"].getlength("　")
+        # **送りは 1px に丸めて足す**。実寸のまま足すと PIL と Canvas の 1px 未満の差が
+        # 行の中で積み上がり、**文字が大きいほど大きくずれる**（32x1・1:1 で 11% の差になった）
+        sp = float(rnd(f_flow["title"].getlength("　")))
+        # **行の中身は 1 本のベースラインに乗せる**。anchor="lm"（PIL は上下の伸びの中心）と
+        # Canvas の textBaseline="middle"（em ボックスの中心）は基準が違い、**文字が大きいほど
+        # 食い違う**（32x1・1:1 の出力 64px で 10px ずれ、突き合わせで 11% の差になった）
+        base = rnd(fs * BASELINE)
         for row, fr in enumerate(flow):
             if row >= len(L.wrap_segs):
                 break
             sx0, sy0, sw = L.wrap_segs[row]
             x = sc(sx0)
-            yy = sc(sy0 + L.line_h / 2)
+            yy = sc(sy0 + L.line_h / 2) + base
             # 余った幅を曲の切れ目に配って段の右端をそろえる（配りすぎない規則は下の流し込みと同じ）
             extra = 0.0
             if fr.gaps and row < len(flow) - 1:
-                extra = min(max(0.0, sc(sw) - sc(fr.width)) / fr.gaps, sp)
+                # **上乗せも整数にする**。端数を持ったまま足すと、描く位置が両者で 1px ずれる
+                extra = float(rnd(min(max(0.0, sc(sw) - sc(fr.width)) / fr.gaps, sp)))
             for j, (kind, text) in enumerate(fr.parts):
                 if kind == "num" and j > 0:
                     x += sp + extra
                 f = f_flow[kind]
-                d.text((x, yy), text, font=f, fill=colors[kind], anchor="lm")
-                x += d.textlength(text, font=f)
+                d.text((x, yy), text, font=f, fill=colors[kind], anchor="ls")
+                x += rnd(d.textlength(text, font=f))
         _release_memory()
         return im
 
@@ -882,29 +913,32 @@ def render(doc: GridDoc) -> Image.Image:
         if L.sb_flow:
             # 曲名を続けて流し込む。行の中身は種類ごとに書体と色を変えて描く
             fs = max(8, sc(L.font_s))
-            f_flow = {"num": font("pixel", max(8, sc(L.font_s * 0.8))), "title": font("bold", fs), "artist": font("regular", fs)}
+            sizes = {"num": ("pixel", max(8, sc(L.font_s * 0.8))), "title": ("bold", fs), "artist": ("regular", fs)}
+            f_flow = {k: font(*v) for k, v in sizes.items()}
             colors = {"num": muted, "title": ink, "artist": muted}
             flow = _flow_rows(doc, L.font_s, col_w)
+            # 行の中身は 1 本のベースラインに乗せる（上の回り込みと同じ理由）
+            base = rnd(fs * BASELINE)
             for row, fr in enumerate(flow):
                 x = sc(sx)
-                yy = sc(sy + row * L.line_h + L.line_h / 2)
+                yy = sc(sy + row * L.line_h + L.line_h / 2) + base
                 # 余った幅を曲の切れ目に均等に配って右端をそろえる。最後の行は伸ばさない。
                 # ただし **配りすぎると切れ目が間延びする**ので、空白 1 つぶんまでしか広げない
                 # （切れ目は最大でも空白 2 つぶん）。余りきらないぶんは行末に残す
                 # 曲の切れ目は全角空白 1 つぶん。**これは必ず空ける**（描かずに幅だけ取ると、
                 # 余りの無い行で曲と曲がくっつく。「Chevon06」のように番号が前の曲名に貼り付く）。
                 # extra は右端をそろえるための上乗せで、空白 1 つぶんまで（切れ目は最大 2 つぶん）
-                sp = f_flow["title"].getlength("　")
+                sp = float(rnd(f_flow["title"].getlength("　")))
                 extra = 0.0
                 if fr.gaps and row < len(flow) - 1:
-                    extra = min(max(0.0, sc(col_w) - sc(fr.width)) / fr.gaps, sp)
+                    extra = float(rnd(min(max(0.0, sc(col_w) - sc(fr.width)) / fr.gaps, sp)))
                 for j, (kind, text) in enumerate(fr.parts):
                     # 番号の手前が曲の切れ目（行頭は除く）
                     if kind == "num" and j > 0:
                         x += sp + extra
                     f = f_flow[kind]
-                    d.text((x, yy), text, font=f, fill=colors[kind], anchor="lm")
-                    x += d.textlength(text, font=f)
+                    d.text((x, yy), text, font=f, fill=colors[kind], anchor="ls")
+                    x += rnd(d.textlength(text, font=f))
             _release_memory()
             return im
         plan = L.sb_plan or tuple(1 for _ in doc.cells)
