@@ -106,6 +106,19 @@ def _is_light(rgb: tuple[int, int, int]) -> bool:
 _font_cache: dict[tuple[str, int], ImageFont.FreeTypeFont] = {}
 
 
+_char_w_cache: dict[tuple[str, int, str], float] = {}
+
+
+def char_w(kind: str, size: int, ch: str) -> float:
+    """1 字の幅（1px に丸めたもの）。**流し込みは同じ字を何度も測る**ので控えておく
+    （21x12 のような大きな並びだと、割り付けを探すあいだに数十万回になる）。"""
+    key = (kind, size, ch)
+    w = _char_w_cache.get(key)
+    if w is None:
+        w = _char_w_cache[key] = float(rnd(font(kind, size).getlength(ch)))
+    return w
+
+
 def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
     """kind: 'bold' | 'regular' | 'pixel'（Silkscreen Bold）"""
     key = (kind, size)
@@ -285,7 +298,14 @@ WRAP_GAP_EM = 0.75        # マスの塊と文字（字面）のあいだ。文�
 WRAP_MIN_SEG = 8          # 段の最小幅（文字の大きさの何倍か）。これ未満の隙間には流さない
 WRAP_GRID_MAX = 0.72      # マスの塊は枠の短辺のこの割合まで。**これが無いと塊が大きくなりすぎる**
                           # （枠をいちばん小さくする探し方なので、左右が数文字ぶんの細い隙間になる）
+WRAP_GRID_MIN = 0.45      # 逆に、塊が枠のこの割合を下回るなら文字のほうを小さくする。
+                          # **文字を優先しすぎるとジャケットが豆粒になる**（21x12 を 16:9 で 30% だった）
 WRAP_MAX_PCT = 400        # 枠をマスの塊の何 % まで広げてよいか
+# 出力での文字の大きさ（px）。上から順に試し、**入る中でいちばん大きいもの**を使う。
+# 曲が多くて比率が横長（21x12 を 16:9 など）だと、20px ではどう組んでも入らない
+# （2400x1350 に 30px 行間で 45 行しか置けない）。そこだけ落とす
+WRAP_TARGET_PX = (FLOW_MIN_FONT, 18, 16, 14, 12)
+WRAP_SWITCH_PX = 12       # 右に並べたとき、出力での文字がこれを下回るなら回り込みに切り替える
 WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
 
 # 入る限り大きく。曲が少ないほど大きな字になる（流し込みに切り替わるのは曲が多いときだけ）
@@ -401,7 +421,8 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
     行には「使った幅」と「曲の切れ目の数」を添える。描画側が余った幅を切れ目に配って
     右端をそろえる。
     """
-    fonts = {"num": font("pixel", rnd(font_s * 0.8)), "title": font("bold", font_s), "artist": font("regular", font_s)}
+    sizes = {"num": ("pixel", rnd(font_s * 0.8)), "title": ("bold", font_s), "artist": ("regular", font_s)}
+    fonts = {k: font(*v) for k, v in sizes.items()}
     gap = float(rnd(fonts["title"].getlength("　")))   # 曲と曲のあいだは全角空白 1 つぶん
     rows: list[FlowRow] = []
     cur: list[tuple[str, str]] = []
@@ -431,7 +452,7 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             # **折り返しの判定は 1px に丸めた字幅で行う**。PIL と Canvas の字幅は 1px 未満だけ違い、
             # 生の値で足していくと境目の字で折る・折らないが入れ替わり、そこから先の行が全部ずれる。
             # 丸めればほとんどの字で同じ値になり、両者が同じ位置で折る（描くときは実寸のまま）
-            w = float(rnd(f.getlength(ch)))
+            w = char_w(*sizes[kind], ch)
             if x + w > cw() and cur:
                 flush()
             if cur and cur[-1][0] == kind:
@@ -489,10 +510,10 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
     pad0 = max(m, rnd(min(gw, title_h + gh) * 0.035))
     Wb, Hb = _fit(gw, title_h + gh, pad0, ratio)
 
-    def build(pct: int) -> WrapPlan | None:
+    def build(pct: int, target: int) -> WrapPlan | None:
         W, H = rnd(Wb * pct / 100), rnd(Hb * pct / 100)
         scale = min(1.0, max_side_v / max(W, H))
-        font_s = max(18, rnd(FLOW_MIN_FONT / scale))
+        font_s = max(18, rnd(target / scale))
         line_h = rnd(font_s * 1.5)
         pad = max(m, rnd(min(W, H) * 0.035))
         gx = rnd((W - gw) / 2)
@@ -536,16 +557,21 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, gx, gy, tuple(segs), rows)
 
     # 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始める
-    lo = max(100, math.ceil(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MAX))
-    lo, hi, best = lo, WRAP_MAX_PCT, None
-    while lo <= hi:                     # 入る中でいちばん小さい枠（＝いちばん大きいマス）を探す
-        mid = (lo + hi) // 2
-        got = build(mid)
-        if got:
-            best, hi = got, mid - 1
-        else:
-            lo = mid + 1
-    return best
+    lo0 = max(100, math.ceil(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MAX))
+    # 塊が WRAP_GRID_MIN を下回るほど枠を広げない。ここに当たったら次（小さい）文字で探し直す
+    hi0 = min(WRAP_MAX_PCT, int(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MIN))
+    for target in WRAP_TARGET_PX:
+        lo, hi, best = lo0, hi0, None
+        while lo <= hi:                 # 入る中でいちばん小さい枠（＝いちばん大きいマス）を探す
+            mid = (lo + hi) // 2
+            got = build(mid, target)
+            if got:
+                best, hi = got, mid - 1
+            else:
+                lo = mid + 1
+        if best:
+            return best
+    return None
 
 
 def layout(doc: GridDoc) -> Layout:
@@ -642,15 +668,6 @@ def layout(doc: GridDoc) -> Layout:
             W, H, scale = _frame(sb_w, sb_h)
     # 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     sb_flow = side != "none" and font_s * scale < FLOW_MIN_FONT
-    if sb_flow and side == "bottom" and ratio is not None:
-        # **正方形以下の比率では、曲名をマスの塊のまわりに回り込ませる**（下に並べない）。
-        # 内容が縦長なので比率合わせで左右に余白が残り、そのぶんマスが小さくなっていた
-        from backend.config import max_side
-        wp = _wrap_plan(doc, gw, gh, title_h, ratio, m, max_side())
-        if wp:
-            return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
-                          side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (),
-                          True, wp.pad, wp.segs)
     if sb_flow:
         if side == "right" and ratio is not None:
             # 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す
@@ -667,6 +684,20 @@ def layout(doc: GridDoc) -> Layout:
         if side == "bottom":
             sb_h = len(rows) * line_h
         W, H, scale = _frame(sb_w, sb_h)
+    # **曲名をマスの塊のまわりに回り込ませる**（`_wrap_plan`）。切り替える条件は 2 つ:
+    #   - **マスが小さくならない**とき … 比率合わせで余っていた余白を曲名に使うので、
+    #     正方形（1:1）では今までより大きなマスで、しかも大きな文字になる
+    #   - マスが小さくなっても、**今の組み方では文字がまったく読めない**とき
+    #     （21x12 を 16:9 にすると右に幅が残らず、文字が出力 4px になっていた）
+    # **無条件には切り替えない**。9:16 に正方形の並びを入れたときのように、
+    # 塊を中央に置くと左右の帯のぶんマスが小さくなるだけ、という組み合わせがある
+    if sb_flow and ratio is not None:
+        from backend.config import max_side
+        wp = _wrap_plan(doc, gw, gh, title_h, ratio, m, max_side())
+        if wp and (wp.scale >= scale or font_s * scale < WRAP_SWITCH_PX):
+            return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
+                          side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (),
+                          True, wp.pad, wp.segs)
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     return Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
