@@ -281,6 +281,8 @@ class Layout:
     wrap_pad: int = 0                                   # 四辺の余白
     wrap_top: int = 0                                   # タイトルの帯の上端（余り分を上下に分けて下げる）
     wrap_segs: tuple[tuple[int, int, int], ...] = ()    # 行ごとの (x, y, 幅)。左段 → 右段の順
+    wrap_tx: int = 0                                    # タイトルの左端（0 は wrap_pad と同じ）
+    wrap_tw: int = 0                                    # タイトルに使える幅（0 は余白を除いた幅いっぱい）
 
 
 # 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
@@ -532,6 +534,135 @@ class WrapPlan(NamedTuple):
     pad: int; top: int; gx: int; gy: int
     segs: tuple[tuple[int, int, int], ...]
     rows: list[FlowRow]
+    # タイトルの置き場所（左端と使える幅）。0 は「枠の左端・余白を除いた幅いっぱい」の意味。
+    # 柱（塊を左端に立てる組み方）ではタイトルも右の段に入れるので、ここで動かす
+    tx: int = 0
+    tw: int = 0
+    use: float = 1.0   # 文字の置き場所のうち実際に使った割合（帯・柱でだけ 1 未満になる）
+
+
+# ---- 帯・柱: マスの塊を枠の辺にぴったり付ける組み方 ----
+# 塊の縦横比と枠の縦横比が極端に食い違うとき（1 列の並びを正方形に、32 列の並びを 9:16 に、など）、
+# 塊を真ん中に置く回り込みでは四辺に細い余白が残り、そのぶんマスが小さくなる。
+# **塊を辺にぴったり付け、残りを 1 つの大きな長方形として文字に使う**と、マスも文字も大きくできる。
+#   柱（column）… 塊を左端に立て、上下も枠いっぱいに伸ばす。右の 1 本の段にタイトルと曲名リスト
+#   帯（band）  … タイトルを上端に、その下に枠の横いっぱいの塊、さらにその下に曲名リスト
+# **塊が片方の辺を使い切るので枠の大きさは一意に決まる**（回り込みのような二分探索が要らない）。
+# 決めるのは文字の大きさだけ
+SLAB_ASPECT = 4.0       # 塊と枠の縦横比がこの倍率以上ずれているときだけ使う
+SLAB_MIN_FONT = 14      # 出力での曲名がこれを下回るなら使わない
+SLAB_TITLE_SCALE = 2.4  # タイトルは本文の何倍か
+SLAB_TITLE_MIN = 1.3    # 本文に対する下限。これを割るなら使わない
+SLAB_TITLE_MAX = 0.28   # タイトルの帯は「文字の場所」の高さのこの割合まで
+# 出力での曲名の大きさ。大きいほうから試して、**入る中でいちばん大きいもの**を採る
+SLAB_TARGET_PX = (96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14)
+# **文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る**。
+# 曲が少ないうえに塊が細長いと（11x1 を 9:16 など）、比率で決まる縦長の枠に対して
+# 曲名リストが短く、下に大きな空白が残る。回り込みなら塊のまわりに散らせて埋まる
+SLAB_USE_MIN = 0.7
+# マスが**はっきり**大きくなるとき（この倍率以上）は、置き場所が余っていても辺に付けるほうを採る。
+# 1% ほどの差で選んでしまうと、見た目は同じ大きさなのに空白だけ増える
+SLAB_CELL_GAIN = 1.02
+
+
+def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool) -> tuple[int, int, int]:
+    """塊が使い切る辺の長さ `fixed` から枠と余白を出す。
+
+    余白は「枠の短いほうの辺の 3.5%」（`_frame` と同じ規則）なので、枠と余白が互いを参照する。
+    余白 0 から始めて 3 回回せば十分収束する。
+    `vertical` は塊が縦（高さを使い切る）か横（幅を使い切る）か。
+    """
+    pad = m
+    for _ in range(3):
+        if vertical:
+            H = fixed + pad * 2
+            W = rnd(H * ratio)
+        else:
+            W = fixed + pad * 2
+            H = rnd(W / ratio)
+        pad = max(m, rnd(min(W, H) * 0.035))
+    if vertical:
+        H = fixed + pad * 2
+        W = rnd(H * ratio)
+    else:
+        W = fixed + pad * 2
+        H = rnd(W / ratio)
+    return W, H, pad
+
+
+def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
+               max_side_v: int) -> WrapPlan | None:
+    """塊を枠の辺にぴったり付ける割り付け（柱・帯）。合わなければ None。"""
+    ga = gw / gh                       # 塊の縦横比
+    if ratio / ga >= SLAB_ASPECT:      # 枠のほうがずっと横長 → 塊を縦に立てる（柱）
+        vertical = True
+        W, H, pad = _slab_frame(gh, ratio, m, True)
+    elif ga / ratio >= SLAB_ASPECT:    # 塊のほうがずっと横長 → 塊を横いっぱいに敷く（帯）
+        vertical = False
+        W, H, pad = _slab_frame(gw, ratio, m, False)
+    else:
+        return None
+    if W <= 0 or H <= 0:
+        return None
+    scale = min(1.0, max_side_v / max(W, H))
+
+    def build(target: int) -> WrapPlan | None:
+        font_s = max(18, rnd(target / scale))
+        line_h = rnd(font_s * 1.5)
+        wgap = rnd(font_s * WRAP_GAP_EM)
+        a = rnd((line_h - rnd(font_s * 0.9)) / 2)       # 行の箱と字面のすきま（上下）
+        if vertical:
+            gx, gy = pad, pad
+            tx, ty = gx + gw + wgap, pad
+            tw, th = W - pad - tx, H - pad * 2
+        else:
+            gx, th = pad, 0
+            tx, tw = pad, W - pad * 2
+        # タイトルの帯。**本文から決める**（マスの数から決めると枠に対して極端に小さくなる）
+        box_h = th if vertical else (H - pad * 2 - gh - wgap)
+        t_h = min(rnd(font_s * SLAB_TITLE_SCALE * 1.9), rnd(box_h * SLAB_TITLE_MAX)) if title_h else 0
+        t_size = rnd(t_h / 1.9) if title_h else 0
+        if title_h and t_size < font_s * SLAB_TITLE_MIN:
+            return None
+        if not vertical:
+            # 帯: タイトル → 塊 → 曲名リスト。**タイトルは上端にぴったり**
+            gy = pad + t_h + (wgap if t_h else 0)
+            ty = pad
+            y0, y1 = gy + gh + wgap, H - pad
+        else:
+            # 柱: 塊は左端に立てて上下も枠いっぱい。右の段にタイトル → 曲名リスト
+            y0, y1 = pad + t_h + (wgap if t_h else 0), H - pad
+        if tw < font_s * WRAP_MIN_SEG or y1 - y0 < line_h:
+            return None
+        segs: list[tuple[int, int, int]] = []
+        y = y0
+        while y + line_h - a <= y1:
+            segs.append((tx, y, tw))
+            y += line_h
+        if not segs:
+            return None
+        n_seg = len(segs)
+        rows = _flow_rows(doc, font_s, 0.0, [float(sg[2]) for sg in segs], n_seg + 1)
+        if len(rows) > n_seg:
+            return None
+        segs = segs[:len(rows)]
+        # **使わなかった行のぶんは上下に半分ずつ分ける**（文字が途中で終わって下だけ空くのを防ぐ）。
+        # ただし塊は辺に付けたままなので動かさない
+        last = segs[-1][1] + line_h - a
+        dy = max(0, (y1 - last) // 2)
+        if dy:
+            segs = [(sx, sy + dy, sw) for sx, sy, sw in segs]
+        top = ty + (dy if vertical else 0)
+        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, top, gx, gy,
+                        tuple(segs), rows, tx, tw, len(rows) / n_seg)
+
+    for target in SLAB_TARGET_PX:
+        if target < SLAB_MIN_FONT:
+            break
+        got = build(target)
+        if got:
+            return got
+    return None
 
 
 def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
@@ -804,12 +935,19 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     if sb_flow and ratio is not None:
         from backend.config import max_side
         wp = _wrap_plan(doc, gw, gh, title_h, ratio, m, max_side())
+        # **辺にぴったり付く組み方（柱・帯）があればそちらを優先する**。塊が片方の辺を
+        # 使い切るので枠に余りが出ず、マスは回り込みと同じか大きくなる。
+        # 回り込みのほうがマスを大きく取れるときだけ、そちらを残す
+        sp = _slab_plan(doc, gw, gh, title_h, ratio, m, max_side())
+        if sp and (wp is None or sp.scale > wp.scale * SLAB_CELL_GAIN
+                   or (sp.scale >= wp.scale and sp.use >= SLAB_USE_MIN)):
+            wp = sp
         if wp and (wp.scale >= scale or font_s * scale < WRAP_SWITCH_PX
                    or (wp.font_s * wp.scale >= font_s * scale * WRAP_SWITCH_GAIN
                        and wp.scale >= scale * WRAP_CELL_KEEP)):
             return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
                           side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (),
-                          True, wp.pad, wp.top, wp.segs)
+                          True, wp.pad, wp.top, wp.segs, wp.tx, wp.tw)
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
@@ -893,8 +1031,10 @@ def render(doc: GridDoc) -> Image.Image:
             # **字面（インク）の中心を帯の中心に置く**。PIL の anchor="lm"（上下の伸びの中心）と
             # Canvas の textBaseline="middle"（em ボックスの中心）は基準がずれていて、
             # 回り込みではタイトルが大きいぶん出力で 15px ほど食い違った
-            t = _ellipsize(d, L.title, f_title, (L.W - L.wrap_pad * 2) * S)
-            d.text((sc(L.wrap_pad), sc(L.wrap_top + L.title_h / 2) + rnd(max(8, sc(L.title_size)) * BASELINE)),
+            tx = L.wrap_tx or L.wrap_pad
+            tw = L.wrap_tw or (L.W - L.wrap_pad * 2)
+            t = _ellipsize(d, L.title, f_title, tw * S)
+            d.text((sc(tx), sc(L.wrap_top + L.title_h / 2) + rnd(max(8, sc(L.title_size)) * BASELINE)),
                    t, font=f_title, fill=ink, anchor="ls")
     elif L.title and L.side != "right":
         d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f_title, L.gw * S), font=f_title, fill=ink, anchor="lm")
