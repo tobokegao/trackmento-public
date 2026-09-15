@@ -666,13 +666,11 @@ body.sheet-open { overflow: hidden; }
 /* 指で触る画面のスクロールバー（自前）。**スマホのブラウザはスクロールバーを「触れる部品」として
    扱わない**（指の入力はつまみの上にあっても中身のスクロールに回る）ので、ブラウザ任せだと掴めない。
    溝の位置に自分の要素を重ね、指の操作を自分で受ける。見た目は ::-webkit-scrollbar と同じ規則 */
-.tsb-wrap { position: relative; }
 .tsb { display: none; }
 @media (pointer: coarse) {
   .tsb-host { padding-right: 24px; }                       /* 自前のバーのぶんを空ける */
   .tsb-host::-webkit-scrollbar { width: 0; height: 0; }    /* ブラウザのものは出さない（二重になる） */
-  .tsb { display: block; position: absolute; top: var(--line); right: var(--line); width: 24px;
-    height: calc(100% - var(--line) * 2); background: var(--color-paper-3);
+  .tsb { display: block; position: absolute; width: 24px; background: var(--color-paper-3);
     box-shadow: inset 1px 0 0 var(--color-bar-dark), inset -1px 0 0 var(--color-bar-dark); touch-action: none; }
   .tsb[hidden] { display: none; }
   .tsb-thumb { position: absolute; left: 0; width: 100%; min-height: 44px; box-sizing: border-box;
@@ -2418,28 +2416,34 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* 指で触る画面だけ、自前のスクロールバーを付ける。
      **スマホのブラウザはスクロールバーを触れる部品として扱わない**ため、ブラウザ任せでは掴めない */
   function attachTouchScrollbar(el) {
-    if (!el || el.dataset.tsb) return;
+    if (!el || el.dataset.tsb) return null;
     el.dataset.tsb = "1";
-    const wrap = document.createElement("div"); wrap.className = "tsb-wrap";
-    el.parentNode.insertBefore(wrap, el); wrap.append(el);
+    // **包まない**。スクロールする要素を div で包むと、親の flex / grid の組み方が変わって
+    // 高さが決まらなくなり、スクロールそのものが効かなくなる（検索シートで実際に起きた）。
+    // バーは「今ある親」に置き、位置と高さはその都度 getBoundingClientRect で合わせる
+    const parent = el.parentNode;
+    if (getComputedStyle(parent).position === "static") parent.style.position = "relative";
     el.classList.add("tsb-host");
     const bar = document.createElement("div"); bar.className = "tsb";
     const thumb = document.createElement("div"); thumb.className = "tsb-thumb";
-    bar.append(thumb); wrap.append(bar);
+    bar.append(thumb); parent.append(bar);
 
     const layout = () => {
       const h = el.clientHeight, sh = el.scrollHeight;
-      if (sh <= h + 1) { bar.hidden = true; return; }
+      const pr = parent.getBoundingClientRect(), r = el.getBoundingClientRect();
+      if (sh <= h + 1 || r.height < 40) { bar.hidden = true; return; }
       bar.hidden = false;
+      bar.style.top = (r.top - pr.top + 1) + "px";
+      bar.style.left = (r.right - pr.left - 25) + "px";
+      bar.style.height = (r.height - 2) + "px";
       const trackH = bar.clientHeight;
       const th = Math.max(44, Math.round(trackH * h / sh));
       const max = sh - h;
-      const top = max > 0 ? Math.round((trackH - th) * el.scrollTop / max) : 0;
       thumb.style.height = th + "px";
-      thumb.style.top = top + "px";
+      thumb.style.top = (max > 0 ? Math.round((trackH - th) * el.scrollTop / max) : 0) + "px";
     };
     el.addEventListener("scroll", layout, { passive: true });
-    if (window.ResizeObserver) new ResizeObserver(layout).observe(el);
+    if (window.ResizeObserver) { const ro = new ResizeObserver(layout); ro.observe(el); ro.observe(parent); }
     layout();
 
     // つまみを掴んで動かす。指が離れるまで pointer を捕まえておく
