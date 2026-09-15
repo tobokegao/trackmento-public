@@ -402,6 +402,9 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .input:hover { box-shadow: inset 2px 2px 0 var(--color-rule-2); }
 .input:focus-visible { outline-offset: 0; box-shadow: inset 2px 2px 0 var(--color-paper-3); }
 .input[aria-invalid="true"] { border-color: var(--color-error); box-shadow: inset 2px 2px 0 var(--color-error); }
+/* 誤りのある欄に焦点が当たっているときは、**囲みの色も赤にそろえる**。
+   青（焦点）と赤（誤り）が二重の枠に見えて、どちらの状態なのか読み取りにくかった */
+.input[aria-invalid="true"]:focus-visible { outline-color: var(--color-error); }
 .input:disabled { opacity: .5; cursor: not-allowed; }
 
 .btn {
