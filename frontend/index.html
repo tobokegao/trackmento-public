@@ -2416,9 +2416,27 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const cx = r.left + THUMB / 2 + t * (r.width - THUMB);
       return Math.abs(clientX - cx) > THUMB / 2 + 8;   // 指は太いので少し広めに見る
     };
+    // **つまみの上を押しただけでも値はその位置へ飛ぶ**（つまみの幅のぶんずれる）。
+    // 連打するとそのたびに少しずつ動いてしまうので、**動かさずに離したら値を戻す**
+    let held = null, heldX = 0, moved = false;
+    const release = () => {
+      if (held !== null && !moved && el.value !== held) {
+        el.value = held;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      held = null;
+    };
     el.addEventListener("pointerdown", (e) => {
-      if (offThumb(e.clientX)) { e.preventDefault(); e.stopPropagation(); }
+      if (offThumb(e.clientX)) { e.preventDefault(); e.stopPropagation(); return; }
+      held = el.value; heldX = e.clientX; moved = false;
     });
+    el.addEventListener("pointermove", (e) => {
+      if (held !== null && Math.abs(e.clientX - heldX) > 3) moved = true;
+    });
+    el.addEventListener("pointerup", release);
+    el.addEventListener("pointercancel", release);
+    el.addEventListener("lostpointercapture", release);
     // **指の操作は touchstart でも止める**。Android では pointerdown を止めても
     // タッチの既定の動き（押した位置へ値が飛ぶ）が残る
     el.addEventListener("touchstart", (e) => {
