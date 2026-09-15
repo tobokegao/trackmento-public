@@ -3065,7 +3065,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const W = Math.round(Wb * pct / 100), H = Math.round(Hb * pct / 100);
       const scale = Math.min(1, maxSide / Math.max(W, H));
       const fontS = Math.max(18, Math.round(target / scale));
-      const lineH = Math.round(fontS * 1.5);
+      // **マスの送りの約数に寄せる**（塊の左右に流れる行がジャケットの段とそろう）。
+      // ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
+      const lineH = snapLead(Math.round(fontS * 1.5), CELL_PX + state.gap);
       const pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
       // **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む。下を参照）
       let gx = Math.round((W - gw) / 2);
@@ -3164,6 +3166,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return [title.slice(0, m.index).replace(/\s+$/, ""), title.slice(m.index).trim()];
   }
   // 曲名リストの作り（backend/render.py と同じ値）。曲名とアーティスト名は上下 2 行に分ける
+  // 行の高さをマスの段の送りの約数に寄せる（backend/render.py の SNAP_LEAD_TOL / _snap_lead）。
+  // 曲名の行とジャケットの上下の端がそろう。近くに候補が無ければ動かさない
+  const SNAP_LEAD_TOL = 0.15;
+  function snapLead(lh, pitch, maxLh = 0) {
+    if (lh <= 0 || pitch <= 0) return lh;
+    const lo = lh * (1 - SNAP_LEAD_TOL), hi = lh * (1 + SNAP_LEAD_TOL);
+    let best = 0;
+    for (let k = 1; k <= pitch; k++) {
+      if (pitch % k) continue;
+      const d = pitch / k;
+      if (d < lo) break;
+      if (d <= hi && (maxLh <= 0 || d <= maxLh)) best = Math.max(best, d);
+    }
+    return best || lh;
+  }
   const LIST_MIN_COL = 640, LIST_COMFY_FONT = 26, LIST_MAX_COLS = 3, ARTIST_SCALE = 0.78;
   // 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
   const LIST_COL_GAP = GAP_PX * 5;
@@ -3264,7 +3281,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const g = state.gap;
     const gw = cols * CELL_PX + (cols - 1) * g, gh = rows * CELL_PX + (rows - 1) * g;
     const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
-    const titleH = title ? Math.round(titleSize * 1.9) : 0;
+    let titleH = title ? Math.round(titleSize * 1.9) : 0;   // 右に置くときは、下で行の整数倍に直す
     const ratio = RATIOS[state.ratio];
     // サイドバー: 横長なら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
     // **比率なしのときは「マスの塊が縦長なら右・横長なら下」**（backend/render.py と同じ）。
@@ -3278,6 +3295,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 1 曲は「曲名の行 + アーティストの行」の 2 行。まずその前提で行の高さを見積もる
     const baseRows = state.cells.reduce((a, t) => a + (t && oneLine(t.artist) ? 2 : 1), 0);
     const availH = gh - titleH;
+    const pitch = CELL_PX + state.gap;   // マスの段 1 つぶんの送り（行をこれの約数にそろえる）
     let sbW = 0, sbH = 0, sbCols = 1;
     // **マスの塊と曲名リストのすきま**。定数だと枠が大きいときに出力で 3px にしかならない。
     // 内容の高さに比例させる（backend/render.py と同じ）
@@ -3291,9 +3309,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     /* 列数を決めたときの [行の高さ, 文字の大きさ, サイドバーの幅] */
     const sidebar = (cols, rowsTotal) => {
-      const lh = side === "right"
-        ? Math.max(30, Math.min(96, Math.floor(availH / Math.max(1, Math.ceil(rowsTotal / cols)))))
-        : Math.round(Math.max(52, Math.min(108, gw * 0.05)));
+      let lh;
+      if (side === "right") {
+        // **頭打ちを当ててからマスの送りの約数に寄せる**（下へだけ動かす）
+        const rows = Math.max(1, Math.ceil(rowsTotal / cols));
+        lh = Math.max(30, Math.min(96, Math.floor(availH / rows)));
+        lh = Math.max(30, snapLead(lh, pitch, lh));
+      } else {
+        lh = Math.round(Math.max(52, Math.min(108, gw * 0.05)));
+      }
       const fs = Math.round(lh * 0.56);
       if (side !== "right") return [lh, fs, gw];
       // **幅は文字を測って決めない**（PIL と Canvas の数 px の差が、中央寄せのグリッドのずれになる）。
@@ -3349,13 +3373,24 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       sbPlan = rowPlan(fontS, colW0);
       const rowsPerCol = planRows(sbPlan, sbCols);
       if (sbPlan.reduce((a, b) => a + b, 0) > baseRows) {
-        if (side === "right") { lineH = Math.max(30, Math.min(96, Math.floor(availH / Math.max(1, rowsPerCol)))); fontS = Math.round(lineH * 0.56); }
+        if (side === "right") {
+          lineH = Math.max(30, Math.min(96, Math.floor(availH / Math.max(1, rowsPerCol))));
+          lineH = Math.max(30, snapLead(lineH, pitch, lineH));
+          fontS = Math.round(lineH * 0.56);
+        }
         else sbH = rowsPerCol * lineH;
         [W, H, scale] = frame(sbW, sbH);
       } else if (side === "bottom") {
         sbH = rowsPerCol * lineH;
         [W, H, scale] = frame(sbW, sbH);
       }
+    }
+    if (side === "right" && titleH && lineH > 0) {
+      // **曲名リストの先頭も段の境目に乗せる**（タイトルの帯を行の整数倍にする）。
+      // 収まらないなら動かさない
+      const rowsNow = sbPlan.length ? planRows(sbPlan, sbCols) : baseRows;
+      const up = Math.ceil(titleH / lineH) * lineH;
+      if (up + rowsNow * lineH <= gh) titleH = up;
     }
     // 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     const sbFlow = side !== "none" && fontS * scale < FLOW_MIN_FONT;
@@ -3374,7 +3409,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         // （論理 px の決め打ちだと、枠が大きいときに出力で 9px にしかならない）
         [W, H, scale] = frame(sbW, sbH);
         for (const px of FLOW_TARGET_PX) {
-          fontS = Math.max(18, Math.round(px / scale)); lineH = Math.round(fontS * 1.5);
+          fontS = Math.max(18, Math.round(px / scale));
+          // **マスの送りの約数に寄せる**（グリッドの横に流れる行が段とそろう）
+          lineH = snapLead(Math.round(fontS * 1.5), pitch);
           rows = flowRows(fontS, sbW);
           if (rows.length * lineH <= avail) break;
         }

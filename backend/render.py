@@ -371,6 +371,35 @@ def _split_feat(title: str) -> tuple[str, str]:
 # 曲名リスト（1 曲 1 行ではないほう）の作り。**曲名とアーティスト名を上下 2 行に分ける**。
 # 横に並べると長い曲名でアーティストが押し出されるが、行を分ければ必ず読める。
 # 曲が増えたら列を増やして、1 列あたりの行数を減らす（行間と文字を大きく保つため）
+# **行の高さはマスの段の送りの約数に寄せる**（Vignelli Canon「type と illustration が
+# 同じ格子に乗るよう、モジュールに合う行送りを決める」）。曲名の行とジャケットの上下の端が
+# そろい、絵が引き締まる。**寄せられる値が近くに無ければ動かさない**（無理に寄せると
+# 文字が小さくなるだけで損）。実測（3x3 16:9）では行 93 → 88px（マスの送り 616 の 7 分の 1）
+SNAP_LEAD_TOL = 0.15
+
+
+def _snap_lead(lh: int, pitch: int, max_lh: int = 0) -> int:
+    """`lh` を `pitch` の約数に寄せる。`max_lh` を超える値は選ばない（0 なら上にも寄せる）。
+
+    候補が `SNAP_LEAD_TOL`（15%）の範囲に無ければ `lh` をそのまま返す。
+    **大きいほうから選ぶ**（同じそろい方なら文字は大きいほうがよい）。
+    """
+    if lh <= 0 or pitch <= 0:
+        return lh
+    lo, hi = lh * (1 - SNAP_LEAD_TOL), lh * (1 + SNAP_LEAD_TOL)
+    best = 0
+    k = 1
+    while k <= pitch:
+        if pitch % k == 0:
+            d = pitch // k
+            if d < lo:
+                break
+            if d <= hi and (max_lh <= 0 or d <= max_lh):
+                best = max(best, d)
+        k += 1
+    return best or lh
+
+
 LIST_MIN_COL = 640        # 1 列の最小幅（論理 px）。これを割るなら列を増やさない
 LIST_COMFY_FONT = 26      # 出力での曲名の大きさ（px）。これ未満なら列を増やす（下限は FLOW_MIN_FONT）
 LIST_MAX_COLS = 3
@@ -931,7 +960,9 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         W, H = rnd(Wb * pct / 100), rnd(Hb * pct / 100)
         scale = min(1.0, max_side_v / max(W, H))
         font_s = max(18, rnd(target / scale))
-        line_h = rnd(font_s * 1.5)
+        # **マスの送りの約数に寄せる**（塊の左右に流れる行が、ジャケットの段とそろう）。
+        # ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
+        line_h = _snap_lead(rnd(font_s * 1.5), CELL_PX + doc.options.gap)
         pad = max(m, rnd(min(W, H) * 0.035))
         # **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む）。
         # 中央に置くと左右が両方とも「文字を流すには狭い」幅になり、両方とも使えず捨てになる。
@@ -1078,10 +1109,17 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         w_est = rnd((title_top_h + gh + m * 2) * ratio)
         cap = max(LIST_MIN_COL, min(gw * 2, w_est - m * 2 - gw - sb_gap))
 
+    pitch = CELL_PX + doc.options.gap      # マスの段 1 つぶんの送り（行をこれの約数にそろえる）
+
     def _sidebar(cols: int, rows_total: int) -> tuple[int, int, int]:
         """列数を決めたときの (行の高さ, 文字の大きさ, サイドバーの幅)。"""
         if side == "right":
-            lh = max(30, min(96, avail_h // max(1, math.ceil(rows_total / cols))))
+            rows = max(1, math.ceil(rows_total / cols))
+            # **マスの送りの約数に寄せる**（曲名の行とジャケットの段がそろう）。
+            # **頭打ちを当ててから寄せる**（先に寄せると 96 で切られて寄せた意味が消える）。
+            # 下へだけ動かす（上げると高さに入らないか、96 を超える）
+            lh = max(30, min(96, avail_h // rows))
+            lh = max(30, _snap_lead(lh, pitch, max_lh=lh))
         else:
             lh = rnd(max(52, min(108, gw * 0.05)))
         fs = rnd(lh * 0.56)
@@ -1148,7 +1186,9 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         rows_per_col = _plan_rows(sb_plan, sb_cols)
         if sum(sb_plan) > base_rows:
             if side == "right":
-                line_h = max(30, min(96, avail_h // max(1, rows_per_col)))
+                rows_now = max(1, rows_per_col)
+                line_h = max(30, min(96, avail_h // rows_now))
+                line_h = max(30, _snap_lead(line_h, pitch, max_lh=line_h))
                 font_s = rnd(line_h * 0.56)
             else:
                 sb_h = rows_per_col * line_h
@@ -1156,6 +1196,14 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         elif side == "bottom":
             sb_h = rows_per_col * line_h
             W, H, scale = _frame(sb_w, sb_h)
+    if side == "right" and title_h and line_h > 0:
+        # **曲名リストの先頭も段の境目に乗せる**。リストはタイトルの帯のぶん下から始まるので、
+        # 帯が行の整数倍でないと、行がそろっていても全体が半端にずれる。
+        # 収まらないなら動かさない（はみ出すくらいならそろえないほうがよい）
+        rows_now = _plan_rows(sb_plan, sb_cols) if sb_plan else base_rows
+        up = math.ceil(title_h / line_h) * line_h
+        if up + rows_now * line_h <= gh:
+            title_h = up
     # 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     sb_flow = side != "none" and font_s * scale < FLOW_MIN_FONT
     if sb_flow:
@@ -1174,7 +1222,8 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
             W, H, scale = _frame(sb_w, sb_h)
             for px in FLOW_TARGET_PX:
                 fs = max(18, rnd(px / scale))
-                lh = rnd(fs * 1.5)
+                # **マスの送りの約数に寄せる**（グリッドの横に流れる行が段とそろう）
+                lh = _snap_lead(rnd(fs * 1.5), pitch)
                 rows = _flow_rows(doc, fs, sb_w)
                 if len(rows) * lh <= avail:
                     break
