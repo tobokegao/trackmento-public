@@ -1,12 +1,17 @@
 # Render (https://render.com) の Blueprint。ダッシュボードで "New → Blueprint" からこのリポジトリを選ぶと作成される。
 # Render 単体で公開する構成（フロントもこのサービスが / で配信する）。
-# 無料プランはアクセスが無いとスリープし、次のアクセスで 30〜60 秒かかる。ディスクは再デプロイで消える
-# （検索キャッシュ・アップロード画像は消えてよい前提。共有 PNG は Cloudflare R2 に置く）。
+# ディスクは再デプロイで消える（検索キャッシュ・アップロード画像は消えてよい前提。共有 PNG は Cloudflare R2 に置く）。
+#
+# **plan はここの値がそのまま本番に適用される**。このファイルを 1 文字でも変えて push すると
+# Blueprint がサービス定義を作り直し、ダッシュボードで上げたインスタンスも巻き戻す。
+# 2026-09-15 に、ここが `free` のままだったせいで Standard（1c-2g）から Free へ落ちた
+# （Free はアクセスが無いとスリープし、次のアクセスで 30〜60 秒かかる。メモリも 512MB）。
+# **インスタンスを変えたら、ダッシュボードだけでなくここも直す**
 services:
   - type: web
     name: trackmento
     runtime: docker
-    plan: free
+    plan: standard   # 1c-2g。落とすときはダッシュボードとここの両方を直す
     healthCheckPath: /health
     envVars:
       - key: PUBLIC_MODE
