@@ -548,6 +548,18 @@ claude --remote-control TRACKMENTO                                             #
 
 ## 調べ直さないための覚え書き（一度引っかかったもの）
 
+- **`render.yaml` を変えると、本番のインスタンスと環境変数がリポジトリの値に巻き戻る**。
+  Blueprint（Blueprints → TRACKMENTO が `Synced`）は、**このファイルが変わったときに
+  サービス定義を丸ごと適用し直す**。ふだんは触らないので気付かないが、一度でも変更すると
+  ダッシュボードで後から直した値が消える。2026-09-15 に実際に 2 つ起きた:
+  - `plan: free` のままだったため、**インスタンスが Standard（1c-2g）から Free へ落ちた**（9 分間）。
+    イベントに「Compute plan changed from 1c-2g to Free」と出る
+  - `SHARE_LIMIT_PER_DAY: 200` のままだったため、**本日の共有 3,788 件の時点で上限に当たり
+    共有が全部 429 になった**（ダッシュボードでは 0＝無制限にしてあった）
+  - **ダッシュボードで値を変えたら、必ず `render.yaml` にも同じ値を書く**。逆に言えば、
+    設定は `render.yaml` を直すのが正しいやり方。`sync: false` の鍵だけがダッシュボード専用
+  - 過去に何が設定されていたかは**ログから逆算できる**。起動時の
+    `[share] 本日の共有数を復元: N 件（上限 …）` や `[public] … RATE_LIMIT=…/min` に出ている
 - **Render の「プラン」は 2 つある**。課金アカウントの種別（Billing の Current Plan。Pro など）と、サービスのインスタンスタイプ（サービス画面のバッジ。Free / Standard など）は別物。**ワークスペースが Pro でもインスタンスが Free ならスリープするし 512MB 上限**。混同すると「スリープしないから keepalive は不要」のような誤った判断をする。インスタンスの実体は点検の「インスタンス: `1c_2g`」行か、`unbilled-charges.csv` の Services 行（`charge` が Free なら Free インスタンス）で確認する
 - **`Content-Type` を付けずに画像を返す配信元がある**。otoDB の CDN が実際にそうで、200 で中身も画像、
   `Content-Length` も `ETag` もあるのに型だけ無い。ヘッダだけ見て弾いていたため、
