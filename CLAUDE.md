@@ -86,7 +86,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 | `backend/sources/*` | 各サイトからの取得 | 取れるサイズを URL で選ぶ `clamp_size` を各自が持つ |
 | `backend/merge.py` | 出どころ違いの結果をまとめる | 曲名の正規化はブラウザの `nkey()` と**同じ規則**にする |
 | `cli.py` | スマホから使うための命令 | サーバーが動いていないと使えない |
-| `scripts/` | 点検・突き合わせ・フォント生成 | 下の「変更したら回すもの」に載っているものは必ず回す |
+| `scripts/` | 点検・突き合わせ・フォント生成・割り付けの総点検 | 下の「変更したら回すもの」に載っているものは必ず回す |
 | `promo/` | 紹介動画（Remotion + Playwright） | 詳しくは `video-notes.md` |
 
 ### データはどこにあるか
@@ -315,6 +315,12 @@ claude --remote-control TRACKMENTO                                             #
   割り付けの値そのものを見るなら `node promo/dump_layout.mjs <ID>`（frontend の `window.__layout` を呼ぶ）と
   `backend.render.layout()` を並べる。字幅の食い違いを疑うときは `node promo/dump_widths.mjs <作業用ディレクトリ> <ID>`。
   共有ページの見た目は `node promo/shot_share.mjs <ID> <出力.png>`
+- **割り付けの総点検**: `PYTHONUTF8=1 PUBLIC_MODE=1 .venv/Scripts/python scripts/layout_audit.py --render`。
+  並び（横×縦、1 辺 32・総数 256 まで）と比率 5 種の**全 2,950 通り**を組んでみて、
+  出力での曲名・タイトル・マスの大きさ、文字の埋まり具合、段の狭さを数値にする。
+  しきい値に引っかかったものだけ画像にして `outputs/layout-audit/index.html` にまとめる
+  （`outputs/` は git 管理外）。`--from-json` で測り直さずに HTML だけ作り直せる。
+  **割り付けの規則を変えたらこれを回す**（1 つの組み合わせを直すと別の組み合わせが壊れることがある）
 - フォント: Web は `fonts/split/`（`scripts/build_fonts.py` が IBM Plex Sans JP / DotGothic16 を unicode-range で分割した WOFF2 ＋ `fonts.<hash>.css`）を `<!--__FONT_LINK__-->` 経由で読む。**`frontend/index.html` の固定文字（ラベル・説明文）を変えたら次の 3 つを順に実行する**
   1. `python scripts/build_fonts.py` … 断片と `fonts.<hash>.css` を作り直す（先頭断片に UI の全文字を入れる設計。忘れると初回表示で断片を大量に読む）
   2. `.venv/Scripts/python scripts/upload_fonts_r2.py` … 増えた断片を R2 に上げる。**これを忘れると本番でフォントが 404 になる**（断片名にハッシュが入るので、文字が変わると別ファイルになる）
