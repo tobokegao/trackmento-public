@@ -57,6 +57,9 @@
   /* もう 1 組のパレット（色見本から取った値なので oklch ではなく 16 進）。
      この 6 色のどれかを背景に選ぶと、下の [data-palette="pop"] で画面の装飾色もこちらに入れ替わる。
      **backend/render.py の TOKENS と frontend の TOKENS_RGB にも同じ値がある。片方だけ変えない** */
+  /* ポップの地と文字。**パレットは 8 色ひと組**なので、クリームと黒も組ごとに持つ */
+  --color-ivory:       #fdf4e6;
+  --color-charcoal:    #1b2430;
   --color-lemon:       #fbd743;
   --color-ultramarine: #4878da;
   --color-coral:       #f0535a;
@@ -740,9 +743,9 @@ body.sheet-open { overflow: hidden; }
     background-repeat: no-repeat; }
   .tsb-thumb:active { background-color: var(--color-rule-2); }
 }
-/* パレットの一覧（モーダルの中）。1 行が 1 組の 6 色 */
+/* パレットの一覧（モーダルの中）。1 行が 1 組の 8 色 */
 .pal-lanes { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0; }
-/* 1 行に入りきらない幅（スマホ）では折り返す。名前・6 色・ボタンの順に段が増える */
+/* 1 行に入りきらない幅（スマホ）では折り返す。名前・8 色・ボタンの順に段が増える */
 .pal-lane { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); border: var(--line) solid var(--color-rule); background: var(--color-paper-2); }
 .pal-lane[data-active="true"] { border-color: var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); }
 .pal-lane .pal-name { flex: 1 1 auto; min-width: 5em; font-size: var(--text-sm); }
@@ -759,7 +762,9 @@ body.sheet-open { overflow: hidden; }
 .pal-lane .pal-chips button[aria-pressed="true"] { outline: 3px solid var(--color-ink); outline-offset: 2px; }
 .pal-lane .btn { padding: 2px var(--space-2); font-size: var(--text-sm); }
 .pal-actions { display: flex; gap: var(--space-2); }
-/* 6 色の受け渡し（コピー・貼り付け） */
+/* 地と文字が近すぎる組の注意書き（1 行いっぱいに出す） */
+.pal-warn { flex-basis: 100%; margin: 2px 0 0; font-size: 12px; color: var(--color-muted); }
+/* 8 色の受け渡し（コピー・貼り付け） */
 .pal-io { margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
 .pal-io-row { display: flex; gap: var(--space-2); }
 .pal-io-row .input { flex: 1 1 auto; min-width: 0; }
@@ -1125,7 +1130,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <div class="modal-panel">
     <div class="sheet-head"><h2 id="pal-modal-title">パレット</h2><button class="btn" type="button" id="pal-modal-close">閉じる</button></div>
     <div class="modal-body note">
-      <p>背景色に並ぶ 6 色と、画面の配色をまとめて切り替えます。</p>
+      <p>背景色に並ぶ 8 色と、画面の配色をまとめて切り替えます。</p>
       <div class="pal-lanes" id="pal-lanes"></div>
       <div class="hsv" id="pal-hsv" hidden>
         <label for="pal-hsv-h">色相 <output id="pal-hsv-h-out">0</output></label>
@@ -1142,7 +1147,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <div class="pal-io">
         <label for="pal-import">色コードを貼って読み込む</label>
         <div class="pal-io-row">
-          <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（6 つ）" spellcheck="false" autocomplete="off">
+          <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（8 つ）" spellcheck="false" autocomplete="off">
           <button class="btn" type="button" id="pal-import-btn">読み込む</button>
         </div>
         <p class="msg" id="pal-msg"></p>
@@ -1321,13 +1326,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "レモン": "Lemon", "ウルトラマリン": "Ultramarine", "コーラル": "Coral",
     "スカイ": "Sky", "リーフ": "Leaf", "ローズ": "Rose",
     "パレット": "Palette", "パレットを選ぶ": "Choose a palette",
-    "背景色に並ぶ 6 色と、画面の配色をまとめて切り替えます。": "Switches the six background colours and the page's own colours together.",
+    "背景色に並ぶ 8 色と、画面の配色をまとめて切り替えます。": "Switches the eight background colours and the page's own colours together.",
     "いまの色から作る": "Make one from these colours", "じぶんの色": "My colour",
     "使う": "Use", "消す": "Delete", "リソ": "Riso", "ポップ": "Pop",
     "コピー": "Copy", "読み込む": "Load", "色コードを貼って読み込む": "Paste colour codes to load",
     "コピーしました。": "Copied.", "コピーできなかったので、欄に入れました。": "Could not copy, so we put it in the box.",
-    "読み込みました。": "Loaded.", "色コードを 6 つ入れてください。": "Six colour codes are needed.",
-    "#f2418f, #4878da, …（6 つ）": "#f2418f, #4878da, … (six)",
+    "読み込みました。": "Loaded.", "色コードを 8 つ入れてください。": "Eight colour codes are needed.",
+    "#f2418f, #4878da, …（8 つ）": "#f2418f, #4878da, … (eight)",
+    "アイボリー": "Ivory", "チャコール": "Charcoal",
+    "地と文字の明るさが近いので、この組は画面には使いません。": "This set's paper and ink are too close in brightness, so the page keeps its own colours.",
         "iTunes: サーバー経由は制限中（ブラウザから直接検索）": "iTunes: the server is rate-limited, searching from your browser instead",
         "接続OK": "Connected",
         "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）": "Cannot reach the server (search is limited to iTunes and MusicBrainz; saving and sharing are unavailable)",
@@ -1498,50 +1505,89 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
-  // ---- パレット（背景色に並ぶ 6 色 ＝ 画面の配色）----
-  // 6 色をひと組として切り替える。組み込みは「リソ」（もとからの 6 色）と「ポップ」（色見本から取った 6 色）。
-  // 自作の組も作れる（色は 16 進で持ち、書き出しではカスタムカラーとして扱う）
-  const BASE_SWATCHES = [["paper", "クリーム"], ["ink", "黒"]];
+  // ---- パレット（背景色に並ぶ 8 色 ＝ 画面の配色）----
+  // **地の色（クリーム）・文字の色（黒）＋ 装飾の 6 色**をひと組として切り替える。
+  // 組み込みは「リソ」（もとからの色）と「ポップ」（色見本から取った色）。自作の組も作れる
+  // （色は 16 進で持ち、書き出しではカスタムカラーとして扱う）。
+  // **地と文字まで組に入れているので、自作の組では画面が読めなくなりうる**。
+  // applyPalette が明るさの比を測り、足りない組は地と文字だけ既定のままにする（PAL_MIN_RATIO）
   const BUILTIN_PALETTES = [
-    { id: "riso", name: "リソ", keys: ["mustard", "cerulean", "vermilion", "lavender", "mint", "pink"] },
-    { id: "pop", name: "ポップ", keys: ["lemon", "ultramarine", "coral", "sky", "leaf", "rose"] },
+    { id: "riso", name: "リソ", keys: ["paper", "ink", "mustard", "cerulean", "vermilion", "lavender", "mint", "pink"] },
+    { id: "pop", name: "ポップ", keys: ["ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose"] },
   ];
   // 画面の配色として差し替えるスロット（並びは BUILTIN_PALETTES の keys と同じ順）
-  const PALETTE_SLOTS = ["--color-mustard", "--color-cerulean", "--color-vermilion", "--color-lavender", "--color-mint", "--color-pink"];
+  const PALETTE_SLOTS = ["--color-paper", "--color-ink",
+                         "--color-mustard", "--color-cerulean", "--color-vermilion", "--color-lavender", "--color-mint", "--color-pink"];
+  // 地と文字から作る中間色（枠線・添え字・ペインの下地）。**混ぜる割合は、もとからの
+  // クリームと黒で今の値とほぼ同じになるように選んである**（paper-2 が 6%、rule が 30% など）。
+  // ここを作らないと、別の組にしたとき地だけ変わって中間色がもとのままになり、色がちぐはぐになる
+  const PALETTE_MIX = [["--color-paper-2", 0.06, 0], ["--color-paper-3", 0.12, 0], ["--color-rule-2", 0.21, 0],
+                       ["--color-rule", 0.30, 0], ["--color-ink-2", 0.09, 1], ["--color-muted", 0.30, 1]];
+  // 地と文字の明るさの比。これを下回る組は画面には使わない（WCAG の 7:1）
+  const PAL_MIN_RATIO = 7;
   const KEY_LABEL = {
+    paper: "クリーム", ink: "黒",
     mustard: "マスタード", cerulean: "セルリアン", vermilion: "朱赤", lavender: "ラベンダー", mint: "ミント", pink: "ピンク",
+    ivory: "アイボリー", charcoal: "チャコール",
     lemon: "レモン", ultramarine: "ウルトラマリン", coral: "コーラル", sky: "スカイ", leaf: "リーフ", rose: "ローズ",
   };
   const PAL_STORE = "trackmento.palettes", PAL_ACTIVE = "trackmento.palette";
   let userPalettes = [];
-  try { userPalettes = JSON.parse(localStorage.getItem(PAL_STORE) || "[]").filter(p => p && Array.isArray(p.hexes) && p.hexes.length === 6); } catch { userPalettes = []; }
+  try {
+    userPalettes = JSON.parse(localStorage.getItem(PAL_STORE) || "[]")
+      .filter(p => p && Array.isArray(p.hexes) && (p.hexes.length === 6 || p.hexes.length === 8));
+  } catch { userPalettes = []; }
+  /* **6 色で保存された古い組は、先頭にクリームと黒を足して 8 色にする**。
+     TOKENS_RGB はこれより後ろで作るので、読み込みのときではなく最初に使うときに直す */
+  function migratePalettes() {
+    userPalettes = userPalettes.map(p => (p.hexes.length === 8 ? p
+      : { ...p, hexes: [rgbToHex(TOKENS_RGB.paper), rgbToHex(TOKENS_RGB.ink), ...p.hexes] }));
+  }
   let activePaletteId = "riso";
   try { activePaletteId = localStorage.getItem(PAL_ACTIVE) || "riso"; } catch { /* ignore */ }
   const allPalettes = () => BUILTIN_PALETTES.concat(userPalettes);
   const activePalette = () => allPalettes().find(p => p.id === activePaletteId) || BUILTIN_PALETTES[0];
-  /* その組の 6 色を CSS の色で返す */
+  /* その組の 8 色を CSS の色で返す */
   const paletteColors = (p) => (p.keys ? p.keys.map(k => cssRgb(TOKENS_RGB[k])) : p.hexes.slice());
+  /* その組の 8 色を [r,g,b] で返す（混ぜたり明るさを測ったりするため） */
+  const paletteRgb = (p) => (p.keys ? p.keys.map(k => TOKENS_RGB[k].slice()) : p.hexes.map(hexToRgb));
+  /* WCAG の明るさの比（1〜21）。地と文字がどれだけ離れているか */
+  const relLum = ([r, g, b]) => [r, g, b].map(v => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4))
+    .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+  function contrastRatio(a, b) {
+    const x = Math.max(relLum(a), relLum(b)), y = Math.min(relLum(a), relLum(b));
+    return (x + 0.05) / (y + 0.05);
+  }
+  /* 地と文字を画面に使ってよいか。**明るさの差が足りない組は使わない**（文字が読めなくなる） */
+  function palReadable(p) {
+    const rgb = paletteRgb(p);
+    return relLum(rgb[0]) > relLum(rgb[1]) && contrastRatio(rgb[0], rgb[1]) >= PAL_MIN_RATIO;
+  }
   function savePalettes() {
     try { localStorage.setItem(PAL_STORE, JSON.stringify(userPalettes)); localStorage.setItem(PAL_ACTIVE, activePaletteId); } catch { /* ignore */ }
   }
-  /* 画面の配色を今の組に合わせる。**もとからの 6 色（リソ）のときは指定を外す**（CSS の値に戻る） */
+  /* 画面の配色を今の組に合わせる。**もとからの色（リソ）のときは指定を外す**（CSS の値に戻る） */
   function applyPalette() {
-    const p = activePalette(), colors = paletteColors(p);
+    const p = activePalette(), colors = paletteColors(p), rgb = paletteRgb(p);
+    const ok = palReadable(p);   // 地と文字を画面にも使うか
     PALETTE_SLOTS.forEach((slot, i) => {
-      if (p.id === "riso") document.documentElement.style.removeProperty(slot);
+      if (p.id === "riso" || (i < 2 && !ok)) document.documentElement.style.removeProperty(slot);
       else document.documentElement.style.setProperty(slot, colors[i]);
+    });
+    PALETTE_MIX.forEach(([slot, t, from]) => {
+      if (p.id === "riso" || !ok) document.documentElement.style.removeProperty(slot);
+      else document.documentElement.style.setProperty(slot, cssRgb(mixRgb(rgb[from], rgb[1 - from], t)));
     });
   }
   // 組み込みの色の名前ぜんぶ。**読み込んだ並びの色は、今の組に入っていなくても受け付ける**
   // （別の組の色だった場合は、その組に切り替える。以前はここで弾かれて paper に戻っていた）
-  const ALL_BG_KEYS = BASE_SWATCHES.map(([k]) => k).concat(...BUILTIN_PALETTES.map(p => p.keys));
+  const ALL_BG_KEYS = [].concat(...BUILTIN_PALETTES.map(p => p.keys));
   const paletteOf = (key) => (BUILTIN_PALETTES.find(p => p.keys.includes(key)) || {}).id;
-  /* 背景色に並べるもの: クリーム・黒 ＋ 今の組の 6 色。組み込みは色の名前、自作は 16 進をそのまま使う */
+  /* 背景色に並べるもの: 今の組の 8 色。組み込みは色の名前、自作は 16 進をそのまま使う */
   function bgChoices() {
     const p = activePalette();
-    const six = p.keys ? p.keys.map(k => ({ value: k, css: cssRgb(TOKENS_RGB[k]), label: KEY_LABEL[k] || k }))
-                       : p.hexes.map((h, i) => ({ value: h, css: h, label: tr("じぶんの色") + " " + (i + 1) }));
-    return BASE_SWATCHES.map(([k, ja]) => ({ value: k, css: cssRgb(TOKENS_RGB[k]), label: ja })).concat(six);
+    return p.keys ? p.keys.map(k => ({ value: k, css: cssRgb(TOKENS_RGB[k]), label: KEY_LABEL[k] || k }))
+                  : p.hexes.map((h, i) => ({ value: h, css: h, label: tr("じぶんの色") + " " + (i + 1) }));
   }
 
   const state = {
@@ -2373,11 +2419,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* その組を使う。背景色が今の組の色だったら、同じ位置の色に付け替える（選び直さなくて済むように） */
   function usePalette(id) {
     const before = activePalette(), beforeColors = paletteColors(before);
-    const idx = bgChoices().findIndex(c => bgIsChosen(c.value)) - BASE_SWATCHES.length;
+    const idx = bgChoices().findIndex(c => bgIsChosen(c.value));
     activePaletteId = id;
     applyPalette(); savePalettes();
     const after = activePalette();
-    if (idx >= 0 && idx < 6) {
+    if (idx >= 0 && idx < 8) {
       const v = after.keys ? after.keys[idx] : after.hexes[idx];
       pickBg(v);
     }
@@ -2434,7 +2480,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const use = document.createElement("button"); use.type = "button"; use.className = "btn"; use.textContent = tr("使う");
       use.disabled = p.id === activePaletteId;
       use.addEventListener("click", () => usePalette(p.id));
-      // 6 色を書き出す。人に渡したり、別の端末で読み込んだりできるように
+      // 8 色を書き出す。人に渡したり、別の端末で読み込んだりできるように
       const copy = document.createElement("button"); copy.type = "button"; copy.className = "btn"; copy.textContent = tr("コピー");
       copy.addEventListener("click", async () => {
         const text = paletteColors(p).map(c => rgbToHex(toRGB(c))).join(", ");
@@ -2443,6 +2489,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       });
       const btns = document.createElement("div"); btns.className = "pal-btns"; btns.append(use, copy);
       lane.append(name, chips, btns);
+      // **地と文字が近すぎる組は画面には使わない**ので、そのことを見える所に書く（黙って無視しない）
+      if (!palReadable(p)) {
+        const warn = document.createElement("p"); warn.className = "pal-warn";
+        warn.textContent = tr("地と文字の明るさが近いので、この組は画面には使いません。");
+        lane.append(warn);
+      }
       if (!p.keys) {
         const del = document.createElement("button"); del.type = "button"; del.className = "btn"; del.textContent = tr("消す");
         del.addEventListener("click", () => {
@@ -2456,14 +2508,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       palLanes.append(lane);
     }
   }
-  /* 貼られた文字から 6 つの色コードを取り出す。区切りは何でもよい（, 空白 改行） */
+  /* 貼られた文字から 8 つの色コードを取り出す。区切りは何でもよい（, 空白 改行） */
   function parseHexes(text) {
     const found = (text || "").match(/#?[0-9a-f]{6}/gi) || [];
-    return found.slice(0, 7).map(h => "#" + h.replace("#", "").toLowerCase());
+    return found.slice(0, 9).map(h => "#" + h.replace("#", "").toLowerCase());
   }
   $("#pal-import-btn").addEventListener("click", () => {
     const hexes = parseHexes(els.palImport.value);
-    if (hexes.length !== 6) { say($("#pal-msg"), tr("色コードを 6 つ入れてください。"), "error"); return; }
+    if (hexes.length !== 8) { say($("#pal-msg"), tr("色コードを 8 つ入れてください。"), "error"); return; }
     const p = { id: `u${Date.now().toString(36)}`, name: tr("じぶんの色") + " " + (userPalettes.length + 1), hexes };
     userPalettes.push(p); els.palImport.value = "";
     usePalette(p.id); say($("#pal-msg"), tr("読み込みました。"));
@@ -3559,6 +3611,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // もう 1 組のパレット（色見本から取った値。backend/render.py の TOKENS と同じ値を持つ）
     "lemon": [251, 215, 67], "ultramarine": [72, 120, 218], "coral": [240, 83, 90],
     "sky": [135, 212, 255], "leaf": [82, 165, 85], "rose": [242, 65, 143],
+    // ポップの地と文字。**リソのクリーム・黒より少し暖かく、少し柔らかい黒**（明るさの比は 14.4:1）
+    "ivory": [253, 244, 230], "charcoal": [27, 36, 48],
   };
   const hexToRgb = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   const rgbToHex = ([r, g, b]) => "#" + [r, g, b].map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join("");
@@ -4048,7 +4102,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   mq.addEventListener("change", applyFold);
   applyFold();
 
-  applyPalette();   // 覚えておいた組を画面の配色に反映してから見本を描く
+  migratePalettes();   // 6 色で保存された古い組を 8 色にしてから
+  applyPalette();      // 覚えておいた組を画面の配色に反映してから見本を描く
   renderSwatches();
   syncControls(); renderGrid();
   async function restoreFromShare() {
