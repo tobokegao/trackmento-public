@@ -2773,11 +2773,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 比率なしのときの段の幅（文字の大きさの何倍か＝だいたい何字入るか）。**文字を測って決めない**
   const SLAB_ROW_SEG = 30;
   // 段の幅は塊の高さまで。曲が少ないと段のほうが長くなり、枠が横に伸びてマスが潰れる
-  const SLAB_ROW_WIDE = 1.0;
+  const SLAB_ROW_WIDE = 0.75;
+  // この列数までは「マスごと」に並べられる（1 段ぶんの高さに列の数だけ曲名を積むため）
+  const SLAB_ROW_MAX_COLS = 3;
   /* 柱のとき、曲名をマス 1 つ 1 つの横に並べる割り付け（backend/render.py の _slab_rows） */
   function slabRows(gw, gh, titleH, ratio, m, maxSide) {
-    const pitch = CELL_PX + state.gap;
-    const fontS = Math.round(pitch * SLAB_ROW_FONT);
+    const cols = state.cols;
+    if (cols > SLAB_ROW_MAX_COLS) return null;
+    const pitch = CELL_PX + state.gap;   // マスの段 1 つぶんの送り
+    const per = Math.round(pitch / cols);   // 曲名 1 曲ぶんの高さ
+    const fontS = Math.round(per * SLAB_ROW_FONT);
     const wgap = Math.round(fontS * WRAP_GAP_EM);
     // タイトルの帯は塊の高さの SLAB_TITLE_BAND まで。ただし本文の SLAB_TITLE_MIN 倍は必ず確保する
     const need = Math.round(Math.ceil(fontS * SLAB_TITLE_MIN) * 1.9);
@@ -2805,8 +2810,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (fontS * scale < SLAB_ROW_MIN) return null;
     const gx = pad, gy = pad + topH, x0 = gx + gw + wgap;
     if (segW < LIST_MIN_COL) return null;
-    const segs = state.cells.map((_, i) => [x0, gy + i * pitch, segW]);
-    return { W, H, scale, fontS, lineH: pitch, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
+    // 段のマスと同じ数だけ曲名を積む。余った端数は段の中で上下に分ける
+    const off = Math.round((pitch - per * cols) / 2);
+    const segs = state.cells.map((_, i) =>
+      [x0, gy + Math.floor(i / cols) * pitch + off + (i % cols) * per, segW]);
+    return { W, H, scale, fontS, lineH: per, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
              segs, rows: [], use: 1, rowsMode: true };
   }
   const SLAB_TARGET_PX = [96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14];
@@ -2832,11 +2840,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (ratio / ga >= SLAB_ASPECT) vertical = true;
     else if (ga / ratio >= SLAB_ASPECT) vertical = false;
     else return null;
-    // **1 列の並びなら、まず「マスの横に 1 曲ずつ」を試す**（流し込みより読みやすい）
-    if (vertical && state.cols === 1) {
-      const got = slabRows(gw, gh, titleH, ratio, m, maxSide);
-      if (got) return got;
-    }
     const build = (target) => {
       // タイトルの帯の高さは文字の大きさから決まり、文字の大きさは枠（縮尺）から決まるので、
       // 帯 0 から始めて何回か回す。3 回で動かなくなる
@@ -3219,11 +3222,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // **曲名をマスの塊のまわりに回り込ませる**（backend/render.py と同じ条件）。切り替えるのは
     //   - マスが小さくならないとき（比率合わせで余っていた余白を曲名に使える）
     //   - マスが小さくなっても、今の組み方では文字がまったく読めないとき
-    // **比率なしの 1 列の並びも、曲名をマスの横に並べる**（比率が無いとサイドバーの幅が
-    // マス 1 つぶんしか取れず、出力が細長い帯になって文字も小さくなっていた）
-    if (ratio === null && cols === 1 && side !== "none") {
-      const rp = slabRows(gw, gh, titleH, null, m, maxSide);
-      if (rp) {
+    // **曲名をマスの横に、マスと同じ並び順で置く**（1〜3 列の並び）。比率が無いとサイドバーの幅が
+    // マス 1 つぶんしか取れず、出力が細長い帯になって文字も小さくなっていた。
+    // 比率があるときは、流し込みに落ちるか、マスが今の組み方より小さくならないときだけ使う
+    if (cols <= SLAB_ROW_MAX_COLS && side !== "none") {
+      const rp = slabRows(gw, gh, titleH, ratio, m, maxSide);
+      if (rp && (ratio === null || sbFlow || rp.scale >= scale)) {
         return { W: rp.W, H: rp.H, scale: rp.scale, ox: rp.gx, oy: rp.gy, gw, gh, title,
                  titleSize: rp.titleSize, titleH: rp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
                  lineH: rp.lineH, fontS: rp.fontS, sbGap, sbFlow: true, sbPlan: [],

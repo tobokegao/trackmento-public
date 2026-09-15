@@ -598,7 +598,10 @@ SLAB_ROW_SEG = 30
 # ただし**段の幅は塊の高さまで**。曲が少ないと 30 字ぶんの段のほうが塊よりずっと長くなり、
 # 枠が横に伸びて**マスが潰れる**（1x3 を比率なしで 600 → 223px にしていた）。
 # 塊の高さで頭打ちにすると、短い並びは今までどおりの大きなマス、長い並びは広い段になる
-SLAB_ROW_WIDE = 1.0
+SLAB_ROW_WIDE = 0.75
+# **この列数までは「マスごと」に並べられる**。1 段ぶんの高さに列の数だけ曲名を積むので、
+# 列が増えるほど 1 曲ぶんが薄くなる（3 列で 1/3）。4 列にすると出力の文字が読めない大きさになる
+SLAB_ROW_MAX_COLS = 3
 # 出力での曲名の大きさ。大きいほうから試して、**入る中でいちばん大きいもの**を採る
 SLAB_TARGET_PX = (96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14)
 # **文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る**。
@@ -637,15 +640,23 @@ def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool) -> tuple[int, 
 
 def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None, m: int,
                max_side_v: int) -> WrapPlan | None:
-    """柱のとき、**曲名をマス 1 つ 1 つの横に並べる**割り付け（1 列の並びだけ）。
+    """**曲名をマスの横に、マスと同じ並び順で置く**割り付け（1〜3 列の並び）。
 
-    枠の大きさは塊とタイトルの帯だけで決まり、曲名の大きさもマスの送りから決まるので、
+    塊は左端に立て、その右の段に曲名を置く。**マスの段 1 つぶんの高さに、その段のマスと
+    同じ数だけ曲名を積む**（3 列なら 1・2・3 曲目、4・5・6 曲目、…）。どのジャケットが
+    どの曲かが目で追える。
+
+    枠の大きさは塊とタイトルの帯だけで決まり、曲名の大きさも 1 曲ぶんの高さから決まるので、
     探索は要らない。出力での曲名が小さくなりすぎるときだけ None を返して流し込みに戻す。
     **比率なし**（`ratio is None`）でも使える。そのときは段の幅を `SLAB_ROW_SEG` 字ぶんに取り、
     枠は中身に合わせて伸ばす（比率が無いので枠から残りを逆算できない）。
     """
-    pitch = CELL_PX + doc.options.gap          # マス 1 つぶんの送り
-    font_s = rnd(pitch * SLAB_ROW_FONT)
+    cols = doc.cols
+    if cols > SLAB_ROW_MAX_COLS:
+        return None
+    pitch = CELL_PX + doc.options.gap          # マスの段 1 つぶんの送り
+    per = rnd(pitch / cols)                    # 曲名 1 曲ぶんの高さ
+    font_s = rnd(per * SLAB_ROW_FONT)
     wgap = rnd(font_s * WRAP_GAP_EM)
     # タイトルの帯は塊の高さの `SLAB_TITLE_BAND` まで。**ただし本文の `SLAB_TITLE_MIN` 倍は必ず確保する**
     # （マスが少ないと 10% では足りず、短い並びだけこの組み方を使えなくなる）
@@ -676,8 +687,11 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
     x0 = gx + gw + wgap
     if seg_w < LIST_MIN_COL:
         return None
-    segs = tuple((x0, gy + i * pitch, seg_w) for i in range(len(doc.cells)))
-    return WrapPlan(W, H, scale, font_s, pitch, t_size, t_h, pad, pad, gx, gy, segs, [], 1.0, True)
+    # 段のマスと同じ数だけ曲名を積む。余った端数は段の中で上下に分ける
+    off = rnd((pitch - per * cols) / 2)
+    segs = tuple((x0, gy + (i // cols) * pitch + off + (i % cols) * per, seg_w)
+                 for i in range(len(doc.cells)))
+    return WrapPlan(W, H, scale, font_s, per, t_size, t_h, pad, pad, gx, gy, segs, [], 1.0, True)
 
 
 def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
@@ -695,12 +709,6 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         vertical = False
     else:
         return None
-    # **1 列の並びなら、まず「マスの横に 1 曲ずつ」を試す**（流し込みより読みやすい）
-    if vertical and doc.cols == 1:
-        got = _slab_rows(doc, gw, gh, title_h, ratio, m, max_side_v)
-        if got:
-            return got
-
     def build(target: int) -> WrapPlan | None:
         # **タイトルの帯の高さは文字の大きさから決まり、文字の大きさは枠（縮尺）から決まる**ので、
         # 帯 0 から始めて何回か回す。3 回で動かなくなる
@@ -1050,13 +1058,15 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     #     WRAP_CELL_KEEP まで。32x1 を 1:1 にすると、従来 16px / 回り込み 64px だった
     # **無条件には切り替えない**。9:16 に正方形の並びを入れたときのように、
     # 塊を中央に置くと左右の帯のぶんマスが小さくなるだけ、という組み合わせがある
-    # **比率なしの 1 列の並びも、曲名をマスの横に並べる**（利用者の要望）。比率が無いと
-    # サイドバーの幅がマス 1 つぶん（600 論理 px）しか取れず、出力が細長い帯になって
-    # 文字も小さくなっていた（1x8 で 666x2400・本文 26px）
-    if ratio is None and doc.cols == 1 and side != "none":
+    # **曲名をマスの横に、マスと同じ並び順で置く**（利用者の要望。1〜3 列の並び）。
+    # 比率なしではサイドバーの幅がマス 1 つぶん（600 論理 px）しか取れず、出力が細長い帯になって
+    # 文字も小さくなっていた（1x8 で 666x2400・本文 26px）。比率があるときは、
+    # **マスが今の組み方より小さくならないときだけ**使う
+    if doc.cols <= SLAB_ROW_MAX_COLS and side != "none":
         from backend.config import max_side
-        rp = _slab_rows(doc, gw, gh, title_h, None, m, max_side())
-        if rp:
+        rp = _slab_rows(doc, gw, gh, title_h, ratio, m, max_side())
+        # 流し込みに落ちる並びは、今の組み方の字が読めない大きさなので無条件で置き換える
+        if rp and (ratio is None or sb_flow or rp.scale >= scale):
             return Layout(rp.W, rp.H, rp.scale, rp.gx, rp.gy, gw, gh, title, rp.title_size, rp.title_h,
                           side, 0, 0, 1, rp.line_h, rp.font_s, sb_gap, True, (),
                           True, rp.pad, rp.top, rp.segs, True)
