@@ -2541,6 +2541,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const CHAR_W = new Map();
   if (document.fonts) document.fonts.addEventListener("loadingdone", () => CHAR_W.clear());
   const FLOW_FONT_STEPS = [132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18];
+  // 右に置くときは出力での大きさ（px）で選ぶ（枠が先に決まるので）
+  const FLOW_TARGET_PX = [56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12];
   function clipTo(ctx, text, font, maxW) {
     ctx.font = font;
     if (ctx.measureText(text).width <= maxW) return text;
@@ -2698,10 +2700,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // **余地があれば文字を大きくする**。最初に見つけた大きさのマスから WRAP_CELL_KEEP を
       // 割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
       const floor = base.scale * (CELL_PX * base.scale >= WRAP_CELL_OK ? WRAP_CELL_KEEP : WRAP_CELL_KEEP_SMALL);
+      // **塊が横いっぱいに入っているなら、それを崩してまで文字を大きくしない**
+      // （崩すと左右に使えない空白が残る）
+      const fillsWidth = (p) => gw >= (p.W - p.pad * 2) * 0.95;
+      const wide = fillsWidth(base);
       for (const up of WRAP_TARGET_UP) {
         if (up <= target) continue;
         const got = search(up);
-        if (!got || got.scale < floor) break;
+        if (!got || got.scale < floor || (wide && !fillsWidth(got))) break;
         best = got;
       }
       // **逆に、落とすとマスが大きく取れるなら落とす**（左右に使えない空白が残るのを避ける）
@@ -2888,16 +2894,29 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const sbFlow = side !== "none" && fontS * scale < FLOW_MIN_FONT;
     if (sbFlow) {
       if (side === "right" && ratio !== null) {
-        // 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す
+        // 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す。
+        // **「マスの幅の 2 倍まで」と止めてはいけない**（1 列の並びだと文字が下限まで落ちる）
         const wEst = Math.round((titleTopH + gh + m * 2) * ratio);
-        sbW = Math.max(sbW, Math.min(gw * 2, wEst - m * 2 - gw - sbGap));
+        sbW = Math.max(sbW, wEst - m * 2 - gw - sbGap);
       }
       const avail = side === "right" ? gh - titleH : sbH;
       let rows = [];
-      for (const fs of FLOW_FONT_STEPS) {
-        fontS = fs; lineH = Math.round(fs * 1.5); sbCols = 1;
-        rows = flowRows(fs, side === "right" ? sbW : gw);
-        if (rows.length * lineH <= avail) break;
+      sbCols = 1;
+      if (side === "right") {
+        // **右に置くときは枠が先に決まる**ので、出力での大きさから字の大きさを決める
+        // （論理 px の決め打ちだと、枠が大きいときに出力で 9px にしかならない）
+        [W, H, scale] = frame(sbW, sbH);
+        for (const px of FLOW_TARGET_PX) {
+          fontS = Math.max(18, Math.round(px / scale)); lineH = Math.round(fontS * 1.5);
+          rows = flowRows(fontS, sbW);
+          if (rows.length * lineH <= avail) break;
+        }
+      } else {
+        for (const fs of FLOW_FONT_STEPS) {
+          fontS = fs; lineH = Math.round(fs * 1.5);
+          rows = flowRows(fs, gw);
+          if (rows.length * lineH <= avail) break;
+        }
       }
       if (side === "bottom") sbH = rows.length * lineH;
       [W, H, scale] = frame(sbW, sbH);

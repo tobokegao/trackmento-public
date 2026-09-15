@@ -339,6 +339,8 @@ WRAP_TITLE_MIN = 1.6      # **タイトルは本文の最低これだけ倍**。
 
 # 入る限り大きく。曲が少ないほど大きな字になる（流し込みに切り替わるのは曲が多いときだけ）
 FLOW_FONT_STEPS = (132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
+# 右に置くときは**出力での大きさ**（px）で選ぶ。枠が先に決まるのでこちらのほうが素直
+FLOW_TARGET_PX = (56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12)
 
 
 # 曲名の末尾の「(feat. …)」。**ここだけは 2 段目に落とせる**（曲名の本体とアーティスト名を守るため）。
@@ -519,6 +521,11 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
     return rows
 
 
+def _fills_width(p: "WrapPlan", gw: int) -> bool:
+    """マスの塊が枠の横いっぱい（余白を除いた幅の 95% 以上）に入っているか。"""
+    return gw >= (p.W - p.pad * 2) * 0.95
+
+
 class WrapPlan(NamedTuple):
     W: int; H: int; scale: float; font_s: int; line_h: int
     title_size: int; title_h: int
@@ -632,11 +639,14 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         # WRAP_CELL_KEEP を割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
         floor = base.scale * (WRAP_CELL_KEEP if CELL_PX * base.scale >= WRAP_CELL_OK
                               else WRAP_CELL_KEEP_SMALL)
+        # **塊が横いっぱいに入っているなら、それを崩してまで文字を大きくしない**。
+        # 崩すと左右に使えない空白が残る（32x5 を 9:16 にすると塊が枠の 69% の幅になっていた）
+        wide = _fills_width(base, gw)
         for up in WRAP_TARGET_UP:
             if up <= target:
                 continue
             got = search(up)
-            if not got or got.scale < floor:
+            if not got or got.scale < floor or (wide and not _fills_width(got, gw)):
                 break
             best = got
         # **逆に、落とすとマスが大きく取れるなら落とす**（左右に使えない空白が残るのを避ける）
@@ -753,15 +763,29 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     if sb_flow:
         if side == "right" and ratio is not None:
             # 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す
-            # （1 曲 1 行のときは「最長の行」に合わせていたが、流し込みでは広いほど行が減って字が大きくできる）
+            # （1 曲 1 行のときは「最長の行」に合わせていたが、流し込みでは広いほど行が減って字が大きくできる）。
+            # **ここで「マスの幅の 2 倍まで」と止めてはいけない**。1 列の並び（1xN）だと 1200 論理 px しか
+            # 取れず、文字が下限まで落ちていた（1x32 を 16:9 にすると出力 12px）
             w_est = rnd((title_top_h + gh + m * 2) * ratio)
-            sb_w = max(sb_w, min(gw * 2, w_est - m * 2 - gw - sb_gap))
+            sb_w = max(sb_w, w_est - m * 2 - gw - sb_gap)
         avail = (gh - title_h) if side == "right" else sb_h
-        for fs in FLOW_FONT_STEPS:
-            lh = rnd(fs * 1.5)
-            rows = _flow_rows(doc, fs, sb_w if side == "right" else gw)
-            if len(rows) * lh <= avail:
-                break
+        if side == "right":
+            # **右に置くときは枠が先に決まる**（高さはグリッドで決まる）ので、
+            # **出力での大きさから字の大きさを決める**。論理 px の決め打ち（上限 132）だと、
+            # 枠が大きいときに出力で 9px にしかならなかった（1x32 を 16:9 にしたとき）
+            W, H, scale = _frame(sb_w, sb_h)
+            for px in FLOW_TARGET_PX:
+                fs = max(18, rnd(px / scale))
+                lh = rnd(fs * 1.5)
+                rows = _flow_rows(doc, fs, sb_w)
+                if len(rows) * lh <= avail:
+                    break
+        else:
+            for fs in FLOW_FONT_STEPS:
+                lh = rnd(fs * 1.5)
+                rows = _flow_rows(doc, fs, gw)
+                if len(rows) * lh <= avail:
+                    break
         font_s, line_h, sb_cols = fs, lh, 1
         if side == "bottom":
             sb_h = len(rows) * line_h
