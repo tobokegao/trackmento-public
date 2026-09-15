@@ -79,8 +79,14 @@
   --page-inline: var(--space-4);   /* ページ左右の基準余白。ヘッダー・ペイン・フッターで共有 */
   --shadow: 4px 4px 0 var(--color-ink);
   --shadow-sm: 2px 2px 0 var(--color-ink);
-  /* 昔の Mac の 50% グレー: 1px の市松（インク／透明）。ボタンの影に使う */
-  --dither: repeating-conic-gradient(var(--color-ink) 0 25%, transparent 0 50%) 0 0 / 2px 2px;
+  /* **1 デバイス画素ぶんの CSS px**。起動時に `snapDot()` が端末の画素密度から入れ直す。
+     1px の目は端末の画素に乗らないとにじみ、市松の 1 つ 1 つが 2 画素・3 画素と不揃いに丸められる
+     （実機は 2.625 倍。3 デバイス画素 ＝ 1.1429px にそろえる） */
+  --dot: 1px;
+  /* 昔の Mac の 50% グレー: 1 目の市松。**グラデーションではなく SVG の型抜き**で描く。
+     `repeating-conic-gradient` は縁が必ずぼけるので、拡大すると目が滲んで見えた（実機で報告）。
+     `shape-rendering="crispEdges"` なら縁が立つ。色は型抜きなのでトークンのまま使える */
+  --dither-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" shape-rendering="crispEdges"><path d="M0 0h1v1H0zM1 1h1v1H1z" fill="%23fff"/></svg>');
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --dur-tick: 100ms; --dur-short: 180ms; --dur-mid: 260ms;
@@ -440,7 +446,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .input:disabled { opacity: .5; cursor: not-allowed; }
 
 .btn {
-  --sh: 2px;   /* 影のずらし量 */
+  --sh: calc(2 * var(--dot));   /* 影のずらし量 */
   position: relative;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
   min-height: 40px; padding: var(--space-1) var(--space-4);
@@ -451,15 +457,18 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
   white-space: nowrap; cursor: pointer;
   transition: transform var(--dur-tick) var(--ease-out), background-color var(--dur-short) var(--ease-out);
 }
-/* 影: 市松模様（--dither）。ボタン本体と重ならない L 字だけを clip-path で残す。
-   **模様は右下の角を基準に敷く**（`background-position: right bottom`）。左上を基準にすると、
+/* 影: 市松模様（--dither-mask で型抜き）。ボタン本体と重ならない L 字だけを clip-path で残す。
+   **模様は右下の角を基準に敷く**（`mask-position: right bottom`）。左上を基準にすると、
    実際に見えるのは右辺と下辺なので、**ボタンの幅・高さが奇数のときだけ市松の白黒が入れ替わり**、
    ボタンごとにドットの始まりが違って見えた（実機で報告） */
 .btn::after, .seg span::after {
   content: ""; position: absolute; inset: calc(-1 * var(--line)); pointer-events: none;
   transform: translate(var(--sh), var(--sh));
-  background: var(--dither);
-  background-position: right bottom;
+  background: var(--color-ink);
+  -webkit-mask-image: var(--dither-mask); mask-image: var(--dither-mask);
+  -webkit-mask-size: calc(2 * var(--dot)) calc(2 * var(--dot)); mask-size: calc(2 * var(--dot)) calc(2 * var(--dot));
+  -webkit-mask-position: right bottom; mask-position: right bottom;
+  -webkit-mask-repeat: repeat; mask-repeat: repeat;
   clip-path: polygon(calc(100% - var(--sh)) 0, 100% 0, 100% 100%, 0 100%, 0 calc(100% - var(--sh)), calc(100% - var(--sh)) calc(100% - var(--sh)));
 }
 @media (hover: hover) and (pointer: fine) {
@@ -469,13 +478,13 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .btn:active::after { display: none; }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; transform: none; }
 .btn:disabled::after { display: block; }
-.btn-primary { --sh: 4px; background: var(--color-ink); color: var(--color-paper); }
+.btn-primary { --sh: calc(4 * var(--dot)); background: var(--color-ink); color: var(--color-paper); }
 @media (hover: hover) and (pointer: fine) { .btn-primary:hover { background: var(--color-ink-2); } }
 .btn[data-state="loading"] { cursor: progress; }
 .btn[data-state="loading"] .label::after { content: "…"; }
 .btn[data-state="loading"]::before { content: ""; width: 8px; height: 8px; background: currentColor; animation: blink 1s steps(2) infinite; }
 .btn[data-state="error"] { border-color: var(--color-error); }
-.btn[data-state="error"]::after { background: var(--color-error); }
+.btn[data-state="error"]::after { background: var(--color-error); }   /* 型抜きはそのまま。色だけ変える */
 .btn[data-state="success"] { border-color: var(--color-mint); }
 @keyframes blink { 50% { opacity: 0; } }
 @media (pointer: coarse) { .btn { min-height: 44px; } }
@@ -2518,6 +2527,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   /* 指で触る画面だけ、自前のスクロールバーを付ける。
      **スマホのブラウザはスクロールバーを触れる部品として扱わない**ため、ブラウザ任せでは掴めない */
+  function snapDot() {
+    const r = window.devicePixelRatio || 1;
+    document.documentElement.style.setProperty("--dot", (Math.max(1, Math.round(r)) / r).toFixed(4) + "px");
+  }
+  snapDot(); window.addEventListener("resize", snapDot);
+
   function attachTouchScrollbar(el) {
     if (!el || el.dataset.tsb) return null;
     el.dataset.tsb = "1";
