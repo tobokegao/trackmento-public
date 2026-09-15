@@ -424,8 +424,13 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float) -> list[FlowRow]:
             else:
                 x += gap
                 gaps += 1
-        put("num", f"{i + 1:02d}")
-        put("title", " " + _one_line(t.title))
+        num, title = f"{i + 1:02d}", _one_line(t.title)
+        # **番号だけが行末に取り残されないようにする**。番号と曲名の頭 2 字が入らないなら先に折る
+        head = fonts["num"].getlength(num) + fonts["title"].getlength(" " + title[:2])
+        if cur and x + head > max_w:
+            flush()
+        put("num", num)
+        put("title", " " + title)
         if t.artist:
             put("artist", " " + _one_line(t.artist))
     flush()

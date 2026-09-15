@@ -671,7 +671,9 @@ body.sheet-open { overflow: hidden; }
    溝の位置に自分の要素を重ね、指の操作を自分で受ける。見た目は ::-webkit-scrollbar と同じ規則 */
 .tsb { display: none; }
 @media (pointer: coarse) {
-  .tsb-host { padding-right: 24px; }                       /* 自前のバーのぶんを空ける */
+  /* **バーが要るときだけ幅を空ける**（`layout()` が付け外しする）。いつも空けると、
+     スクロールしない並びでマスが狭くなる */
+  .tsb-host.tsb-on { padding-right: 24px; }
   .tsb-host::-webkit-scrollbar { width: 0; height: 0; }    /* ブラウザのものは出さない（二重になる） */
   .tsb { display: block; position: absolute; width: 24px; background: var(--color-paper-3);
     box-shadow: inset 1px 0 0 var(--color-bar-dark), inset -1px 0 0 var(--color-bar-dark); touch-action: none; }
@@ -2438,8 +2440,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const layout = () => {
       const h = el.clientHeight, sh = el.scrollHeight;
       const pr = parent.getBoundingClientRect(), r = el.getBoundingClientRect();
-      if (sh <= h + 1 || r.height < 40) { bar.hidden = true; return; }
-      bar.hidden = false;
+      if (sh <= h + 1 || r.height < 40) { bar.hidden = true; el.classList.remove("tsb-on"); return; }
+      bar.hidden = false; el.classList.add("tsb-on");
       bar.style.top = (r.top - pr.top + 1) + "px";
       bar.style.left = (r.right - pr.left - 25) + "px";
       bar.style.height = (r.height - 2) + "px";
@@ -2559,8 +2561,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (!t) return;
       // 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない送りが入る）
       if (cur.length) { if (x + gap > maxW) flush(); else { x += gap; gaps += 1; } }
-      put("num", String(i + 1).padStart(2, "0"));
-      put("title", " " + oneLine(t.title));
+      const num = String(i + 1).padStart(2, "0"), title2 = oneLine(t.title);
+      // **番号だけが行末に取り残されないようにする**（backend/render.py と同じ規則）
+      const head = width("num", num) + width("title", " " + title2.slice(0, 2));
+      if (cur.length && x + head > maxW) flush();
+      put("num", num);
+      put("title", " " + title2);
       if (t.artist) put("artist", " " + oneLine(t.artist));
     });
     flush();

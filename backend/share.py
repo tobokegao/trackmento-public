@@ -232,6 +232,7 @@ TEXT = {
         "expires_days": "有効期限: 作成から {days} 日",
         "og_share": "トラック共有サイト #TRACKMENTO からシェア:「{title}」",
         "untitled": "無題",
+        "og_share_untitled": "トラック共有サイト #TRACKMENTO からシェア",
     },
     "en": {
         "expired_title": "This share is gone",
@@ -258,6 +259,7 @@ TEXT = {
         "expires_days": "Expires {days} days after it was made",
         "og_share": "Shared from #TRACKMENTO, the track-grid maker: \u201c{title}\u201d",
         "untitled": "Untitled",
+        "og_share_untitled": "Shared from #TRACKMENTO, a track grid maker",
     },
 }
 
@@ -402,7 +404,14 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
         card_url = base + card_url
     card_meta = ('<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:type" content="image/jpeg">'
                  if snap.get("og") else "")
-    title = html.escape(snap.get("title") or "TRACKMENTO")
+    # **タイトルを付けずに共有したときは、見出しを出さない**（「無題」と書くより素直。
+    # X のカードに "Untitled" と出るのも避ける）。ページの題と og:title はサイト名にする
+    raw_title = (snap.get("title") or "").strip()
+    title = html.escape(raw_title)
+    page_title = f"{title} — TRACKMENTO" if title else "TRACKMENTO"
+    og_title = title or "TRACKMENTO"
+    og_desc = t(lang, "og_share", title=title) if title else t(lang, "og_share_untitled")
+    heading = f"<h1>{title}</h1>" if title else ""
     rows = []
     for i, c in enumerate(snap.get("cells") or [], 1):
         if not c:
@@ -419,16 +428,16 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
     n = len(rows)
     return f"""<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} — TRACKMENTO</title>
+<title>{page_title}</title>
 <link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<meta property="og:title" content="{title}"><meta property="og:image" content="{card_url}">{card_meta}<meta name="twitter:image" content="{card_url}">
-<meta property="og:description" content="{t(lang, 'og_share', title=html.escape(snap.get('title') or t(lang, 'untitled')))}"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:title" content="{og_title}"><meta property="og:image" content="{card_url}">{card_meta}<meta name="twitter:image" content="{card_url}">
+<meta property="og:description" content="{og_desc}"><meta name="twitter:card" content="summary_large_image">
 <style>{_page_css(base)}</style></head>
 <body>
 <header><span class="mark">TRACKMENTO</span></header>
 <main>
-  <h1>{title}</h1>
+  {heading}
   <img src="{img_url}" alt="{title}">
   <div class="btns">
     <a class="btn primary" href="/shares/{sid}.{ext}" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.{ext}">{t(lang, "save_img")}</a>
