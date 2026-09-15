@@ -3004,11 +3004,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       let lastErr = null;
       for (const target of targets) {
         try {
-          // **キャッシュを使わない**。一覧の <img> が同じ URL を CORS 無しで先に読んでいると、
-          // その控えが CORS の取得に使えず即座に失敗する（256 マスで 510 件すべて失敗していた）。
-          // 画像は R2（転送量が無料）から出るので、取り直しても費用は増えない
-          const r = await fetch(target, { signal: ctrl.signal, mode: "cors", cache: "reload" });
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          // **まずキャッシュを使う。だめなら取り直す**。
+          // 一覧の <img> が同じ URL を CORS 無しで先に読んでいると、その控えは CORS の取得に使えず
+          // 即座に失敗する（256 マスで 510 件すべて失敗していた）。失敗はネットワークに出ないので、
+          // 取り直しの 1 往復だけで済む。画像は R2（転送量が無料）から出るので費用も増えない
+          let r;
+          try {
+            r = await fetch(target, { signal: ctrl.signal, mode: "cors" });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          } catch (e1) {
+            if (ctrl.signal.aborted) throw e1;
+            r = await fetch(target, { signal: ctrl.signal, mode: "cors", cache: "reload" });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          }
           return await createImageBitmap(await r.blob());
         } catch (err) { lastErr = err; if (ctrl.signal.aborted) break; }
       }
@@ -3051,6 +3059,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 描く前に R2 の場所をまとめて聞く（302 を追わないため。上の preloadR2Map を参照）
     const wantPx = cell < CELL_PX * 0.55 ? Math.ceil(cell / 50) * 50 : 0;
     await preloadR2Map(state.cells.flatMap(t => (t ? [t.image, t.thumb] : [])).filter(Boolean).map(url => ({ url, px: wantPx })));
+    // **取得だけ数枚先まで走らせる**。描く順番は変えない。1 枚ずつ順に取ると、1 往復ぶんの
+    // 待ち時間（30〜180ms）がマスの数だけ積み上がる（256 マスで 9 秒以上）。
+    // 同時に持つのは PREFETCH 枚まで（描いたら bitmap は close するので抱え込みも増えない）
+    const PREFETCH = 6;
+    const pending = new Map();
+    const startAt = (i) => {
+      if (i >= n || pending.has(i)) return;
+      const t2 = state.cells[i];
+      if (t2) pending.set(i, loadCover(t2, wantPx).catch(() => null));
+    };
+    for (let i = 0; i < Math.min(n, PREFETCH); i++) startAt(i);
     for (let i = 0; i < n; i++) {
       const t = state.cells[i], c = i % state.cols, r = Math.floor(i / state.cols);
       const x = sc(L.ox + c * (CELL_PX + state.gap)), y = sc(y0 + r * (CELL_PX + state.gap));
@@ -3058,7 +3077,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (t) {
         // cell は書き出しでの 1 マスの実寸。マスが多いとここが小さくなる（12x12 で約 194px）ので、
         // その大きさで足りる版を頼む。600px 近く使うとき（7x7 以下）は今までどおり原寸相当を読む
-        const bmp = await loadCover(t, wantPx);
+        startAt(i + PREFETCH);                 // 1 枚描くたびに、先の 1 枚の取得を始める
+        const bmp = await (pending.get(i) || loadCover(t, wantPx).catch(() => null));
+        pending.delete(i);
         if (bmp) { drawCover(ctx, bmp, x, y, cell); if (bmp.close) bmp.close(); }
         onProgress(i + 1, n);
         await yieldToUI();
