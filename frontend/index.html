@@ -620,8 +620,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .msg[data-tone="error"] { color: var(--color-ink); border-left: 6px solid var(--color-error); padding-left: var(--space-2); }
 /* 「みんなのグリッドから探せるようにする」。**既定はオフ**なので、押しやすさより
    「入れたことに気付ける」ことを優先して、共有ボタンのすぐ下に置く */
-.listed { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
-  margin-top: var(--space-2); }
+.listed { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); flex: 1 1 16rem; min-width: 0; }
 .listed .note-s { color: var(--color-muted); font-size: var(--text-sm); }
 .listed a { color: var(--color-ink); }
 .msg-under { margin-top: var(--space-3); }
@@ -732,9 +731,10 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .sheet-body { overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); }
 .sheet-body .pane { box-shadow: none; }
 .sheet-body .results { max-height: none; }
-/* **開いている間は body を固定する**。overflow: hidden だけでは iOS Safari と一部の Android で指のスクロールが
-   後ろの画面に抜ける（利用者の報告）。top は JS（lockScroll）が今のスクロール位置で入れる */
-body.sheet-open { overflow: hidden; position: fixed; left: 0; right: 0; width: 100%; }
+/* 開いている間は後ろをスクロールさせない。**body を position: fixed にしてはいけない**（2026-09-16 に一度やって、
+   実機の Android でシートの中までスクロールできなくなった）。overflow: hidden で止まらない端末（iOS など）は
+   JS（lockScroll の touchmove）がシートの外で始まった指の動きだけ止める */
+body.sheet-open { overflow: hidden; }
 /* 中身の端まで行っても、後ろの画面にスクロールを伝えない */
 .sheet-body, .modal-panel, .results, .grid-scroll.is-zoom { overscroll-behavior: contain; }
 .sheet-backdrop, .modal-backdrop { touch-action: none; }
@@ -796,7 +796,10 @@ body.sheet-open { overflow: hidden; position: fixed; left: 0; right: 0; width: 1
 @media (min-width: 60rem) { #share-btn { grid-column: 1 / -1; } }
 /* **取り消せない操作は、いちばん押すものから遠く・最後・小さく**（OS 9 の Special メニューの末尾に Empty Trash… があるのと同じ）。
    以前は「曲を探す」の真上に「全部クリア」があり、利用者から「ヒヤヒヤする」と言われた */
-#clear-btn { grid-column: 1 / -1; justify-self: end; margin-top: var(--space-2); }
+/* 最後の行: 左に「みんなのグリッド」の 2 段、右に「マスを全部外す」。幅が足りなければボタンが次の行の右端に落ちる */
+.grid-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start;
+  gap: var(--space-2); margin-top: var(--space-2); }
+#clear-btn { flex: none; margin-left: auto; }
 
 /* ---------- options ---------- */
 .opts { display: grid; gap: var(--space-4); }
@@ -1154,11 +1157,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
-        <button class="btn" type="button" id="clear-btn" title="マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる">マスを全部外す</button>
-      </div>
-      <div class="listed">
-        <label class="check"><input type="checkbox" id="opt-listed"><span>みんなのグリッドから探せるようにする</span></label>
-        <a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッドを探す</a>
+        <div class="grid-foot">
+          <div class="listed">
+            <label class="check"><input type="checkbox" id="opt-listed"><span>みんなのグリッドから探せるようにする</span></label>
+            <a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッドを探す</a>
+          </div>
+          <button class="btn" type="button" id="clear-btn" title="マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる">マスを全部外す</button>
+        </div>
       </div>
       <p class="msg msg-under">チェックを入れると、共有されたグリッドが曲名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
       <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。</p>
@@ -1861,18 +1866,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const say = (el, text, tone) => { el.textContent = text; if (tone) el.dataset.tone = tone; else delete el.dataset.tone; };
 
   // **シートやモーダルを開いている間、後ろの画面をスクロールさせない**（2026-09-16）。
-  // body の overflow: hidden だけでは iOS Safari と一部の Android で指のスクロールが後ろに抜ける（利用者の報告）。
-  // body を position: fixed にして今の位置で止め、閉じるときに元の位置へ戻す。
+  // body の overflow: hidden だけでは iOS Safari などで指のスクロールが後ろに抜ける（利用者の報告）。
+  // **body を position: fixed にする手は使わない**（一度やって、実機の Android でシートの中まで
+  // スクロールできなくなった）。代わりに touchmove を見て、**スクロールできる要素の中で始まった
+  // 動きはそのまま通し、それ以外（背景・見出し・余白）だけ止める**（body-scroll-lock と同じ考え方）。
   // 中身の端まで行っても後ろに伝えないのは CSS の overscroll-behavior: contain
-  let lockedY = null;
-  function lockScroll() {
-    if (lockedY === null) { lockedY = window.scrollY; document.body.style.top = `-${lockedY}px`; }
-    document.body.classList.add("sheet-open");
-  }
-  function unlockScroll() {
-    document.body.classList.remove("sheet-open");
-    if (lockedY !== null) { document.body.style.top = ""; const y = lockedY; lockedY = null; window.scrollTo({ top: y, behavior: "instant" }); }
-  }
+  function lockScroll() { document.body.classList.add("sheet-open"); }
+  function unlockScroll() { document.body.classList.remove("sheet-open"); }
+  document.addEventListener("touchmove", (e) => {
+    if (!document.body.classList.contains("sheet-open")) return;
+    for (let el = e.target; el && el !== document.body; el = el.parentElement) {
+      const o = getComputedStyle(el).overflowY;
+      if ((o === "auto" || o === "scroll") && el.scrollHeight > el.clientHeight + 1) return;   // 中のスクロール領域: 通す
+    }
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
 
   /* ---- sources ---- */
   /* 接続確認は /status（内容は /health と同じ）。/health は EasyPrivacy（Vivaldi・uBlock Origin・Brave などが使う遮断リスト）に
