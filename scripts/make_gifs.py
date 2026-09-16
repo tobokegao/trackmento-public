@@ -19,6 +19,7 @@ WIDTH = int(sys.argv[2]) if len(sys.argv) > 2 else 720
 # GIF は 256 色まで使えるので、200 を既定にして、色の変化そのものが主題の場面はさらに上げる
 COLORS = 200
 HI_COLOR = {"palette": 240, "touchbar": 240, "sheet": 240, "custom": 224}
+NO_DITHER = {"options", "touchbar", "drag"}   # custom は色の帯が段になるのでディザを残す。写真の場面でもディザ無しのほうが 2 割小さい（drag 3.7MB → 3.0MB）
 MS = 100
 LAST_MS = 900
 # **縦に長いものは横幅も落とす**。スマホの画面を丸ごと撮った場面は 720px 幅だと高さが
@@ -48,7 +49,11 @@ def build(dirpath: pathlib.Path) -> None:
     for i, f in enumerate(sample):
         montage.paste(f, (0, frames[0].height * i))
     base = montage.quantize(colors=HI_COLOR.get(dirpath.name, COLORS), method=Image.MEDIANCUT)
-    conv = [f.quantize(palette=base, dither=Image.FLOYDSTEINBERG) for f in frames]
+    # **カーソルが動く場面はディザを切る**。ディザは同じ場所でも点の並びが揺れるので、
+    # コマごとの差分が大きくなって GIF が太る（options が 3.9MB → 下の実測）。
+    # 色数を 200 以上にしてあるので、ディザ無しでも階調の段は目立たない
+    dither = Image.NONE if dirpath.name in NO_DITHER else Image.FLOYDSTEINBERG
+    conv = [f.quantize(palette=base, dither=dither) for f in frames]
     out = ROOT.parent / f"gif-{dirpath.name}.gif"
     durations = [MS] * (len(conv) - 1) + [LAST_MS]
     conv[0].save(out, save_all=True, append_images=conv[1:], duration=durations,

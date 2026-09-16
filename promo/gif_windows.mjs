@@ -138,7 +138,7 @@ async function dragThumb(sel, dx, shot) {
   }, sel);
   await page.mouse.move(c.x, c.y);
   await page.mouse.down();
-  const steps = 8;
+  const steps = 4;   // 多いと GIF が太る（8 だと options が 5MB になった）
   for (let i = 1; i <= steps; i++) {
     await page.mouse.move(c.x + dx * i / steps, c.y);
     await shot(); await page.waitForTimeout(1000 / FPS);
