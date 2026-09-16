@@ -387,6 +387,22 @@ claude --remote-control TRACKMENTO                                             #
     短辺 200px で 1 枚 22.6KB（256 マスで 5.7MB、-86%）。これだけ JPEG 品質 85 で再エンコードするので原本とはバイト列が変わる
   - 実測して問題が無かったもの: SoundCloud 78KB、YouTube 32KB、ニコニコ 10KB、Spotify 120KB（640px）、Cover Art Archive は `front-250`（28KB）が最小で 250/500/1200 の 3 段階しかない
     （ブラウザから直接読むので Render を通らない）
+- **VocaDB（ボカロのデータベース）**（`backend/sources/vocadb.py`、2026-09-16）。iTunes に配信の無い
+  ボカロ曲を引くための、**選んだときだけ使う**ソース（応答が 1.6〜2.8 秒と iTunes より遅い）
+  - **並べ替えを指定しないと原曲が上に来ない**。`sort=RatingScore` と `preferAccurateMatches=true` を
+    付けると「メルト」で ryo の原曲が 1 位になる（付けないと歌ってみた・REMIX が先に並ぶ。実測）
+  - `artistString` が**「ハチ feat. 初音ミク」の形**で返る。作者と歌声合成ソフトがまとめて手に入るので、
+    そのまま曲名リストに出している
+  - **サムネイルは URL を書き換えて大きくする**（`clamp_size`。他のソースと同じ考え方で、再エンコードはしない）
+    - YouTube … VocaDB が返すのは `default.jpg`（120x90・4.8KB）。`hqdefault.jpg`（480x360・39KB）へ。
+      `sddefault` は無い動画があるので使わない
+    - ニコニコ … 素の URL は 130x100。`.L` を足すと 360x270。ただし**古い動画には大きい版が無い**
+      （実測で 17,000,000 番台までは 404、19,000,000 番台から 200）ので `NICO_L_FROM` で線を引く
+  - 曲名リストのリンク先は、PV があればその動画のページ、無ければ VocaDB の曲のページ
+  - **キーは要らない**。データは CC ライセンスなので、画面のフッターに出典が出る（`#foot-sources` が自動）
+  - ソースを足すときに触る所: `backend/sources/<名前>.py`、`backend/models.py` の `Source`、
+    `backend/main.py` の import と `SOURCES`、frontend の `SOURCE_LABEL` / `ALL_SOURCES` / `SOURCE_ORDER`、
+    バッジの CSS、ソースの説明（`#src-modal`）と EN 表
 - 消えた動画（削除・非公開）は otoDB で埋める。otoDB のサムネイルは元動画が消えても CDN に残るため
   - **「その動画が消えているか」は otoDB の API だけで分かる**。`/api/work/sources?work_id=N` が返す
     `work_status` が **1 なら削除済み**（生きているものは 0）。`platform` は 1=YouTube / 2=ニコニコ。

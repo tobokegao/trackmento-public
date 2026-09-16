@@ -37,7 +37,7 @@ from backend.config import (app_url_for, base_url_for, cors_origins, frontend_ur
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
 from backend.models import Track
-from backend.sources import bandcamp, discogs, fromurl, itunes, musicbrainz, otodb, playlist, soundcloud, video
+from backend.sources import bandcamp, discogs, fromurl, itunes, musicbrainz, otodb, playlist, soundcloud, video, vocadb
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -97,7 +97,10 @@ if discogs.enabled():
 # 検索が 2 秒かかる（iTunes だけなら 0.2 秒。2026-09-15 の実測）。見つからなかったときだけ下で引き直す
 DEFAULT_SOURCES = ("itunes",)
 FALLBACK_SOURCE = "musicbrainz"
-SOURCES["otodb"] = otodb.search   # 音MAD データベース。ALL には含めず、明示選択のときだけ
+SOURCES["otodb"] = otodb.search     # 音MAD データベース。ALL には含めず、明示選択のときだけ
+# ボカロのデータベース。**応答が 1.6〜2.8 秒**と iTunes より遅いので、これも明示選択のときだけ。
+# iTunes に配信の無いボカロ曲（とその作者名）が引けるのが利点
+SOURCES["vocadb"] = vocadb.search
 
 
 @asynccontextmanager
@@ -760,7 +763,7 @@ async def health() -> dict:
 async def search(
     q: str = Query("", description="曲名", max_length=200),
     artist: str = Query("", description="アーティスト名", max_length=200),
-    source: str | None = Query(None, description="itunes|musicbrainz|discogs|otodb。省略時は横断（otodb は含まない）"),
+    source: str | None = Query(None, description="itunes|musicbrainz|discogs|otodb|vocadb。省略時は iTunes だけ（otodb・vocadb は含まない）"),
     nocache: bool = Query(False, description="true でキャッシュを使わず取り直す（公開モードでは無視）"),
 ) -> JSONResponse:
     if public_mode():

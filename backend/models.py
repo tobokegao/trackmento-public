@@ -3,7 +3,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, field_validator
 
-Source = Literal["itunes", "musicbrainz", "discogs", "bandcamp", "soundcloud", "youtube", "nicovideo", "bilibili", "spotify", "otodb", "manual"]
+Source = Literal["itunes", "musicbrainz", "discogs", "bandcamp", "soundcloud", "youtube", "nicovideo", "bilibili", "spotify", "otodb", "vocadb", "manual"]
 
 
 MAX_TEXT = 300

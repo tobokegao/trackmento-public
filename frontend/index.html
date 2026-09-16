@@ -630,6 +630,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .badge[data-source="bilibili"]    { background: var(--color-cerulean); color: var(--color-on-dark); }
 .badge[data-source="spotify"]     { background: var(--color-mint); }
 .badge[data-source="otodb"]       { background: var(--color-on-light); color: var(--color-mustard); }
+.badge[data-source="vocadb"]      { background: var(--color-lavender); }
 .badge[data-source="musicbrainz"] { background: var(--color-lavender); }
 .badge[data-source="discogs"]     { background: var(--color-mustard); }
 .badge[data-source="bandcamp"]    { background: var(--color-mint); }
@@ -1182,6 +1183,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>まとめて取る</b>: プレイリスト・マイリスト・セット・収藏夹・再生リストの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで</b>（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
+          <p><b>VocaDB</b>: ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。既定ではオフです。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
@@ -1346,6 +1348,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         ": 曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。": ": only shows tracks whose title contains your query and whose artist contains the artist you typed, to keep unrelated songs and covers out. Exact matches come first.",
         ": 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。": ": covers come only from releases registered with the Cover Art Archive. It allows one request per second, so it is a little slow.",
         ": 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。": ": the otoMAD database (otodb.net). Search by work title; the creator comes from the database tags. Thumbnails live on otoDB, so they still show even when the original video is gone. Off by default.",
+        ": ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。既定ではオフです。": ": the Vocaloid song database (vocadb.net). Search by title; the artist comes back as \"Hachi feat. Hatsune Miku\", the producer and the voice together. Results are ordered by rating so the original comes first. Thumbnails come from the original video. Off by default.",
         "組み合わせ": "Combining sources",
         ": ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。": ": you can pick several. Results follow the order of the buttons (iTunes → MusicBrainz → …), and for duplicates the earlier source wins, since iTunes is fast and steady while MusicBrainz gets busy. Your choice is remembered.",
         "まとめて取る": "Fetching a whole list",
@@ -1575,8 +1578,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   snapI18n();
   applyI18n();
 
-  const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", manual: "手入力" };
-  const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb"];
+  const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", vocadb: "VocaDB", manual: "手入力" };
+  // 画面のソース欄に並べる順。**otoDB と VocaDB は選んだときだけ引く**（どちらも iTunes より遅い）
+  const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb", "vocadb"];
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
   // ---- パレット（背景色に並ぶ 8 色 ＝ 画面の配色）----
@@ -1770,8 +1774,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     renderSources();
   }
   /* ソースは複数選択（チェックボックス）。選択は記憶し、既定は iTunes だけオン。
-     検索時の順序は優先順（iTunes → MusicBrainz → Discogs → otoDB）で固定し、同じ曲は先のソースを残す */
-  const SOURCE_ORDER = ["itunes", "musicbrainz", "discogs", "otodb"];
+     検索時の順序は優先順（iTunes → MusicBrainz → Discogs → otoDB → VocaDB）で固定し、同じ曲は先のソースを残す */
+  const SOURCE_ORDER = ["itunes", "musicbrainz", "discogs", "otodb", "vocadb"];
   const SOURCES_KEY = "trackmento:sources";
   function loadSourceSelection() {
     try { const v = JSON.parse(localStorage.getItem(SOURCES_KEY) || "null"); if (Array.isArray(v)) return v; } catch { /* ignore */ }
