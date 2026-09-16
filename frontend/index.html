@@ -1360,7 +1360,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "読み込みました。": "Loaded.", "色コードを 8 つ入れてください。": "Eight colour codes are needed.",
     "#f2418f, #4878da, …（8 つ）": "#f2418f, #4878da, … (eight)",
     "アイボリー": "Ivory", "チャコール": "Charcoal",
-    "地と文字の明るさが近いので、この組は画面には使いません。": "This set's paper and ink are too close in brightness, so the page keeps its own colours.",
+    "地が暗すぎるので、この組の地は画面には使いません。": "This set's paper is too dark, so the page keeps its own background.",
         "iTunes: サーバー経由は制限中（ブラウザから直接検索）": "iTunes: the server is rate-limited, searching from your browser instead",
         "接続OK": "Connected",
         "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）": "Cannot reach the server (search is limited to iTunes and MusicBrainz; saving and sharing are unavailable)",
@@ -1541,14 +1541,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     { id: "riso", name: "リソ", keys: ["paper", "ink", "mustard", "cerulean", "vermilion", "lavender", "mint", "pink"] },
     { id: "pop", name: "ポップ", keys: ["ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose"] },
   ];
-  // 画面の配色として差し替えるスロット（並びは BUILTIN_PALETTES の keys と同じ順）
-  const PALETTE_SLOTS = ["--color-paper", "--color-ink",
+  // 画面の配色として差し替えるスロット（並びは BUILTIN_PALETTES の keys と同じ順）。
+  // **2 番目（黒）は `null`＝画面には使わない**。`--color-ink` は枠線・文字・面取りの黒で、
+  // OS 9 のプラチナのグレー（`--color-bar` など）と組にして調整してある。ここだけ組ごとに変えると、
+  // **黒が 2 種類混ざって枠の手前に別の線が浮く**（実機で「グリッド枠の下に白い隙間」と報告）。
+  // 組の「黒」は**書き出し画像の背景色の選択肢としては生きている**
+  const PALETTE_SLOTS = ["--color-paper", null,
                          "--color-mustard", "--color-cerulean", "--color-vermilion", "--color-lavender", "--color-mint", "--color-pink"];
-  // 地と文字から作る中間色（枠線・添え字・ペインの下地）。**混ぜる割合は、もとからの
-  // クリームと黒で今の値とほぼ同じになるように選んである**（paper-2 が 6%、rule が 30% など）。
-  // ここを作らないと、別の組にしたとき地だけ変わって中間色がもとのままになり、色がちぐはぐになる
-  const PALETTE_MIX = [["--color-paper-2", 0.06, 0], ["--color-paper-3", 0.12, 0], ["--color-rule-2", 0.21, 0],
-                       ["--color-rule", 0.30, 0], ["--color-ink-2", 0.09, 1], ["--color-muted", 0.30, 1]];
+  // 地から作る下地の色（ペイン・入力欄）。**混ぜる相手は組の黒ではなく、固定の黒**（上の理由）。
+  // 割合は、もとからのクリームと黒で今の値とほぼ同じになる値を実測して選んだ。
+  // **枠線（`--color-rule`）や添え字（`--color-muted`）は作らない**。プラチナのグレーと
+  // 組にして調整してあるので、地に合わせて動かすと面取りが二重線に見える
+  const PALETTE_MIX = [["--color-paper-2", 0.06], ["--color-paper-3", 0.12]];
   // 地と文字の明るさの比。これを下回る組は画面には使わない（WCAG の 7:1）
   const PAL_MIN_RATIO = 7;
   const KEY_LABEL = {
@@ -1584,10 +1588,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const x = Math.max(relLum(a), relLum(b)), y = Math.min(relLum(a), relLum(b));
     return (x + 0.05) / (y + 0.05);
   }
-  /* 地と文字を画面に使ってよいか。**明るさの差が足りない組は使わない**（文字が読めなくなる） */
+  /* その組の地を画面に使ってよいか。**固定の黒との明るさの差**で決める（文字と枠線は黒のまま）。
+     差が足りない組は地も差し替えない（文字が読めなくなる） */
   function palReadable(p) {
-    const rgb = paletteRgb(p);
-    return relLum(rgb[0]) > relLum(rgb[1]) && contrastRatio(rgb[0], rgb[1]) >= PAL_MIN_RATIO;
+    const bg = paletteRgb(p)[0];
+    return relLum(bg) > relLum(TOKENS_RGB.ink) && contrastRatio(bg, TOKENS_RGB.ink) >= PAL_MIN_RATIO;
   }
   function savePalettes() {
     try { localStorage.setItem(PAL_STORE, JSON.stringify(userPalettes)); localStorage.setItem(PAL_ACTIVE, activePaletteId); } catch { /* ignore */ }
@@ -1595,14 +1600,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* 画面の配色を今の組に合わせる。**もとからの色（リソ）のときは指定を外す**（CSS の値に戻る） */
   function applyPalette() {
     const p = activePalette(), colors = paletteColors(p), rgb = paletteRgb(p);
-    const ok = palReadable(p);   // 地と文字を画面にも使うか
+    const ok = palReadable(p);   // 地を画面にも使うか（固定の黒との明るさの差で決める）
     PALETTE_SLOTS.forEach((slot, i) => {
-      if (p.id === "riso" || (i < 2 && !ok)) document.documentElement.style.removeProperty(slot);
+      if (!slot) return;                     // 黒は画面には使わない
+      if (p.id === "riso" || (i === 0 && !ok)) document.documentElement.style.removeProperty(slot);
       else document.documentElement.style.setProperty(slot, colors[i]);
     });
-    PALETTE_MIX.forEach(([slot, t, from]) => {
+    PALETTE_MIX.forEach(([slot, t]) => {
       if (p.id === "riso" || !ok) document.documentElement.style.removeProperty(slot);
-      else document.documentElement.style.setProperty(slot, cssRgb(mixRgb(rgb[from], rgb[1 - from], t)));
+      else document.documentElement.style.setProperty(slot, cssRgb(mixRgb(rgb[0], TOKENS_RGB.ink, t)));
     });
   }
   // 組み込みの色の名前ぜんぶ。**読み込んだ並びの色は、今の組に入っていなくても受け付ける**
@@ -2520,7 +2526,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // **地と文字が近すぎる組は画面には使わない**ので、そのことを見える所に書く（黙って無視しない）
       if (!palReadable(p)) {
         const warn = document.createElement("p"); warn.className = "pal-warn";
-        warn.textContent = tr("地と文字の明るさが近いので、この組は画面には使いません。");
+        warn.textContent = tr("地が暗すぎるので、この組の地は画面には使いません。");
         lane.append(warn);
       }
       if (!p.keys) {
