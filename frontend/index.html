@@ -804,7 +804,7 @@ body.sheet-open { overflow: hidden; }
 /* **取り消せない操作は、いちばん押すものから遠く・最後・小さく**（OS 9 の Special メニューの末尾に Empty Trash… があるのと同じ）。
    以前は「曲を探す」の真上に「全部クリア」があり、利用者から「ヒヤヒヤする」と言われた */
 /* 最後の行: 左に「みんなのグリッド」の 2 段、右に「マスを全部外す」。幅が足りなければボタンが次の行の右端に落ちる */
-.grid-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start;
+.grid-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end;   /* 説明の行はボタンの下辺にそろえる（利用者の指定） */
   gap: var(--space-2); margin-top: var(--space-2); }
 #clear-btn { flex: none; margin-left: auto; }
 
@@ -1972,7 +1972,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* サーバー側（backend/merge.py の _n）と同じ結果になるようにする。Python の casefold は ß を ss に
      畳むが JS の toLowerCase は畳まないので、そこだけ手で合わせる（揃っていないと
      ブラウザ検索とサーバー検索で結果が変わる） */
-  const nkey = (v) => (v || "").normalize("NFKC").toLowerCase().replace(/ß/g, "ss").replace(/featuring/g, "feat").replace(/feat\./g, "feat").replace(/[^\p{L}\p{N}]+/gu, "");
+  // 単独の濁点・半濁点（゛゜）は結合文字にしてから NFKC（「ハ゛」→「バ」）。backend/merge.py の _n と同じ規則
+  const nkey = (v) => (v || "").replace(/\u309b/g, "\u3099").replace(/\u309c/g, "\u309a").normalize("NFKC").toLowerCase().replace(/ß/g, "ss").replace(/featuring/g, "feat").replace(/feat\./g, "feat").replace(/[^\p{L}\p{N}]+/gu, "");
   const hiresArt = (url) => url.replace(/\/\d+x\d+(bb)?\.(jpg|png)$/, (m, bb, ext) => `/1000x1000${bb || ""}.${ext}`);
   async function itunesSearch(q, artist) {
     const term = `${artist} ${q}`.trim();

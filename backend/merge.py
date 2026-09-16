@@ -18,7 +18,12 @@ PRIORITY = {"itunes": 0, "musicbrainz": 1, "discogs": 2, "bandcamp": 3, "soundcl
 
 
 def _n(s: str | None) -> str:
-    s = unicodedata.normalize("NFKC", s or "").casefold()
+    # **単独の濁点・半濁点（゛ U+309B / ゜ U+309C）は結合文字にしてから正規化する**（2026-09-16）。
+    # NFKC はこれらを「空白＋結合文字」に開くだけで前の字と合成しないので、「ハ゛ルーン」が「ハルーン」になり
+    # 「バルーン」と一致しなかった。結合文字（U+3099 / U+309A）に置き換えれば NFKC が「バ」に合成する。
+    # frontend の nkey() と同じ規則にすること
+    s = (s or "").replace("\u309b", "\u3099").replace("\u309c", "\u309a")
+    s = unicodedata.normalize("NFKC", s).casefold()
     s = s.replace("featuring", "feat").replace("feat.", "feat")
     return _STRIP_RE.sub("", s)
 

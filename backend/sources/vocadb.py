@@ -65,7 +65,10 @@ def _links(item: dict) -> str | None:
 async def search(q: str, artist: str = "", *, limit: int = PAGE,
                  client: httpx.AsyncClient | None = None) -> list[Track]:
     """VocaDB を検索する。原曲が上に来るように評価の高い順で引く。"""
-    query = " ".join(s for s in (q.strip(), artist.strip()) if s)
+    # **query は曲名だけ**（無ければアーティスト名）。「シャルル バルーン」のように 2 つをつなぐと
+    # VocaDB は曲名にその全文が含まれるものを探して 0 件になる（artistName パラメータは無視される。実測）。
+    # アーティスト名はこちらで絞る（下）。半角の濁点（ﾊﾞ）や単独の濁点（ハ゛）は merge._n が吸収する
+    query = q.strip() or artist.strip()
     if not query:
         return []
     own = client is None
@@ -98,4 +101,10 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE,
             thumb=image,
             external_url=_links(it),
         ))
+    if q.strip() and artist.strip():
+        # アーティストで絞る。1 件も残らなければ絞らずに返す（表記が違うだけのことがある）
+        from backend.merge import _n
+        key = _n(artist)
+        hit = [t for t in out if key and key in _n(t.artist)]
+        out = hit or out
     return out
