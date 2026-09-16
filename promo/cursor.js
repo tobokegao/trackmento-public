@@ -33,7 +33,7 @@
     tip.setAttribute("width", "22");
     tip.setAttribute("height", "30");
     tip.setAttribute("viewBox", "0 0 22 30");
-    tip.style.cssText = "position:absolute;left:0;top:0;filter:drop-shadow(1px 2px 0 rgba(0,0,0,.35));";
+    tip.style.cssText = "position:absolute;left:0;top:0;transform-origin:2px 1px;filter:drop-shadow(1px 2px 0 rgba(0,0,0,.35));";
     const p = document.createElementNS(NS, "path");
     p.setAttribute("d", "M2 1 L2 22 L7.5 17 L11 25.5 L15 24 L11.5 15.5 L19 15 Z");
     p.setAttribute("fill", "#fff");
@@ -49,7 +49,9 @@
 
   let x = -100, y = -100, down = false;
   const draw = () => {
-    tip.style.transform = `translate(${x}px, ${y}px)` + (down && !touch ? " rotate(-12deg)" : "");
+    tip.style.transform = touch
+      ? `translate(${x}px, ${y}px)`
+      : `translate(${x - 2}px, ${y - 1}px)` + (down ? " rotate(-12deg)" : "");
     ring.style.transform = `translate(${x}px, ${y}px) scale(${ring.dataset.s || 1})`;
   };
   const move = (e) => { x = e.clientX; y = e.clientY; draw(); };
@@ -68,22 +70,16 @@
     step();
   };
 
-  addEventListener("mousemove", move, true);
-  addEventListener("mousedown", (e) => { move(e); down = true; pulse(); }, true);
-  addEventListener("mouseup", (e) => { move(e); down = false; draw(); }, true);
+  // **pointer イベントで追う**（mouse イベントではない）。つまみやスクロールバーは
+  // setPointerCapture で pointer を掴むので、掴まれている間は mousemove が追いつかず、
+  // 矢印や丸がつまみから離れて置き去りになった（撮影して分かった）
+  addEventListener("pointermove", move, true);
+  addEventListener("pointerdown", (e) => { move(e); down = true; pulse(); }, true);
+  addEventListener("pointerup", (e) => { move(e); down = false; draw(); }, true);
   // **HTML5 のドラッグ中は mousemove が来ない**（ブラウザが drag / dragover に切り替える）。
   // そちらからも位置を拾わないと、掴んだ場所に矢印が置き去りになる
   addEventListener("dragover", move, true);
   addEventListener("dragend", (e) => { move(e); down = false; draw(); }, true);
   addEventListener("drop", (e) => { move(e); down = false; draw(); }, true);
-  addEventListener("touchstart", (e) => {
-    const t = e.touches[0]; if (!t) return;
-    x = t.clientX; y = t.clientY; down = true; pulse();
-  }, true);
-  addEventListener("touchmove", (e) => {
-    const t = e.touches[0]; if (!t) return;
-    x = t.clientX; y = t.clientY; draw();
-  }, true);
-  addEventListener("touchend", () => { down = false; draw(); }, true);
   draw();
 })();

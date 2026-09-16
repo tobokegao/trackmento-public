@@ -127,10 +127,23 @@ async function bring(sel) {
   await page.waitForTimeout(300);
 }
 
-/** 矢印キーでつまみを動かす（溝を押しても動かない作りなので、ドラッグより確実） */
-async function nudge(sel, key, times) {
-  await page.focus(sel);
-  for (let i = 0; i < times; i++) { await page.keyboard.press(key); await page.waitForTimeout(40); }
+/** つまみをマウスで掴んで動かす。**矢印キーで動かすと青い焦点の枠が付き、勝手に動いて見える**
+    （利用者から指摘）。つまみの位置は画面側の thumbOnly と同じ式で出す（つまみの幅 19px）。
+    dx は動かす量（px）。コマを撮りながら少しずつ運ぶ */
+async function dragThumb(sel, dx, shot) {
+  const c = await page.evaluate((sel) => {
+    const el = document.querySelector(sel), r = el.getBoundingClientRect(), T = 19;
+    const min = +el.min || 0, max = +el.max || 100, t = max > min ? (+el.value - min) / (max - min) : 0;
+    return { x: r.left + T / 2 + t * (r.width - T), y: r.top + r.height / 2 };
+  }, sel);
+  await page.mouse.move(c.x, c.y);
+  await page.mouse.down();
+  const steps = 8;
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(c.x + dx * i / steps, c.y);
+    await shot(); await page.waitForTimeout(1000 / FPS);
+  }
+  await page.mouse.up();
 }
 
 // ---- 1. 検索の窓 ----
@@ -340,9 +353,9 @@ if (want("options")) {
     }
     const sw = await page.$$('#swatches label');
     for (const s of [sw[3], sw[5], sw[1]]) { await s.click(); await hold(shot, 0.6); }
-    await nudge("#margin", "ArrowRight", 8);
+    await dragThumb("#margin", 80, shot);
     await hold(shot, 0.6);
-    await nudge("#gap", "ArrowRight", 8);
+    await dragThumb("#gap", 90, shot);
     await hold(shot, 1.0);
   });
 }
@@ -383,11 +396,11 @@ if (want("custom")) {
     await page.click("#bg-custom-btn");
     await page.waitForTimeout(250);
     await hold(shot, 0.8);
-    await nudge("#hsv-h", "ArrowRight", 24);
+    await dragThumb("#hsv-h", 40, shot);
     await hold(shot, 0.4);
-    await nudge("#hsv-s", "ArrowRight", 20);
+    await dragThumb("#hsv-s", 60, shot);
     await hold(shot, 0.4);
-    await nudge("#hsv-v", "ArrowLeft", 10);
+    await dragThumb("#hsv-v", -40, shot);
     await hold(shot, 1.6);
   });
 }
