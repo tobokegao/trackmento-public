@@ -607,7 +607,6 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
              gap: var(--space-2); padding: var(--space-2); min-height: 0; overflow: auto; }
 .zoom-slot .editor { width: min(100%, 48rem); }
 /* 拡大窓では全部入る大きさにするので、溝のぶんを空けておく必要がない */
-.grid-scroll.is-zoom { scrollbar-gutter: auto; }
 /* 「大きく見る」ボタン。タイトル欄の右に置く（タイトルバーの縞の規則に触らないため） */
 .grid-head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
 .grid-head .btn { white-space: nowrap; }
@@ -670,7 +669,10 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 /* ---------- grid ---------- */
 .grid-head { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
 /* 縦に長いグリッドはこの枠の中でスクロールする */
-.grid-scroll { overflow: auto; scrollbar-gutter: stable; border: var(--line) solid var(--color-ink); }
+/* **溝のぶんは空けない**（2026-09-16。`scrollbar-gutter: stable` をやめた。スクロールしない並びで右に
+   空きが残っていた）。行が列より多いときだけ縦にあふれるので、出る／出ないが行き来することはない
+   （枠の高さは中身の幅から決める正方形。中身の幅がスクロールバーのぶん縮んでも、あふれる向きは変わらない） */
+.grid-scroll { overflow: auto; border: var(--line) solid var(--color-ink); }
 /* max-height は JS（syncPreview）が「3 行分の高さ」に設定する。4 行以上でスクロールバーが出る */
 /* スマホでは検索・候補ペインは常時表示せず、空マスのタップか「曲を探す」で出るシートの中だけに置く */
 @media (max-width: 59.99rem) {
@@ -730,7 +732,12 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .sheet-body { overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); }
 .sheet-body .pane { box-shadow: none; }
 .sheet-body .results { max-height: none; }
-body.sheet-open { overflow: hidden; }
+/* **開いている間は body を固定する**。overflow: hidden だけでは iOS Safari と一部の Android で指のスクロールが
+   後ろの画面に抜ける（利用者の報告）。top は JS（lockScroll）が今のスクロール位置で入れる */
+body.sheet-open { overflow: hidden; position: fixed; left: 0; right: 0; width: 100%; }
+/* 中身の端まで行っても、後ろの画面にスクロールを伝えない */
+.sheet-body, .modal-panel, .results, .grid-scroll.is-zoom { overscroll-behavior: contain; }
+.sheet-backdrop, .modal-backdrop { touch-action: none; }
 .cell.is-selected .num { background: var(--color-mustard); color: var(--color-on-light); }
 .grid[data-selecting="true"] .cell:not(.is-selected) { cursor: copy; }
 /* 選択中のマスの編集パネル。**地がマスタード（明るい色）なので、中の文字はぜんぶ
@@ -783,11 +790,12 @@ body.sheet-open { overflow: hidden; }
 .grid-actions { container-type: inline-size; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }   /* グリッドと同じ幅いっぱい（上限を付けると右に空きが残る） */
 .grid-actions .btn { padding-inline: var(--space-2); }
 /* グリッド列が狭いとき（スマホの PC 表示など）は 2 列だと文字の余白が足りないので、ボタンを 1 列に縦積み */
-@container (max-width: 22rem) { .grid-actions > .btn { grid-column: 1 / -1; } }
-#find-btn { grid-column: 1 / -1; }
+/* 幅が 20rem（320px）を切る狭い画面だけ 1 列。412px の端末（欄の幅 348px）は 2×2 のまま */
+@container (max-width: 20rem) { .grid-actions > .btn { grid-column: 1 / -1; } }
+/* スマホは「曲を探す・共有／保存・読み込み」の 2×2。PC は「曲を探す」が無いので共有だけ 1 行いっぱい */
+@media (min-width: 60rem) { #share-btn { grid-column: 1 / -1; } }
 /* **取り消せない操作は、いちばん押すものから遠く・最後・小さく**（OS 9 の Special メニューの末尾に Empty Trash… があるのと同じ）。
    以前は「曲を探す」の真上に「全部クリア」があり、利用者から「ヒヤヒヤする」と言われた */
-#share-btn { grid-column: 1 / -1; }
 #clear-btn { grid-column: 1 / -1; justify-self: end; margin-top: var(--space-2); }
 
 /* ---------- options ---------- */
@@ -1852,6 +1860,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const setBtnState = (btn, s) => { if (s) btn.dataset.state = s; else delete btn.dataset.state; btn.disabled = s === "loading"; };
   const say = (el, text, tone) => { el.textContent = text; if (tone) el.dataset.tone = tone; else delete el.dataset.tone; };
 
+  // **シートやモーダルを開いている間、後ろの画面をスクロールさせない**（2026-09-16）。
+  // body の overflow: hidden だけでは iOS Safari と一部の Android で指のスクロールが後ろに抜ける（利用者の報告）。
+  // body を position: fixed にして今の位置で止め、閉じるときに元の位置へ戻す。
+  // 中身の端まで行っても後ろに伝えないのは CSS の overscroll-behavior: contain
+  let lockedY = null;
+  function lockScroll() {
+    if (lockedY === null) { lockedY = window.scrollY; document.body.style.top = `-${lockedY}px`; }
+    document.body.classList.add("sheet-open");
+  }
+  function unlockScroll() {
+    document.body.classList.remove("sheet-open");
+    if (lockedY !== null) { document.body.style.top = ""; const y = lockedY; lockedY = null; window.scrollTo({ top: y, behavior: "instant" }); }
+  }
+
   /* ---- sources ---- */
   /* 接続確認は /status（内容は /health と同じ）。/health は EasyPrivacy（Vivaldi・uBlock Origin・Brave などが使う遮断リスト）に
      「onrender.com/health」の規則があり、公開サイトでは fetch が失敗して「サーバーに接続できません」になっていた */
@@ -2102,8 +2124,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
 
   const srcModal = $("#src-modal");
-  const openSrcModal = () => { srcModal.hidden = false; document.body.classList.add("sheet-open"); $("#src-modal-close").focus({ preventScroll: true }); };
-  const closeSrcModal = () => { srcModal.hidden = true; if (!sheetOpen()) document.body.classList.remove("sheet-open"); $("#src-hint-btn").focus({ preventScroll: true }); };
+  const openSrcModal = () => { srcModal.hidden = false; lockScroll(); $("#src-modal-close").focus({ preventScroll: true }); };
+  const closeSrcModal = () => { srcModal.hidden = true; if (!sheetOpen()) unlockScroll(); $("#src-hint-btn").focus({ preventScroll: true }); };
   $("#src-hint-btn").addEventListener("click", openSrcModal);
   $("#src-modal-close").addEventListener("click", closeSrcModal);
   $("#src-modal-backdrop").addEventListener("click", closeSrcModal);
@@ -2114,7 +2136,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const plOpen = () => !plModal.hidden;
   function closePlModal() {
     plModal.hidden = true; plPending = null;
-    if (!sheetOpen()) document.body.classList.remove("sheet-open");
+    if (!sheetOpen()) unlockScroll();
   }
   function askPlaylist(tracks) {
     plPending = tracks;
@@ -2125,7 +2147,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       ? tr("「マスに入れる」で、番号の若い空きマスから順に全部入ります。")
       : tr`「マスに入れる」で ${fit} 曲が入り、残り ${tracks.length - fit} 曲は候補に置きます。`;
     plModal.hidden = false;
-    document.body.classList.add("sheet-open");
+    lockScroll();
     $("#pl-to-grid").focus({ preventScroll: true });
   }
   function plPutToResults(tracks, note) {
@@ -2349,7 +2371,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const search = $(".pane-search"), results = $(".pane-results");
     sheetBody.append(search, results);
     search.dataset.collapsed = "false"; results.dataset.collapsed = "false";
-    sheet.hidden = false; document.body.classList.add("sheet-open");
+    sheet.hidden = false; lockScroll();
     sheetBody.scrollTop = 0;
     setTimeout(() => els.q.focus({ preventScroll: true }), 50);
   }
@@ -2358,7 +2380,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const wb = $(".workbench");
     wb.append($(".pane-search"), $(".pane-results"));   // 並び順は CSS の order が決める
     applyFold();
-    sheet.hidden = true; document.body.classList.remove("sheet-open");
+    sheet.hidden = true; unlockScroll();
     // 閉じても入れる先は残る（マスに枠が出たまま）。何が選ばれているかを下の欄にも書いておく
     if (target !== null) say(els.gridMsg, tr`${target + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
   }
@@ -2647,8 +2669,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   // ---- パレットのオーバーレイ ----
   const palModal = $("#pal-modal"), palLanes = $("#pal-lanes");
-  const openPalModal = () => { renderPalLanes(); palModal.hidden = false; document.body.classList.add("sheet-open"); $("#pal-modal-close").focus({ preventScroll: true }); };
-  const closePalModal = () => { palModal.hidden = true; document.body.classList.remove("sheet-open"); $("#palette-btn").focus({ preventScroll: true }); };
+  const openPalModal = () => { renderPalLanes(); palModal.hidden = false; lockScroll(); $("#pal-modal-close").focus({ preventScroll: true }); };
+  const closePalModal = () => { palModal.hidden = true; unlockScroll(); $("#palette-btn").focus({ preventScroll: true }); };
   $("#palette-btn").addEventListener("click", openPalModal);
   $("#pal-modal-close").addEventListener("click", closePalModal);
   $("#pal-modal-backdrop").addEventListener("click", closePalModal);
@@ -3991,7 +4013,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     upFill.style.width = "0%"; upFill.removeAttribute("data-done");
     upPct.dataset.pct = 0; upPct.textContent = "0%";
     upNote.textContent = tr("回線が細いと少し時間がかかります。このままお待ちください。");
-    upModal.hidden = false; document.body.classList.add("sheet-open");
+    upModal.hidden = false; lockScroll();
     upStart = Date.now();
     clearInterval(upTimer);
     upTimer = setInterval(() => {
@@ -4010,7 +4032,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function closeUpload() {
     clearInterval(upTimer); upTimer = 0; upXhr = null;
     upModal.hidden = true;
-    if (!sheetOpen()) document.body.classList.remove("sheet-open");
+    if (!sheetOpen()) unlockScroll();
   }
   $("#up-cancel").addEventListener("click", () => { if (upXhr) upXhr.abort(); closeUpload(); });
   /* 進み具合の取れる送信。**fetch では上りの進みが取れない**ので XMLHttpRequest を使う */
@@ -4062,7 +4084,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (gridZoomed) return;
     zoomSlot.append(els.gridScroll, els.editor);
     els.gridScroll.classList.add("is-zoom");
-    gridZoomed = true; zoomModal.hidden = false; document.body.classList.add("sheet-open");
+    gridZoomed = true; zoomModal.hidden = false; lockScroll();
     syncPreview();
     $("#zoom-modal-close").focus({ preventScroll: true });
   }
@@ -4072,7 +4094,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     editorHome.append(els.editor);
     els.gridScroll.classList.remove("is-zoom");
     gridZoomed = false; zoomModal.hidden = true;
-    if (!sheetOpen()) document.body.classList.remove("sheet-open");
+    if (!sheetOpen()) unlockScroll();
     syncPreview();
     $("#zoom-btn").focus({ preventScroll: true });
   }
@@ -4237,7 +4259,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const MATH_RE = /[\u{1D400}-\u{1D7FF}]/gu;
   // **まず NFC で合成する**（backend/render.py の _one_line と同じ）。濁点が結合文字（U+3099）で
   // 入っている題があり、Pillow は合成しないので直さないとサーバー描画だけ濁点が消える
-  const oneLine = (v) => (v || "").normalize("NFC").replace(MATH_RE, (c) => c.normalize("NFKC")).replace(STRIP_RE, "").split(/\s+/).join(" ").trim();
+  // **フォントにある絵文字風の記号は残す**（★ ♪ ♡ ♥ など 31 字。2026-09-16）。Chromium の \p{Extended_Pictographic} は
+  // ★（U+2605）も絵文字扱いで、落とすとサーバー（フォントの cmap にあるかで決める backend/render.py の _drawable）と
+  // 字幅がずれ、流し込みの折り返しが変わっていた（「ブラック★ロックシューター」で 12x20 の割り付けが別物になった）。
+  // 一覧は「Chromium の判定 ∩ IBM Plex Sans JP Bold の cmap」。エスケープで書いてあるのは、build_fonts.py に
+  // UI の文字として拾わせないため（Node の判定は Unicode の版が違い ★ を含まないので、Chromium で測ること）
+  const KEEP_PICTO = new Set("\u00a9\u00ae\u2122\u2600\u2601\u2602\u2603\u2605\u260e\u261c\u261d\u261e\u261f\u2640\u2642\u2660\u2661\u2662\u2663\u2664\u2665\u2666\u2667\u266a\u266d\u266f\u27a1\u2b05\u2b06\u2b07\u3299");
+  const oneLine = (v) => (v || "").normalize("NFC").replace(MATH_RE, (c) => c.normalize("NFKC"))
+    .replace(STRIP_RE, (c) => (KEEP_PICTO.has(c) ? c : "")).split(/\s+/).join(" ").trim();
   function ellipsizeText(ctx, text, maxW) {
     if (ctx.measureText(text).width <= maxW) return text;
     let lo = 0, hi = text.length;
