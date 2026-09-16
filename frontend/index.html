@@ -616,7 +616,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .search-actions { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
 .msg { font-size: var(--text-sm); color: var(--color-muted); margin: 0; min-height: 1.4em; overflow-wrap: anywhere; }
 .msg[data-tone="error"] { color: var(--color-ink); border-left: 6px solid var(--color-error); padding-left: var(--space-2); }
-/* 「みんなの並びから探せるようにする」。**既定はオフ**なので、押しやすさより
+/* 「みんなのグリッドから探せるようにする」。**既定はオフ**なので、押しやすさより
    「入れたことに気付ける」ことを優先して、共有ボタンのすぐ下に置く */
 .listed { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
   margin-top: var(--space-2); }
@@ -629,7 +629,8 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
    横スクロールバーが出入りするたび縦バーの長さが変わってしまう。
    右の余白はスクロールバーとの間隔（.pane-body の余白はバーの外側なので、ここで空けないと曲がバーに貼り付く）。
    hover の 2px もこの中で受けるので、8px あれば切れない */
-.results { list-style: none; margin: 0; padding: 0 var(--space-2) 0 0; display: grid; align-content: start; gap: var(--space-2); max-height: 44dvh; overflow: hidden auto; }   /* 上詰め。ペインを伸ばしたとき、中身が少ないと縦に間延びするため */
+/* 候補の高さも `svh`。`dvh` だとスクロール中にアドレスバーの伸縮で高さが変わり、一覧が伸び縮みする */
+.results { list-style: none; margin: 0; padding: 0 var(--space-2) 0 0; display: grid; align-content: start; gap: var(--space-2); max-height: 44svh; overflow: hidden auto; }   /* 上詰め。ペインを伸ばしたとき、中身が少ないと縦に間延びするため */
 @media (min-width: 60rem) { .results { max-height: calc(100dvh - 24rem); } }
 .result {
   display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-3); align-items: center;
@@ -979,8 +980,12 @@ output { font-variant-numeric: tabular-nums; }
 .output { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: var(--line) solid var(--color-rule); }
 .output[hidden] { display: none; }
 /* 比率は JS が入れる（別オリジンから読むので、読み終わるまで高さが 0 だと画面が飛ぶ）。
-   高さの頭打ちに当たったときに横へ伸びないよう object-fit も添える */
-.output img { width: auto; max-width: 100%; max-height: 70dvh; object-fit: contain;
+   高さの頭打ちに当たったときに横へ伸びないよう object-fit も添える。
+   **頭打ちは `dvh` ではなく `svh`**。`dvh` は「今この瞬間の画面の高さ」なので、スマホで
+   スクロールしてアドレスバーが隠れると値が増え、**画像の大きさごと変わって下の欄がずれる**
+   （実機の録画で確認。スクロール中に出来上がりの画像が伸び縮みしていた）。
+   `svh` はアドレスバーが出ている状態で固定なので動かない */
+.output img { width: auto; max-width: 100%; max-height: 70svh; object-fit: contain;
   border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
 .share-url { display: grid; gap: var(--space-1); }
 .share-url .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
@@ -1128,8 +1133,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <input type="file" id="json-file" accept="application/json,.json" hidden>
       </div>
       <div class="listed">
-        <label class="check"><input type="checkbox" id="opt-listed"><span>みんなの並びから探せるようにする</span></label>
-        <a id="find-link" href="/find" target="_blank" rel="noopener">みんなの並びを探す</a>
+        <label class="check"><input type="checkbox" id="opt-listed"><span>みんなのグリッドから探せるようにする</span></label>
+        <a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッドを探す</a>
       </div>
       <p class="msg msg-under">入れると、この並びが曲名・アーティスト名で探せるようになります。入れなければ、URL を知っている人だけが見られます。</p>
       <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。</p>
@@ -1250,7 +1255,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <div class="modal" id="up-modal" hidden role="dialog" aria-modal="true" aria-labelledby="up-modal-title">
   <div class="sheet-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="up-modal-title">画像を送っています</h2></div>
+    <div class="sheet-head"><h2 id="up-modal-title">画像を送っています</h2><button class="btn" type="button" id="up-cancel">やめる</button></div>
     <div class="modal-body note">
       <div class="up-bar"><div class="up-fill" id="up-fill"></div></div>
       <p class="up-pct" id="up-pct">0%</p>
@@ -1476,10 +1481,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "画像を送っています": "Sending the image", "回線が細いと少し時間がかかります。このままお待ちください。": "On a slow connection this takes a little while. Please keep this open.",
     "サーバーで保存しています…": "Saving on the server…",
     "待っているあいだに、作者の曲はいかがですか": "While you wait, how about a song by the author",
-    "みんなの並びから探せるようにする": "Let people find this layout",
-    "みんなの並びを探す": "Find shared layouts",
+    "みんなのグリッドから探せるようにする": "Let people find this grid",
+    "みんなのグリッドを探す": "Find shared grids",
     "入れると、この並びが曲名・アーティスト名で探せるようになります。入れなければ、URL を知っている人だけが見られます。":
-      "Tick this and the layout can be found by song or artist name. Leave it off and only people with the URL can see it.",
+      "Tick this and the grid can be found by song or artist name. Leave it off and only people with the URL can see it.",
+    "やめる": "Cancel",
+    "時間がかかっています。回線が不安定なときは「やめる」でやり直せます。":
+      "This is taking a while. If your connection is unstable, hit Cancel and try again.",
+    "送れませんでした（通信が切れたようです）": "Could not send it (the connection dropped)",
+    "時間切れです（回線が遅いか、途切れています）": "Timed out (the connection is slow or broken)",
+    "送信をやめました": "Sending cancelled",
+    "（{} 秒）": " ({0}s)",
     "大きく見る": "Enlarge", "グリッドを大きく見る": "The grid, enlarged",
     "グリッドを画面いっぱいに開いて並べ替える": "Open the grid at full size to rearrange it",
     "パレット": "Palette", "パレットを選ぶ": "Choose a palette",
@@ -1772,7 +1784,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
     ratio: "16:9", showTitle: true, sidebar: true, numbers: false, bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（比率は X 向けの 16:9）
-    listed: false,   // みんなの並びから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
+    listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
   let dragFrom = null;
@@ -3749,6 +3761,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     ["Toward a New Future (feat. Tsukuyomi Ai)", "https://tbkgao.bandcamp.com/track/toward-a-new-future-feat-tsukuyomi-ai-demo"],
   ];
   const upModal = $("#up-modal"), upFill = $("#up-fill"), upPct = $("#up-pct"), upNote = $("#up-note");
+  /* **送信は必ず終わらせる**。XMLHttpRequest は既定で待ち続けるので、回線が切れて応答が
+     返ってこないと窓が出たまま止まる（実機で「この画面から動かない」と報告があった）。
+     時間切れを入れ、経過秒も出し、自分でやめられるようにしておく */
+  const UPLOAD_TIMEOUT = 180000;   // 3 分。細い上りで 1MB を送るのに 81 秒かかった実測がある
+  const UPLOAD_SLOW = 25;          // これを過ぎたら「時間がかかっています」と添える
+  let upXhr = null, upTimer = 0, upStart = 0;
   function openUpload() {
     const [title, url] = OWN_TRACKS[Math.floor(Math.random() * OWN_TRACKS.length)];
     const a = document.createElement("a");
@@ -3759,23 +3777,35 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     upPct.textContent = "0%";
     upNote.textContent = tr("回線が細いと少し時間がかかります。このままお待ちください。");
     upModal.hidden = false; document.body.classList.add("sheet-open");
+    upStart = Date.now();
+    clearInterval(upTimer);
+    upTimer = setInterval(() => {
+      const sec = Math.round((Date.now() - upStart) / 1000);
+      upPct.textContent = `${upPct.dataset.pct || 0}%` + tr`（${sec} 秒）`;
+      if (sec >= UPLOAD_SLOW) upNote.textContent = tr("時間がかかっています。回線が不安定なときは「やめる」でやり直せます。");
+    }, 1000);
   }
   function setUpload(ratio) {
     const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
     upFill.style.width = pct + "%";
     if (pct >= 100) upFill.dataset.done = "1";
+    upPct.dataset.pct = pct;
     upPct.textContent = pct + "%";
     if (pct >= 100) upNote.textContent = tr("サーバーで保存しています…");
   }
   function closeUpload() {
+    clearInterval(upTimer); upTimer = 0; upXhr = null;
     upModal.hidden = true;
     if (!sheetOpen()) document.body.classList.remove("sheet-open");
   }
+  $("#up-cancel").addEventListener("click", () => { if (upXhr) upXhr.abort(); closeUpload(); });
   /* 進み具合の取れる送信。**fetch では上りの進みが取れない**ので XMLHttpRequest を使う */
   function postUpload(path, fd, onProgress) {
     return new Promise((resolve, reject) => {
       const x = new XMLHttpRequest();
+      upXhr = x;
       x.open("POST", api(path));
+      x.timeout = UPLOAD_TIMEOUT;   // 既定は「無制限」。入れないと応答が返らないときに永久に待つ
       x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
       x.onload = () => {
         let d = {};
@@ -3783,8 +3813,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         if (x.status >= 200 && x.status < 300) return resolve(d);
         const e = new Error(d.detail || `HTTP ${x.status}`); e.status = x.status; reject(e);
       };
-      x.onerror = () => reject(new Error("network"));
-      x.ontimeout = () => reject(new Error("timeout"));
+      x.onerror = () => reject(new Error(tr("送れませんでした（通信が切れたようです）")));
+      x.ontimeout = () => reject(new Error(tr("時間切れです（回線が遅いか、途切れています）")));
+      x.onabort = () => reject(new Error(tr("送信をやめました")));
       x.send(fd);
     });
   }
