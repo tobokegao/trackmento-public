@@ -163,9 +163,11 @@ img { max-width: 100%; display: block; }
   --color-hl:       oklch(74% 0.010 250);
   --color-hl-dim:   oklch(58% 0.010 250);
   --color-bevel:    oklch(29% 0.012 250);   /* 地 38% と外枠 20% の中間 */
-  /* **暗い地では「地より少し明るい中間のグレー」**。地より暗い色にすると、地がもう十分暗いので
-     影がまったく見えない（実機で報告）。中間のグレーなら、暗い面の縁に落ちた影として読める */
-  --color-shadow:   oklch(34% 0.010 250);
+  /* **暗い地では「地より明るい中間のグレー」**。地より暗い色にすると、地がもう十分暗いので
+     影がまったく見えない（実機で報告）。中間のグレーなら、暗い面の縁に落ちた影として読める。
+     **34% では「見えづらい」と再報告があった**ので 48% にした（地 24% との差を 10% → 24% に広げた）。
+     影は市松で敷くので、見た目の明るさは地と混ざって半分ほどに落ちる。数字どおりには出ない */
+  --color-shadow:   oklch(48% 0.010 250);
   --color-grain:    oklch(95% 0.004 95 / 0.05);
   --color-focus:    oklch(72% 0.150 235);
   --color-on-light: var(--color-paper);     /* 明るい下地の上に置く文字 ＝ 暗いほう */
@@ -480,6 +482,9 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
   padding: var(--space-2) var(--space-3);
   border: var(--line) solid var(--color-ink);
   background: var(--color-paper);
+  /* **文字色は必ず指定する**。入力欄は色を継承せず、ブラウザ既定の黒のままになるので、
+     地が暗いパレットだと黒地に黒い文字になって読めない（利用者から報告） */
+  color: var(--color-ink);
   box-shadow: inset 2px 2px 0 var(--color-paper-3);
   transition: box-shadow var(--dur-short) var(--ease-out);
 }
@@ -541,6 +546,11 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .seg { display: flex; flex-wrap: wrap; gap: var(--space-1); max-width: 100%; min-width: 0; }
 .seg label { position: relative; flex: 1 1 auto; }   /* 折り返した各行の項目を行幅いっぱいに広げる（右に空きが残らないように） */
 .seg input { position: absolute; inset: 0; opacity: 0; margin: 0; }
+/* **ソースだけは格子に並べる**。flex で伸ばすと、最後の行に 1 つしか残らないとき（4 つ目の
+   VocaDB）にそれだけ行いっぱいに広がり、ボタンの幅が不揃いに見える（利用者から報告）。
+   格子なら列の幅が先に決まるので、行が埋まっていなくても幅がそろう */
+#sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); }
+#sources label { flex: none; }
 /* 折り返しても崩れないよう、1 項目ずつ四辺の枠を持つ四角いボタンにする */
 .seg span {
   --sh: 2px;
@@ -3644,6 +3654,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const use = src.length ? src : [{ source: "manual", title: "sample", artist: "sample", image: "/no-cover.png", thumb: "/no-cover.png" }];
     state.cols = c; state.rows = r;
     state.cells = Array.from({ length: c * r }, (_, i) => use[i % use.length]);
+  };
+  /* **画面にも反映する版**（promo/gif_windows.mjs の撮影用）。`__setGrid` は割り付けを測るための
+     口なので状態を変えるだけで、描き直さない。撮影では実際の画面が要るので、入力欄まで揃えて描き直す */
+  window.__setGridUI = (c, r, opt = {}, base = null) => {
+    window.__setGrid(c, r, opt, base);
+    els.cols.value = String(c); els.rows.value = String(r);
+    if (state.ratio) { const i = els.ratioSeg.querySelector(`input[value="${state.ratio}"]`); if (i) i.checked = true; }
+    els.optTitle.checked = !!state.showTitle; els.optSidebar.checked = !!state.sidebar; els.optNumbers.checked = !!state.numbers;
+    els.margin.value = String(state.margin); els.marginOut.value = String(state.margin);
+    els.gap.value = String(state.gap); els.gapOut.value = String(state.gap);
+    renderSwatches(); renderGrid(); updateSpec(); syncPreview();
   };
   function updateSpec() {
     const L = layout();

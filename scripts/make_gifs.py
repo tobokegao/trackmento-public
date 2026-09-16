@@ -17,17 +17,23 @@ WIDTH = int(sys.argv[2]) if len(sys.argv) > 2 else 720
 COLORS = 96
 MS = 100
 LAST_MS = 900
+# **縦に長いものは横幅も落とす**。スマホの画面を丸ごと撮った場面は 720px 幅だと高さが
+# 1600px になり、1 本で 4MB を超える（記事に十数本貼るので効いてくる）
+MAX_H = 1100
 
 
 def build(dirpath: pathlib.Path) -> None:
     files = sorted(dirpath.glob("f*.png"))
     if not files:
         return
+    with Image.open(files[0]) as probe:
+        w0, h0 = probe.size
+    width = min(WIDTH, round(w0 * MAX_H / h0)) if h0 * WIDTH / w0 > MAX_H else WIDTH
     frames: list[Image.Image] = []
     for f in files:
         im = Image.open(f).convert("RGB")
-        if im.width != WIDTH:
-            im = im.resize((WIDTH, round(im.height * WIDTH / im.width)), Image.LANCZOS)
+        if im.width != width:
+            im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
         # **1 枚目の色で全部を塗る**。コマごとに色を作り直すと、地の色がちらついて見える
         frames.append(im)
     # **色は全コマから作る**。1 枚目だけで作ると、その時点に無い色（ジャケットの色など）が
