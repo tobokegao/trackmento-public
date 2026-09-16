@@ -750,8 +750,8 @@ body.sheet-open { overflow: hidden; }
    「スクロール余地の無いスクロール箱」になり、contain を付けると Android Chrome が「端まで来ている →
    外に伝えない」と判断して、候補の上で指を動かしても .sheet-body が動かなくなった（実機で報告） */
 .sheet-body, .modal-panel, .grid-scroll.is-zoom { overscroll-behavior: contain; }
-/* 背景では指のスクロールだけ止め、**ピンチ（拡大縮小）は通す**。none にすると窓を開いている間は拡大できない（実機で報告） */
-.sheet-backdrop, .modal-backdrop { touch-action: pinch-zoom; }
+/* 背景の touch-action は絞らない。後ろのスクロールは html の overflow と下の touchmove の番人で止めてあり、
+   ここで pan を禁じると**拡大したあとの 1 本指の移動**まで止まる（実機で報告） */
 .cell.is-selected .num { background: var(--color-mustard); color: var(--color-on-light); }
 .grid[data-selecting="true"] .cell:not(.is-selected) { cursor: copy; }
 /* 選択中のマスの編集パネル。**地がマスタード（明るい色）なので、中の文字はぜんぶ
@@ -1932,6 +1932,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   document.addEventListener("touchmove", (e) => {
     if (!document.body.classList.contains("sheet-open")) return;
     if (e.touches.length > 1) return;   // 2 本指（ピンチの拡大縮小）は止めない
+    // 拡大している間の 1 本指は「見えている範囲の移動」で、後ろのスクロールではない。止めない
+    if (window.visualViewport && window.visualViewport.scale > 1.01) return;
     for (let el = e.target; el && el !== document.body; el = el.parentElement) {
       const o = getComputedStyle(el).overflowY;
       if ((o === "auto" || o === "scroll") && el.scrollHeight > el.clientHeight + 1) return;   // 中のスクロール領域: 通す
