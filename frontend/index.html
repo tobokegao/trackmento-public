@@ -1491,6 +1491,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "送れませんでした（通信が切れたようです）": "Could not send it (the connection dropped)",
     "時間切れです（回線が遅いか、途切れています）": "Timed out (the connection is slow or broken)",
     "送信をやめました": "Sending cancelled",
+    "送信をやめました。": "Sending cancelled.",
+    "画像を送れなかったので、サーバーで作り直しています…": "The image could not be sent, so the server is making it again\u2026",
     "（{} 秒）": " ({0}s)",
     "大きく見る": "Enlarge", "グリッドを大きく見る": "The grid, enlarged",
     "グリッドを画面いっぱいに開いて並べ替える": "Open the grid at full size to rearrange it",
@@ -3813,9 +3815,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         if (x.status >= 200 && x.status < 300) return resolve(d);
         const e = new Error(d.detail || `HTTP ${x.status}`); e.status = x.status; reject(e);
       };
-      x.onerror = () => reject(new Error(tr("送れませんでした（通信が切れたようです）")));
-      x.ontimeout = () => reject(new Error(tr("時間切れです（回線が遅いか、途切れています）")));
-      x.onabort = () => reject(new Error(tr("送信をやめました")));
+      /* **どれで終わったのかを印に残す**。呼び出し元は
+          「やめた（何もしない）」と「送れなかった（サーバーで作り直す）」を分けて扱う */
+      const fail = (msg, kind) => { const e = new Error(msg); e[kind] = true; reject(e); };
+      x.onerror = () => fail(tr("送れませんでした（通信が切れたようです）"), "sendFailed");
+      x.ontimeout = () => fail(tr("時間切れです（回線が遅いか、途切れています）"), "sendFailed");
+      x.onabort = () => fail(tr("送信をやめました"), "aborted");
       x.send(fd);
     });
   }
@@ -4420,8 +4425,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         d = await shareViaBrowser(snap);   // 端末で描いて送る（サーバーの CPU を使わない）
       } catch (err) {
         if (err.status === 429 || err.status === 507) throw err;   // 回数・容量の上限はサーバーで描いても同じ
+        /* **「やめる」を押したときはここで終わり**。押したのに裏でサーバーが描き始めたら、
+           やめた意味が無い（しかもサーバーの CPU を使う） */
+        if (err.aborted) { setBtnState(els.shareBtn, null); say(els.gridMsg, tr("送信をやめました。")); return; }
         console.warn("browser render failed → server render:", err);
-        say(els.gridMsg, tr("この端末では画像を作れなかったので、サーバーで作成します…"));
+        /* **描けなかったのか、送れなかったのかで文面を変える**。時間切れで落ちてきたのに
+           「この端末では画像を作れなかった」と出ると、原因を取り違える（利用者から報告） */
+        say(els.gridMsg, err.sendFailed
+          ? tr("画像を送れなかったので、サーバーで作り直しています…")
+          : tr("この端末では画像を作れなかったので、サーバーで作成します…"));
         d = await shareViaServer(snap);
       }
       lastPushed = signature(snap);
