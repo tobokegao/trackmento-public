@@ -1030,6 +1030,12 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             gx = pad                   # コの字（塊は左端の中央、文字は上・右・下）
         x0, x1 = pad, W - pad
         ox0, ox1 = gx - wgap, gx + gw + wgap
+        # **左右に段が作れないなら、塊を上に寄せて文字を全部下に流す**
+        # （タイトル → マス → 曲名リスト）。上下に分かれると 01〜13 が上・14〜20 が下になり、
+        # 読み順が塊をまたいで飛ぶ（利用者から指摘）。**枠の大きさも文字の総量も変わらないので、
+        # マスの大きさはそのまま**。左右のどちらかが使えるときは今までどおり（コの字・回り込み）
+        if n_top and ox0 - x0 < min_w and x1 - ox1 < min_w:
+            n_top, gy = 0, top
         segs: list[tuple[int, int, int]] = []
         for r in range(n_top):                          # 塊の上の帯（枠いっぱい）
             segs.append((x0, top - a + r * line_h, x1 - x0))

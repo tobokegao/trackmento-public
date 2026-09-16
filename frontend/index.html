@@ -3283,8 +3283,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (gx - wgap - pad < minW && W - pad * 2 - gw - wgap >= minW) gx = pad;
       const x0 = pad, x1 = W - pad;
       const ox0 = gx - wgap, ox1 = gx + gw + wgap;
+      /* **左右に段が作れないなら、塊を上に寄せて文字を全部下に流す**
+        （タイトル → マス → 曲名リスト）。上下に分かれると 01〜13 が上・14〜20 が下になり、
+        読み順が塊をまたいで飛ぶ（利用者から指摘）。**枠の大きさも文字の総量も変わらないので、
+        マスの大きさはそのまま**。左右のどちらかが使えるときは今までどおり（コの字・回り込み）
+         （backend/render.py と同じ規則） */
+      let nTop2 = nTop;
+      if (nTop2 && ox0 - x0 < minW && x1 - ox1 < minW) { nTop2 = 0; gy = top; }
       const segs = [];
-      for (let r = 0; r < nTop; r++) segs.push([x0, top - a + r * lineH, x1 - x0]);   // 塊の上の帯
+      for (let r = 0; r < nTop2; r++) segs.push([x0, top - a + r * lineH, x1 - x0]);   // 塊の上の帯
       // 塊の左右。**左の段をぜんぶ埋めてから右の段へ移る**（1 行ごとに左右へ飛ぶと読みにくい）
       const nSide = Math.floor((gh + a * 2) / lineH);
       if (ox0 - x0 >= minW) for (let r = 0; r < nSide; r++) segs.push([x0, gy - a + r * lineH, ox0 - x0]);
