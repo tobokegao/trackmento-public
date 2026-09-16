@@ -110,6 +110,7 @@
      `repeating-conic-gradient` は縁が必ずぼけるので、拡大すると目が滲んで見えた（実機で報告）。
      `shape-rendering="crispEdges"` なら縁が立つ。色は型抜きなのでトークンのまま使える */
   --dither-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" shape-rendering="crispEdges"><path d="M0 0h1v1H0zM1 1h1v1H1z" fill="%23fff"/></svg>');
+  --check-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" shape-rendering="crispEdges"><path d="M10 2h2v1H10zM9 3h3v1H9zM8 4h3v1H8zM1 5h2v1H1zM7 5h3v1H7zM1 6h3v1H1zM6 6h3v1H6zM2 7h6v1H2zM3 8h4v1H3zM4 9h2v1H4z" fill="%23fff"/></svg>');   /* チェック印（12×12 のドット絵。色は background で付ける） */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --dur-tick: 100ms; --dur-short: 180ms; --dur-mid: 260ms;
@@ -825,11 +826,12 @@ body.sheet-open { overflow: hidden; }
   box-shadow: inset 2px 2px 0 var(--color-paper-3);
   display: grid; place-items: center; cursor: pointer;
 }
-/* 入れたら**白い箱に黒いチェック印**（OS 9 の作法）。黒く塗って白い四角を置く形は、小さいと
+/* 入れたら**白い箱に黒いチェック印**（OS 9 の作法。印は 12×12 のドット絵を SVG の型抜きで描く。
+   斜線を CSS で回して描くと滑らかすぎてサイトの見た目から浮く）。黒く塗って白い四角を置く形は、小さいと
    「枠が太くなった」ようにしか見えず、入ったかどうか分かりにくい（利用者の指摘、2026-09-16） */
 .check input:checked::after {
-  content: ""; width: 5px; height: 10px; margin-top: -3px;
-  border: solid var(--color-ink); border-width: 0 3px 3px 0; transform: rotate(45deg);
+  content: ""; width: 12px; height: 12px; background: var(--color-ink);
+  -webkit-mask: var(--check-mask) center / 12px 12px no-repeat; mask: var(--check-mask) center / 12px 12px no-repeat;
 }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
