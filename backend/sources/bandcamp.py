@@ -74,6 +74,37 @@ def _name(obj) -> str | None:
     return obj.get("name") if isinstance(obj, dict) else None
 
 
+def _from_tralbum(soup: BeautifulSoup) -> dict:
+    """ページに埋め込まれた `data-tralbum` を読む。
+
+    JSON-LD より細かく、**曲ごとのアーティスト名**（`trackinfo[].artist`）を持っている。
+    レーベルのアカウントが上げた曲は JSON-LD の `byArtist` がレーベル名になっていることがあり、
+    そのままだと**アーティスト名の代わりにレーベル名が入る**（利用者の報告）。
+    """
+    tag = soup.find(attrs={"data-tralbum": True})
+    if not tag:
+        return {}
+    try:
+        return json.loads(tag.get("data-tralbum") or "") or {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _artist_from(tral: dict, single: bool) -> str | None:
+    """`data-tralbum` からアーティスト名を選ぶ。**曲ごとの表記があればそれを優先**。
+
+    1 曲のページ（`single`）のときだけ `trackinfo[0].artist` を見る。アルバムのページで見ると、
+    1 曲目のアーティストがアルバム全体の名前になってしまう。
+    """
+    ti = tral.get("trackinfo") or []
+    if single and len(ti) == 1 and isinstance(ti[0], dict):
+        by = (ti[0].get("artist") or "").strip()
+        if by:
+            return by
+    cur = tral.get("current") if isinstance(tral.get("current"), dict) else {}
+    return ((cur or {}).get("artist") or tral.get("artist") or "").strip() or None
+
+
 async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
     p = urlparse(url)
     if p.scheme not in ("http", "https") or not p.netloc:
@@ -100,8 +131,12 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         raise ValueError("このページにはジャケット画像（og:image）がありません")
 
     ld = _from_jsonld(soup)
+    tral = _from_tralbum(soup)
     title = ld.get("name")
-    artist = _name(ld.get("byArtist"))
+    single = ld.get("@type") == "MusicRecording" or len(tral.get("trackinfo") or []) == 1
+    # **`data-tralbum` のほうを先に見る**。JSON-LD の `byArtist` は、レーベルのアカウントが
+    # 上げた曲だとレーベル名になっていることがある
+    artist = _artist_from(tral, single) or _name(ld.get("byArtist"))
     album = None
     if ld.get("@type") == "MusicRecording":
         album = _name(ld.get("inAlbum"))
@@ -117,6 +152,8 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
             artist = artist or m.group(2).strip()
         else:
             title = title or og_title.strip() or url
+            # **最後の保険**。`og:site_name` は「ページの持ち主」の名前なので、
+            # レーベルのページではレーベル名になる。ここまで来るのは他に何も無いときだけ
             artist = artist or (meta("og:site_name") or "")
 
     return Track(

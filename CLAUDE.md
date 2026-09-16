@@ -387,6 +387,15 @@ claude --remote-control TRACKMENTO                                             #
     短辺 200px で 1 枚 22.6KB（256 マスで 5.7MB、-86%）。これだけ JPEG 品質 85 で再エンコードするので原本とはバイト列が変わる
   - 実測して問題が無かったもの: SoundCloud 78KB、YouTube 32KB、ニコニコ 10KB、Spotify 120KB（640px）、Cover Art Archive は `front-250`（28KB）が最小で 250/500/1200 の 3 段階しかない
     （ブラウザから直接読むので Render を通らない）
+- **Bandcamp のアーティスト名は `data-tralbum` から取る**（`bandcamp.fetch`、2026-09-16）。
+  JSON-LD の `byArtist` だけを見ていたが、**レーベルのアカウントが上げた曲ではそこがレーベル名**に
+  なっていることがある（利用者から「レーベル名がアーティストになる」と報告）。
+  ページには `data-tralbum` も埋まっていて、`current.artist` と**曲ごとの `trackinfo[].artist`** を持つ。
+  - 見る順は「1 曲のページなら `trackinfo[0].artist` → `current.artist` → `artist` → JSON-LD の `byArtist`」。
+    **アルバムのページで `trackinfo[0]` を見てはいけない**（1 曲目のアーティストがアルバム全体の名前になる）
+  - `og:site_name` は**最後の保険**。あれは「ページの持ち主」の名前なので、レーベルのページでは必ずレーベル名になる
+  - **Bandcamp のアルバム URL は 1 マスとして扱われる**（`playlist.kind()` が拾うのは
+    `bandcamp.com/<user>/playlist/…` だけ）。アルバムを曲ごとに展開する仕組みは入っていない
 - **VocaDB（ボカロのデータベース）**（`backend/sources/vocadb.py`、2026-09-16）。iTunes に配信の無い
   ボカロ曲を引くための、**選んだときだけ使う**ソース（応答が 1.6〜2.8 秒と iTunes より遅い）
   - **並べ替えを指定しないと原曲が上に来ない**。`sort=RatingScore` と `preferAccurateMatches=true` を
