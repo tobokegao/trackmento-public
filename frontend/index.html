@@ -57,6 +57,15 @@
   /* もう 1 組のパレット（色見本から取った値なので oklch ではなく 16 進）。
      この 6 色のどれかを背景に選ぶと、下の [data-palette="pop"] で画面の装飾色もこちらに入れ替わる。
      **backend/render.py の TOKENS と frontend の TOKENS_RGB にも同じ値がある。片方だけ変えない** */
+  /* 3 つ目の組「ナイト」。**地が暗い組**（画面も暗い側のプラチナに入れ替わる） */
+  --color-night:         #14181d;
+  --color-chalk:         #f2f0ec;
+  --color-amber:         #ffb43d;
+  --color-azure:         #58a6ff;
+  --color-flare:         #ff6b6b;
+  --color-violet:        #b18cff;
+  --color-jade:          #3ddc97;
+  --color-magenta:       #ff5ec4;
   /* ポップの地と文字。**パレットは 8 色ひと組**なので、クリームと黒も組ごとに持つ */
   --color-ivory:       #fdf4e6;
   --color-charcoal:    #1b2430;
@@ -71,6 +80,12 @@
   --color-focus:    oklch(58% 0.200 235);
   --color-error:    var(--color-vermilion);
   --color-grain:    oklch(20% 0.012 250 / 0.06);   /* overlay modifier for halftone dots */
+  /* **影は「地より暗い色」**。地が暗い組では ink が明るくなるので、影に ink を使うと光って見える */
+  --color-shadow:   var(--color-ink);
+  /* 色つきの下地に置く文字。**明るい下地には暗いほう、暗い下地には明るいほう**を置く。
+     地が暗い組ではこの 2 つが入れ替わる（下の [data-ground="dark"]） */
+  --color-on-light: var(--color-ink);
+  --color-on-dark:  var(--color-paper);
 
   --font-display: "DotGothic16", "IBM Plex Sans JP", sans-serif;
   --font-body:    "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", sans-serif;
@@ -80,8 +95,8 @@
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
   --line: 2px;
   --page-inline: var(--space-4);   /* ページ左右の基準余白。ヘッダー・ペイン・フッターで共有 */
-  --shadow: 4px 4px 0 var(--color-ink);
-  --shadow-sm: 2px 2px 0 var(--color-ink);
+  --shadow: 4px 4px 0 var(--color-shadow);
+  --shadow-sm: 2px 2px 0 var(--color-shadow);
   /* **1 デバイス画素ぶんの CSS px**。起動時に `snapDot()` が端末の画素密度から入れ直す。
      1px の目は端末の画素に乗らないとにじみ、市松の 1 つ 1 つが 2 画素・3 画素と不揃いに丸められる
      （実機は 2.625 倍。3 デバイス画素 ＝ 1.1429px にそろえる） */
@@ -125,7 +140,31 @@ img { max-width: 100%; display: block; }
   --color-mint:     var(--color-leaf);
   --color-pink:     var(--color-rose);
 }
-::selection { background: var(--color-mint); color: var(--color-ink); }
+/* **地が暗い組を選んだときのプラチナ**（2026-09-16）。単純な反転ではなく、暗い地むけに作り直した組。
+   面取りの明るさの並び（明るい白 ＞ 暗い白 ＞ 地 ＞ 濃いグレー）は、光が左上から当たるという
+   前提ごと保つ（74% ＞ 58% ＞ 38% ＞ 20%）。**影だけは地より暗い色**にする（明るい影は光って見える）。
+   切り替えは `applyPalette` が地の明るさで決め、`data-ground="dark"` を付ける。
+   判定はサーバー側の描画（`render.py` の `light`）と同じ規則にしてある */
+:root[data-ground="dark"] {
+  --color-paper:    oklch(24% 0.012 250);   /* 既定。実際はパレットの「地」が上書きする */
+  --color-paper-2:  oklch(30% 0.012 250);
+  --color-paper-3:  oklch(36% 0.012 250);
+  --color-ink:      oklch(95% 0.004 95);
+  --color-ink-2:    oklch(86% 0.005 95);
+  --color-muted:    oklch(68% 0.012 250);
+  --color-rule:     oklch(46% 0.012 250);
+  --color-rule-2:   oklch(38% 0.012 250);
+  --color-bar:      oklch(38% 0.010 250);
+  --color-bar-dark: oklch(20% 0.012 250);
+  --color-hl:       oklch(74% 0.010 250);
+  --color-hl-dim:   oklch(58% 0.010 250);
+  --color-shadow:   oklch(8% 0.010 250);
+  --color-grain:    oklch(95% 0.004 95 / 0.05);
+  --color-focus:    oklch(72% 0.150 235);
+  --color-on-light: var(--color-paper);     /* 明るい下地の上に置く文字 ＝ 暗いほう */
+  --color-on-dark:  var(--color-ink);       /* 暗い下地の上に置く文字 ＝ 明るいほう */
+}
+::selection { background: var(--color-mint); color: var(--color-on-light); }
 
 /* ---------- toolbar (menubar) ---------- */
 .bar {
@@ -467,7 +506,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .btn::after, .seg span::after {
   content: ""; position: absolute; inset: calc(-1 * var(--line)); pointer-events: none;
   transform: translate(var(--sh), var(--sh));
-  background: var(--color-ink);
+  background: var(--color-shadow);
   -webkit-mask-image: var(--dither-mask); mask-image: var(--dither-mask);
   -webkit-mask-size: calc(2 * var(--dot)) calc(2 * var(--dot)); mask-size: calc(2 * var(--dot)) calc(2 * var(--dot));
   -webkit-mask-position: right bottom; mask-position: right bottom;
@@ -523,7 +562,8 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 /* 文章とボタンを横に並べると、「コピーしました」でボタンの幅が変わったときに「閉じる」が
    次の行へ落ちて見た目が動く。文章の下にボタンを置く形にして、幅が変わっても崩れないようにする */
 .inapp { display: grid; gap: var(--space-2); padding: var(--space-2) var(--page-inline);
-  background: var(--color-mustard); border-bottom: var(--line) solid var(--color-ink); font-size: var(--text-sm); }
+  background: var(--color-mustard); color: var(--color-on-light);
+  border-bottom: var(--line) solid var(--color-ink); font-size: var(--text-sm); }
 .inapp p { margin: 0; overflow-wrap: anywhere; }
 .inapp .btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .inapp .btn { min-height: 36px; padding-inline: var(--space-2); }
@@ -579,19 +619,19 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .result .meta { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
 .badge {
   font-family: var(--font-outlier); font-size: var(--text-xs); letter-spacing: 0.02em; line-height: 1.6;
-  padding: 0 var(--space-1); border: var(--line) solid var(--color-ink); color: var(--color-ink); white-space: nowrap;
+  padding: 0 var(--space-1); border: var(--line) solid var(--color-ink); color: var(--color-on-light); white-space: nowrap;
 }
 .badge[data-source="itunes"]      { background: var(--color-pink); }
 .badge[data-source="soundcloud"]  { background: var(--color-vermilion); }
-.badge[data-source="youtube"]     { background: var(--color-vermilion); color: var(--color-paper); }
+.badge[data-source="youtube"]     { background: var(--color-vermilion); color: var(--color-on-dark); }
 .badge[data-source="nicovideo"]   { background: var(--color-paper-3); }
-.badge[data-source="bilibili"]    { background: var(--color-cerulean); color: var(--color-paper); }
+.badge[data-source="bilibili"]    { background: var(--color-cerulean); color: var(--color-on-dark); }
 .badge[data-source="spotify"]     { background: var(--color-mint); }
-.badge[data-source="otodb"]       { background: var(--color-ink); color: var(--color-mustard); }
+.badge[data-source="otodb"]       { background: var(--color-on-light); color: var(--color-mustard); }
 .badge[data-source="musicbrainz"] { background: var(--color-lavender); }
 .badge[data-source="discogs"]     { background: var(--color-mustard); }
 .badge[data-source="bandcamp"]    { background: var(--color-mint); }
-.badge[data-source="manual"]      { background: var(--color-cerulean); color: var(--color-paper); }
+.badge[data-source="manual"]      { background: var(--color-cerulean); color: var(--color-on-dark); }
 .empty { padding: var(--space-4) var(--space-2); color: var(--color-muted); font-size: var(--text-sm); display: grid; gap: var(--space-1); }
 .empty strong { font-family: var(--font-display); font-weight: 400; color: var(--color-ink); font-size: var(--text-base); }
 
@@ -633,7 +673,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 /* 「入れる先」の空マス: 破線のマスタード枠 + 中央に矢印 */
 .cell.is-target::after { content: ""; position: absolute; inset: 0; border: 5px dashed var(--color-mustard); box-shadow: inset 0 0 0 2px var(--color-ink); pointer-events: none; z-index: 2; }
 .cell.is-target::before { content: ""; position: absolute; inset: 0; background: color-mix(in oklab, var(--color-mustard) 55%, transparent); z-index: 1; }
-.cell.is-target .num { background: var(--color-mustard); color: var(--color-ink); }
+.cell.is-target .num { background: var(--color-mustard); color: var(--color-on-light); }
 
 /* スマホ用の検索シート（空マスをタップすると検索と候補をまとめて下から出す） */
 .sheet { position: fixed; inset: 0; z-index: 50; display: grid; align-items: end; }
@@ -657,10 +697,11 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .sheet-body .pane { box-shadow: none; }
 .sheet-body .results { max-height: none; }
 body.sheet-open { overflow: hidden; }
-.cell.is-selected .num { background: var(--color-mustard); color: var(--color-ink); }
+.cell.is-selected .num { background: var(--color-mustard); color: var(--color-on-light); }
 .grid[data-selecting="true"] .cell:not(.is-selected) { cursor: copy; }
 /* 選択中のマスの編集パネル */
-.editor { display: grid; gap: var(--space-2); padding: var(--space-3); border-bottom: var(--line) solid var(--color-ink); background: var(--color-mustard); }
+.editor { display: grid; gap: var(--space-2); padding: var(--space-3); border-bottom: var(--line) solid var(--color-ink);
+  background: var(--color-mustard); color: var(--color-on-light); }
 .editor .input { background: var(--color-paper); }
 .editor[hidden] { display: none; }
 .editor-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-family: var(--font-display); font-size: var(--text-sm); }
@@ -766,7 +807,7 @@ body.sheet-open { overflow: hidden; }
 .pal-lanes { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0; }
 /* 1 行に入りきらない幅（スマホ）では折り返す。名前・8 色・ボタンの順に段が増える */
 .pal-lane { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); border: var(--line) solid var(--color-rule); background: var(--color-paper-2); }
-.pal-lane[data-active="true"] { border-color: var(--color-ink); box-shadow: 3px 3px 0 var(--color-ink); }
+.pal-lane[data-active="true"] { border-color: var(--color-ink); box-shadow: 3px 3px 0 var(--color-shadow); }
 .pal-lane .pal-name { flex: 1 1 auto; min-width: 5em; font-size: var(--text-sm); }
 .pal-lane .pal-btns { display: flex; gap: var(--space-2); margin-left: auto; }
 @media (max-width: 560px) {
@@ -1364,7 +1405,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "読み込みました。": "Loaded.", "色コードを 8 つ入れてください。": "Eight colour codes are needed.",
     "#f2418f, #4878da, …（8 つ）": "#f2418f, #4878da, … (eight)",
     "アイボリー": "Ivory", "チャコール": "Charcoal",
-    "地が暗すぎるので、この組の地は画面には使いません。": "This set's paper is too dark, so the page keeps its own background.",
+    "ミッドナイト": "Midnight", "チョーク": "Chalk", "アンバー": "Amber", "アジュール": "Azure", "フレア": "Flare", "バイオレット": "Violet", "ジェイド": "Jade", "マゼンタ": "Magenta", "ナイト": "Night",
+    "地と文字の差が小さいので、この組の地は画面には使いません。": "This set's paper is too close to its text, so the page keeps its own background.",
         "iTunes: サーバー経由は制限中（ブラウザから直接検索）": "iTunes: the server is rate-limited, searching from your browser instead",
         "接続OK": "Connected",
         "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）": "Cannot reach the server (search is limited to iTunes and MusicBrainz; saving and sharing are unavailable)",
@@ -1544,6 +1586,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const BUILTIN_PALETTES = [
     { id: "riso", name: "リソ", keys: ["paper", "ink", "mustard", "cerulean", "vermilion", "lavender", "mint", "pink"] },
     { id: "pop", name: "ポップ", keys: ["ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose"] },
+    // **地が暗い組**。選ぶと画面のプラチナも暗い側に入れ替わる（`:root[data-ground="dark"]`）
+    { id: "night", name: "ナイト", keys: ["night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta"] },
   ];
   // 画面の配色として差し替えるスロット（並びは BUILTIN_PALETTES の keys と同じ順）。
   // **2 番目（黒）は `null`＝画面には使わない**。`--color-ink` は枠線・文字・面取りの黒で、
@@ -1559,10 +1603,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const PALETTE_MIX = [["--color-paper-2", 0.06], ["--color-paper-3", 0.12]];
   // 地と文字の明るさの比。これを下回る組は画面には使わない（WCAG の 7:1）
   const PAL_MIN_RATIO = 7;
+  // **暗い地の組のときの文字の色**（CSS の `:root[data-ground="dark"]` の `--color-ink` と同じ値）。
+  // 下地（paper-2 / paper-3）を作るときの混ぜ先と、読めるかどうかの判定に使う。片方だけ変えない
+  const DARK_INK_RGB = [239, 238, 235];
   const KEY_LABEL = {
     paper: "クリーム", ink: "黒",
     mustard: "マスタード", cerulean: "セルリアン", vermilion: "朱赤", lavender: "ラベンダー", mint: "ミント", pink: "ピンク",
     ivory: "アイボリー", charcoal: "チャコール",
+    night: "ミッドナイト", chalk: "チョーク", amber: "アンバー", azure: "アジュール", flare: "フレア", violet: "バイオレット", jade: "ジェイド", magenta: "マゼンタ",
     lemon: "レモン", ultramarine: "ウルトラマリン", coral: "コーラル", sky: "スカイ", leaf: "リーフ", rose: "ローズ",
   };
   const PAL_STORE = "trackmento.palettes", PAL_ACTIVE = "trackmento.palette";
@@ -1592,11 +1640,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const x = Math.max(relLum(a), relLum(b)), y = Math.min(relLum(a), relLum(b));
     return (x + 0.05) / (y + 0.05);
   }
-  /* その組の地を画面に使ってよいか。**固定の黒との明るさの差**で決める（文字と枠線は黒のまま）。
+  /* その組の地に対して使う文字の色。**地が暗ければ明るい文字**に入れ替える
+     （判定はサーバー側の描画 `render.py` の `light` と同じ「明るさ 0.55」）。
+     これで地が黒寄りのパレットでも、線と文字が白い画面になる */
+  const palInk = (p) => (isLightRgb(paletteRgb(p)[0]) ? TOKENS_RGB.ink : DARK_INK_RGB);
+  /* その組の地を画面に使ってよいか。**その地に合う文字の色との明るさの比**で決める。
      差が足りない組は地も差し替えない（文字が読めなくなる） */
   function palReadable(p) {
-    const bg = paletteRgb(p)[0];
-    return relLum(bg) > relLum(TOKENS_RGB.ink) && contrastRatio(bg, TOKENS_RGB.ink) >= PAL_MIN_RATIO;
+    return contrastRatio(paletteRgb(p)[0], palInk(p)) >= PAL_MIN_RATIO;
   }
   function savePalettes() {
     try { localStorage.setItem(PAL_STORE, JSON.stringify(userPalettes)); localStorage.setItem(PAL_ACTIVE, activePaletteId); } catch { /* ignore */ }
@@ -1604,15 +1655,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* 画面の配色を今の組に合わせる。**もとからの色（リソ）のときは指定を外す**（CSS の値に戻る） */
   function applyPalette() {
     const p = activePalette(), colors = paletteColors(p), rgb = paletteRgb(p);
-    const ok = palReadable(p);   // 地を画面にも使うか（固定の黒との明るさの差で決める）
+    const ok = palReadable(p);            // 地を画面にも使うか
+    const ink = palInk(p);                // その地に合う文字の色
+    const root = document.documentElement;
+    // **地が暗い組では、プラチナごと暗い側に入れ替える**（CSS の [data-ground="dark"]）
+    if (ok && p.id !== "riso" && !isLightRgb(rgb[0])) root.dataset.ground = "dark";
+    else delete root.dataset.ground;
     PALETTE_SLOTS.forEach((slot, i) => {
       if (!slot) return;                     // 黒は画面には使わない
-      if (p.id === "riso" || (i === 0 && !ok)) document.documentElement.style.removeProperty(slot);
-      else document.documentElement.style.setProperty(slot, colors[i]);
+      if (p.id === "riso" || (i === 0 && !ok)) root.style.removeProperty(slot);
+      else root.style.setProperty(slot, colors[i]);
     });
     PALETTE_MIX.forEach(([slot, t]) => {
-      if (p.id === "riso" || !ok) document.documentElement.style.removeProperty(slot);
-      else document.documentElement.style.setProperty(slot, cssRgb(mixRgb(rgb[0], TOKENS_RGB.ink, t)));
+      if (p.id === "riso" || !ok) root.style.removeProperty(slot);
+      else root.style.setProperty(slot, cssRgb(mixRgb(rgb[0], ink, t)));
     });
   }
   // 組み込みの色の名前ぜんぶ。**読み込んだ並びの色は、今の組に入っていなくても受け付ける**
@@ -2530,7 +2586,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // **地と文字が近すぎる組は画面には使わない**ので、そのことを見える所に書く（黙って無視しない）
       if (!palReadable(p)) {
         const warn = document.createElement("p"); warn.className = "pal-warn";
-        warn.textContent = tr("地が暗すぎるので、この組の地は画面には使いません。");
+        warn.textContent = tr("地と文字の差が小さいので、この組の地は画面には使いません。");
         lane.append(warn);
       }
       if (!p.keys) {
@@ -3742,6 +3798,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // もう 1 組のパレット（色見本から取った値。backend/render.py の TOKENS と同じ値を持つ）
     "lemon": [251, 215, 67], "ultramarine": [72, 120, 218], "coral": [240, 83, 90],
     "sky": [135, 212, 255], "leaf": [82, 165, 85], "rose": [242, 65, 143],
+    // 3 つ目の組「ナイト」（地が暗い組）。**backend/render.py の TOKENS と同じ値**
+    "night": [20, 24, 29], "chalk": [242, 240, 236], "amber": [255, 180, 61], "azure": [88, 166, 255], "flare": [255, 107, 107], "violet": [177, 140, 255], "jade": [61, 220, 151], "magenta": [255, 94, 196],
     // ポップの地と文字。**リソのクリーム・黒より少し暖かく、少し柔らかい黒**（明るさの比は 14.4:1）
     "ivory": [253, 244, 230], "charcoal": [27, 36, 48],
   };

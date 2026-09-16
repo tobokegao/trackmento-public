@@ -27,7 +27,8 @@ MAX_ROWS = 32
 MAX_STASH = 200   # マスから溢れた曲の控え。無制限だと JSON が肥大する
 Ratio = Literal["1:1", "16:9", "4:5", "9:16", "free"]
 BG_KEYS = ("paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink",
-           "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose", "custom")
+           "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
+           "night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta", "custom")
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 

@@ -410,7 +410,8 @@ def _render_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--numbers", dest="numbers", action="store_true", default=None, help="番号バッジを付ける")
     sp.add_argument("--no-numbers", dest="numbers", action="store_false")
     sp.add_argument("--bg", choices=["paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink",
-                             "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose"], help="背景色")
+                             "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
+                             "night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta"], help="背景色")
     sp.add_argument("--bg-custom", metavar="#RRGGBB", help="背景色を直接指定")
     sp.add_argument("--margin", type=int, help="余白 px（0〜160）")
     sp.add_argument("--gap", type=int, help="マスとマスの間隔 px（0〜96、既定 16）")
