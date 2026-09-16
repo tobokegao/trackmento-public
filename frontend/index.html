@@ -4625,7 +4625,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (d.width && d.height) els.outputImg.style.aspectRatio = `${d.width} / ${d.height}`;
       if (d.localBlob) { lastObjUrl = URL.createObjectURL(d.localBlob); els.outputImg.src = lastObjUrl; }
       else els.outputImg.src = /^https?:\/\//.test(imgSrc) ? imgSrc : api(imgSrc);
-      els.download.href = api(`/shares/${d.id}.${ext}`);   // 保存はバックエンド経由（別オリジンの download 属性は効かないため）
+      /* **「画像を保存」も手元の画像を渡す**（2026-09-16）。サーバーから落とし直す形だと、
+         電波が悪いところで保存に失敗する（利用者から「画像保存がどうしても上手くいかない」と報告）。
+         ブラウザで描いたときは同じバイト列が手元にあるので、そこから保存すれば通信は要らない。
+         サーバー描画に落ちたときだけ、今までどおりサーバーの原本を指す
+         （別オリジンだと download 属性が効かないので、その場合もバックエンド経由にする） */
+      els.download.href = lastObjUrl || api(`/shares/${d.id}.${ext}`);
       els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + "." + ext;
       els.shareUrl.value = d.url; els.openShare.href = d.url;
       els.nativeShareBtn.hidden = false;
