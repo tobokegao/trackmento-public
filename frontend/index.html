@@ -4289,14 +4289,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const Q = 0.82;
     let c = canvas, png = await canvasToBlob(c, "image/jpeg", Q);
     for (let i = 0; i < 3 && png.size > LIMIT; i++) { c = scaledCanvas(c, Math.max(0.6, Math.sqrt(LIMIT / png.size) * 0.97)); png = await canvasToBlob(c, "image/jpeg", Q); }
-    const og = document.createElement("canvas"); og.width = 1200; og.height = 630;   // カード用: 全体を収め、余白は背景色
-    const g = og.getContext("2d", { alpha: false }); g.fillStyle = cssRgb(bg); g.fillRect(0, 0, 1200, 630);
-    // **四辺に 3% ずつ安全代を残す**（backend/share.py の OG_SAFE と同じ）。受け取る側で数 % 切られても
-    // 端のマスや曲名が欠けないように
-    const OG_SAFE = 0.94;
-    const f = Math.min(1200 * OG_SAFE / c.width, 630 * OG_SAFE / c.height), w = Math.max(1, Math.round(c.width * f)), h = Math.max(1, Math.round(c.height * f));
-    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high"; g.drawImage(c, Math.floor((1200 - w) / 2), Math.floor((630 - h) / 2), w, h);
-    return { png, og: await canvasToBlob(og, "image/jpeg", 0.85), width: c.width, height: c.height };
+    // **カード用（1200×630）はもう作らない**（2026-09-16）。サーバーが本体から作る（実測 57ms）。
+    // 送るバイトが 2 割減り、上りの細い端末の待ち時間がそのぶん縮む。作り方は backend/share.py の `_og_jpeg`
+    return { png, width: c.width, height: c.height };
   }
   async function postShare(path, init) {
     let r = await fetch(api(path), init);
@@ -4319,7 +4314,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const fd = new FormData();
     fd.append("doc", JSON.stringify({ grid: GRID_NAME, doc: snap }));
     fd.append("image", enc.png, "trackmento.jpg");
-    fd.append("og", enc.og, "card.jpg");
     openUpload();
     try {
       return await postUpload("/share/upload", fd, setUpload);

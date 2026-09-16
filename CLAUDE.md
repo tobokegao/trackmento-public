@@ -822,6 +822,14 @@ claude --remote-control TRACKMENTO                                             #
   - 100% になったら「サーバーで保存しています…」に変える（そこから先は R2 への書き込み待ち）
   - 待っているあいだに**作者の曲を 1 つ**出す（`OWN_TRACKS`。題と URL だけで、宣伝文は書かない）。
     リンクには `?from=trackmento-upload` を付けてあるので、流入の印として数えられる
+- **カード用の画像（OG）はブラウザから送らない**（2026-09-16）。本体だけ送って、`share.store` が
+  `og is None` のときに本体から作る（実測 57ms）。**送るバイトが 2 割減る**（本体 501KB ＋ カード 127KB
+  → 本体だけ）。上りの細い端末の待ち時間がそのぶん縮み、ブラウザ側も 1 枚描かずに済む
+  - **開いたままの古いタブは今までどおり送ってくる**ので、来たら今までどおりそれを使う
+    （`check_uploaded` の `og` は省略可、`main.py` は `isinstance` で見る）。
+    **ここを必須のままにすると、古いタブからの共有が全部 400 になる**
+  - 背景色は `_bg_rgb(doc.options)` にまとめた（サーバー描画の経路と同じ式を 2 か所に書かない）
+  - カードは 1200×630 に縮めるので、本体が一度 JPEG になっていても見分けはつかない
 - **JPEG の品質は 0.82**（ブラウザ・サーバーとも。2026-09-16 に 0.9 から下げた）。
   実測で 2400x1350 の出力が 501KB → 413KB（-17%）。見分けはつきにくく、X は投稿時に再圧縮する
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる

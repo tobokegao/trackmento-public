@@ -1405,8 +1405,10 @@ async def share_upload(request: Request) -> dict:
             print("[share] 送信途中で切断（利用者側の離脱）")
             raise HTTPException(400, "送信が途中で切れました。もう一度お試しください")
         doc, image, og = form.get("doc"), form.get("image") or form.get("png"), form.get("og")
-        if not isinstance(doc, str) or not isinstance(image, StarletteUploadFile) or not isinstance(og, StarletteUploadFile):   # request.form() が返すのは starlette の UploadFile
-            raise HTTPException(400, "並び（doc）と画像（image, og）が必要です")
+        # **カード用（og）は送られてこないのがふつう**（2026-09-16 から、本体だけ送ってカードはサーバーで作る）。
+        # 開いたままの古いタブは今までどおり送ってくるので、来たときはそれを使う
+        if not isinstance(doc, str) or not isinstance(image, StarletteUploadFile):   # request.form() が返すのは starlette の UploadFile
+            raise HTTPException(400, "並び（doc）と画像（image）が必要です")
         try:
             raw = json.loads(doc)   # {"grid": "u-…", "doc": {...}}（/share の JSON ボディと同じ形）
             body = RenderBody(grid=raw.get("grid", "default"), doc=GridDoc.model_validate(raw["doc"]))
@@ -1415,7 +1417,7 @@ async def share_upload(request: Request) -> dict:
         gdoc = _doc_for_share(body)
         async with _UPLOAD_SEM:   # 検査と保存（CPU と R2。数百 ms で終わる）
             img_b = await image.read(share.MAX_UPLOAD_IMAGE + 1)
-            og_b = await og.read(share.MAX_UPLOAD_OG + 1)
+            og_b = await og.read(share.MAX_UPLOAD_OG + 1) if isinstance(og, StarletteUploadFile) else None
             try:
                 w, h, ext = await asyncio.to_thread(share.check_uploaded, img_b, og_b)
             except ValueError as e:

@@ -59,6 +59,11 @@ def _encode_image(im: Image.Image, limit: int) -> tuple[bytes, Image.Image]:
 OG_SAFE = 0.94   # カードの中で画像が占める割合。残りは余白（下の説明を参照）
 
 
+def _bg_rgb(o) -> tuple[int, int, int]:
+    """並びの背景色を (r, g, b) で返す。**サーバー描画とアップロードの両方から使う**ので 1 か所にまとめる。"""
+    return render._hex_to_rgb(o.bgCustom if o.bg == "custom" and o.bgCustom else render.TOKENS[o.bg])
+
+
 def _og_jpeg(im: Image.Image, bg: tuple[int, int, int]) -> bytes:
     """カード用の 1200×630 JPEG。全体を収め、余白は背景色（切り取らない）。
 
@@ -100,8 +105,7 @@ def create(doc: GridDoc, budget: int = 0) -> dict:
     budget > 0 のときは、保存後の合計がそれを超えるなら保存せず BudgetExceeded を投げる（実バイト数で判定）。"""
     im = render.render(doc)
     o = doc.options
-    bg = render._hex_to_rgb(o.bgCustom if o.bg == "custom" and o.bgCustom else render.TOKENS[o.bg])
-    og = _og_jpeg(im, bg)
+    og = _og_jpeg(im, _bg_rgb(o))
     data, im = _encode_image(im, MAX_IMAGE_BYTES if public_mode() else 0)
     return store(doc, data, og, im.width, im.height, budget, IMAGE_EXT)
 
@@ -125,8 +129,17 @@ def _check_budget(need: int, budget: int) -> None:
     raise BudgetExceeded(used, budget, need)
 
 
-def store(doc: GridDoc, image: bytes, og: bytes, width: int, height: int, budget: int = 0, ext: str = IMAGE_EXT) -> dict:
-    """描画済みの本体画像（JPEG。古いブラウザのタブからは PNG）とカード用 JPEG を保存する。ブラウザで描いたものもサーバーで描いたものもここを通る。"""
+def store(doc: GridDoc, image: bytes, og: bytes | None, width: int, height: int,
+          budget: int = 0, ext: str = IMAGE_EXT) -> dict:
+    """描画済みの本体画像（JPEG。古いブラウザのタブからは PNG）とカード用 JPEG を保存する。
+    ブラウザで描いたものもサーバーで描いたものもここを通る。
+
+    **`og` が `None` なら本体から作る**（実測 57ms）。ブラウザから送らせないぶん、
+    上りが 2 割軽くなる。カードは 1200×630 に縮めるので、本体が一度 JPEG になっていても見分けはつかない。
+    """
+    if og is None:
+        with Image.open(io.BytesIO(image)) as im:
+            og = _og_jpeg(im.convert("RGB"), _bg_rgb(doc.options))
     st = storage.get_storage()
     sid = _new_id(doc)
     # name はブラウザごとの固有 ID（u-…）。公開 JSON に載せると同じ人の共有を突き合わせたり、そのグリッドを読み書きされたりするので外す
@@ -153,12 +166,16 @@ MAX_UPLOAD_OG = 600_000
 MAX_UPLOAD_SIDE = 4096
 
 
-def check_uploaded(image: bytes, og: bytes) -> tuple[int, int, str]:
-    """ブラウザが描いた本体（JPEG か PNG）とカード用 JPEG のヘッダだけ確かめる（デコードはしない。CPU を使わないのがこの経路の目的）。
-    (幅, 高さ, 拡張子) を返す。不正なら ValueError。"""
+def check_uploaded(image: bytes, og: bytes | None = None) -> tuple[int, int, str]:
+    """ブラウザが描いた本体（JPEG か PNG）のヘッダだけ確かめる。(幅, 高さ, 拡張子) を返す。不正なら ValueError。
+
+    **カード用の JPEG は送られてこないのがふつう**（2026-09-16 から、本体だけ送って
+    カードはサーバーで作る。送るバイトが 2 割減り、上りの細い端末の待ち時間が縮む）。
+    ただし**開いたままの古いタブは今までどおり送ってくる**ので、来たときは確かめて使う。
+    """
     if not image or len(image) > MAX_UPLOAD_IMAGE:
         raise ValueError(f"画像が空か大きすぎます（{len(image) / 1e6:.1f} MB）")
-    if not og or len(og) > MAX_UPLOAD_OG:
+    if og is not None and (not og or len(og) > MAX_UPLOAD_OG):
         raise ValueError("カード用の JPEG が空か大きすぎます")
     try:
         with Image.open(io.BytesIO(image)) as im:
@@ -166,9 +183,10 @@ def check_uploaded(image: bytes, og: bytes) -> tuple[int, int, str]:
                 raise ValueError("本体が JPEG でも PNG でもありません")
             w, h = im.size
             ext = "jpg" if im.format == "JPEG" else "png"
-        with Image.open(io.BytesIO(og)) as im2:
-            if im2.format != "JPEG" or im2.size != (OG_W, OG_H):
-                raise ValueError("カード用の画像が 1200×630 の JPEG ではありません")
+        if og is not None:
+            with Image.open(io.BytesIO(og)) as im2:
+                if im2.format != "JPEG" or im2.size != (OG_W, OG_H):
+                    raise ValueError("カード用の画像が 1200×630 の JPEG ではありません")
     except Image.UnidentifiedImageError as e:
         raise ValueError("画像として読めません") from e
     if not (100 <= w <= MAX_UPLOAD_SIDE and 100 <= h <= MAX_UPLOAD_SIDE):
