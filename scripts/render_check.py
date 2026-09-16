@@ -161,7 +161,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
 
 
 def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, max_pages: int = 25) -> list[dict]:
@@ -239,6 +239,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     last_reset_at = None
     last_uptime = None
     src_counts: Counter[str] = Counter()
+    ref_counts: Counter[str] = Counter()   # Referer のホスト名
     for lg in logs:
         m, ts = lg.get("message", ""), lg.get("timestamp", "")
         if m.startswith("[stats]"):
@@ -248,6 +249,11 @@ def analyze_logs(logs: list[dict]) -> dict:
                 p["5xx"] += int(e5 or 0)
                 p["max_s"] = max(p["max_s"], float(mx))
                 p["peak_per_min"] = max(p["peak_per_min"], int(cnt))
+        elif m.startswith("[ref]"):
+            for pair in m[len("[ref]"):].split():
+                k, _, n = pair.rpartition("=")
+                if k and n.isdigit():
+                    ref_counts[k] += int(n)
         elif m.startswith("[src]"):
             # どこから来たか（`?src=…`）。貼る側が付けた印を数えるだけ
             for pair in m[len("[src]"):].split():
@@ -290,6 +296,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "per_path": dict(per_path),
         "ua_by_path": {k: dict(v) for k, v in ua_by_path.items()},
         "src_counts": dict(src_counts),
+        "ref_counts": dict(ref_counts),
         "rss": rss,
         "errors": errors,
         "fivexx": dict(fivexx),
@@ -406,6 +413,10 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
                 + f"（人以外 {(sub - human) * 100 // sub}%）")
 
     # どこから来たか（`?src=…`）。投稿に貼ったリンクの印を数えるだけで、人は特定しない
+    ref = la.get("ref_counts") or {}
+    if ref:
+        lines.append("- どこから来たか（Referer のホスト）: " + "、".join(
+            f"{k} {n} 件" for k, n in sorted(ref.items(), key=lambda kv: -kv[1])[:10]))
     src = la.get("src_counts") or {}
     if src:
         lines.append("- 流入の印（`?src=`）: " + "、".join(

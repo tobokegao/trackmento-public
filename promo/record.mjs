@@ -180,7 +180,7 @@ await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}"
 await page.evaluate((lang) => { localStorage.clear(); localStorage.setItem("trackmento.lang", lang); }, EN ? "en" : "ja");
 await page.reload({ waitUntil: "networkidle" });
 await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}" });
-if (await page.locator("#grid .cell img").count()) { page.once("dialog", (d) => d.accept()); await page.locator("#clear-btn").click(); await wait(500); }
+if (await page.locator("#grid .cell img").count()) { await page.locator("#clear-btn").click(); await page.locator("#confirm-yes").click();   // 確認の窓 await wait(500); }
 await wait(1000);
 await mark("start");
 

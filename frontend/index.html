@@ -623,6 +623,9 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
    「入れたことに気付ける」ことを優先して、共有ボタンのすぐ下に置く */
 .listed { display: flex; align-items: center; flex: 1 1 12rem; min-width: 0; }
 .listed a { color: var(--color-ink); }
+/* 確認の窓（「マスを全部外す」）。幅は文だけなので狭くし、ボタンは右に寄せる */
+.modal-narrow { width: min(100%, 26rem); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* 行の箱の余白（min-height: 28px）を外して、箱と文字の下端が「マスを全部外す」の枠の下辺に乗るようにする */
 .grid-foot .check { min-height: 0; }
 .msg-under { margin-top: var(--space-3); }
@@ -1340,6 +1343,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   </div>
 </div>
 
+<!-- 「マスを全部外す」の確認。**ブラウザ標準の confirm は使わない**（画面が止まり、撮影や自動操作でも扱えない） -->
+<div class="modal" id="confirm-modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="sheet-backdrop" id="confirm-backdrop"></div>
+  <div class="modal-panel modal-narrow">
+    <div class="sheet-head"><h2 id="confirm-title">確認</h2></div>
+    <div class="modal-body note">
+      <p id="confirm-msg">マスとストックの曲を全部外します。よろしいですか？</p>
+      <div class="confirm-actions">
+        <button class="btn" type="button" id="confirm-no">やめる</button>
+        <button class="btn btn-primary" type="button" id="confirm-yes">全部外す</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="pal-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pal-modal-title">
   <div class="sheet-backdrop" id="pal-modal-backdrop"></div>
   <div class="modal-panel">
@@ -1449,6 +1467,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。": "Click a result to fill the next empty cell. Tap a cell to select it, then tap another to swap.",
         "トラックを共有": "Share these tracks",
         "マスを全部外す": "Clear all cells",
+        "確認": "Confirm",
+        "マスとストックの曲を全部外します。よろしいですか？": "This removes every track from the cells and the stash. Are you sure?",
+        "全部外す": "Clear all",
         "マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる": "Remove every track from the cells and the stash. You can undo right after.",
         "元に戻す": "Undo",
         "戻しました。": "Restored.",
@@ -2624,8 +2645,26 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
   // **「マスを全部外す」は戻せる**。確認ダイアログは毎回邪魔になって読まずに押すようになるので出さず、
   // 外した直後のメッセージに「元に戻す」を付ける。次のメッセージで消える（＝そこまでは戻せる）
+  // **取り消せない操作は確認してから**（利用者の要望、2026-09-17）。押したあとの「元に戻す」も残す
+  const confirmModal = $("#confirm-modal");
+  let confirmYes = null;
+  function openConfirm(onYes) {
+    confirmYes = onYes; confirmModal.hidden = false; lockScroll();
+    $("#confirm-no").focus({ preventScroll: true });
+  }
+  function closeConfirm() {
+    confirmYes = null; confirmModal.hidden = true; if (!sheetOpen()) unlockScroll();
+    els.clearBtn.focus({ preventScroll: true });
+  }
+  $("#confirm-no").addEventListener("click", closeConfirm);
+  $("#confirm-backdrop").addEventListener("click", closeConfirm);
+  $("#confirm-yes").addEventListener("click", () => { const f = confirmYes; closeConfirm(); if (f) f(); });
+
   els.clearBtn.addEventListener("click", () => {
     if (!state.cells.some(Boolean) && !state.stash.length) return;
+    openConfirm(clearAll);
+  });
+  function clearAll() {
     const before = { cells: state.cells.slice(), stash: state.stash.slice() };
     state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true;
     say(els.gridMsg, tr("マスを全部外しました。"));
@@ -2636,7 +2675,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       say(els.gridMsg, tr("戻しました。"));
     });
     els.gridMsg.append(" ", undo);
-  });
+  }
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
 
   /* ---- options ---- */

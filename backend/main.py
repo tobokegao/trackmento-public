@@ -9,6 +9,7 @@ import json
 import os
 import re
 import secrets
+import urllib.parse
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -239,7 +240,33 @@ _SRC_RE = re.compile(r"^[a-z0-9_-]{1,16}$")
 _SRC_MAX = 30   # 覚える種類の上限。いたずらで種類が増えても膨らまないように
 
 
+# **どこから来たか（Referer のホスト名だけ）**。`?src=` はこちらが投稿に印を付けたときしか数えられないので、
+# 素のリンクからの流入が分からなかった。**残すのはホスト名だけ**（パスも問い合わせも捨てるので、
+# 「どの投稿から」までは分からない＝人の識別にならない）。うちのホストからの移動は数えない
+_ref_stats: dict[str, int] = {}
+_REF_RE = re.compile(r"^[a-z0-9.-]{1,32}$")
+_REF_MAX = 40
+
+
+def _note_ref(request: Request) -> None:
+    ref = request.headers.get("referer") or ""
+    if not ref:
+        return
+    try:
+        host = (urllib.parse.urlsplit(ref).hostname or "").lower()
+    except ValueError:
+        return
+    host = host.removeprefix("www.")
+    mine = (request.url.hostname or "").lower().removeprefix("www.")
+    if not host or host == mine or not _REF_RE.match(host):
+        return
+    if host not in _ref_stats and len(_ref_stats) >= _REF_MAX:
+        host = "ほか"
+    _ref_stats[host] = _ref_stats.get(host, 0) + 1
+
+
 def _note_src(request: Request) -> None:
+    _note_ref(request)
     v = (request.query_params.get("src") or "").strip().lower()
     if not v or not _SRC_RE.match(v):
         return
@@ -291,6 +318,11 @@ async def _load_monitor():
             # どこから来たか（`?src=…`）。多い順に出す。**人の識別になるものは含まない**
             print("[src] " + " ".join(f"{k}={n}" for k, n in sorted(_src_stats.items(), key=lambda kv: -kv[1])))
             _src_stats.clear()
+        if tick % 60 == 0 and _ref_stats:
+            # どこから来たか（Referer のホスト名）。多い順に上位 12 件だけ
+            top_ref = sorted(_ref_stats.items(), key=lambda kv: -kv[1])[:12]
+            print("[ref] " + " ".join(f"{k}={n}" for k, n in top_ref))
+            _ref_stats.clear()
 
 
 def _wants_html(request: Request) -> bool:

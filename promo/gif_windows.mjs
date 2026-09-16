@@ -108,6 +108,7 @@ const seed = (n, size = [3, 3], opts = {}) => page.evaluate(({ tracks, n, size, 
 const clearGrid = async () => {
   await seed(9);
   await page.click("#clear-btn");
+  await page.click("#confirm-yes");   // 確認の窓（2026-09-17 から）
   await page.waitForTimeout(200);
 };
 
@@ -330,7 +331,7 @@ if (want("io")) {
     ]);
     await dl.saveAs(tmp);
     await hold(shot, 2.0);                            // 「ファイルに保存しました」
-    await page.click("#clear-btn");                   // わざと空にする
+    await page.click("#clear-btn"); await page.click("#confirm-yes");   // わざと空にする（確認の窓を通す）
     await hold(shot, 1.6);
     await page.setInputFiles("#json-file", tmp);      // 「並びを読み込み」でファイルを選んだのと同じ
     await hold(shot, 2.2);                            // 9 曲が戻る
