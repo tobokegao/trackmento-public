@@ -622,6 +622,8 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
    「入れたことに気付ける」ことを優先して、共有ボタンのすぐ下に置く */
 .listed { display: flex; align-items: center; flex: 1 1 12rem; min-width: 0; }
 .listed a { color: var(--color-ink); }
+/* 行の箱の余白（min-height: 28px）を外して、箱と文字の下端が「マスを全部外す」の枠の下辺に乗るようにする */
+.grid-foot .check { min-height: 0; }
 .msg-under { margin-top: var(--space-3); }
 .msg .undo { font: inherit; font-weight: 700; color: var(--color-ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
 
