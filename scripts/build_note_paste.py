@@ -43,6 +43,21 @@ def inline(s: str) -> str:
     return "".join(out)
 
 
+ARTIFACT_USAGE = (
+    '<p class="ph" style="background:#d7f0ff"><b>使い方</b>: この画面を全選択してコピー → note の本文に貼り付け。'
+    '見出し・太字・箇条書き・リンク・区切り線はそのまま入ります。<b>黄色い行は目印</b>なので、その位置に画像を上げてから消してください。</p>\n'
+)
+
+
+def write_artifact(html: str, out: pathlib.Path) -> None:
+    """アーティファクト（claude.ai に置く版）。head を外し、先頭に使い方の行を足す。
+    公開先が doctype と head を付けるので、こちらは <title> と <style> から始める。"""
+    head, body = html.split("<body>", 1)
+    body = body.replace("</body></html>", "").replace("</body>", "").replace("</html>", "")
+    style = re.search(r"<style>.*?</style>", head, re.S).group(0)
+    out.write_text("<title>note 貼り付け用の下書き</title>\n" + style + "\n" + ARTIFACT_USAGE + body, encoding="utf-8")
+
+
 def main() -> int:
     lines = SRC.read_text(encoding="utf-8").splitlines()
     body: list[str] = []
@@ -131,7 +146,9 @@ def main() -> int:
 {chr(10).join(body)}
 </body></html>
 """, encoding="utf-8")
-    print(f"{OUT} を書きました（{len(body)} ブロック、表 {table} 個）")
+    art = OUT.with_name("note-paste-artifact.html")
+    write_artifact(OUT.read_text(encoding="utf-8"), art)
+    print(f"{OUT} を書きました（{len(body)} ブロック、表 {table} 個）。アーティファクト版: {art.name}")
     return 0
 
 

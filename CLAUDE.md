@@ -936,6 +936,17 @@ claude --remote-control TRACKMENTO                                             #
     スクリーンショットに写らない（OS が重ねているだけで、ページの絵ではない）。矢印＋押した合図の輪、
     指の画面では丸。**HTML5 のドラッグ中は mousemove が来ない**ので `dragover` からも位置を拾う
   - 撮影に使う `window.__setGridUI` は画面も描き直す版（`__setGrid` は割り付けを測るだけで描かない）
+  - **記事をまるごと今の仕様に合わせ直す手順**（2026-09-16 の夜にやった順）:
+    1. `gh workflow run render-check.yml` で点検を回し、`gh run view <id> --log` を scratchpad に落とす
+    2. `scripts/note_charts.py <ログ…>` … ログの要約から `outputs/note/series.json` に足して 3 枚のグラフを描く
+       （matplotlib は venv に入れてあるが `requirements.txt` には入れない。本番には要らない）。
+       共有数の日付は UTC の日（09:00 JST で切り替わる）
+    3. `node promo/gif_windows.mjs outputs/note/frames all` → `scripts/make_gifs.py outputs/note/frames`（15 本、数分）
+    4. `node promo/shots.mjs outputs/note listed`（画面の写真。find は 8001 の別サーバーが要る）
+    5. `outputs/note/note-article.md` と `trackmento-story.html` を直す（両方に同じ文がある）
+    6. `node promo/shoot_tables.mjs outputs/note/trackmento-story.html outputs/note`（表の画像。story の表から撮る）
+    7. `scripts/build_note_paste.py`（note に貼る HTML と、アーティファクト版 `note-paste-artifact.html`）
+    8. アーティファクトを 2 つ更新（story: LqMEwkwDwu6jFkk5N3N3ih、貼り付け用: AVDUx4d3UEsUMdUqEJRXSs）
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）
   - **`?src=…` でどこから来たかを数える**（2026-09-15）。投稿に貼るリンクへ `?src=x` のように付けると、
@@ -1191,7 +1202,18 @@ claude --remote-control TRACKMENTO                                             #
 - インスタンスは Standard（`1c_2g`、約 $25/月）＋ Workspace Pro（$25/月）。**バズが収まったら下げる判断が要る**
   （メモリは最大 195MB / 2048MB、CPU は最大 0.046 / 1.0 とかなり余っている）
 
-## 直近の数字（2026-09-15 23:38 の点検）
+## 直近の数字（2026-09-16 22:16 の点検）
+
+判定「**正常**」。5xx 合計 0、共有の 5xx 0、エラー行 0、`[loop] lag` 8 行（最大 0.8 秒）。
+
+- **要求 31,444 件 / 2h で公開以来最多**（前日の最多 31,339 件）。帯域 1.05 GB / 2h、**33 KB/要求**
+  （gzip 前は 50 KB）。CPU 最大 0.46、メモリ 333 MB、`[health] rss` 最大 464 MB
+- `/image-proxy` 15,702 件（5xx 934 ＝ 配信元の 404 が大半、6%）、`/grids/*` 8,955、`/search` 1,665
+  （最大 18.3 秒。`SOURCE_TIMEOUT` 12 秒への変更はこの窓の途中でデプロイ）、`/share/upload` 406 件（最大 123 秒）
+- **本日の共有数 27,515 件（22:13 時点）**。UTC の日ごとに 3,845 → 7,033 → 15,850 → 16,934 → 27,515（途中）
+- デプロイ 9 回（この日の直し）。uptime のリセットはすべて入れ替えで、障害なし
+
+## 前回の数字（2026-09-15 23:38 の点検）
 
 判定「**正常**」。5xx 合計 14（閾値 20）、共有の 5xx 5（閾値 5）。前回（19:45）の「異常あり」から戻った。
 

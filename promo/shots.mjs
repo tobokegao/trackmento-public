@@ -23,7 +23,7 @@ async function shot(page, name, clip) {
 
 // ---- 1. 共有のところにあるチェック欄 ----
 if (want("listed")) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2, locale: "ja-JP" });
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, locale: "ja-JP" });
   const p = await ctx.newPage();
   await p.goto(APP + "/", { waitUntil: "networkidle" });
   await p.waitForFunction(() => window.__setGridUI);
