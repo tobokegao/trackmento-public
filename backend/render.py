@@ -186,6 +186,23 @@ def _one_line(s: str | None) -> str:
     return " ".join(_drawable(unicodedata.normalize("NFC", s or "")).split())
 
 
+TITLE_SHRINK = (0.92, 0.86, 0.8)   # 折った最後の行が少しはみ出すときに縮める段階（frontend の TITLE_SHRINK と同じ）
+TITLE_ROWS3 = 1 + 1 / TITLE_SHRINK[-1]   # 2.25 … 1 行＋0.8 に縮めた 1 行に入る題の幅の上限（段の幅の何倍か）。超えたら 3 行
+
+
+def _shrink_font(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, font_s: int, max_w: float) -> ImageFont.FreeTypeFont:
+    """text が max_w に入るまで TITLE_SHRINK の順に字を縮める。縮めても入らなければ最後の大きさを返す（描くときは「…」で切る）。"""
+    for k in TITLE_SHRINK:
+        if d.textlength(text, font=f) <= max_w:
+            break
+        f = font("bold", max(8, rnd(font_s * k)))
+    return f
+
+
+def _fits_shrunk(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, font_s: int, max_w: float) -> bool:
+    return d.textlength(text, font=_shrink_font(d, text, f, font_s, max_w)) <= max_w
+
+
 def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
     if draw.textlength(text, font=f) <= max_w:
         return text
@@ -292,7 +309,7 @@ class Layout:
     gw: int; gh: int
     title: str; title_size: int; title_h: int
     side: str; sb_w: int; sb_h: int; sb_cols: int; line_h: int; font_s: int; sb_gap: int; sb_flow: bool
-    sb_plan: tuple[int, ...] = ()   # 曲ごとの段数（1 か 2）。2 は「(feat. …)」を次の段へ落とすもの
+    sb_plan: tuple[int, ...] = ()   # 曲ごとの行数（1〜4）。曲名 1〜3 行＋アーティスト名の行
     # 回り込み（マスの塊を中央に置き、まわりの余白に曲名を流し込む）
     wrap: bool = False
     wrap_pad: int = 0                                   # 四辺の余白
@@ -435,7 +452,14 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
     """曲ごとの行数を返す。
 
     - アーティスト名があれば **曲名の行 + アーティストの行** で 2 行（無ければ 1 行）
-    - 曲名が 1 行に収まらなければ曲名を 2 行に折り、その曲だけ 1 行増える（最大 3 行）
+    - 曲名が 1 行に収まらなければ曲名を 2 行に折り、その曲だけ 1 行増える
+    - **2 行に折って最後の行を縮めても入らなければ 3 行**（2026-09-16）。ニコニコの題
+      （【初音ミク】…【オリジナル曲】）は 30〜40 字が普通で、右に 2 列で置くと 1 行 15 字ほどしか
+      入らず、2 行では「…」になる（利用者の 4x4・16:9 で 16 曲中 5 曲）。行数の分だけ他の曲の
+      文字が小さくなるので、縮めれば入る題までは増やさない
+    - 判定は**字ごとに 1px に丸めた幅が段の TITLE_ROWS3（2.25）倍を超えるか**。実際に折って縮めて測る
+      判定にすると、折る位置の 1 字の差で PIL と Canvas が食い違う（200 通りで 27 件ずれた）。
+      2.0〜2.25 倍の題は折り方しだいで入らないことがあり、そのときは今までどおり「…」で切る
     """
     ft = font("bold", max(12, font_s))
     nw = font("pixel", rnd(font_s * 0.8)).getlength("00") + rnd(font_s * 0.8)
@@ -446,8 +470,11 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
             plan.append(1)
             continue
         rows = 2 if _one_line(t.artist) else 1
-        if ft.getlength(_one_line(t.title)) > avail:
+        title = _one_line(t.title)
+        if ft.getlength(title) > avail:
             rows += 1
+            if sum(char_w("bold", max(12, font_s), ch) for ch in title) > avail * TITLE_ROWS3:
+                rows += 1
         plan.append(rows)
     return tuple(plan)
 
@@ -488,7 +515,24 @@ def _break_near(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont,
     return text[:i].rstrip(), text[i:].lstrip()
 
 
-def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, max_w: float) -> tuple[str, str]:
+def _split_title3(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, font_s: int,
+                  max_w: float) -> tuple[str, str, str]:
+    """曲名を 3 行に分ける。1/3 の所で折ってから残りを半分に折る。**最後の行が縮めても入らないなら、
+    最初の折り目を記号ではなく字の途中（ちょうど 1/3）にして折り直す**。
+    「【調教すげぇ】初音ミク『FREELY TOMORROW』(完成)【オリジナル曲】」を 】 で折ると 6 字＋14＋14 で
+    3 行目が「…」になるが、1/3 なら 11＋11＋12 で入る。折り直しても入らなければ記号のほう"""
+    l1, rest = _split_title(d, title, f, max_w, 1 / 3)
+    l2, l3 = _split_title(d, rest, f, max_w)
+    if l3 and not _fits_shrunk(d, l3, f, font_s, max_w):
+        b1, brest = _break_near(d, title, f, max_w, d.textlength(title, font=f) / 3)
+        b2, b3 = _split_title(d, brest, f, max_w)
+        if not b3 or _fits_shrunk(d, b3, f, font_s, max_w):
+            return b1, b2, b3
+    return l1, l2, l3
+
+
+def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, max_w: float,
+                 frac: float = 0.5) -> tuple[str, str]:
     """曲名を 2 行に分ける。**なるべく 2 行の長さがそろう位置**で折る。
 
     切れ目の候補は「区切りに使える記号の前後」。そのうち**行の真ん中にいちばん近いもの**を選ぶ。
@@ -496,7 +540,9 @@ def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, 
     候補が無ければ字の途中で折る。
     """
     total = d.textlength(title, font=f)
-    target = total / 2
+    # frac は 1 行目に入れたい割合。3 行に折るときは 1/3（真ん中で折ってから残りを半分にすると、
+    # 1 行目だけ長くて 2・3 行目が単語の途中で切れる。「マザーグー／ス』」になっていた）
+    target = total * frac
     head, _feat = _split_feat(title)
     feat_at = len(head) + 1 if _feat else -1   # 括弧の手前（空白を 1 つ挟む）
     best: tuple[float, int, bool] | None = None   # (真ん中からの遠さ, 位置, 「(feat. …)」の手前か)
@@ -526,7 +572,16 @@ def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, 
     if best is not None and (best[2]
                              or d.textlength(title[:best[1]].rstrip(), font=f) >= target * SPLIT_HEAD_MIN):
         i = best[1]
-        return title[:i].rstrip(), title[i:].lstrip()
+        l1, l2 = title[:i].rstrip(), title[i:].lstrip()
+        # **記号で折った 2 行目が縮めても入らないなら、字の途中で折り直す**（2026-09-16）。
+        # 「【巡音ルカ】ダブルラリアット【オリジナル】」を 】 で折ると 6 字＋15 字になり 2 行目が「…」で
+        # 切れる。真ん中で折れば 10 字＋11 字で全部入る。折り直しても入らないなら記号の切れ目のまま
+        # （単語の途中で折るだけ損）。「(feat. …)」の手前は今までどおり（本体が単独で読めるほうを取る）
+        if fit is None and not best[2] and not _fits_shrunk(d, l2, f, f.size, max_w):
+            alt = _break_near(d, title, f, max_w, target)
+            if alt[1] and _fits_shrunk(d, alt[1], f, f.size, max_w):
+                return alt
+        return l1, l2
     return _break_near(d, title, f, max_w, target)
 
 
@@ -1497,10 +1552,7 @@ def render(doc: GridDoc) -> Image.Image:
                     # **はみ出しがわずかなら縮めて収める**（右サイドバーの 2 行目と同じ規則）。
                     # 2 行に折っても 2 行ぶんの幅にわずかに足りない題があり（`I Love Love You
                     # (Love Love Super Dimension mix)` は 6px 超過）、「…」で切ると曲名が読めなくなる
-                    for k in (0.92, 0.86, 0.8):
-                        if d.textlength(text, font=f) <= max_w:
-                            break
-                        f = font("bold", max(8, rnd(fs * k)))
+                    f = _shrink_font(d, text, f, fs, max_w)
                 d.text((x + nw, top + j * step), _ellipsize(d, text, f, max_w),
                        font=f, fill=muted if is_artist else ink, anchor="lm")
         _release_memory()
@@ -1615,16 +1667,25 @@ def render(doc: GridDoc) -> Image.Image:
                 if not l2:   # 割り付けでは 2 行取ったが実際は 1 行で収まった（測る字の大きさが少し違うため）
                     title_rows = 1
                     l1 = _ellipsize(d, title, f_title, max_w)
-                d.text((x + nw, yy), l1, font=f_title, fill=ink, anchor="lm")
+                if not (l2 and title_rows >= 3 and not _fits_shrunk(d, l2, f_title, font_s, max_w)):
+                    d.text((x + nw, yy), l1, font=f_title, fill=ink, anchor="lm")
+                if l2 and title_rows >= 3:
+                    # **3 行目**（割り付けが 3 行取った題）。1/3 の所で折り直し、残りを半分に折る。
+                    # 折った前半は必ず入る（`_split_title` は前半が収まる位置しか選ばない）ので、縮めるのは最後の行だけ
+                    if _fits_shrunk(d, l2, f_title, font_s, max_w):
+                        title_rows = 2   # 実際は縮めれば 2 行で収まった（測る字の大きさが少し違うため）
+                    else:
+                        l1, l2, l3 = _split_title3(d, title, f_title, font_s, max_w)
+                        d.text((x + nw, yy), l1, font=f_title, fill=ink, anchor="lm")
+                        d.text((x + nw, row_y(row + 1)), l2, font=f_title, fill=ink, anchor="lm")
+                        l2 = l3
+                        if not l3:
+                            title_rows = 2
                 if l2:
-                    # 2 行目（たいていは「(feat. …)」）は、はみ出しがわずかなら**縮めて収める**。
+                    # 最後の行（たいていは「(feat. …)」）は、はみ出しがわずかなら**縮めて収める**。
                     # 「…」で切ると共演者が読めなくなるので、切るのは縮めても入らないときだけ
-                    f2 = f_title
-                    for k in (0.92, 0.86, 0.8):
-                        if d.textlength(l2, font=f2) <= max_w:
-                            break
-                        f2 = font("bold", max(8, rnd(font_s * k)))
-                    d.text((x + nw, row_y(row + 1)), _ellipsize(d, l2, f2, max_w), font=f2, fill=ink, anchor="lm")
+                    f2 = _shrink_font(d, l2, f_title, font_s, max_w)
+                    d.text((x + nw, row_y(row + title_rows - 1)), _ellipsize(d, l2, f2, max_w), font=f2, fill=ink, anchor="lm")
             else:
                 d.text((x + nw, yy), _ellipsize(d, title, f_title, max_w), font=f_title, fill=ink, anchor="lm")
             if artist:

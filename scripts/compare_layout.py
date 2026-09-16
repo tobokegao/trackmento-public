@@ -36,7 +36,10 @@ RATIOS = ("1:1", "4:5", "9:16", "16:9", "free")
 
 
 def main() -> int:
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 200
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    n = int(args[0]) if args else 200
+    # `--tracks <json>` で曲を差し替えられる（長い題で 3 行に折れる並びなど、default.json に無い中身を試すとき）
+    tracks_path = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--tracks=")), None)
     random.seed(7)
     combos = [[c, r, q] for q in RATIOS for c in SIDES for r in SIDES if c * r <= 256]
     random.shuffle(combos)
@@ -44,6 +47,8 @@ def main() -> int:
 
     src = json.loads((ROOT / "grids" / "default.json").read_text(encoding="utf-8"))
     tracks = [c for c in src["cells"] if c]
+    if tracks_path:
+        tracks = json.loads(pathlib.Path(tracks_path).read_text(encoding="utf-8"))
     tmp = pathlib.Path(tempfile.mkdtemp())
     (tmp / "combos.json").write_text(json.dumps(combos), encoding="utf-8")
     (tmp / "tracks.json").write_text(json.dumps(tracks, ensure_ascii=False), encoding="utf-8")

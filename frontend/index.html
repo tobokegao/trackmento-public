@@ -625,7 +625,8 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
   margin-top: var(--space-2); }
 .listed .note-s { color: var(--color-muted); font-size: var(--text-sm); }
 .listed a { color: var(--color-ink); }
-.msg-under { margin-top: var(--space-3); }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
+.msg-under { margin-top: var(--space-3); }
+.msg .undo { font: inherit; font-weight: 700; color: var(--color-ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
 
 /* ---------- results ---------- */
 /* overflow-x: hidden は必須。.result:hover の translateX(2px) が横のはみ出しを作り、
@@ -784,6 +785,10 @@ body.sheet-open { overflow: hidden; }
 /* グリッド列が狭いとき（スマホの PC 表示など）は 2 列だと文字の余白が足りないので、ボタンを 1 列に縦積み */
 @container (max-width: 22rem) { .grid-actions > .btn { grid-column: 1 / -1; } }
 #find-btn { grid-column: 1 / -1; }
+/* **取り消せない操作は、いちばん押すものから遠く・最後・小さく**（OS 9 の Special メニューの末尾に Empty Trash… があるのと同じ）。
+   以前は「曲を探す」の真上に「全部クリア」があり、利用者から「ヒヤヒヤする」と言われた */
+#share-btn { grid-column: 1 / -1; }
+#clear-btn { grid-column: 1 / -1; justify-self: end; margin-top: var(--space-2); }
 
 /* ---------- options ---------- */
 .opts { display: grid; gap: var(--space-4); }
@@ -791,6 +796,9 @@ body.sheet-open { overflow: hidden; }
 .custom-size label { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); }
 .input.num { width: 4.5rem; padding: var(--space-1) var(--space-2); font-variant-numeric: tabular-nums; }
 .check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; min-height: 28px; }
+/* 文字だけ少し下げる。行ボックスの中心は箱と合っているが、IBM Plex Sans JP は行の下側の余白（ディセンダ）が
+   大きく、**字のインクが行の中心より 2px ほど上**に見える（利用者の指摘。4 倍で撮って測った） */
+.check > span { position: relative; top: 0.15em; }
 .check input {
   appearance: none; width: 18px; height: 18px; margin: 0; flex: none;
   border: var(--line) solid var(--color-ink); background: var(--color-paper);
@@ -1133,12 +1141,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
       <div class="grid-actions">
-        <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
-        <button class="btn" type="button" id="clear-btn">全部クリア</button>
         <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
+        <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
+        <button class="btn" type="button" id="clear-btn" title="マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる">マスを全部外す</button>
       </div>
       <div class="listed">
         <label class="check"><input type="checkbox" id="opt-listed"><span>みんなのグリッドから探せるようにする</span></label>
@@ -1395,7 +1403,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "タイトル（省略可）": "Title (optional)",
         "候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。": "Click a result to fill the next empty cell. Tap a cell to select it, then tap another to swap.",
         "トラックを共有": "Share these tracks",
-        "全部クリア": "Clear all",
+        "マスを全部外す": "Clear all cells",
+        "マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる": "Remove every track from the cells and the stash. You can undo right after.",
+        "元に戻す": "Undo",
+        "戻しました。": "Restored.",
         "曲を探す": "Find a track",
         "並びを保存": "Save layout",
         "並びを読み込み": "Load layout",
@@ -1545,7 +1556,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "元ページを開く": "Open the original page",
         "曲名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。": "The track and artist names appear in the sidebar of the image. Edit them here.",
         "並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。": "Layout saved to a JSON file. \"Load layout\" brings it back, though images you uploaded from this device may have expired by then.",
-        "全部外しました。": "Cleared every cell.",
+        "マスを全部外しました。": "Cleared every cell.",
         "画像の取得に失敗": "Could not fetch the image",
         "TRACKMENTO の JSON ではありません（cells がありません）。": "That is not a TRACKMENTO JSON file (no cells in it).",
         "サーバー側の保存（CLI など）の方が新しいので、そちらを読み込みました。": "The copy saved on the server (from the CLI, say) was newer, so that one was loaded.",
@@ -2546,9 +2557,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       say(els.gridMsg, tr`並びを読み込めませんでした: ${err.message}`, "error");
     }
   });
+  // **「マスを全部外す」は戻せる**。確認ダイアログは毎回邪魔になって読まずに押すようになるので出さず、
+  // 外した直後のメッセージに「元に戻す」を付ける。次のメッセージで消える（＝そこまでは戻せる）
   els.clearBtn.addEventListener("click", () => {
     if (!state.cells.some(Boolean) && !state.stash.length) return;
-    state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true; say(els.gridMsg, tr("全部外しました。"));
+    const before = { cells: state.cells.slice(), stash: state.stash.slice() };
+    state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true;
+    say(els.gridMsg, tr("マスを全部外しました。"));
+    const undo = document.createElement("button");
+    undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
+    undo.addEventListener("click", () => {
+      state.cells = before.cells; state.stash = before.stash; selected = null; target = null; renderGrid();
+      say(els.gridMsg, tr("戻しました。"));
+    });
+    els.gridMsg.append(" ", undo);
   });
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
 
@@ -3399,17 +3421,42 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
   const LIST_COL_GAP = GAP_PX * 5;
   const LIST_COL_GAIN = 1.02;   // 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
-  /* 曲ごとの行数。アーティスト名があれば 2 行（曲名 + アーティスト）、曲名が入らなければ +1 行 */
+  const fontPx = (f) => parseFloat(/(\d+(?:\.\d+)?)px/.exec(f)[1]);   // font 文字列から大きさだけ取る
+  const TITLE_SHRINK = [0.92, 0.86, 0.8];   // 折った最後の行が少しはみ出すときに縮める段階（backend/render.py と同じ）
+  const TITLE_ROWS3 = 1 + 1 / TITLE_SHRINK[TITLE_SHRINK.length - 1];   // 2.25 … これを超える幅の題は 3 行
+  /* text が maxW に入るまで TITLE_SHRINK の順に字を縮める。縮めても入らなければ最後の大きさを返す（描くときは「…」で切る） */
+  function shrinkFont(ctx, text, f, fontS, maxW) {
+    for (const k of TITLE_SHRINK) {
+      ctx.font = f;
+      if (ctx.measureText(text).width <= maxW) break;
+      f = fontBold(Math.max(8, Math.round(fontS * k)));
+    }
+    return f;
+  }
+  function fitsShrunk(ctx, text, f, fontS, maxW) {
+    ctx.font = shrinkFont(ctx, text, f, fontS, maxW);
+    return ctx.measureText(text).width <= maxW;
+  }
+  /* 曲ごとの行数。アーティスト名があれば 2 行（曲名 + アーティスト）、曲名が入らなければ +1 行。
+     **字ごとに丸めた幅が段の TITLE_ROWS3 倍を超えれば 3 行**（backend/render.py の _row_plan と同じ規則。
+     折って縮めて測る判定は折る位置の 1 字の差でサーバーと食い違うので、幅だけで決める） */
   function rowPlan(fontS, maxW) {
     const ctx = probe;
     ctx.font = fontPixel(Math.round(fontS * 0.8));
     const nw = ctx.measureText("00").width + Math.round(fontS * 0.8);
     const avail = Math.max(1, maxW - nw);
+    const f = fontBold(Math.max(12, fontS));
     return state.cells.map((t) => {
       if (!t) return 1;
       let rows = oneLine(t.artist) ? 2 : 1;
-      ctx.font = fontBold(Math.max(12, fontS));
-      if (ctx.measureText(oneLine(t.title)).width > avail) rows += 1;
+      const title = oneLine(t.title);
+      ctx.font = f;
+      if (ctx.measureText(title).width > avail) {
+        rows += 1;
+        let w = 0;
+        for (const ch of title) w += charW1(f, ch);
+        if (w > avail * TITLE_ROWS3) rows += 1;
+      }
       return rows;
     });
   }
@@ -3457,9 +3504,23 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   /* 曲名を 2 行に分ける。**なるべく 2 行の長さがそろう位置**で折る（backend/render.py の _split_title と同じ）。
      「(feat. …)」の手前は少し優遇する（そこで折れれば曲名の本体が単独で読めるため） */
-  function splitTitle(ctx, title, f, maxW) {
+  /* 曲名を 3 行に分ける。1/3 で折ってから残りを半分に。最後の行が縮めても入らないなら、
+     最初の折り目を記号ではなく字の途中（ちょうど 1/3）にして折り直す（backend/render.py の _split_title3） */
+  function splitTitle3(ctx, title, f, fontS, maxW) {
+    const [l1, rest] = splitTitle(ctx, title, f, maxW, 1 / 3);
+    const [l2, l3] = splitTitle(ctx, rest, f, maxW);
+    if (l3 && !fitsShrunk(ctx, l3, f, fontS, maxW)) {
+      ctx.font = f;
+      const [b1, brest] = breakNear(ctx, title, f, maxW, ctx.measureText(title).width / 3);
+      const [b2, b3] = splitTitle(ctx, brest, f, maxW);
+      if (!b3 || fitsShrunk(ctx, b3, f, fontS, maxW)) return [b1, b2, b3];
+    }
+    return [l1, l2, l3];
+  }
+  function splitTitle(ctx, title, f, maxW, frac = 0.5) {
     ctx.font = f;
-    const total = ctx.measureText(title).width, target = total / 2;
+    // frac は 1 行目に入れたい割合。3 行に折るときは 1/3（backend/render.py と同じ）
+    const total = ctx.measureText(title).width, target = total * frac;
     const [head, feat] = splitFeat(title);
     const featAt = feat ? head.length + 1 : -1;
     let best = null, fit = null;   // [真ん中からの遠さ, 位置, 「(feat. …)」の手前か]
@@ -3482,7 +3543,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (best !== null && (best[2]
         || ctx.measureText(title.slice(0, best[1]).replace(/\s+$/, "")).width >= target * SPLIT_HEAD_MIN)) {
       const i = best[1];
-      return [title.slice(0, i).replace(/\s+$/, ""), title.slice(i).replace(/^\s+/, "")];
+      const l1 = title.slice(0, i).replace(/\s+$/, ""), l2 = title.slice(i).replace(/^\s+/, "");
+      // **記号で折った 2 行目が縮めても入らないなら、字の途中で折り直す**（backend/render.py と同じ）。
+      // 折り直しても入らないなら記号の切れ目のまま。「(feat. …)」の手前は今までどおり
+      if (fit === null && !best[2] && !fitsShrunk(ctx, l2, f, fontPx(f), maxW)) {
+        const alt = breakNear(ctx, title, f, maxW, target);
+        if (alt[1] && fitsShrunk(ctx, alt[1], f, fontPx(f), maxW)) return alt;
+      }
+      return [l1, l2];
     }
     return breakNear(ctx, title, f, maxW, target);
   }
@@ -4391,11 +4459,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           const isArtist = artist && j === rowsTxt.length - 1;
           ctx.font = isArtist ? fA : fT;
           if (!isArtist) {
-            // **はみ出しがわずかなら縮めて収める**（右サイドバーの 2 行目と同じ規則）
-            for (const k of [0.92, 0.86, 0.8]) {
-              if (ctx.measureText(rowsTxt[j]).width <= maxW) break;
-              ctx.font = fontBold(Math.max(8, Math.round(fs * k)));
-            }
+            // **はみ出しがわずかなら縮めて収める**（右サイドバーの最後の行と同じ規則）
+            ctx.font = shrinkFont(ctx, rowsTxt[j], fT, fs, maxW);
           }
           ctx.fillStyle = cssRgb(isArtist ? muted : ink);
           ctx.fillText(ellipsizeText(ctx, rowsTxt[j], maxW), x + nw, y0row + j * step);
@@ -4501,16 +4566,21 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         if (titleRows >= 2) {
           let [l1, l2] = splitTitle(ctx, title, titleFont2, maxW);
           if (!l2) { titleRows = 1; ctx.font = titleFont2; l1 = ellipsizeText(ctx, title, maxW); }   // 実際は 1 行で収まった
-          ctx.font = titleFont2; ctx.fillText(l1, x + nw, yy);
+          if (l2 && titleRows >= 3 && !fitsShrunk(ctx, l2, titleFont2, fontS, maxW)) {
+            // **3 行目**（割り付けが 3 行取った題）。1/3 の所で折り直し、残りを半分に折る。
+            // 折った前半は必ず入るので、縮めるのは最後の行だけ
+            const [h, m, l3] = splitTitle3(ctx, title, titleFont2, fontS, maxW);
+            ctx.font = titleFont2; ctx.fillText(h, x + nw, yy); ctx.fillText(m, x + nw, rowY(row + 1));
+            l2 = l3;
+            if (!l3) titleRows = 2;
+          } else {
+            if (titleRows >= 3) titleRows = 2;   // 実際は縮めれば 2 行で収まった（測る字の大きさが少し違うため）
+            ctx.font = titleFont2; ctx.fillText(l1, x + nw, yy);
+          }
           if (l2) {
-            // 2 行目（たいていは「(feat. …)」）は、はみ出しがわずかなら**縮めて収める**
-            let f2 = titleFont2;
-            for (const k of [0.92, 0.86, 0.8]) {
-              ctx.font = f2;
-              if (ctx.measureText(l2).width <= maxW) break;
-              f2 = fontBold(Math.max(8, Math.round(fontS * k)));
-            }
-            ctx.font = f2; ctx.fillText(ellipsizeText(ctx, l2, maxW), x + nw, rowY(row + 1));
+            // 最後の行（たいていは「(feat. …)」）は、はみ出しがわずかなら**縮めて収める**
+            const f2 = shrinkFont(ctx, l2, titleFont2, fontS, maxW);
+            ctx.font = f2; ctx.fillText(ellipsizeText(ctx, l2, maxW), x + nw, rowY(row + titleRows - 1));
           }
         } else {
           ctx.font = titleFont2; ctx.fillText(ellipsizeText(ctx, title, maxW), x + nw, yy);
