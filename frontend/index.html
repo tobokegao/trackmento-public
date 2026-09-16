@@ -831,10 +831,12 @@ body.sheet-open { overflow: hidden; }
    「枠が太くなった」ようにしか見えず、入ったかどうか分かりにくい（利用者の指摘、2026-09-16） */
 /* **印は箱から右上へはみ出す**（OS 9 の実物と同じ。箱の中に収めると窮屈で、印が小さく見える） */
 .check input { position: relative; overflow: visible; }
-.check input:checked::after {
+.check input:checked::after, .check input:checked::before {
   content: ""; position: absolute; left: 0; top: 0; width: 18px; height: 13px; background: var(--color-ink);   /* 右上の先端が枠の角に乗る（OS 9 と同じ向き） */
   -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
 }
+/* 印の影（OS 9 の実物と同じ。同じ形を 1px 右下にずらして濃いグレーで敷く。::before なので印の下に来る） */
+.check input:checked::before { left: 1px; top: 1px; background: var(--color-bar-dark); }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
 .swatches label { position: relative; flex: 1 1 28px; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに広がる（PC の列幅では 28px）。右に空きが残らない */
