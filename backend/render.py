@@ -1230,6 +1230,17 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         elif side == "bottom":
             sb_h = rows_per_col * line_h
             W, H, scale = _frame(sb_w, sb_h)
+    # **そろえるために行を縮めたせいで下限を割ったのなら、そろえるのをやめる**（2026-09-16）。
+    # 行の高さはマスの段の送りの約数に寄せてある（`_snap_lead`）。5x5・16:9・25 曲の実測では
+    # 96 → 88 に縮み、出力での曲名が 21.6px → **19.6px** になって `FLOW_MIN_FONT`（20px）を
+    # わずかに割り、まるごと流し込みに落ちていた。段のそろいは見た目の細かい良さだが、
+    # 「1 曲 1 行」が保てるかどうかは読みやすさそのもの。割るくらいなら寄せない
+    if side == "right" and font_s * scale < FLOW_MIN_FONT:
+        rows_fin = max(1, _plan_rows(sb_plan, sb_cols) if sb_plan else math.ceil(base_rows / sb_cols))
+        lh2 = max(30, min(96, avail_h // rows_fin))
+        fs2 = rnd(lh2 * 0.56)
+        if fs2 > font_s and fs2 * scale >= FLOW_MIN_FONT:
+            line_h, font_s = lh2, fs2
     if side == "right" and title_h and line_h > 0:
         # **曲名リストの先頭も段の境目に乗せる**。リストはタイトルの帯のぶん下から始まるので、
         # 帯が行の整数倍でないと、行がそろっていても全体が半端にずれる。

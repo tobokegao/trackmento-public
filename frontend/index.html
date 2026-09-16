@@ -3571,6 +3571,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         [W, H, scale] = frame(sbW, sbH);
       }
     }
+    /* **そろえるために行を縮めたせいで下限を割ったのなら、そろえるのをやめる**
+       （backend/render.py と同じ。5x5・16:9・25 曲で 21.6px → 19.6px になり、
+        FLOW_MIN_FONT の 20px をわずかに割って流し込みに落ちていた） */
+    if (side === "right" && fontS * scale < FLOW_MIN_FONT) {
+      const rowsFin = Math.max(1, sbPlan.length ? planRows(sbPlan, sbCols) : Math.ceil(baseRows / sbCols));
+      const lh2 = Math.max(30, Math.min(96, Math.floor(availH / rowsFin)));
+      const fs2 = Math.round(lh2 * 0.56);
+      if (fs2 > fontS && fs2 * scale >= FLOW_MIN_FONT) { lineH = lh2; fontS = fs2; }
+    }
     if (side === "right" && titleH && lineH > 0) {
       // **曲名リストの先頭も段の境目に乗せる**（タイトルの帯を行の整数倍にする）。
       // 収まらないなら動かさない
