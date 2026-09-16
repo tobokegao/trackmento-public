@@ -97,6 +97,9 @@ def _js(html: str) -> str:
     a, b = _en_span(js)
     js = js[: a - len("  const EN = ")] + js[b:]
     js = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+    # **作者の曲の一覧は文言ではなくデータ**（曲名そのもの）。`scripts/build_own_tracks.py` が
+    # Bandcamp から作るので、日本語の曲名が並ぶ。翻訳の対象ではないので見ない
+    js = re.sub(r"const OWN_TRACKS = \[[\s\S]*?\n  \];", "", js)
     return re.sub(r"(?m)^\s*//.*$", "", js)
 
 

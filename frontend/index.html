@@ -977,7 +977,11 @@ input[type="range"].is-grabbed::-webkit-slider-thumb { background-color: var(--c
 output { font-variant-numeric: tabular-nums; }
 
 /* ---------- output ---------- */
-.output { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: var(--line) solid var(--color-rule); }
+/* 出来上がりは**それ自体を窓にする**（2026-09-16）。共有したあと、そのままオプションを
+   いじって作り直したいときに、画像のぶんだけ延々とスクロールすることになっていた（スマホで報告）。
+   窓にすればタイトルバーの「−」で畳めて、下のオプションがすぐ出る */
+.pane-output { margin-top: var(--space-4); }
+.pane-output > .pane-body { display: grid; gap: var(--space-3); }
 .output[hidden] { display: none; }
 /* 比率は JS が入れる（別オリジンから読むので、読み終わるまで高さが 0 だと画面が飛ぶ）。
    **幅は欄いっぱい**（`width: 100%`）。`width: auto` だと、置き換え要素は grid の伸ばす指定が
@@ -1140,7 +1144,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </div>
       <p class="msg msg-under">チェックを入れると、共有されたグリッドが曲名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
       <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。</p>
-      <div class="output" id="output" hidden>
+      <section class="pane pane-output" id="output" hidden aria-labelledby="h-output">
+        <div class="pane-title"><h2 id="h-output">出来上がり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="出来上がりを折りたたむ"></button></span></div>
+        <div class="pane-body">
         <img id="output-img" alt="共有した画像のプレビュー">
         <div class="share-url"><span class="lbl">共有 URL</span><input class="input" id="share-url" type="text" readonly></div>
         <div class="share-actions">
@@ -1153,7 +1159,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <span>予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭</span>
           <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a></span>
         </div>
-      </div>
+        </div>
+      </section>
     </div>
   </section>
 
@@ -1493,6 +1500,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "送れませんでした（通信が切れたようです）": "Could not send it (the connection dropped)",
     "時間切れです（回線が遅いか、途切れています）": "Timed out (the connection is slow or broken)",
     "送信をやめました": "Sending cancelled",
+    "出来上がり": "The result", "出来上がりを折りたたむ": "Collapse the result",
     "送信をやめました。": "Sending cancelled.",
     "画像を送れなかったので、サーバーで作り直しています…": "The image could not be sent, so the server is making it again\u2026",
     "（{} 秒）": " ({0}s)",
@@ -1792,6 +1800,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   };
   let available = [];
   let dragFrom = null;
+  let lastObjUrl = "";   // プレビューに使っている手元の画像（次の共有で捨てる）
 
   const els = {
     status: $("#bar-status"), form: $("#search-form"), q: $("#q"), artist: $("#artist"),
@@ -3768,25 +3777,131 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // ---- 送信中の窓（進み具合と、作者の曲） ----
   // **曲は Bandcamp の実際の作品**。増やすときはここに足す（題と URL だけ。宣伝文は書かない）
   const OWN_TRACKS = [
-    ["20220326 Chipfest Cyberspace 15 LIVE", "https://tbkgao.bandcamp.com/album/20220326-chipfest-cyberspace-15-live"],
-    ["B (Albert comes over to me)", "https://tbkgao.bandcamp.com/album/b-albert-comes-over-to-me"],
-    ["BAKA GA GO", "https://tbkgao.bandcamp.com/track/baka-ga-go"],
-    ["Being Rusty (Tanashii Mainichi)", "https://tbkgao.bandcamp.com/album/being-rusty-tanashii-mainichi"],
-    ["Collab Works 01", "https://tbkgao.bandcamp.com/album/collab-works-01"],
-    ["DA-LA-LA (Vocal Version) EP", "https://tbkgao.bandcamp.com/album/da-la-la-vocal-version-ep"],
-    ["Kodoku Na Fruits (Vocal Version) EP", "https://tbkgao.bandcamp.com/album/kodoku-na-fruits-vocal-version-ep"],
-    ["Okane Ga Tarinai Toki No Uta", "https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta"],
-    ["Picnic", "https://tbkgao.bandcamp.com/album/picnic"],
-    ["Picnic (Deluxe Edition)", "https://tbkgao.bandcamp.com/album/picnic-deluxe-edition"],
-    ["Room To Room", "https://tbkgao.bandcamp.com/album/room-to-room"],
-    ["Scythe - Sonna Hi Mo Aru Yone (Tobokegao Vocal Cover) EP", "https://tbkgao.bandcamp.com/album/scythe-sonna-hi-mo-aru-yone-tobokegao-vocal-cover-ep"],
-    ["SE Music EP", "https://tbkgao.bandcamp.com/album/se-music-ep"],
-    ["TOBOX", "https://tbkgao.bandcamp.com/album/tobox"],
-    ["Toward a New Future(feat. Tsukuyomi Ai) demo", "https://tbkgao.bandcamp.com/track/toward-a-new-future-feat-tsukuyomi-ai-demo"],
-    ["Wedding Bell（Tobokegao & JAWZZ）", "https://tbkgao.bandcamp.com/album/wedding-bell"],
-    ["Yaruki ga Denai Toki no Uta", "https://tbkgao.bandcamp.com/track/yaruki-ga-denai-toki-no-uta"],
-    ["Yomi De Ashibumi(Vocal Version)", "https://tbkgao.bandcamp.com/album/yomi-de-ashibumi-vocal-version"],
-    ["○○○○", "https://tbkgao.bandcamp.com/album/-"],
+    ["ACID PULSE TEST #0", "https://tbkgao.bandcamp.com/track/acid-pulse-test-0"],
+    ["ACID WAVE TEST #1", "https://tbkgao.bandcamp.com/track/acid-wave-test-1"],
+    ["ACID WAVE TEST #2", "https://tbkgao.bandcamp.com/track/acid-wave-test-2"],
+    ["Battle of the Bits Deluxe", "https://tbkgao.bandcamp.com/track/battle-of-the-bits-deluxe"],
+    ["Being Rusty (Demo)", "https://tbkgao.bandcamp.com/track/being-rusty-demo"],
+    ["Being Rusty (Tanashii Mainichi) (New Recording)", "https://tbkgao.bandcamp.com/track/being-rusty-tanashii-mainichi-new-recording"],
+    ["Being Rusty (Tanashii Mainichi) (Vocal & Guitar Version) feat. AntiChiptuneChiptuneClub", "https://tbkgao.bandcamp.com/track/being-rusty-tanashii-mainichi-vocal-guitar-version-feat-antichiptunechiptuneclub"],
+    ["Being Rusty (Tanashii Mainichi) GB inst only", "https://tbkgao.bandcamp.com/track/being-rusty-tanashii-mainichi-gb-inst-only"],
+    ["Being Rusty (Tanashii Mainichi) a cappella", "https://tbkgao.bandcamp.com/track/being-rusty-tanashii-mainichi-a-cappella"],
+    ["Being Rusty (Tanashii Mainichi) guiter only", "https://tbkgao.bandcamp.com/track/being-rusty-tanashii-mainichi-guiter-only"],
+    ["Blueberry Pie (The Chunderfins Cover)", "https://tbkgao.bandcamp.com/track/blueberry-pie-the-chunderfins-cover"],
+    ["Blueberry Pie (Vocal Version)", "https://tbkgao.bandcamp.com/track/blueberry-pie-vocal-version"],
+    ["Communication", "https://tbkgao.bandcamp.com/track/communication"],
+    ["DA-LA-LA", "https://tbkgao.bandcamp.com/track/da-la-la"],
+    ["DA-LA-LA (Vocal Version)", "https://tbkgao.bandcamp.com/track/da-la-la-vocal-version"],
+    ["DJ-PIE & tobokegao - ソーセージ", "https://tbkgao.bandcamp.com/track/sausage"],
+    ["Dear Ghost (Vocal Version)", "https://tbkgao.bandcamp.com/track/dear-ghost-vocal-version"],
+    ["Develop", "https://tbkgao.bandcamp.com/track/develop"],
+    ["Develop (Vocal Version)", "https://tbkgao.bandcamp.com/track/develop-vocal-version"],
+    ["Dogsled Race Menu Theme", "https://tbkgao.bandcamp.com/track/dogsled-race-menu-theme"],
+    ["Dot Matrix Clock (feat. PROJECT V/R Converters)", "https://tbkgao.bandcamp.com/track/dot-matrix-clock-feat-project-v-r-converters"],
+    ["E Funk Slap Bass Menu #1", "https://tbkgao.bandcamp.com/track/e-funk-slap-bass-menu-1"],
+    ["Electric Yakuza - Splendr (tobokegao Bitpop Remix) [Remaster]", "https://tbkgao.bandcamp.com/track/splendr-tobokegao-bitpop-remix-remaster"],
+    ["FUNKY TBK", "https://tbkgao.bandcamp.com/track/funky-tbk"],
+    ["Falling into a Dream", "https://tbkgao.bandcamp.com/track/falling-into-a-dream"],
+    ["HCCT(scythe, yukkerom, tobokegao) - 3DOUGIRI", "https://tbkgao.bandcamp.com/track/3dougiri"],
+    ["Halleluiah", "https://tbkgao.bandcamp.com/track/halleluiah"],
+    ["Hanasana", "https://tbkgao.bandcamp.com/track/hanasana"],
+    ["Harito - Trash Toys Dream (tobokegao's Goodnight Chiptune Ver) [Remaster]", "https://tbkgao.bandcamp.com/track/trash-toys-dream-tobokegaos-goodnight-chiptune-ver-remaster"],
+    ["I Like Nate Mercereau", "https://tbkgao.bandcamp.com/track/i-like-nate-mercereau"],
+    ["I bought a DX7!", "https://tbkgao.bandcamp.com/track/i-bought-a-dx7"],
+    ["Irûmu Beats", "https://tbkgao.bandcamp.com/track/ir-mu-beats"],
+    ["J-POP Strings Pulse #1", "https://tbkgao.bandcamp.com/track/j-pop-strings-pulse-1"],
+    ["Kouki Ish - Omoide House (tobokegao 2step-ish Chiptune Remix) [Remaster]", "https://tbkgao.bandcamp.com/track/omoide-house-tobokegao-2step-ish-chiptune-remix-remaster"],
+    ["Let Me Know/Cry", "https://tbkgao.bandcamp.com/track/let-me-know-cry"],
+    ["Lo Bit Space Invaders 3", "https://tbkgao.bandcamp.com/track/lo-bit-space-invaders-3"],
+    ["Love To Love", "https://tbkgao.bandcamp.com/track/love-to-love"],
+    ["Moving Back", "https://tbkgao.bandcamp.com/track/moving-back"],
+    ["Nesugoshi (No Noise Song #2)", "https://tbkgao.bandcamp.com/track/nesugoshi-no-noise-song-2"],
+    ["Quibbles", "https://tbkgao.bandcamp.com/track/quibbles-2"],
+    ["Quibbles", "https://tbkgao.bandcamp.com/track/quibbles"],
+    ["R A I N & tobokegao - Tokyo Drift [Remaster]", "https://tbkgao.bandcamp.com/track/tokyo-drift-remaster"],
+    ["Room To Room", "https://tbkgao.bandcamp.com/track/room-to-room"],
+    ["START", "https://tbkgao.bandcamp.com/track/start"],
+    ["Scythe - Sonna Hi Mo Aru Yone (Tobokegao Vocal Cover)", "https://tbkgao.bandcamp.com/track/scythe-sonna-hi-mo-aru-yone-tobokegao-vocal-cover"],
+    ["Shady Monk - Splitting Hairs (Feat. tobokegao) (tobokegao LSDj Remix)", "https://tbkgao.bandcamp.com/track/splitting-hairs-feat-tobokegao-tobokegao-lsdj-remix"],
+    ["Shady Monk - Splitting Hairs (Feat. tobokegao) [Remaster]", "https://tbkgao.bandcamp.com/track/splitting-hairs-feat-tobokegao-remaster"],
+    ["Shampoo (Vocal Version)", "https://tbkgao.bandcamp.com/track/shampoo-vocal-version"],
+    ["Shangaan Singeli Chiptune", "https://tbkgao.bandcamp.com/track/shangaan-singeli-chiptune"],
+    ["Skip", "https://tbkgao.bandcamp.com/track/skip"],
+    ["Skip (20200807 Intro WIP)", "https://tbkgao.bandcamp.com/track/skip-20200807-intro-wip"],
+    ["Skip (20200814 Verse & Bridge WIP)", "https://tbkgao.bandcamp.com/track/skip-20200814-verse-bridge-wip"],
+    ["Skip (20200821 Verse 2 & Bridge 2 WIP)", "https://tbkgao.bandcamp.com/track/skip-20200821-verse-2-bridge-2-wip"],
+    ["Skip (20200830 LSDj 8.8.2 Micromusic Italy WIP)", "https://tbkgao.bandcamp.com/track/skip-20200830-lsdj-882-micromusic-italy-wip"],
+    ["Skip (Vocal Version)", "https://tbkgao.bandcamp.com/track/skip-vocal-version"],
+    ["Skip(Album Version)", "https://tbkgao.bandcamp.com/track/skip-album-version"],
+    ["Skweeeee B4 (B5 version)", "https://tbkgao.bandcamp.com/track/skweeeee-b4-b5-version"],
+    ["So You Say", "https://tbkgao.bandcamp.com/track/so-you-say"],
+    ["Stop", "https://tbkgao.bandcamp.com/track/stop"],
+    ["Stop (20200807 BGB Full WIP)", "https://tbkgao.bandcamp.com/track/stop-20200807-bgb-full-wip"],
+    ["Stop (20200814 Groovy Sameboy Test WIP)", "https://tbkgao.bandcamp.com/track/stop-20200814-groovy-sameboy-test-wip"],
+    ["Stop (20200830 LSDj 8.8.2 Micromusic Italy WIP)", "https://tbkgao.bandcamp.com/track/stop-20200830-lsdj-882-micromusic-italy-wip"],
+    ["Sunday #1", "https://tbkgao.bandcamp.com/track/sunday-1"],
+    ["TBK ambient", "https://tbkgao.bandcamp.com/track/tbk-ambient"],
+    ["Tail Lamp", "https://tbkgao.bandcamp.com/track/tail-lamp"],
+    ["Telephone Funk Octravia (Game Loop Version)", "https://tbkgao.bandcamp.com/track/telephone-funk-octravia-game-loop-version"],
+    ["Telephone Funk Octravia(Album Version)", "https://tbkgao.bandcamp.com/track/telephone-funk-octravia-album-version"],
+    ["The Perfect Relationship", "https://tbkgao.bandcamp.com/track/the-perfect-relationship"],
+    ["Tired Face (The Game Never Ends)", "https://tbkgao.bandcamp.com/track/tired-face-the-game-never-ends-3"],
+    ["Tired Face (The Game Never Ends) (Vocal Version)", "https://tbkgao.bandcamp.com/track/tired-face-the-game-never-ends-vocal-version"],
+    ["To Quit", "https://tbkgao.bandcamp.com/track/to-quit"],
+    ["To Quit (Vocal Version)", "https://tbkgao.bandcamp.com/track/to-quit-vocal-version"],
+    ["To Quit (feat. hey, ily!)", "https://tbkgao.bandcamp.com/track/to-quit-feat-hey-ily"],
+    ["Tobokegao - BAKA GA GO", "https://tbkgao.bandcamp.com/track/baka-ga-go"],
+    ["Tobokegao - Toward a New Future(feat. Tsukuyomi Ai) demo", "https://tbkgao.bandcamp.com/track/toward-a-new-future-feat-tsukuyomi-ai-demo"],
+    ["Tobokegao - Yaruki ga Denai Toki no Uta", "https://tbkgao.bandcamp.com/track/yaruki-ga-denai-toki-no-uta"],
+    ["UZ", "https://tbkgao.bandcamp.com/track/uz"],
+    ["Wedding Bell", "https://tbkgao.bandcamp.com/track/wedding-bell"],
+    ["Why (Vocal Version)", "https://tbkgao.bandcamp.com/track/why-vocal-version"],
+    ["Yomi De Ashibumi(GB Single Version)", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-gb-single-version"],
+    ["Yomi De Ashibumi(Vocal Version)", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-vocal-version"],
+    ["Yomi De Ashibumi(raphaelgoulart MD Remix)", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-raphaelgoulart-md-remix"],
+    ["Yomi To Yomi", "https://tbkgao.bandcamp.com/track/yomi-to-yomi"],
+    ["bad end bgm", "https://tbkgao.bandcamp.com/track/bad-end-bgm"],
+    ["jingle #01 - #03", "https://tbkgao.bandcamp.com/track/jingle-01-03"],
+    ["jingle #06", "https://tbkgao.bandcamp.com/track/jingle-06"],
+    ["jingle #07", "https://tbkgao.bandcamp.com/track/jingle-07"],
+    ["skybox - æther (feat. tobokegao) [Remaster]", "https://tbkgao.bandcamp.com/track/ther-feat-tobokegao-remaster"],
+    ["so you say", "https://tbkgao.bandcamp.com/track/so-you-say-2"],
+    ["tbk noise 01", "https://tbkgao.bandcamp.com/track/tbk-noise-01"],
+    ["tobokegao & Xe - 泡とともに", "https://tbkgao.bandcamp.com/track/awa-to-tomo-ni"],
+    ["tobokegao & don'tblinkoryou'lldie - Last Song", "https://tbkgao.bandcamp.com/track/last-song"],
+    ["おかねがたりないときのうた", "https://tbkgao.bandcamp.com/track/okane-ga-tarinai-toki-no-uta"],
+    ["おかねがたりないときのうた（つくよみちゃん版）", "https://tbkgao.bandcamp.com/track/okane-ga-tarinai-toki-no-uta-tsukuyomi-ai-version"],
+    ["ここにいる", "https://tbkgao.bandcamp.com/track/im-here"],
+    ["たなしい毎日", "https://tbkgao.bandcamp.com/track/being-rusty-tanashii-mainichi"],
+    ["つかれた顔(ゲームは終わらない) (Tired Face (The Game Never Ends))", "https://tbkgao.bandcamp.com/track/tired-face-the-game-never-ends-2"],
+    ["なぜ", "https://tbkgao.bandcamp.com/track/why-2"],
+    ["なぜ", "https://tbkgao.bandcamp.com/track/why"],
+    ["よみであしぶみ", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi"],
+    ["よみであしぶみ（歌入り版）", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-vocal-version-2"],
+    ["イヌぞりレース リプレイのテーマ", "https://tbkgao.bandcamp.com/track/dogsled-race-replay-theme-2"],
+    ["イヌぞりレース リプレイのテーマ", "https://tbkgao.bandcamp.com/track/dogsled-race-replay-theme"],
+    ["サンタクロース・アリガト", "https://tbkgao.bandcamp.com/track/santa-claus-arigato"],
+    ["サンドバック", "https://tbkgao.bandcamp.com/track/sandbag"],
+    ["シャンプー", "https://tbkgao.bandcamp.com/track/shampoo"],
+    ["シャーベット", "https://tbkgao.bandcamp.com/track/sherbet-2"],
+    ["シャーベット", "https://tbkgao.bandcamp.com/track/sherbet"],
+    ["トゥナイト通信", "https://tbkgao.bandcamp.com/track/tonight"],
+    ["バースデーパーティ", "https://tbkgao.bandcamp.com/track/birthday-party-2"],
+    ["バースデーパーティ", "https://tbkgao.bandcamp.com/track/birthday-party"],
+    ["ピクニック", "https://tbkgao.bandcamp.com/track/picnic-2"],
+    ["ピクニック", "https://tbkgao.bandcamp.com/track/picnic"],
+    ["ブルーベリーパイ", "https://tbkgao.bandcamp.com/track/blueberry-pie-2"],
+    ["ブルーベリーパイ", "https://tbkgao.bandcamp.com/track/blueberry-pie"],
+    ["古町MOI - ハピイバスデ (Hapii Basude) (tobokegao 8bit Remix) [Remaster]", "https://tbkgao.bandcamp.com/track/hapii-basude-tobokegao-8bit-remix-remaster"],
+    ["孤独なフルーツ", "https://tbkgao.bandcamp.com/track/kodoku-na-fruits-2"],
+    ["孤独なフルーツ", "https://tbkgao.bandcamp.com/track/kodoku-na-fruits"],
+    ["孤独なフルーツ（歌入り版）", "https://tbkgao.bandcamp.com/track/kodoku-na-fruits-vocal-version-2"],
+    ["孤独なフルーツ（歌入り版）", "https://tbkgao.bandcamp.com/track/kodoku-na-fruits-vocal-version"],
+    ["幽霊へ", "https://tbkgao.bandcamp.com/track/dear-ghost"],
+    ["疲れた顔(ゲームは終わらない) (Tired Face (The Game Never Ends))", "https://tbkgao.bandcamp.com/track/tired-face-the-game-never-ends"],
+    ["空色平原(100年前) (Azure Fields(100 Years Ago))", "https://tbkgao.bandcamp.com/track/100-azure-fields-100-years-ago"],
+    ["船・宇宙・ユンカース・ユモ 004 (Hune Uchu Junkers Jumo 004) (Feat. Klirre) [Remaster]", "https://tbkgao.bandcamp.com/track/004-hune-uchu-junkers-jumo-004-feat-klirre-remaster"],
+    ["黄泉で足踏み(Yomi De Ashibumi)", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-album-version"],
   ];
   const upModal = $("#up-modal"), upFill = $("#up-fill"), upPct = $("#up-pct"), upNote = $("#up-note");
   /* **送信は必ず終わらせる**。XMLHttpRequest は既定で待ち続けるので、回線が切れて応答が
@@ -4432,7 +4547,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     fd.append("image", enc.png, "trackmento.jpg");
     openUpload();
     try {
-      return await postUpload("/share/upload", fd, setUpload);
+      const d = await postUpload("/share/upload", fd, setUpload);
+      d.localBlob = enc.png;   // プレビューに使う（サーバーから読み直さない）
+      return d;
     } finally {
       closeUpload();
     }
@@ -4464,11 +4581,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
       lastPushed = signature(snap);
       const imgSrc = d.image || d.png, ext = d.ext || "png";
+      /* **プレビューは手元の画像をそのまま見せる**（2026-09-16）。今まではサーバーに上げた
+         ものを R2 から読み直していて、作ったばかりの数百 KB をもう一度落としていた。
+         ブラウザで描いた場合はそのバイト列が手元にあるので、それを使えば通信はゼロ。
+         「画像を保存」は今までどおりサーバーの原本を指すので、保存されるものは変わらない */
+      if (lastObjUrl) { URL.revokeObjectURL(lastObjUrl); lastObjUrl = ""; }
       /* **先に縦横比だけ入れておく**。画像は別オリジン（R2）から読むので表示まで数百 ms かかり、
          その間 0 の高さだった枠が急に伸びて、下のボタンや URL 欄が指の下から逃げる
          （スマホで「共有完了の画面がずれる」と報告があった）。比率を先に決めておけば動かない */
       if (d.width && d.height) els.outputImg.style.aspectRatio = `${d.width} / ${d.height}`;
-      els.outputImg.src = /^https?:\/\//.test(imgSrc) ? imgSrc : api(imgSrc);
+      if (d.localBlob) { lastObjUrl = URL.createObjectURL(d.localBlob); els.outputImg.src = lastObjUrl; }
+      else els.outputImg.src = /^https?:\/\//.test(imgSrc) ? imgSrc : api(imgSrc);
       els.download.href = api(`/shares/${d.id}.${ext}`);   // 保存はバックエンド経由（別オリジンの download 属性は効かないため）
       els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + "." + ext;
       els.shareUrl.value = d.url; els.openShare.href = d.url;
