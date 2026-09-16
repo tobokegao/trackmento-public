@@ -3571,6 +3571,29 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       return rows;
     });
   }
+  // 右に置くとき、列を増やして「崩れる曲」が増えるなら、文字がこの倍率以上大きくならない限り増やさない
+  const LIST_COL_TIDY_GAIN = 1.15;
+  /* その列の幅で**崩れる曲の数**（曲名が 1 行に入らない数 ＋ アーティスト名が途切れる数）。
+     backend/render.py の _list_damage と同じ。**字ごとに丸めた幅の和**で見る（サーバーと食い違わない）。
+     文字の大きさだけで列を増やしていたとき、5x5・16:9・25 曲で 3 列になり、曲名 14 曲が折れ、
+     アーティスト名 13 曲が「…」で途切れた（2 列なら文字が 7% 小さくなるだけで 0） */
+  function listDamage(fontS, maxW) {
+    const ctx = probe;
+    ctx.font = fontPixel(Math.round(fontS * 0.8));
+    const avail = Math.max(1, maxW - (ctx.measureText("00").width + Math.round(fontS * 0.8)));
+    const fb = fontBold(Math.max(12, fontS)), fa = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
+    let n = 0;
+    for (const t of state.cells) {
+      if (!t) continue;
+      let w = 0;
+      for (const ch of oneLine(t.title)) w += charW1(fb, ch);
+      if (w > avail) n++;
+      w = 0;
+      for (const ch of oneLine(t.artist)) w += charW1(fa, ch);
+      if (w > avail) n++;
+    }
+    return n;
+  }
   /* 1 列あたりの行数。**1 曲が列をまたがないように**詰めたうえで、必ず cols 列に収まる値を返す */
   function planRows(plan, cols) {
     const total = plan.reduce((a, b) => a + b, 0);
@@ -3742,6 +3765,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       return [w, h, Math.min(1, maxSide / Math.max(w, h))];
     };
     let [W, H, scale] = frame(sbW, sbH);
+    /* 右に置いて cols 列にしたときの、曲名を折ったあとの [文字の大きさ, 崩れる曲の数]（backend/render.py の _right_final） */
+    const rightFinal = (cols) => {
+      let [, fs, w] = sidebar(cols, baseRows);
+      const colW = Math.floor((w - LIST_COL_GAP * (cols - 1)) / cols);
+      const plan = rowPlan(fs, colW);
+      if (plan.reduce((a, b) => a + b, 0) > baseRows || planRows(plan, cols) > Math.ceil(baseRows / cols)) {
+        const lh = Math.max(30, Math.min(Math.floor(pitch / LEAD_PITCH_DIV), Math.floor(availH / Math.max(1, planRows(plan, cols)))));
+        fs = Math.round(Math.max(30, snapLead(lh, pitch, lh)) * 0.56);
+      }
+      return [fs, listDamage(fs, colW)];
+    };
     // **文字が小さくなるなら、まず列を増やす**。1 列のまま縦に詰めるより、列を割って 1 列あたりの
     // 行数を減らしたほうが行間も文字も大きく取れる（25 曲で 2 列）。
     // 判断は論理 px ではなく**出力で何 px になるか**で行う。
@@ -3761,6 +3795,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const scale2 = frame(w, sbH2)[2];
         // 増やしても大きくならないならやめる（下に置くときは端数の差で行き来しないよう少し余裕を見る）
         if (fs * scale2 <= fontS * scale * (side === "right" ? 1.0 : LIST_COL_GAIN)) break;
+        if (side === "right") {
+          // **列が狭くなって崩れる曲が増えるなら、文字がはっきり大きくならない限り増やさない**
+          // （backend/render.py と同じ。比べるのは曲名を折ったあとの大きさ）
+          const [fsNow, dmgNow] = rightFinal(sbCols);
+          const [fsNew, dmgNew] = rightFinal(sbCols + 1);
+          if (dmgNew > dmgNow && fsNew * scale2 < fsNow * scale * LIST_COL_TIDY_GAIN) break;
+        }
         sbCols += 1; lineH = lh; fontS = fs; sbW = w; sbH = sbH2;
         [W, H, scale] = frame(sbW, sbH);
       }
@@ -3772,7 +3813,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const colW0 = Math.floor((sbW - LIST_COL_GAP * (sbCols - 1)) / sbCols);
       sbPlan = rowPlan(fontS, colW0);
       const rowsPerCol = planRows(sbPlan, sbCols);
-      if (sbPlan.reduce((a, b) => a + b, 0) > baseRows) {
+      // **1 曲が列をまたがないので、折らなくても 1 列の行数が見込みより増えることがある**
+      // （backend/render.py と同じ。25 曲を 2 列にすると 13 曲 ＝ 26 行で、最後の曲がマスの下端からはみ出していた）
+      if (sbPlan.reduce((a, b) => a + b, 0) > baseRows || rowsPerCol > Math.ceil(baseRows / sbCols)) {
         if (side === "right") {
           lineH = Math.max(30, Math.min(Math.floor(pitch / LEAD_PITCH_DIV), Math.floor(availH / Math.max(1, rowsPerCol))));
           lineH = Math.max(30, snapLead(lineH, pitch, lineH));

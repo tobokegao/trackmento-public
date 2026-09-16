@@ -448,6 +448,29 @@ LIST_MAX_COLS = 3
 LIST_COL_GAP = GAP_PX * 5   # 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
 LIST_COL_GAIN = 1.02        # 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
 ARTIST_SCALE = 0.78       # アーティスト名は曲名より小さく、薄い色で
+LIST_COL_TIDY_GAIN = 1.15   # 右に置くとき、列を増やして「崩れる曲」が増えるなら、文字がこの倍率以上大きくならない限り増やさない
+
+
+def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> int:
+    """その列の幅で**崩れる曲の数**（曲名が 1 行に入らない数 ＋ アーティスト名が途切れる数）。
+
+    列を増やすかどうかを文字の大きさだけで決めていたとき、利用者の 5x5・16:9・25 曲（ボカロ曲で
+    「作者 feat. 歌声」の長いアーティスト名）が 3 列になり、**曲名 14 曲が 2 段に折れ、アーティスト名
+    13 曲が「…」で途切れた**（2026-09-17）。2 列なら文字は 7% 小さくなるだけで、折れも途切れも 0。
+    幅は `_row_plan` の 3 行判定と同じく**字ごとに 1px に丸めた和**で見る（PIL と Canvas で食い違わない）
+    """
+    nw = font("pixel", rnd(font_s * 0.8)).getlength("00") + rnd(font_s * 0.8)
+    avail = max(1.0, max_w - nw)
+    fb, fa = max(12, font_s), max(8, rnd(font_s * ARTIST_SCALE))
+    n = 0
+    for t in doc.cells:
+        if not t:
+            continue
+        if sum(char_w("bold", fb, ch) for ch in _one_line(t.title)) > avail:
+            n += 1
+        if sum(char_w("regular", fa, ch) for ch in _one_line(t.artist)) > avail:
+            n += 1
+    return n
 
 
 def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
@@ -1245,6 +1268,18 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         return w, h, min(1.0, max_side() / max(w, h))
 
     W, H, scale = _frame(sb_w, sb_h)
+
+    def _right_final(cols: int) -> tuple[int, int]:
+        """右に置いて cols 列にしたときの、曲名を折ったあとの (文字の大きさ, 崩れる曲の数)。
+        下の「折ったぶん高さを取り直す」と同じ式で出す"""
+        _, fs, w = _sidebar(cols, base_rows)
+        col_w = (w - LIST_COL_GAP * (cols - 1)) // cols
+        plan = _row_plan(doc, fs, col_w)
+        if sum(plan) > base_rows or _plan_rows(plan, cols) > math.ceil(base_rows / cols):
+            lh = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // max(1, _plan_rows(plan, cols))))
+            fs = rnd(max(30, _snap_lead(lh, pitch, max_lh=lh)) * 0.56)
+        return fs, _list_damage(doc, fs, col_w)
+
     # **文字が小さくなるなら、まず列を増やす**。1 列のまま縦に詰めるより、列を割って 1 列あたりの
     # 行数を減らしたほうが行間も文字も大きく取れる（25 曲で 2 列。参考にした他サービスと同じ考え方）。
     # 判断は論理 px ではなく**出力で何 px になるか**で行う（比率・余白・タイトルの有無で変わるため）
@@ -1272,6 +1307,13 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
             # 増やしても大きくならないならやめる（下に置くときは端数の差で行き来しないよう少し余裕を見る）
             if fs * scale2 <= font_s * scale * (1.0 if side == "right" else LIST_COL_GAIN):
                 break
+            if side == "right":
+                # **列が狭くなって崩れる曲が増えるなら、文字がはっきり大きくならない限り増やさない**。
+                # 比べるのは曲名を折ったあとの大きさ（折ると行が増えて、見込みより小さくなる）
+                fs_now, dmg_now = _right_final(sb_cols)
+                fs_new, dmg_new = _right_final(sb_cols + 1)
+                if dmg_new > dmg_now and fs_new * scale2 < fs_now * scale * LIST_COL_TIDY_GAIN:
+                    break
             sb_cols, line_h, font_s, sb_w, sb_h = sb_cols + 1, lh, fs, w, sb_h2
             W, H, scale = _frame(sb_w, sb_h)
     # 曲名が 1 行に入らなければ 2 行に折るので、その曲だけ行が増える。増えたぶん高さを取り直す。
@@ -1281,7 +1323,10 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         col_w0 = (sb_w - LIST_COL_GAP * (sb_cols - 1)) // sb_cols
         sb_plan = _row_plan(doc, font_s, col_w0)
         rows_per_col = _plan_rows(sb_plan, sb_cols)
-        if sum(sb_plan) > base_rows:
+        # **1 曲が列をまたがないので、折らなくても 1 列の行数が見込みより増えることがある**（2026-09-17）。
+        # 曲名＋アーティストの 2 行ひと組を 25 曲、2 列に分けると 13 曲 ＝ 26 行で、「50 行 ÷ 2 列 ＝ 25 行」の
+        # 高さのまま描くと最後の曲がマスの下端からはみ出していた。そのときも高さを取り直す
+        if sum(sb_plan) > base_rows or rows_per_col > math.ceil(base_rows / sb_cols):
             if side == "right":
                 rows_now = max(1, rows_per_col)
                 line_h = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // rows_now))
