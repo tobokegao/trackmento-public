@@ -184,13 +184,33 @@ if (want("url")) {
     await hold(shot, 0.6);
   });
   // 「まとめて取れました」の窓は別の場面にする。**切り取らない**（窓だけを切り取ると、
-  // 「マスに入れる」を押した瞬間に窓が消えて、以降のコマが真っ白になる。利用者から報告）
+  // 押した瞬間に窓が消えて、以降のコマが真っ白になる。利用者から報告）。
+  // **選べる道が 2 つある**ので、2 本撮る（マスに入れる／候補に置いて選ぶ）
   if (await page.$("#pl-modal:not([hidden])")) {
     await scene("url-pl", null, async (shot) => {
       await hold(shot, 1.6);
       await page.click("#pl-to-grid");
-      await page.waitForTimeout(400);
+      await page.waitForTimeout(500);
+      await hold(shot, 1.8);
+    });
+  }
+  // もう一度取り込んで、こんどは「候補に置いて選ぶ」
+  await clearGrid();
+  await bring("#sub-bandcamp");
+  // **欄は取り込みに成功すると空になる**ので、入れ直してから押す
+  await page.fill("#bc-url", "https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta");
+  await page.click("#bc-btn");
+  await page.waitForSelector("#pl-modal:not([hidden])", { timeout: 60000 }).catch(() => {});
+  if (await page.$("#pl-modal:not([hidden])")) {
+    await scene("url-pl2", null, async (shot) => {
       await hold(shot, 1.6);
+      await page.click("#pl-to-results");
+      await page.waitForTimeout(500);
+      await hold(shot, 1.8);
+      // 候補から 2 曲だけ入れてみせる（「選ぶ」ほうだと分かるように）
+      const items = await page.$$(".result");
+      for (const it of items.slice(0, 2)) { await it.click(); await hold(shot, 0.7); }
+      await hold(shot, 1.0);
     });
   }
 }
@@ -285,19 +305,20 @@ if (want("io")) {
   await waitArt();
   await page.waitForTimeout(500);
   const tmp = path.join(outRoot, "_grid.json");
-  await scene("io", rectRange(".pane-grid", ".grid-actions", ".msg-under"), async (shot) => {
-    await hold(shot, 0.8);
+  // **マスも一緒に写す**。ボタンだけを切り取っていたので、押した結果（ファイルに落ちた・戻ってきた）が
+  // 見えなかった（利用者から報告）。空にしてから読み込みで戻すと、何が起きたのか目で追える
+  await scene("io", rectSpan(".pane-grid", ".msg-under"), async (shot) => {
+    await hold(shot, 1.2);                            // 9 曲そろっているところ
     const [dl] = await Promise.all([
       page.waitForEvent("download", { timeout: 15000 }),
       page.click("#json-export"),
     ]);
     await dl.saveAs(tmp);
-    await hold(shot, 1.4);
-    await seed(3);                                    // いったん減らしてから、読み込みで戻す
-    await page.waitForTimeout(400);
-    await hold(shot, 1.0);
+    await hold(shot, 2.0);                            // 「ファイルに保存しました」
+    await page.click("#clear-btn");                   // わざと空にする
+    await hold(shot, 1.6);
     await page.setInputFiles("#json-file", tmp);      // 「並びを読み込み」でファイルを選んだのと同じ
-    await hold(shot, 1.8);
+    await hold(shot, 2.2);                            // 9 曲が戻る
   });
   fs.rmSync(tmp, { force: true });
 }
