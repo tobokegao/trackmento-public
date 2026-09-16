@@ -19,7 +19,7 @@ import io
 
 from PIL import Image
 
-from backend import render, storage
+from backend import render, shareindex, storage
 from backend.config import public_mode, share_retention_days
 from backend.grids import GridDoc
 
@@ -155,6 +155,10 @@ def store(doc: GridDoc, image: bytes, og: bytes | None, width: int, height: int,
     st.put(f"{sid}-og.jpg", og, "image/jpeg")
     st.put(f"{sid}.json", js, "application/json;charset=utf-8")   # charset なしだと端末によっては文字化けして開かれる
     storage.add_usage(need)
+    # **「みんなの並びから探せるようにする」に印が付いているときだけ**索引に載せる（既定はオフ）。
+    # 印の無い共有は 1 件も載らない
+    if getattr(doc, "listed", False):
+        shareindex.add(snap)
     url = image_url(sid, ext)
     return {"id": sid, "image": url, "png": url, "ext": ext, "og": og_url(sid), "json": f"/shares/{sid}.json",
             "width": width, "height": height, "bytes": need}   # png は旧キー（古いタブ・CLI 互換）
@@ -251,6 +255,17 @@ TEXT = {
         "og_share": "トラック共有サイト #TRACKMENTO からシェア:「{title}」",
         "untitled": "無題",
         "og_share_untitled": "トラック共有サイト #TRACKMENTO からシェア",
+        "find_title": "みんなの並びを探す",
+        "find_note": "曲名やアーティスト名で、その曲が入っている並びを探せます。",
+        "find_opt": "ここに出るのは、共有するときに「みんなの並びから探せるようにする」にチェックを入れたものだけです（既定は入っていません）。ほかの共有は URL を知っている人だけが見られます。",
+        "find_ph": "曲名・アーティスト名",
+        "find_btn": "探す",
+        "find_none": "見つかりませんでした。別の言い方でも試してみてください。",
+        "find_empty": "まだ 1 件も登録されていません。",
+        "find_recent": "最近の並び",
+        "find_hits": "{n} 件見つかりました",
+        "find_untitled": "無題の並び",
+        "find_back": "TRACKMENTO を開く",
     },
     "en": {
         "expired_title": "This share is gone",
@@ -278,6 +293,17 @@ TEXT = {
         "og_share": "Shared from #TRACKMENTO, the track-grid maker: \u201c{title}\u201d",
         "untitled": "Untitled",
         "og_share_untitled": "Shared from #TRACKMENTO, a track grid maker",
+        "find_title": "Find shared layouts",
+        "find_note": "Search by song or artist name to find layouts that contain that track.",
+        "find_opt": "Only layouts whose maker ticked “Let people find this layout” when sharing appear here (it is off by default). Every other share stays visible only to people who have its URL.",
+        "find_ph": "Song or artist",
+        "find_btn": "Search",
+        "find_none": "Nothing found. Try another spelling.",
+        "find_empty": "Nothing has been listed yet.",
+        "find_recent": "Recently listed",
+        "find_hits": "{n} found",
+        "find_untitled": "Untitled layout",
+        "find_back": "Open TRACKMENTO",
     },
 }
 
@@ -468,6 +494,58 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
   <ol>{''.join(rows)}</ol>
   <p class="meta">{t(lang, 'tracks', n=n)} · {snap.get('cols')}×{snap.get('rows')} · {t(lang, 'share_id')} {sid} · {html.escape(snap.get('createdAt') or '')}</p>
   <p class="meta">{t(lang, 'this_url')}: {base}/s/{sid} · {_expires_text(snap.get('createdAt'), lang)} · {t(lang, 'keep')}</p>
+  <p class="meta">{t(lang, "contact")}: <a href="{t(lang, 'about_url')}" target="_blank" rel="noopener">Tobokegao</a></p>
+</main>
+</body></html>"""
+
+
+def find_html(q: str, results: list[dict], base: str, app_url: str | None = None,
+              lang: str = "ja", listed_total: int = 0) -> str:
+    """「みんなの並びを探す」ページ。**ここに出るのは opt-in の共有だけ**（`backend/shareindex.py`）。
+
+    JavaScript は使わない（フォームの GET だけ）。共有ページと同じ見た目・同じ CSS。
+    検索避けは付けたまま（`noindex`）: 載せた人が同意したのは「このサイトの中で探せること」で、
+    外部の検索結果に出ることまでは同意していない。
+    """
+    app_url = (app_url or base).rstrip("/")
+    qs = html.escape(q or "", quote=True)
+    rows = []
+    for r in results:
+        title = html.escape(r["title"]) or t(lang, "find_untitled")
+        hits = "".join(f"<span class=a>{html.escape(h)}</span>" for h in r.get("hits") or [])
+        rows.append(f'<li><span class=n>{r["n"]:02d}</span><span class=t>'
+                    f'<a href="/s/{r["id"]}"><b>{title}</b></a> '
+                    f'<span class=a>{r["cols"]}×{r["rows"]}</span> {hits}</span></li>')
+    if q and not rows:
+        body = f'<p class="note">{t(lang, "find_none")}</p>'
+    elif rows:
+        body = f'<p class="meta">{t(lang, "find_hits", n=len(rows))}</p><ol>{"".join(rows)}</ol>'
+    elif listed_total:
+        body = ""
+    else:
+        body = f'<p class="note">{t(lang, "find_empty")}</p>'
+    return f"""<!doctype html>
+<html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{t(lang, "find_title")} — TRACKMENTO</title>
+<link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="robots" content="noindex">
+<style>{_page_css(base)}
+form.find {{ display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }}
+form.find input {{ flex: 1 1 14rem; min-width: 0; font: inherit; padding: 10px 12px;
+  border: 2px solid var(--ink); background: var(--paper); color: var(--ink); }}
+</style></head>
+<body>
+<header><span class="mark">TRACKMENTO</span></header>
+<main>
+  <h1>{t(lang, "find_title")}</h1>
+  <p class="note">{t(lang, "find_note")}</p>
+  <form class="find" method="get" action="/find">
+    <input type="search" name="q" value="{qs}" placeholder="{t(lang, 'find_ph')}" autofocus>
+    <button class="btn primary" type="submit">{t(lang, "find_btn")}</button>
+  </form>
+  {body}
+  <p class="note">{t(lang, "find_opt")}</p>
+  <div class="btns"><a class="btn" href="{app_url}/">{t(lang, "find_back")}</a></div>
   <p class="meta">{t(lang, "contact")}: <a href="{t(lang, 'about_url')}" target="_blank" rel="noopener">Tobokegao</a></p>
 </main>
 </body></html>"""

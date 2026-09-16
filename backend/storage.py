@@ -53,10 +53,15 @@ class LocalStorage:
         from datetime import datetime, timezone
         if not SHARES.exists():
             return
-        for p in SHARES.glob("*"):
-            if p.is_file() and p.name.startswith(prefix):
+        # **下の階層まで見る**（`listed/…` のようにキーに `/` を含むものがあるため）。
+        # キーは R2 と同じ「`/` 区切りの相対パス」で返す
+        for p in SHARES.rglob("*"):
+            if not p.is_file():
+                continue
+            key = p.relative_to(SHARES).as_posix()
+            if key.startswith(prefix):
                 st = p.stat()
-                yield p.name, st.st_size, datetime.fromtimestamp(st.st_mtime, timezone.utc)
+                yield key, st.st_size, datetime.fromtimestamp(st.st_mtime, timezone.utc)
 
     def delete_many(self, keys: list[str]) -> int:
         for k in keys:

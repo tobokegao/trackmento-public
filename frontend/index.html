@@ -90,6 +90,7 @@
      地が暗い組ではこの 2 つが入れ替わる（下の [data-ground="dark"]） */
   --color-on-light: var(--color-ink);
   --color-on-dark:  var(--color-paper);
+  --color-on-light-2: var(--color-ink-2);   /* 明るい下地の上の添え字（見出し・補足） */
 
   --font-display: "DotGothic16", "IBM Plex Sans JP", sans-serif;
   --font-body:    "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", sans-serif;
@@ -165,13 +166,15 @@ img { max-width: 100%; display: block; }
   --color-bevel:    oklch(29% 0.012 250);   /* 地 38% と外枠 20% の中間 */
   /* **暗い地では「地より明るい中間のグレー」**。地より暗い色にすると、地がもう十分暗いので
      影がまったく見えない（実機で報告）。中間のグレーなら、暗い面の縁に落ちた影として読める。
-     **34% では「見えづらい」と再報告があった**ので 48% にした（地 24% との差を 10% → 24% に広げた）。
-     影は市松で敷くので、見た目の明るさは地と混ざって半分ほどに落ちる。数字どおりには出ない */
-  --color-shadow:   oklch(48% 0.010 250);
+     **34% では「見えづらい」と 2 度報告があった**ので 58% まで上げた（地 24% との差が 34%）。
+     影は市松で敷くので、見た目の明るさは地と混ざって半分ほどに落ちる。数字どおりには出ない。
+     地（24%）と明るい白（74%）の中間あたりで、面取りの並びとは喧嘩しない */
+  --color-shadow:   oklch(58% 0.010 250);
   --color-grain:    oklch(95% 0.004 95 / 0.05);
   --color-focus:    oklch(72% 0.150 235);
   --color-on-light: var(--color-paper);     /* 明るい下地の上に置く文字 ＝ 暗いほう */
   --color-on-dark:  var(--color-ink);       /* 暗い下地の上に置く文字 ＝ 明るいほう */
+  --color-on-light-2: var(--color-paper-3); /* 同じく添え字。地よりわずかに明るい暗色 */
 }
 ::selection { background: var(--color-mint); color: var(--color-on-light); }
 
@@ -613,6 +616,12 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .search-actions { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
 .msg { font-size: var(--text-sm); color: var(--color-muted); margin: 0; min-height: 1.4em; overflow-wrap: anywhere; }
 .msg[data-tone="error"] { color: var(--color-ink); border-left: 6px solid var(--color-error); padding-left: var(--space-2); }
+/* 「みんなの並びから探せるようにする」。**既定はオフ**なので、押しやすさより
+   「入れたことに気付ける」ことを優先して、共有ボタンのすぐ下に置く */
+.listed { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  margin-top: var(--space-2); }
+.listed .note-s { color: var(--color-muted); font-size: var(--text-sm); }
+.listed a { color: var(--color-ink); }
 .msg-under { margin-top: var(--space-3); }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
 
 /* ---------- results ---------- */
@@ -663,6 +672,8 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
   .workbench > .pane-search, .workbench > .pane-results { display: none; }
 }
 @media (min-width: 60rem) { #find-btn { display: none; } }
+/* **「大きく見る」はスマホでも出す**。いったん消したが、8x30 のように縦に長い並びでは
+   画面の高さいっぱいに開くぶん見やすくなる、と実機で確かめて戻した（利用者の判断） */
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
@@ -717,6 +728,10 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 body.sheet-open { overflow: hidden; }
 .cell.is-selected .num { background: var(--color-mustard); color: var(--color-on-light); }
 .grid[data-selecting="true"] .cell:not(.is-selected) { cursor: copy; }
+/* 選択中のマスの編集パネル。**地がマスタード（明るい色）なので、中の文字はぜんぶ
+   「明るい下地に置く文字」にそろえる**。`--color-ink-2` のままだと、地が暗い組では
+   薄い灰色の文字が黄色の上に乗って読めない（実機で報告） */
+.editor .field label, .editor .field legend, .editor-meta { color: var(--color-on-light-2); }
 /* 選択中のマスの編集パネル */
 .editor { display: grid; gap: var(--space-2); padding: var(--space-3); border-bottom: var(--line) solid var(--color-ink);
   background: var(--color-mustard); color: var(--color-on-light); }
@@ -725,8 +740,8 @@ body.sheet-open { overflow: hidden; }
 .editor-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-family: var(--font-display); font-size: var(--text-sm); }
 .editor-head .num-badge { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-ink); color: var(--color-paper); border: var(--line) solid var(--color-ink); padding: 0 var(--space-1); }
 .editor-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-2); }
-.editor-meta { font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; overflow-wrap: anywhere; }
-.editor-meta a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.editor-meta { font-size: var(--text-sm); margin: 0; overflow-wrap: anywhere; }   /* 色は上の on-light-2 */
+.editor-meta a { color: var(--color-on-light); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .editor-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .cell[draggable="true"] { cursor: grab; }
 .cell.is-dragging { opacity: .5; }
@@ -1109,6 +1124,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
       </div>
+      <div class="listed">
+        <label class="check"><input type="checkbox" id="opt-listed"><span>みんなの並びから探せるようにする</span></label>
+        <a id="find-link" href="/find" target="_blank" rel="noopener">みんなの並びを探す</a>
+      </div>
+      <p class="msg msg-under">入れると、この並びが曲名・アーティスト名で探せるようになります。入れなければ、URL を知っている人だけが見られます。</p>
       <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。</p>
       <div class="output" id="output" hidden>
         <img id="output-img" alt="共有した画像のプレビュー">
@@ -1453,6 +1473,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "画像を送っています": "Sending the image", "回線が細いと少し時間がかかります。このままお待ちください。": "On a slow connection this takes a little while. Please keep this open.",
     "サーバーで保存しています…": "Saving on the server…",
     "待っているあいだに、作者の曲はいかがですか": "While you wait, how about a song by the author",
+    "みんなの並びから探せるようにする": "Let people find this layout",
+    "みんなの並びを探す": "Find shared layouts",
+    "入れると、この並びが曲名・アーティスト名で探せるようになります。入れなければ、URL を知っている人だけが見られます。":
+      "Tick this and the layout can be found by song or artist name. Leave it off and only people with the URL can see it.",
     "大きく見る": "Enlarge", "グリッドを大きく見る": "The grid, enlarged",
     "グリッドを画面いっぱいに開いて並べ替える": "Open the grid at full size to rearrange it",
     "パレット": "Palette", "パレットを選ぶ": "Choose a palette",
@@ -1745,6 +1769,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
     ratio: "16:9", showTitle: true, sidebar: true, numbers: false, bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（比率は X 向けの 16:9）
+    listed: false,   // みんなの並びから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
   let dragFrom = null;
@@ -1759,6 +1784,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     results: $("#results"), resultsCount: $("#results-count"),
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
     clearBtn: $("#clear-btn"), jsonExport: $("#json-export"), jsonImport: $("#json-import"), jsonFile: $("#json-file"),
+    optListed: $("#opt-listed"), findLink: $("#find-link"),
     editor: $("#editor"), eNum: $("#editor-num"), eTitle: $("#editor-title"), eSource: $("#editor-source"), eTitleIn: $("#e-title"), eArtistIn: $("#e-artist"), eMeta: $("#editor-meta"), eRemove: $("#e-remove"), eClose: $("#e-close"),
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
@@ -2503,6 +2529,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.optTitle.addEventListener("change", () => { state.showTitle = els.optTitle.checked; els.title.disabled = !state.showTitle; updateSpec(); });
   els.optSidebar.addEventListener("change", () => { state.sidebar = els.optSidebar.checked; updateSpec(); });
   els.optNumbers.addEventListener("change", () => { state.numbers = els.optNumbers.checked; renderGrid(); });
+  els.optListed.addEventListener("change", () => { state.listed = els.optListed.checked; save(); });
+  els.findLink.href = api("/find");   // 別オリジンに API を置く構成でも飛べるように
   els.margin.addEventListener("input", () => { state.margin = Number(els.margin.value); els.marginOut.value = state.margin; updateSpec(); });
   els.gap.addEventListener("input", () => { state.gap = Number(els.gap.value); els.gapOut.value = state.gap; updateSpec(); });
   /* カスタムカラー: 色見本のボタンを押すとすぐ色相・彩度・明度のスライダーが開き、動かした色が即反映される */
@@ -3795,7 +3823,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function serialize() {
     return {
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
-      title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash,
+      title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
       options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar, numbers: state.numbers, bg: state.bg, bgCustom: state.bgCustom, margin: state.margin, gap: state.gap },
     };
   }
@@ -3826,6 +3854,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     state.margin = clamp(o.margin, 0, 160, 16);
     state.gap = clamp(o.gap, 0, 96, 16);
+    state.listed = d.listed === true;   // 読み込んだ並びの指定を引き継ぐ（無ければオフ）
     selected = null; target = null;
     applyPalette();
     syncControls();
@@ -3836,6 +3865,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.cols.value = state.cols; els.rows.value = state.rows;
     els.ratioSeg.querySelector(`input[value="${state.ratio}"]`).checked = true;
     els.optTitle.checked = state.showTitle; els.optSidebar.checked = state.sidebar; els.optNumbers.checked = state.numbers;
+    els.optListed.checked = state.listed;
     for (const i of els.swatches.querySelectorAll("input")) i.checked = i.value === state.bg;
     syncCustomColor();
     els.margin.value = state.margin; els.marginOut.value = state.margin;

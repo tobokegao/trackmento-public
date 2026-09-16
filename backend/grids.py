@@ -82,6 +82,12 @@ class GridDoc(BaseModel):
     cells: list[Optional[Track]] = Field(default_factory=list)
     stash: list[Track] = Field(default_factory=list)
     options: GridOptions = Field(default_factory=GridOptions)
+    # **みんなの並びから探せるようにするか**（既定オフ）。共有は本来 URL を知っている人だけのものなので、
+    # 索引（`backend/shareindex.py`）に載せるのは利用者が自分でチェックを入れたものだけにする
+    listed: bool = False
+    # **みんなの並びから探せるようにするか**（既定オフ）。共有は本来 URL を知っている人だけのものなので、
+    # 索引（`backend/shareindex.py`）に載せるのは利用者が自分でチェックを入れたものだけにする
+    listed: bool = False
 
     @field_validator("cols", "rows", mode="before")
     @classmethod

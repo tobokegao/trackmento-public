@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, housekeeping, imgtools, netguard, render, share, storage, uploads
+from backend import grids, housekeeping, imgtools, netguard, render, share, shareindex, storage, uploads
 from backend.cache import R2_IMAGE_TTL, cache
 from backend.logutil import brief
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
@@ -127,6 +127,7 @@ async def lifespan(app: FastAPI):
     monitor = asyncio.create_task(_load_monitor()) if public_mode() else None
     seed = asyncio.create_task(_seed_share_count()) if public_mode() and st.is_remote else None
     imgidx = asyncio.create_task(_seed_image_index()) if st.is_remote else None
+    listed = asyncio.create_task(_seed_listed_index())
     app.state.http = httpx.AsyncClient(
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
@@ -141,6 +142,7 @@ async def lifespan(app: FastAPI):
             seed.cancel()
         if imgidx:
             imgidx.cancel()
+        listed.cancel()
         await app.state.http.aclose()
         cache.close()
 
@@ -960,6 +962,20 @@ async def _seed_image_index() -> None:
     print(f"[storage] imgcache の索引: {len(_IMG_INDEX)} 件（デプロイ後の取り直しを防ぐ）")
 
 
+async def _seed_listed_index() -> None:
+    """起動後に「みんなの並びから探せる」共有の索引を読み直す。
+
+    共有そのもの（1 日数千件）ではなく、**印を付けたものだけ**を読む。
+    失敗しても探せなくなるだけで、共有は壊れない。
+    """
+    try:
+        n = await asyncio.to_thread(shareindex.seed)
+    except Exception as e:
+        print(f"[error] みんなの並びの索引を作れませんでした: {type(e).__name__}: {e}")
+        return
+    print(f"[listed] みんなの並びの索引: {n} 件")
+
+
 async def _image_r2_redirect(url: str) -> Response | None:
     """R2 に寄せ済みならそこへ 302。まだなら None（呼び出し元が本体を返す）。
 
@@ -1425,6 +1441,25 @@ async def share_upload(request: Request) -> dict:
             _check_share_quota(request)
             budget = share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0
             return await _finish_share(request, run_in_threadpool(share.store, gdoc, img_b, og_b, w, h, budget, ext))
+
+
+# 「みんなの並びを探す」。**印を付けた共有だけ**が対象（backend/shareindex.py）。
+# `/shares/{fname}` と経路がぶつからないよう、JSON は `/find.json` にしてある
+@app.get("/find", response_class=HTMLResponse)
+async def find_page(request: Request, q: str = "") -> HTMLResponse:
+    _note_src(request)
+    q = (q or "").strip()[:80]
+    rows = shareindex.search(q) if q else shareindex.newest()
+    return HTMLResponse(share.find_html(q, rows, base_url_for(request), app_url_for(request),
+                                        _lang_for(request), shareindex.count()))
+
+
+@app.get("/find.json")
+async def find_json(q: str = "", limit: int = 40) -> dict:
+    q = (q or "").strip()[:80]
+    limit = max(1, min(100, limit))
+    rows = shareindex.search(q, limit) if q else shareindex.newest(limit)
+    return {"q": q, "total": shareindex.count(), "ready": shareindex.ready(), "results": rows}
 
 
 @app.get("/s/{sid}", response_class=HTMLResponse)
