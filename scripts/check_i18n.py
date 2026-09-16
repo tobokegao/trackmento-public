@@ -100,6 +100,8 @@ def _js(html: str) -> str:
     # **作者の曲の一覧は文言ではなくデータ**（曲名そのもの）。`scripts/build_own_tracks.py` が
     # Bandcamp から作るので、日本語の曲名が並ぶ。翻訳の対象ではないので見ない
     js = re.sub(r"const OWN_TRACKS = \[[\s\S]*?\n  \];", "", js)
+    # 折る位置の表（中黒や括弧の並び）は画面の文言ではない
+    js = re.sub(r'const BREAK_AFTER = "[^"]*", BREAK_BEFORE = "[^"]*";', "", js)
     return re.sub(r"(?m)^\s*//.*$", "", js)
 
 

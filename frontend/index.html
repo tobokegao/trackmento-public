@@ -838,7 +838,7 @@ body.sheet-open { overflow: hidden; }
 /* 印の影（同じ形を 1px 右下にずらして敷く。::before なので印の下に来る）。**枠の線には掛けない**:
    影は枠の内側だけで切る（線の上に乗ると、線が灰色ににじんで見える。利用者の指摘） */
 .check input:checked::before { left: 1px; top: 1px; background: var(--color-paper-3);   /* 箱の内側の影（inset の paper-3）と同じ薄さ */
-  clip-path: inset(0 4px 0 0); }   /* 枠の線の手前まで（内側の影は線に触れるところまで出す）。印そのものは枠の外へ出てよい */
+  clip-path: inset(0 5px 0 0); }   /* 枠の内寸（14×14）で切る。線に掛けない。印そのものは枠の外へ出てよい */
 /* **枠の外へ出た先端にも同じ 1px 右下の影**。label の擬似要素で同じ形をもう 1 枚敷き、**枠より外側だけ**残す
    （枠の線に掛からない）。印は label の x=2（枠の内側）から始まるので、影は x=3、枠の外は x≥18 → 局所 15px で切る */
 .check { position: relative; }
