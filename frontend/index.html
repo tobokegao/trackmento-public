@@ -620,8 +620,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .msg[data-tone="error"] { color: var(--color-ink); border-left: 6px solid var(--color-error); padding-left: var(--space-2); }
 /* 「みんなのグリッドから探せるようにする」。**既定はオフ**なので、押しやすさより
    「入れたことに気付ける」ことを優先して、共有ボタンのすぐ下に置く */
-.listed { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); flex: 1 1 16rem; min-width: 0; }
-.listed .note-s { color: var(--color-muted); font-size: var(--text-sm); }
+.listed { display: flex; align-items: center; flex: 1 1 12rem; min-width: 0; }
 .listed a { color: var(--color-ink); }
 .msg-under { margin-top: var(--space-3); }
 .msg .undo { font: inherit; font-weight: 700; color: var(--color-ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
@@ -1159,8 +1158,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
-            <label class="check"><input type="checkbox" id="opt-listed"><span>みんなのグリッドから探せるようにする</span></label>
-            <a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッドを探す</a>
+            <!-- 文の中の「みんなのグリッド」がそのまま探すページへのリンク。label の中の a を押しても
+                 チェックは切り替わらない（対話要素の上では label が働かない決まり）。
+                 英語は語順が変わる（Add to everyone's grids）ので、前の空の span に applyI18n が "Add to " を入れる -->
+            <label class="check"><input type="checkbox" id="opt-listed"><span><span id="listed-pre"></span><a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッド</a>に載せる</span></label>
           </div>
           <button class="btn" type="button" id="clear-btn" title="マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる">マスを全部外す</button>
         </div>
@@ -1516,8 +1517,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "画像を送っています": "Sending the image", "回線が細いと少し時間がかかります。このままお待ちください。": "On a slow connection this takes a little while. Please keep this open.",
     "サーバーで保存しています…": "Saving on the server…",
     "待っているあいだに、作者の曲はいかがですか": "While you wait, how about a song by the author",
-    "みんなのグリッドから探せるようにする": "Let people find this grid",
-    "みんなのグリッドを探す": "Find shared grids",
+    "みんなのグリッド": "everyone's grids",
+    "に載せる": "",
     "チェックを入れると、共有されたグリッドが曲名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。":
       "Tick the box and the shared grid can be found by song or artist name. Leave it unticked and only people with the URL can see it.",
     "やめる": "Cancel",
@@ -1657,7 +1658,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const w = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
     for (let n; (n = w.nextNode());) {
       const s = n.nodeValue;
-      if (s && s.trim() && EN[s.trim()]) I18N_SNAP.push([n, null, s]);
+      if (s && s.trim() && EN[s.trim()] !== undefined) I18N_SNAP.push([n, null, s]);   // 英訳が空文字（消す）の文言もある
     }
     for (const el of document.querySelectorAll("[placeholder],[aria-label],[title],[alt],meta[content]")) {
       for (const a of ["placeholder", "aria-label", "title", "alt", "content"]) {
@@ -1674,6 +1675,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       else node.nodeValue = LANG === "en" ? ja.replace(ja.trim(), en) : ja;
     }
     document.documentElement.lang = LANG;
+    const pre = $("#listed-pre");   // 「[みんなのグリッド]に載せる」の英語は語順が逆（Add to everyone's grids）
+    if (pre) pre.textContent = LANG === "en" ? "Add to " : "";
     /* 連絡先は日本語版と英語版でページが別なので、行き先も切り替える */
     const about = $("#about-link");
     if (about) about.href = LANG === "en" ? "https://tobokegao.github.io/about/" : "https://tobokegao.github.io/ja/about/";
@@ -4503,6 +4506,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           ctx.fillText(ellipsizeText(ctx, rowsTxt[j], maxW), x + nw, y0row + j * step);
         }
       }
+      // **ここで終わる**（backend/render.py と同じ）。返さずに下へ落ちると、サイドバー（流し込み）の描画まで
+      // 走って、幅 0 の段に曲名が 1 字ずつ番号の上に描かれる（利用者の 3x3・1 曲の共有画像で発覚）
+      return { canvas, bg };
     } else if (L.wrap) {
       // 曲名をマスの塊のまわりに回り込ませる（backend/render.py と同じ規則）
       const fs = Math.max(8, sc(L.fontS));
