@@ -249,7 +249,9 @@ TEXT = {
         "tracks": "{n} 曲",
         "share_id": "共有 ID",
         "this_url": "この URL",
-        "keep": "画像を保存すれば手元に残ります",
+        # **残し方は 2 つある**。画像だけでなく、TRACKMENTO で開いて「並びを保存」すれば
+        # 並びそのものをファイルにでき、あとから読み込んで同じ状態に戻せる（期限切れの後でも）
+        "keep": "画像を保存するか、「TRACKMENTO で開く」→「並びを保存」で並びのファイルにすれば手元に残ります",
         "expires_until": "有効期限: {until} まで（作成から {days} 日）",
         "expires_days": "有効期限: 作成から {days} 日",
         "og_share": "トラック共有サイト #TRACKMENTO からシェア:「{title}」",
@@ -287,7 +289,7 @@ TEXT = {
         "tracks": "{n} tracks",
         "share_id": "Share ID",
         "this_url": "This URL",
-        "keep": "save the image to keep it",
+        "keep": "save the image, or open it in TRACKMENTO and use “Save layout” to keep the layout as a file",
         "expires_until": "Expires {until} ({days} days after it was made)",
         "expires_days": "Expires {days} days after it was made",
         "og_share": "Shared from #TRACKMENTO, the track-grid maker: \u201c{title}\u201d",

@@ -978,7 +978,10 @@ output { font-variant-numeric: tabular-nums; }
 /* ---------- output ---------- */
 .output { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: var(--line) solid var(--color-rule); }
 .output[hidden] { display: none; }
-.output img { width: auto; max-width: 100%; max-height: 70dvh; border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
+/* 比率は JS が入れる（別オリジンから読むので、読み終わるまで高さが 0 だと画面が飛ぶ）。
+   高さの頭打ちに当たったときに横へ伸びないよう object-fit も添える */
+.output img { width: auto; max-width: 100%; max-height: 70dvh; object-fit: contain;
+  border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
 .share-url { display: grid; gap: var(--space-1); }
 .share-url .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
 .share-url .input { font-family: ui-monospace, monospace; font-size: var(--text-sm); }
@@ -4392,6 +4395,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
       lastPushed = signature(snap);
       const imgSrc = d.image || d.png, ext = d.ext || "png";
+      /* **先に縦横比だけ入れておく**。画像は別オリジン（R2）から読むので表示まで数百 ms かかり、
+         その間 0 の高さだった枠が急に伸びて、下のボタンや URL 欄が指の下から逃げる
+         （スマホで「共有完了の画面がずれる」と報告があった）。比率を先に決めておけば動かない */
+      if (d.width && d.height) els.outputImg.style.aspectRatio = `${d.width} / ${d.height}`;
       els.outputImg.src = /^https?:\/\//.test(imgSrc) ? imgSrc : api(imgSrc);
       els.download.href = api(`/shares/${d.id}.${ext}`);   // 保存はバックエンド経由（別オリジンの download 属性は効かないため）
       els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + "." + ext;
@@ -4400,7 +4407,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.output.hidden = false;
       setBtnState(els.shareBtn, null);
       say(els.gridMsg, tr`${d.width} × ${d.height} px の画像と共有 URL ができました。`);
-      els.shareUrl.focus({ preventScroll: true }); els.shareUrl.select();
+      /* **スマホでは URL 欄に焦点を当てない**。`preventScroll` を無視して欄まで飛ぶ端末があり、
+         できた画像を見る前に画面が動いてしまう。代わりに出来上がりの先頭までそっと送る */
+      if (isMobile()) els.output.scrollIntoView({ behavior: "smooth", block: "start" });
+      else { els.shareUrl.focus({ preventScroll: true }); els.shareUrl.select(); }
     } catch (err) {
       setBtnState(els.shareBtn, "error");
       say(els.gridMsg, tr`共有できませんでした（${err.message}）。`, "error");
