@@ -33,7 +33,8 @@ def inline(s: str) -> str:
     for m in pat.finditer(s):
         out.append(html.escape(s[i:m.start()]))
         if m.group(1) is not None:
-            out.append(f"<b>{html.escape(m.group(1))}</b>")
+            # 太字の中のリンク（**[名前](URL)**）も a にする。escape だけだと記法が文字のまま貼られる
+            out.append(f"<b>{inline(m.group(1))}</b>")
         elif m.group(2) is not None:
             out.append(f"<code>{html.escape(m.group(2))}</code>")
         else:
