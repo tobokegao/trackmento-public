@@ -3768,10 +3768,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // ---- 送信中の窓（進み具合と、作者の曲） ----
   // **曲は Bandcamp の実際の作品**。増やすときはここに足す（題と URL だけ。宣伝文は書かない）
   const OWN_TRACKS = [
-    ["おかねがたりないときのうた", "https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta"],
+    ["20220326 Chipfest Cyberspace 15 LIVE", "https://tbkgao.bandcamp.com/album/20220326-chipfest-cyberspace-15-live"],
+    ["B (Albert comes over to me)", "https://tbkgao.bandcamp.com/album/b-albert-comes-over-to-me"],
     ["BAKA GA GO", "https://tbkgao.bandcamp.com/track/baka-ga-go"],
+    ["Being Rusty (Tanashii Mainichi)", "https://tbkgao.bandcamp.com/album/being-rusty-tanashii-mainichi"],
+    ["Collab Works 01", "https://tbkgao.bandcamp.com/album/collab-works-01"],
+    ["DA-LA-LA (Vocal Version) EP", "https://tbkgao.bandcamp.com/album/da-la-la-vocal-version-ep"],
+    ["Kodoku Na Fruits (Vocal Version) EP", "https://tbkgao.bandcamp.com/album/kodoku-na-fruits-vocal-version-ep"],
+    ["Okane Ga Tarinai Toki No Uta", "https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta"],
+    ["Picnic", "https://tbkgao.bandcamp.com/album/picnic"],
+    ["Picnic (Deluxe Edition)", "https://tbkgao.bandcamp.com/album/picnic-deluxe-edition"],
+    ["Room To Room", "https://tbkgao.bandcamp.com/album/room-to-room"],
+    ["Scythe - Sonna Hi Mo Aru Yone (Tobokegao Vocal Cover) EP", "https://tbkgao.bandcamp.com/album/scythe-sonna-hi-mo-aru-yone-tobokegao-vocal-cover-ep"],
+    ["SE Music EP", "https://tbkgao.bandcamp.com/album/se-music-ep"],
+    ["TOBOX", "https://tbkgao.bandcamp.com/album/tobox"],
+    ["Toward a New Future(feat. Tsukuyomi Ai) demo", "https://tbkgao.bandcamp.com/track/toward-a-new-future-feat-tsukuyomi-ai-demo"],
     ["Wedding Bell（Tobokegao & JAWZZ）", "https://tbkgao.bandcamp.com/album/wedding-bell"],
-    ["Toward a New Future (feat. Tsukuyomi Ai)", "https://tbkgao.bandcamp.com/track/toward-a-new-future-feat-tsukuyomi-ai-demo"],
+    ["Yaruki ga Denai Toki no Uta", "https://tbkgao.bandcamp.com/track/yaruki-ga-denai-toki-no-uta"],
+    ["Yomi De Ashibumi(Vocal Version)", "https://tbkgao.bandcamp.com/album/yomi-de-ashibumi-vocal-version"],
+    ["○○○○", "https://tbkgao.bandcamp.com/album/-"],
   ];
   const upModal = $("#up-modal"), upFill = $("#up-fill"), upPct = $("#up-pct"), upNote = $("#up-note");
   /* **送信は必ず終わらせる**。XMLHttpRequest は既定で待ち続けるので、回線が切れて応答が
