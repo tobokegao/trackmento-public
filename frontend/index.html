@@ -836,7 +836,8 @@ body.sheet-open { overflow: hidden; }
   -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
 }
 /* 印の影（OS 9 の実物と同じ。同じ形を 1px 右下にずらして濃いグレーで敷く。::before なので印の下に来る） */
-.check input:checked::before { left: 1px; top: 1px; background: var(--color-bar-dark); }
+.check input:checked::before { left: 1px; top: 1px; background: var(--color-bar-dark);
+  clip-path: inset(0 5px 0 0); }   /* 影は枠の内側だけ（右は枠の内寸 14px で切る。印そのものは枠の外へ出てよい） */
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
 .swatches label { position: relative; flex: 1 1 28px; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに広がる（PC の列幅では 28px）。右に空きが残らない */
