@@ -729,13 +729,21 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .sheet-head .btn { margin-left: auto; min-height: 36px; }
 .sheet-body { overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); }
 .sheet-body .pane { box-shadow: none; }
-.sheet-body .results { max-height: none; }
+.sheet-body .results { max-height: none; overflow: visible; }   /* 引き出しの中ではスクロール箱にしない（上の理由） */
 /* 開いている間は後ろをスクロールさせない。**body を position: fixed にしてはいけない**（2026-09-16 に一度やって、
    実機の Android でシートの中までスクロールできなくなった）。overflow: hidden で止まらない端末（iOS など）は
    JS（lockScroll の touchmove）がシートの外で始まった指の動きだけ止める */
 body.sheet-open { overflow: hidden; }
+/* **html にも掛ける**（指の画面だけ）。`html, body { overflow-x: clip }` があるため、body の overflow: hidden は
+   画面（viewport）に伝わらない（html の overflow が visible でないと body の指定は viewport に反映されない決まり）。
+   html を止めれば、指の下にあるスクロール箱は引き出しの中身だけになり、そこが動く。PC はスクロールバーが
+   消えて幅が変わるので掛けない（ホイールの伝播は overscroll-behavior: contain が止める） */
+@media (pointer: coarse) { html.sheet-open { overflow-y: hidden; } }
 /* 中身の端まで行っても、後ろの画面にスクロールを伝えない */
-.sheet-body, .modal-panel, .results, .grid-scroll.is-zoom { overscroll-behavior: contain; }
+/* **候補の一覧（.results）には付けない**。引き出しの中では max-height: none で中身を全部出すので
+   「スクロール余地の無いスクロール箱」になり、contain を付けると Android Chrome が「端まで来ている →
+   外に伝えない」と判断して、候補の上で指を動かしても .sheet-body が動かなくなった（実機で報告） */
+.sheet-body, .modal-panel, .grid-scroll.is-zoom { overscroll-behavior: contain; }
 .sheet-backdrop, .modal-backdrop { touch-action: none; }
 .cell.is-selected .num { background: var(--color-mustard); color: var(--color-on-light); }
 .grid[data-selecting="true"] .cell:not(.is-selected) { cursor: copy; }
@@ -1874,8 +1882,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // スクロールできなくなった）。代わりに touchmove を見て、**スクロールできる要素の中で始まった
   // 動きはそのまま通し、それ以外（背景・見出し・余白）だけ止める**（body-scroll-lock と同じ考え方）。
   // 中身の端まで行っても後ろに伝えないのは CSS の overscroll-behavior: contain
-  function lockScroll() { document.body.classList.add("sheet-open"); }
-  function unlockScroll() { document.body.classList.remove("sheet-open"); }
+  function lockScroll() { document.body.classList.add("sheet-open"); document.documentElement.classList.add("sheet-open"); }
+  function unlockScroll() { document.body.classList.remove("sheet-open"); document.documentElement.classList.remove("sheet-open"); }
   document.addEventListener("touchmove", (e) => {
     if (!document.body.classList.contains("sheet-open")) return;
     for (let el = e.target; el && el !== document.body; el = el.parentElement) {

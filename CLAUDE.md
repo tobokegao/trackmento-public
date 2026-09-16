@@ -836,9 +836,15 @@ claude --remote-control TRACKMENTO                                             #
   暗い地の組では ink-2 が明るい灰色になり、**黄色の上に薄い灰色の文字**が乗って読めない（実機で報告）。
   `--color-on-light` の添え字版として 1 つ増やしてある（明るい組は ink-2、暗い組は paper-3）
 - **シート・モーダルを開いている間、後ろの画面をスクロールさせない**（`lockScroll` / `unlockScroll`、2026-09-16）。
-  `body { overflow: hidden }` に加えて、**スクロールできる要素の中で始まっていない `touchmove` だけ
-  `preventDefault`** する（body-scroll-lock と同じ考え方）。中身の端まで行っても後ろに伝えないのは
-  `overscroll-behavior: contain`（`.sheet-body` など）。
+  **`body { overflow: hidden }` は効いていなかった**: `html, body { overflow-x: clip }` があるため、html の overflow が
+  visible でなく、body の指定が viewport に伝わらない（CSS の決まり）。指の画面では `html.sheet-open { overflow-y: hidden }`
+  で html 自体を止める（PC はスクロールバーが消えて幅が変わるので掛けず、ホイールの伝播は
+  `overscroll-behavior: contain` が止める）。加えて**スクロールできる要素の中で始まっていない `touchmove` だけ
+  `preventDefault`** する（iOS 用。body-scroll-lock と同じ考え方）。
+  **`overscroll-behavior: contain` を `.results` に付けてはいけない**: 引き出しの中では `max-height: none` で
+  「スクロール余地の無いスクロール箱」になり、Android Chrome が「端まで来ている → 外に伝えない」と判断して、
+  候補の上で指を動かしても `.sheet-body` が動かなくなった（実機で報告。エミュレータでは再現しない）。
+  引き出しの中の `.results` は `overflow: visible` にしてスクロール箱にしない。
   **body を `position: fixed` で固定する手は使わない**。一度やって、実機の Android で候補の窓の中まで
   スクロールできなくなった（エミュレータでは再現しない）。
   **開閉の場所は 6＋6 か所あり、`sheet-open` の class を直接触らずこの 2 つを通す**
