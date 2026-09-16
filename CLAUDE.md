@@ -1001,6 +1001,16 @@ claude --remote-control TRACKMENTO                                             #
      （実測では未登録・登録済みを問わず 404 `Cannot fallback`。yt-dlp を使っているので技術的制約ではなさそう）
   3. サムネイルのサイズ指定（優先度低。こちらで縮小して解決済み）
   - **2 が「引ける」なら SoundCloud のプレイリストでも穴埋めを足す**。`playlist.is_gone()` の仕組みは既にあるので追加は数行
+- **「検索と URL 入力の両方に対応する」は保留と決めた**（2026-09-16）。**URL 入力だけのサービスは
+  そもそも検索できない**ものがほとんど、と調べて分かったため
+  - Bandcamp … 公開 API が無い（検索ページは JS 生成。HTML 解析は壊れやすく、先方の負荷にもなる）
+  - SoundCloud … `client_id` が要る。新規発行は止まっている
+  - YouTube … API キーと 1 日あたりの割り当てが要る。無料枠は検索 100 回/日ほどで、今のアクセス数では即枯れる
+  - Spotify … OAuth のキーが要る。取れるが秘密の管理が増える
+  - **ニコニコ動画だけが鍵なしで検索できる**（スナップショット検索 API v2）。ただし音 MAD は otoDB、
+    ボカロは VocaDB が既にカバーしているので、増えるのは「それ以外のニコニコ動画」（実況・演奏してみた等）
+  - iTunes は Apple Music の URL 入力に対応済みなので、すでに両方できる
+  - **必要になってから足す**。ソース欄が長くなるほど選ぶのが面倒になる副作用もある
 - **AdSense の審査待ち**（「準備中」）。ads.txt と meta タグは本番で配信済み・ID も一致、設定側の問題は無い
   - **承認後、自動広告をオンにするだけでは広告は出ない**。TRACKMENTO は nonce ベースの CSP で固めているので、
     `script-src` に `pagead2.googlesyndication.com`、`frame-src` に `googleads.g.doubleclick.net`、
