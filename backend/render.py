@@ -441,6 +441,8 @@ def _snap_lead(lh: int, pitch: int, max_lh: int = 0) -> int:
 
 
 LIST_MIN_COL = 640        # 1 列の最小幅（論理 px）。これを割るなら列を増やさない
+LEAD_PITCH_DIV = 4        # 曲名の行の高さの上限は「マスの送りの 1/4」。96px で頭打ちにしていたときは、
+                          # 曲が少ないと高さが余ってもリストが縮こまり、4x4・16:9 で出力 24px・下が 4 割空いていた
 LIST_COMFY_FONT = 26      # 出力での曲名の大きさ（px）。これ未満なら列を増やす（下限は FLOW_MIN_FONT）
 LIST_MAX_COLS = 3
 LIST_COL_GAP = GAP_PX * 5   # 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
@@ -480,7 +482,7 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
 
 
 # 曲名を折るときに切りたい場所。**閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
-_BREAK_AFTER = "　 ）)］]】〉》」』"
+_BREAK_AFTER = "　 ・）)］]】〉》」』"
 _BREAK_BEFORE = "（([［[【〈《「『／/～-—"
 # 記号の切れ目を使う条件: 1 行目が「真ん中」のこの割合に届くこと。届かないなら字の途中で折る
 SPLIT_HEAD_MIN = 0.45
@@ -1213,7 +1215,7 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
             # **マスの送りの約数に寄せる**（曲名の行とジャケットの段がそろう）。
             # **頭打ちを当ててから寄せる**（先に寄せると 96 で切られて寄せた意味が消える）。
             # 下へだけ動かす（上げると高さに入らないか、96 を超える）
-            lh = max(30, min(96, avail_h // rows))
+            lh = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // rows))
             lh = max(30, _snap_lead(lh, pitch, max_lh=lh))
         else:
             lh = rnd(max(52, min(108, gw * 0.05)))
@@ -1282,7 +1284,7 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         if sum(sb_plan) > base_rows:
             if side == "right":
                 rows_now = max(1, rows_per_col)
-                line_h = max(30, min(96, avail_h // rows_now))
+                line_h = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // rows_now))
                 line_h = max(30, _snap_lead(line_h, pitch, max_lh=line_h))
                 font_s = rnd(line_h * 0.56)
             else:
@@ -1298,7 +1300,7 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     # 「1 曲 1 行」が保てるかどうかは読みやすさそのもの。割るくらいなら寄せない
     if side == "right" and font_s * scale < FLOW_MIN_FONT:
         rows_fin = max(1, _plan_rows(sb_plan, sb_cols) if sb_plan else math.ceil(base_rows / sb_cols))
-        lh2 = max(30, min(96, avail_h // rows_fin))
+        lh2 = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // rows_fin))
         fs2 = rnd(lh2 * 0.56)
         if fs2 > font_s and fs2 * scale >= FLOW_MIN_FONT:
             line_h, font_s = lh2, fs2

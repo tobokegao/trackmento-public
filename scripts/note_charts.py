@@ -72,7 +72,12 @@ def load() -> list[dict]:
     series = json.loads(SERIES.read_text(encoding="utf-8"))
     for e in series:
         e["t"] = dt.datetime.strptime(e["jst"], "%Y-%m-%d %H:%M")
-    # 壊れた点は捨てる（API の単位が取れず 40GB になった回、帯域 0 の空振り、2 時間以外の窓）
+    return series
+
+
+def sane(series: list[dict]) -> list[dict]:
+    """折れ線に使える点だけ（API の単位が取れず 40GB になった回、帯域 0 の空振り、2 時間以外の窓を捨てる）。
+    **共有数の集計には使わない**。帯域が欠けた点にも共有数は入っていて、捨てるとその日の最大値を取り逃す"""
     return [e for e in series if e.get("hours") == 2 and e.get("gb") and 0 < e["gb"] < 10]
 
 
@@ -157,9 +162,9 @@ def main() -> int:
     series = load()
     stamp = series[-1]["t"].strftime("%H:%M")
     chart_shares(series, stamp)
-    _line(series, "req_total", CERULEAN, "#bfe3f4", "回 / 2h", "どれくらい見られたか", "2 時間ごと・サイトが受け取ったアクセスの数",
+    _line(sane(series), "req_total", CERULEAN, "#bfe3f4", "回 / 2h", "どれくらい見られたか", "2 時間ごと・サイトが受け取ったアクセスの数",
           "chart-requests.png", lambda v, _: f"{int(v):,}", lambda v: f"最大 {v:,} 回", [])
-    _line(series, "gb", MUSTARD, "#f4e8bf", "GB / 2h", "サーバーから送り出したデータの量",
+    _line(sane(series), "gb", MUSTARD, "#f4e8bf", "GB / 2h", "サーバーから送り出したデータの量",
           "2 時間ごと・GB。無料で使えるのは月 100GB までなので、山が続くと足が出る",
           "chart-bandwidth.png", lambda v, _: f"{v:.1f}", lambda v: f"最大 {v:.2f} GB",
           [(dt.datetime(2026, 9, 13, 11, 0), "画像と文字を別の置き場所へ", VERMILION),

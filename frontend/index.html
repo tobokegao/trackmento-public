@@ -838,15 +838,15 @@ body.sheet-open { overflow: hidden; }
 /* 印の影（同じ形を 1px 右下にずらして敷く。::before なので印の下に来る）。**枠の線には掛けない**:
    影は枠の内側だけで切る（線の上に乗ると、線が灰色ににじんで見える。利用者の指摘） */
 .check input:checked::before { left: 1px; top: 1px; background: var(--color-paper-3);   /* 箱の内側の影（inset の paper-3）と同じ薄さ */
-  clip-path: inset(0 5px 0 0); }   /* 枠の内寸（14×14）で切る。印そのものは枠の外へ出てよい */
+  clip-path: inset(0 4px 0 0); }   /* 枠の線の手前まで（内側の影は線に触れるところまで出す）。印そのものは枠の外へ出てよい */
 /* **枠の外へ出た先端にも同じ 1px 右下の影**。label の擬似要素で同じ形をもう 1 枚敷き、**枠より外側だけ**残す
    （枠の線に掛からない）。印は label の x=2（枠の内側）から始まるので、影は x=3、枠の外は x≥18 → 局所 15px で切る */
 .check { position: relative; }
 .check:has(> input:checked)::before {
-  content: ""; position: absolute; left: 3px; top: calc(50% - 8px); width: 18px; height: 13px;
+  content: ""; position: absolute; left: 3px; top: calc(50% - 7px); width: 18px; height: 13px;   /* 縦は 2px 下（枠の外は下に落ちる余地があるぶん、影が下へ伸びて見える） */
   background: var(--color-paper-3); pointer-events: none;
   -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
-  clip-path: inset(0 0 0 15px);   /* 枠の外（label の x ≥ 18px）に出た先端の影だけ */
+  clip-path: inset(0 1px 0 16px);   /* 枠の外に出た先端の影だけ（右端も 1px 切って出過ぎを抑える） */
 }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
@@ -3482,6 +3482,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     return best || lh;
   }
+  // 曲名の行の高さの上限は「マスの送りの 1/4」（backend/render.py の LEAD_PITCH_DIV）。96px で頭打ちにしていたときは、
+  // 曲が少ないと高さが余ってもリストが縮こまっていた
+  const LEAD_PITCH_DIV = 4;
   const LIST_MIN_COL = 640, LIST_COMFY_FONT = 26, LIST_MAX_COLS = 3, ARTIST_SCALE = 0.78;
   // 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
   const LIST_COL_GAP = GAP_PX * 5;
@@ -3541,7 +3544,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
   }
   // 曲名を折るときに切りたい場所。**閉じ括弧の「後ろ」で折る**ので、括弧の中身が上下に分かれない
-  const BREAK_AFTER = "　 ）)］]】〉》」』", BREAK_BEFORE = "（([［[【〈《「『／/～-—";
+  const BREAK_AFTER = "　 ・）)］]】〉》」』", BREAK_BEFORE = "（([［[【〈《「『／/～-—";
   // 記号の切れ目を使う条件: 1 行目が「真ん中」のこの割合に届くこと（backend/render.py と同じ）
   const SPLIT_HEAD_MIN = 0.45;
   /* 切れ目が見つからないときの保険。maxW に収まるところまで入れて、字の途中で折る */
@@ -3667,7 +3670,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (side === "right") {
         // **頭打ちを当ててからマスの送りの約数に寄せる**（下へだけ動かす）
         const rows = Math.max(1, Math.ceil(rowsTotal / cols));
-        lh = Math.max(30, Math.min(96, Math.floor(availH / rows)));
+        lh = Math.max(30, Math.min(Math.floor(pitch / LEAD_PITCH_DIV), Math.floor(availH / rows)));
         lh = Math.max(30, snapLead(lh, pitch, lh));
       } else {
         lh = Math.round(Math.max(52, Math.min(108, gw * 0.05)));
@@ -3728,7 +3731,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const rowsPerCol = planRows(sbPlan, sbCols);
       if (sbPlan.reduce((a, b) => a + b, 0) > baseRows) {
         if (side === "right") {
-          lineH = Math.max(30, Math.min(96, Math.floor(availH / Math.max(1, rowsPerCol))));
+          lineH = Math.max(30, Math.min(Math.floor(pitch / LEAD_PITCH_DIV), Math.floor(availH / Math.max(1, rowsPerCol))));
           lineH = Math.max(30, snapLead(lineH, pitch, lineH));
           fontS = Math.round(lineH * 0.56);
         }
@@ -3744,7 +3747,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         FLOW_MIN_FONT の 20px をわずかに割って流し込みに落ちていた） */
     if (side === "right" && fontS * scale < FLOW_MIN_FONT) {
       const rowsFin = Math.max(1, sbPlan.length ? planRows(sbPlan, sbCols) : Math.ceil(baseRows / sbCols));
-      const lh2 = Math.max(30, Math.min(96, Math.floor(availH / rowsFin)));
+      const lh2 = Math.max(30, Math.min(Math.floor(pitch / LEAD_PITCH_DIV), Math.floor(availH / rowsFin)));
       const fs2 = Math.round(lh2 * 0.56);
       if (fs2 > fontS && fs2 * scale >= FLOW_MIN_FONT) { lineH = lh2; fontS = fs2; }
     }

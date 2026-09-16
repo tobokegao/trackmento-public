@@ -171,8 +171,10 @@ def _r2_origin() -> str:
 # 2 時間で `/share` の 503 が 15 件出ていた
 from concurrent.futures import ThreadPoolExecutor
 
-_RENDER_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="render", initializer=render.lower_thread_priority)
-MAX_RENDER_QUEUE = 4   # サーバー描画（フォールバック）は 1 件 40〜80 秒かかる。待たせるより早めに断る
+_RENDER_POOL = ThreadPoolExecutor(max_workers=3, thread_name_prefix="render", initializer=render.lower_thread_priority)
+MAX_RENDER_QUEUE = 6   # サーバー描画（フォールバック）は 1 件 40〜80 秒かかる。待たせるより早めに断る。
+                       # 2/4 では 1 日 36,000 共有の時間帯に 2 時間で 7 件断っていた（点検の「異常あり」）。
+                       # CPU は最大 0.36/1.0・メモリ 332/2048MB と余っているので 3/6 に広げた（2026-09-17）
 _render_waiting = [0]
 
 
