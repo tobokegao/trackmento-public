@@ -617,7 +617,9 @@ else:
             raise HTTPException(404, "not found")
         data = await run_in_threadpool(storage.get_storage().get, fname)
         if data is None:
-            raise HTTPException(404, "この共有は見つかりません（期限切れの可能性）")
+            # **消えた共有は 410（Gone）**。404 だと検索エンジンが「一時的な不調」とみて数か月再訪する。
+            # ID の形が正しいのに無い＝期限切れで消したもの、なので「もう無い」と伝える（2026-09-17）
+            raise HTTPException(410, "この共有は見つかりません（期限切れの可能性）")
         # JSON は charset を明示する（付けないと端末によっては既定の文字コードで開かれ、曲名が文字化けする）
         return Response(content=data, media_type={"png": "image/png", "jpg": "image/jpeg"}.get(ext, "application/json;charset=utf-8"),
                         headers={"Cache-Control": "public, max-age=86400"})
@@ -1508,5 +1510,5 @@ async def share_page(request: Request, sid: str) -> HTMLResponse:
     snap = await run_in_threadpool(share.load, sid)
     if not snap:
         # JSON の 404 だと X から開いた人に何が起きたか伝わらない。案内ページ（期限切れ・作り直し）を返す
-        return HTMLResponse(share.expired_html(sid, base_url_for(request), app_url_for(request), _lang_for(request)), status_code=404)
+        return HTMLResponse(share.expired_html(sid, base_url_for(request), app_url_for(request), _lang_for(request)), status_code=410)   # 消えた共有は 410（Gone）
     return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request)))
