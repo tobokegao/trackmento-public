@@ -980,12 +980,14 @@ output { font-variant-numeric: tabular-nums; }
 .output { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: var(--line) solid var(--color-rule); }
 .output[hidden] { display: none; }
 /* 比率は JS が入れる（別オリジンから読むので、読み終わるまで高さが 0 だと画面が飛ぶ）。
-   高さの頭打ちに当たったときに横へ伸びないよう object-fit も添える。
-   **頭打ちは `dvh` ではなく `svh`**。`dvh` は「今この瞬間の画面の高さ」なので、スマホで
-   スクロールしてアドレスバーが隠れると値が増え、**画像の大きさごと変わって下の欄がずれる**
-   （実機の録画で確認。スクロール中に出来上がりの画像が伸び縮みしていた）。
-   `svh` はアドレスバーが出ている状態で固定なので動かない */
-.output img { width: auto; max-width: 100%; max-height: 70svh; object-fit: contain;
+   **幅は欄いっぱい**（`width: 100%`）。`width: auto` だと、置き換え要素は grid の伸ばす指定が
+   効かないので左に寄り、しかも高さの頭打ちに当たった比率のときだけ右に余りが出る
+   （「左に寄っている・左右ぴったりでない」と報告があった）。
+   **高さの頭打ちは外した**。画面の高さ（`dvh` / `svh`）で切ると、切られた比率だけ幅が縮んで
+   また左右に余りが出る。縦長の並びは縦に長く出るが、出来上がりを確かめる場所なのでそれでよい
+   （`dvh` はスクロールでアドレスバーが隠れると値が変わり、画像ごと伸び縮みして
+     下の欄がずれる、という別の問題もあった） */
+.output img { display: block; width: 100%; height: auto;
   border: var(--line) solid var(--color-ink); box-shadow: var(--shadow); }
 .share-url { display: grid; gap: var(--space-1); }
 .share-url .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
