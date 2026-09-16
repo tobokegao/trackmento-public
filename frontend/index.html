@@ -2978,11 +2978,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         pad = m;
         for (let i = 0; i < 3; i++) {
           W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
-          pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
+          pad = modPad(Math.max(m, Math.round(Math.min(W, H) * 0.035)), state.gap);
         }
         W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
       } else {
-        [W, H, pad] = slabFrame(gh + topH, ratio, m, true);
+        [W, H, pad] = slabFrame(gh + topH, ratio, m, true, state.gap);
         segW = (W - pad) - (pad + gw + wgap);
       }
       if (W <= 0 || H <= 0) return null;
@@ -3023,12 +3023,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SLAB_PREFER = 0.98;
   /* 塊が使い切る辺の長さから枠と余白を出す（backend/render.py の _slab_frame）。
      余白は枠の短い辺の 3.5% なので互いを参照する。0 から 3 回回せば収束する */
-  function slabFrame(fixed, ratio, m, vertical) {
+  function slabFrame(fixed, ratio, m, vertical, gap) {
     let pad = m, W = 0, H = 0;
     for (let i = 0; i < 4; i++) {
       if (vertical) { H = fixed + pad * 2; W = Math.round(H * ratio); }
       else { W = fixed + pad * 2; H = Math.round(W / ratio); }
-      if (i < 3) pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
+      if (i < 3) pad = modPad(Math.max(m, Math.round(Math.min(W, H) * 0.035)), gap);
     }
     return [W, H, pad];
   }
@@ -3047,7 +3047,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       let extra = 0, W = 0, H = 0, pad = 0, fontS = 0, lineH = 0, wgap = 0, tH = 0, tSize = 0;
       for (let i = 0; i < 4; i++) {
         const fixed = vertical ? gh + extra : gw;
-        [W, H, pad] = slabFrame(fixed, ratio, m, vertical);
+        [W, H, pad] = slabFrame(fixed, ratio, m, vertical, state.gap);
         if (W <= 0 || H <= 0) return null;
         const sc0 = Math.min(1, maxSide / Math.max(W, H));
         fontS = Math.max(18, Math.round(target / sc0));
@@ -3101,7 +3101,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function slabStack(gw, gh, titleH, ratio, m, maxSide) {
     const n = state.cells.length;
     if (!n || state.rows > SLAB_STACK_MAX_ROWS || n > SLAB_STACK_MAX_SONGS) return null;
-    const [W, H, pad] = slabFrame(gw, ratio, m, false);
+    const [W, H, pad] = slabFrame(gw, ratio, m, false, state.gap);
     if (W <= 0 || H <= 0) return null;
     const scale = Math.min(1, maxSide / Math.max(W, H));
     const segW = W - pad * 2;
@@ -3132,7 +3132,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      出力での文字を FLOW_MIN_FONT に固定し、入る範囲で枠をいちばん小さくする（＝塊をいちばん大きく）。
      入らなければ null を返し、呼び出し側は今までの組み方に戻す */
   function wrapPlan(gw, gh, titleH, ratio, m, maxSide) {
-    const pad0 = Math.max(m, Math.round(Math.min(gw, titleH + gh) * 0.035));
+    const pad0 = modPad(Math.max(m, Math.round(Math.min(gw, titleH + gh) * 0.035)), state.gap);
     const [Wb, Hb] = fit(gw, titleH + gh, pad0, ratio);
     const build = (pct, target) => {
       const W = Math.round(Wb * pct / 100), H = Math.round(Hb * pct / 100);
@@ -3141,7 +3141,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // **マスの送りの約数に寄せる**（塊の左右に流れる行がジャケットの段とそろう）。
       // ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
       const lineH = snapLead(Math.round(fontS * 1.5), CELL_PX + state.gap);
-      const pad = Math.max(m, Math.round(Math.min(W, H) * 0.035));
+      const pad = modPad(Math.max(m, Math.round(Math.min(W, H) * 0.035)), state.gap);
       // **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む。下を参照）
       let gx = Math.round((W - gw) / 2);
       // **タイトルの大きさは本文から決める**（マスの幅からだと、マスが多いとき極端に小さくなる）。
@@ -3241,6 +3241,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 曲名リストの作り（backend/render.py と同じ値）。曲名とアーティスト名は上下 2 行に分ける
   // 行の高さをマスの段の送りの約数に寄せる（backend/render.py の SNAP_LEAD_TOL / _snap_lead）。
   // 曲名の行とジャケットの上下の端がそろう。近くに候補が無ければ動かさない
+  // 外側の余白をモジュール（マスの送り）の 1/MOD_PAD_DIV 刻みに切り上げる
+  // （backend/render.py の MOD_PAD_DIV / _mod_pad と同じ値・同じ式）
+  const MOD_PAD_DIV = 8;
+  const modPad = (pad, gap) => {
+    const step = (CELL_PX + gap) / MOD_PAD_DIV;
+    return Math.max(pad, Math.round(Math.ceil(pad / step) * step));
+  };
   const SNAP_LEAD_TOL = 0.15;
   function snapLead(lh, pitch, maxLh = 0) {
     if (lh <= 0 || pitch <= 0) return lh;
@@ -3412,12 +3419,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const ch = titleTopH + gh + (side === "bottom" ? sbGap + sbh : 0);
       // **四辺に最低でも内容の短辺の 3.5% の余白を残す**（backend/render.py と同じ）。既定の 16px は
       // 出力にすると 10px 足らずで、絵が枠に貼り付いて見える
-      const pad = Math.max(m, Math.round(Math.min(cw, ch) * 0.035));
+      const pad = modPad(Math.max(m, Math.round(Math.min(cw, ch) * 0.035)), state.gap);
       let [w, h] = fit(cw, ch, pad, ratio);
       if (ratio !== null && (w !== cw + pad * 2 || h !== ch + pad * 2)) {
         // 比率合わせで余りが出る辺は余白が広がる。反対の辺が指定値（既定 16px）のままだと上下（縦長なら左右）だけ
         // 極端に狭く見えるため、余りが出るときは指定値と「内容の短辺の 4%」の大きい方を四辺の最小余白にする
-        [w, h] = fit(cw, ch, Math.max(m, Math.round(Math.min(cw, ch) * 0.04)), ratio);
+        [w, h] = fit(cw, ch, modPad(Math.max(m, Math.round(Math.min(cw, ch) * 0.04)), state.gap), ratio);
       }
       return [w, h, Math.min(1, maxSide / Math.max(w, h))];
     };
