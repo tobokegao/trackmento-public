@@ -812,6 +812,23 @@ body.sheet-open { overflow: hidden; }
     background-repeat: no-repeat; }
   .tsb-thumb:active { background-color: var(--color-rule-2); }
 }
+/* 送信中の窓。**上りが細いと 80 秒かかる**ことがあり、何も出ていないと「固まった」と思って
+   押し直される。押し直されると同じ 1MB がもう一度流れるので、進み具合を見せる意味がある */
+.up-bar { height: 18px; border: var(--line) solid var(--color-ink); background: var(--color-paper-2);
+  box-shadow: inset 0 1px 0 rgb(0 0 0 / 0.16); overflow: hidden; }
+.up-fill { height: 100%; width: 0; background: var(--color-mustard);
+  border-right: var(--line) solid var(--color-ink); transition: width .2s linear; }
+.up-fill[data-done="1"] { border-right: none; }
+.up-pct { font-family: var(--font-outlier); font-size: var(--text-sm); margin: var(--space-1) 0 0;
+  font-variant-numeric: tabular-nums; }
+.up-note { color: var(--color-muted); font-size: var(--text-sm); margin: var(--space-1) 0 0; }
+/* 待っているあいだに作者の曲を 1 つ出す（サーバー代のおねがいと同じ趣旨） */
+.up-promo { margin-top: var(--space-3); border: var(--line) solid var(--color-ink);
+  background: var(--color-paper-2); padding: var(--space-2) var(--space-3); }
+.up-promo .lbl { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted);
+  display: block; letter-spacing: 0.04em; }
+.up-promo a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px;
+  text-underline-offset: 3px; }
 /* パレットの一覧（モーダルの中）。1 行が 1 組の 8 色 */
 .pal-lanes { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0; }
 /* 1 行に入りきらない幅（スマホ）では折り返す。名前・8 色・ボタンの順に段が増える */
@@ -1197,6 +1214,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   </div>
 </div>
 
+<div class="modal" id="up-modal" hidden role="dialog" aria-modal="true" aria-labelledby="up-modal-title">
+  <div class="sheet-backdrop"></div>
+  <div class="modal-panel">
+    <div class="sheet-head"><h2 id="up-modal-title">画像を送っています</h2></div>
+    <div class="modal-body note">
+      <div class="up-bar"><div class="up-fill" id="up-fill"></div></div>
+      <p class="up-pct" id="up-pct">0%</p>
+      <p class="up-note" id="up-note">回線が細いと少し時間がかかります。このままお待ちください。</p>
+      <aside class="up-promo" aria-label="作者の曲">
+        <span class="lbl">待っているあいだに、作者の曲はいかがですか</span>
+        <p id="up-track"></p>
+      </aside>
+    </div>
+  </div>
+</div>
+
 <div class="modal modal-wide" id="zoom-modal" hidden role="dialog" aria-modal="true" aria-labelledby="zoom-modal-title">
   <div class="sheet-backdrop" id="zoom-modal-backdrop"></div>
   <div class="modal-panel">
@@ -1406,6 +1439,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "ピンク": "Pink",
     "レモン": "Lemon", "ウルトラマリン": "Ultramarine", "コーラル": "Coral",
     "スカイ": "Sky", "リーフ": "Leaf", "ローズ": "Rose",
+    "作者の曲": "Songs by the author",
+    "画像を送っています": "Sending the image", "回線が細いと少し時間がかかります。このままお待ちください。": "On a slow connection this takes a little while. Please keep this open.",
+    "サーバーで保存しています…": "Saving on the server…",
+    "待っているあいだに、作者の曲はいかがですか": "While you wait, how about a song by the author",
     "大きく見る": "Enlarge", "グリッドを大きく見る": "The grid, enlarged",
     "グリッドを画面いっぱいに開いて並べ替える": "Open the grid at full size to rearrange it",
     "パレット": "Palette", "パレットを選ぶ": "Choose a palette",
@@ -3651,6 +3688,55 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.gridScroll.style.height = `${Math.round(gridZoomed ? W / ar : W) + 4}px`;
   }
 
+  // ---- 送信中の窓（進み具合と、作者の曲） ----
+  // **曲は Bandcamp の実際の作品**。増やすときはここに足す（題と URL だけ。宣伝文は書かない）
+  const OWN_TRACKS = [
+    ["おかねがたりないときのうた", "https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta"],
+    ["BAKA GA GO", "https://tbkgao.bandcamp.com/track/baka-ga-go"],
+    ["Wedding Bell（Tobokegao & JAWZZ）", "https://tbkgao.bandcamp.com/album/wedding-bell"],
+    ["Toward a New Future (feat. Tsukuyomi Ai)", "https://tbkgao.bandcamp.com/track/toward-a-new-future-feat-tsukuyomi-ai-demo"],
+  ];
+  const upModal = $("#up-modal"), upFill = $("#up-fill"), upPct = $("#up-pct"), upNote = $("#up-note");
+  function openUpload() {
+    const [title, url] = OWN_TRACKS[Math.floor(Math.random() * OWN_TRACKS.length)];
+    const a = document.createElement("a");
+    a.href = url + "?from=trackmento-upload"; a.target = "_blank"; a.rel = "noopener noreferrer";
+    a.textContent = title;
+    const box = $("#up-track"); box.textContent = ""; box.append("♪ ", a);
+    upFill.style.width = "0%"; upFill.removeAttribute("data-done");
+    upPct.textContent = "0%";
+    upNote.textContent = tr("回線が細いと少し時間がかかります。このままお待ちください。");
+    upModal.hidden = false; document.body.classList.add("sheet-open");
+  }
+  function setUpload(ratio) {
+    const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+    upFill.style.width = pct + "%";
+    if (pct >= 100) upFill.dataset.done = "1";
+    upPct.textContent = pct + "%";
+    if (pct >= 100) upNote.textContent = tr("サーバーで保存しています…");
+  }
+  function closeUpload() {
+    upModal.hidden = true;
+    if (!sheetOpen()) document.body.classList.remove("sheet-open");
+  }
+  /* 進み具合の取れる送信。**fetch では上りの進みが取れない**ので XMLHttpRequest を使う */
+  function postUpload(path, fd, onProgress) {
+    return new Promise((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      x.open("POST", api(path));
+      x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+      x.onload = () => {
+        let d = {};
+        try { d = JSON.parse(x.responseText || "{}"); } catch { /* 本文が JSON でないこともある */ }
+        if (x.status >= 200 && x.status < 300) return resolve(d);
+        const e = new Error(d.detail || `HTTP ${x.status}`); e.status = x.status; reject(e);
+      };
+      x.onerror = () => reject(new Error("network"));
+      x.ontimeout = () => reject(new Error("timeout"));
+      x.send(fd);
+    });
+  }
+
   // ---- グリッドを大きく見る窓 ----
   // **同じ要素をそのまま動かす**（作り直さないので、選択・掴んでの入れ替え・番号バッジがそのまま効く）。
   // 16x16 だと欄の中では 1 マス 26px しかなく、PC でも狙って掴めない、という報告から
@@ -4196,10 +4282,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return c;
   }
   async function encodeShare(canvas, bg) {
-    // 本体は JPEG 品質 0.9（PNG の 1/6 程度。X は投稿時に再圧縮するので見た目は変わらない。保存容量と転送量のため）
+    // 本体は JPEG 品質 0.82。**0.9 から下げた**（2026-09-16）。実測で 2400x1350 の出力が
+    // 501KB → 413KB（-17%）で、見分けはつきにくい（X は投稿時に再圧縮するのでなおさら）。
+    // 上り回線の細い端末で送信に 81 秒かかっていたのを短くするため
     const LIMIT = 4900000;   // X の画像添付は 5 MB まで（サーバー描画と同じ判定）
-    let c = canvas, png = await canvasToBlob(c, "image/jpeg", 0.9);
-    for (let i = 0; i < 3 && png.size > LIMIT; i++) { c = scaledCanvas(c, Math.max(0.6, Math.sqrt(LIMIT / png.size) * 0.97)); png = await canvasToBlob(c, "image/jpeg", 0.9); }
+    const Q = 0.82;
+    let c = canvas, png = await canvasToBlob(c, "image/jpeg", Q);
+    for (let i = 0; i < 3 && png.size > LIMIT; i++) { c = scaledCanvas(c, Math.max(0.6, Math.sqrt(LIMIT / png.size) * 0.97)); png = await canvasToBlob(c, "image/jpeg", Q); }
     const og = document.createElement("canvas"); og.width = 1200; og.height = 630;   // カード用: 全体を収め、余白は背景色
     const g = og.getContext("2d", { alpha: false }); g.fillStyle = cssRgb(bg); g.fillRect(0, 0, 1200, 630);
     // **四辺に 3% ずつ安全代を残す**（backend/share.py の OG_SAFE と同じ）。受け取る側で数 % 切られても
@@ -4231,7 +4320,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     fd.append("doc", JSON.stringify({ grid: GRID_NAME, doc: snap }));
     fd.append("image", enc.png, "trackmento.jpg");
     fd.append("og", enc.og, "card.jpg");
-    return postShare("/share/upload", { method: "POST", body: fd });
+    openUpload();
+    try {
+      return await postUpload("/share/upload", fd, setUpload);
+    } finally {
+      closeUpload();
+    }
   }
   const shareViaServer = (snap) => postShare("/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME, doc: snap }) });
   els.shareBtn.addEventListener("click", async () => {

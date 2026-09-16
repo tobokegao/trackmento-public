@@ -58,6 +58,11 @@ THRESHOLDS = {
     "memory_gb": float(os.getenv("CHECK_MEMORY_GB", "0")) or 0.0,         # メトリクスのメモリ最大。0 なら種類から出す
     "5xx_total": int(os.getenv("CHECK_5XX_TOTAL", "20")),                 # 期間内の 5xx 合計
     "5xx_share": int(os.getenv("CHECK_5XX_SHARE", "5")),                  # /share と /share/upload の 5xx 合計
+    # /image-proxy の 5xx は**配信元都合**（消えた画像の 404）が大半で、こちらでは直せない。
+    # 合計に混ぜると「異常あり」のメールがそればかりになって、直すべきものが埋もれる。
+    # 別枠にして、要求のうち何割かで見る（うちのバグで全部 404 になるような壊れ方は拾える）
+    "5xx_proxy_ratio": float(os.getenv("CHECK_5XX_PROXY_RATIO", "0.10")),
+    "5xx_proxy_min": int(os.getenv("CHECK_5XX_PROXY_MIN", "50")),
     "errors": int(os.getenv("CHECK_ERRORS", "10")),                       # [error]／Traceback の行数
     "lag_lines": int(os.getenv("CHECK_LAG_LINES", "5")),                  # 2 秒以上の [loop] lag の行数（1 秒前後は描画の待ちで普段から出る）
 }
@@ -358,10 +363,15 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
 
     # 経路
     pp = la["per_path"]
-    total_5xx = sum(p["5xx"] for p in pp.values())
+    # **`/image-proxy` は合計から外す**（配信元都合の 404 が大半。下で別に見る）
+    total_5xx = sum(p["5xx"] for k, p in pp.items() if k != "/image-proxy")
     share_5xx = sum(p["5xx"] for k, p in pp.items() if k in ("/share", "/share/upload"))
+    proxy = pp.get("/image-proxy") or {"count": 0, "5xx": 0}
     top = sorted(pp.items(), key=lambda kv: kv[1]["count"], reverse=True)[:8]
-    lines.append(f"- 要求（[stats] {la['lines']} 行から集計）: 5xx 合計 {total_5xx}、共有の 5xx {share_5xx}")
+    lines.append(f"- 要求（[stats] {la['lines']} 行から集計）: 5xx 合計 {total_5xx}"
+                 f"（`/image-proxy` を除く）、共有の 5xx {share_5xx}"
+                 + (f"、`/image-proxy` の 5xx {proxy['5xx']}／{proxy['count']} 件"
+                    f"（{proxy['5xx'] / proxy['count'] * 100:.1f}%）" if proxy["count"] else ""))
     for k, p in top:
         lines.append(f"  - `{k}` {p['count']} 件、最大 {p['max_s']:.1f} 秒、ピーク {p['peak_per_min']} 件/分" + (f"、5xx {p['5xx']}" if p["5xx"] else ""))
     fx = la.get("fivexx") or {}
@@ -369,6 +379,10 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         lines.append("  - 5xx の内訳（[5xx] 行。HTTPException で返したもの）:")
         for k, n in sorted(fx.items(), key=lambda kv: -kv[1])[:6]:
             lines.append(f"    - {n} 件 `{k}`")
+    if proxy["count"] and proxy["5xx"] >= T["5xx_proxy_min"] and proxy["5xx"] / proxy["count"] > T["5xx_proxy_ratio"]:
+        problems.append(f"`/image-proxy` の 5xx が {proxy['5xx']} 件（要求の "
+                        f"{proxy['5xx'] / proxy['count'] * 100:.1f}%）。配信元都合ではなく、"
+                        f"こちらの組み立てが壊れている可能性がある")
     if total_5xx > T["5xx_total"]:
         problems.append(f"5xx 合計 {total_5xx} が閾値 {T['5xx_total']} を超過")
     if share_5xx > T["5xx_share"]:
