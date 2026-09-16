@@ -47,6 +47,10 @@
   /* 暗い白。**つまみの地（--color-bar 91%）より明るくする**。87% だと地より暗く、
      握りの縞が影に見えて立体感が消える（実機で確認）。明るい白（100%）との差は残す */
   --color-hl-dim:  oklch(96% 0.008 250);
+  /* **出っぱりの内側の下辺・右辺**。外枠（--color-bar-dark）と同じ色にすると、外枠のすぐ内側に
+     同じ濃さの線が並んで**濃いグレーが 2 本に見える**（実機で「影が二重」と報告。画素で確認した）。
+     地（--color-bar 91%）と外枠（66%）の中間にすると、2 段の面取りとして読める */
+  --color-bevel:   oklch(78% 0.012 250);
   /* the six riso inks — badges and one primary accent */
   --color-mustard:  oklch(80% 0.150 88);
   --color-cerulean: oklch(60% 0.140 235);
@@ -158,6 +162,7 @@ img { max-width: 100%; display: block; }
   --color-bar-dark: oklch(20% 0.012 250);
   --color-hl:       oklch(74% 0.010 250);
   --color-hl-dim:   oklch(58% 0.010 250);
+  --color-bevel:    oklch(29% 0.012 250);   /* 地 38% と外枠 20% の中間 */
   /* **暗い地では「地より少し明るい中間のグレー」**。地より暗い色にすると、地がもう十分暗いので
      影がまったく見えない（実機で報告）。中間のグレーなら、暗い面の縁に落ちた影として読める */
   --color-shadow:   oklch(34% 0.010 250);
@@ -798,7 +803,8 @@ body.sheet-open { overflow: hidden; }
       repeating-linear-gradient(to bottom, var(--color-hl-dim) 0 2px, transparent 2px 6px),
       repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px, transparent 4px 6px),
       linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
-      linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
+      /* 下辺・右辺は中間のグレー。border と同じ濃さだと、枠のすぐ内側で 2 本に見える */
+      linear-gradient(var(--color-bevel), var(--color-bevel)), linear-gradient(var(--color-bevel), var(--color-bevel));
     background-size: 1px 1px, 1px 1px, 2px 16px, 7px 16px, 7px 16px, 100% 1px, 1px 100%, 100% 1px, 1px 100%;
     background-position: right 0 top 0, left 0 bottom 0,
       calc(50% - 3.5px) center, calc(50% - 1px) center, calc(50% + 1px) center,
@@ -876,7 +882,8 @@ input[type="range"]::-webkit-slider-thumb {
        ① 右上・左下の角の 1px … 暗い白（白い輪郭が回り込んだ所を落ち着かせる）
        ② 握りの縞 … 白線 1px（上端 1px だけ明るい白、以下は暗い白）＋ **隙間を開けず右隣に**濃いグレー線。
           グレーは線の太さ（1px）ぶん下にずらし、白線の下から 1px はみ出す。3 本を真ん中に置く
-       ③ 面取り … 上辺・左辺が白、下辺・右辺が濃いグレー（外枠の 1px 内側）
+       ③ 面取り … 上辺・左辺が白、下辺・右辺は**中間のグレー**（`--color-bevel`。外枠の 1px 内側）。
+          **外枠と同じ濃さにしてはいけない**。同じ濃さの線が 2 本並んで「影が二重」に見える
        ④ 外枠 … 四辺とも濃いグレー */
   background-image:
     linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
@@ -885,7 +892,7 @@ input[type="range"]::-webkit-slider-thumb {
     repeating-linear-gradient(to right, var(--color-hl-dim) 0 1px, transparent 1px 4px),
     repeating-linear-gradient(to right, var(--color-bar-dark) 0 1px, transparent 1px 4px),
     linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
-    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark)),
+    linear-gradient(var(--color-bevel), var(--color-bevel)), linear-gradient(var(--color-bevel), var(--color-bevel)),
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark)),
     linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
   background-size:
