@@ -3228,13 +3228,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* 字の途中で折る。**行の真ん中にいちばん近い所**を選ぶ（breakAt は右端まで詰める） */
   function breakNear(ctx, text, f, maxW, target) {
     ctx.font = f;
-    let best = null;
+    let best = null, fit = null;   // fit は「2 行目も収まる」位置の中でいちばん真ん中に近いもの
     for (let i = 1; i < text.length; i++) {
       const w1 = ctx.measureText(text.slice(0, i)).width;
       if (w1 > maxW) break;
       const score = Math.abs(w1 - target);
       if (best === null || score < best[0]) best = [score, i];
+      if (ctx.measureText(text.slice(i).replace(/^\s+/, "")).width <= maxW && (fit === null || score < fit[0])) fit = [score, i];
     }
+    best = fit || best;
     if (best === null) return breakAt(ctx, text, f, maxW);
     const i = best[1];
     return [text.slice(0, i).replace(/\s+$/, ""), text.slice(i).replace(/^\s+/, "")];
@@ -3246,7 +3248,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const total = ctx.measureText(title).width, target = total / 2;
     const [head, feat] = splitFeat(title);
     const featAt = feat ? head.length + 1 : -1;
-    let best = null;   // [真ん中からの遠さ, 位置, 「(feat. …)」の手前か]
+    let best = null, fit = null;   // [真ん中からの遠さ, 位置, 「(feat. …)」の手前か]
     for (let i = 1; i < title.length; i++) {
       if (!(BREAK_AFTER.includes(title[i - 1]) || BREAK_BEFORE.includes(title[i]))) continue;
       const w1 = ctx.measureText(title.slice(0, i).replace(/\s+$/, "")).width;
@@ -3255,7 +3257,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const isFeat = i === featAt || (featAt > 0 && Math.abs(i - featAt) <= 1);
       if (isFeat) score *= 0.6;
       if (best === null || score < best[0]) best = [score, i, isFeat];
+      // **2 行目が収まるかも見る**（真ん中に近いだけで選ぶと 2 行目が「…」で切れる）
+      if (ctx.measureText(title.slice(i).replace(/^\s+/, "")).width <= maxW && (fit === null || score < fit[0])) {
+        fit = [score, i, isFeat];
+      }
     }
+    best = fit || best;
     // **偏りすぎる切れ目は使わない**。括弧や【】が題の先頭近くにあると、そこしか候補が無いことがあり、
     // 1 行目が数文字だけになる。「(feat. …)」の手前だけは偏っていても使う
     if (best !== null && (best[2]
@@ -3959,6 +3966,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         for (let j = 0; j < rowsTxt.length; j++) {
           const isArtist = artist && j === rowsTxt.length - 1;
           ctx.font = isArtist ? fA : fT;
+          if (!isArtist) {
+            // **はみ出しがわずかなら縮めて収める**（右サイドバーの 2 行目と同じ規則）
+            for (const k of [0.92, 0.86, 0.8]) {
+              if (ctx.measureText(rowsTxt[j]).width <= maxW) break;
+              ctx.font = fontBold(Math.max(8, Math.round(fs * k)));
+            }
+          }
           ctx.fillStyle = cssRgb(isArtist ? muted : ink);
           ctx.fillText(ellipsizeText(ctx, rowsTxt[j], maxW), x + nw, y0row + j * step);
         }

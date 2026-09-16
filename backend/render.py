@@ -448,6 +448,7 @@ def _break_near(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont,
                 max_w: float, target: float) -> tuple[str, str]:
     """字の途中で折る。**行の真ん中にいちばん近い所**を選ぶ（`_break_at` は右端まで詰める）。"""
     best: tuple[float, int] | None = None
+    fit: tuple[float, int] | None = None     # **2 行目も収まる**位置の中でいちばん真ん中に近いもの
     for i in range(1, len(text)):
         w1 = d.textlength(text[:i], font=f)
         if w1 > max_w:
@@ -455,6 +456,9 @@ def _break_near(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont,
         score = abs(w1 - target)
         if best is None or score < best[0]:
             best = (score, i)
+        if d.textlength(text[i:].lstrip(), font=f) <= max_w and (fit is None or score < fit[0]):
+            fit = (score, i)
+    best = fit or best
     if best is None:
         return _break_at(d, text, f, max_w)
     i = best[1]
@@ -473,6 +477,7 @@ def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, 
     head, _feat = _split_feat(title)
     feat_at = len(head) + 1 if _feat else -1   # 括弧の手前（空白を 1 つ挟む）
     best: tuple[float, int, bool] | None = None   # (真ん中からの遠さ, 位置, 「(feat. …)」の手前か)
+    fit: tuple[float, int, bool] | None = None    # **2 行目も収まる**候補だけを集めたもの
     for i in range(1, len(title)):
         if not (title[i - 1] in _BREAK_AFTER or title[i] in _BREAK_BEFORE):
             continue
@@ -485,6 +490,12 @@ def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, 
             score *= 0.6   # 「(feat. …)」の手前は優遇。ちょうどよい位置なら選ばれる
         if best is None or score < best[0]:
             best = (score, i, is_feat)
+        # **2 行目が収まるかも見る**。真ん中に近いだけで選ぶと、1 行目が収まっても
+        # 2 行目がわずかにはみ出して「…」で切れる（`I Love Love You (Love Love Super Dimension mix)` が
+        # 「Love Super Dimension…」になっていた）。収まる候補があるならそちらを使う
+        if d.textlength(title[i:].lstrip(), font=f) <= max_w and (fit is None or score < fit[0]):
+            fit = (score, i, is_feat)
+    best = fit or best
     # **偏りすぎる切れ目は使わない**。括弧や【】が題の先頭近くにあると、そこしか候補が無いことがあり、
     # 「いき」＋「(稚拙な詩歌への…」のように 1 行目が数文字だけになる（利用者の画像で発覚）。
     # 1 行目が真ん中の `SPLIT_HEAD_MIN` に届かないなら、字の途中でも真ん中に近い所で折る
@@ -1442,6 +1453,14 @@ def render(doc: GridDoc) -> Image.Image:
             for j, text in enumerate(rows):
                 is_artist = artist and j == len(rows) - 1
                 f = f_a if is_artist else f_t
+                if not is_artist:
+                    # **はみ出しがわずかなら縮めて収める**（右サイドバーの 2 行目と同じ規則）。
+                    # 2 行に折っても 2 行ぶんの幅にわずかに足りない題があり（`I Love Love You
+                    # (Love Love Super Dimension mix)` は 6px 超過）、「…」で切ると曲名が読めなくなる
+                    for k in (0.92, 0.86, 0.8):
+                        if d.textlength(text, font=f) <= max_w:
+                            break
+                        f = font("bold", max(8, rnd(fs * k)))
                 d.text((x + nw, top + j * step), _ellipsize(d, text, f, max_w),
                        font=f, fill=muted if is_artist else ink, anchor="lm")
         _release_memory()
