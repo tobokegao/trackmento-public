@@ -1503,6 +1503,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "送れませんでした（通信が切れたようです）": "Could not send it (the connection dropped)",
     "時間切れです（回線が遅いか、途切れています）": "Timed out (the connection is slow or broken)",
     "送信をやめました": "Sending cancelled",
+    "送れませんでした（通信が止まりました）": "Could not send it (the transfer stopped)",
     "出来上がり": "The result", "出来上がりを折りたたむ": "Collapse the result",
     "送信をやめました。": "Sending cancelled.",
     "画像を送れなかったので、サーバーで作り直しています…": "The image could not be sent, so the server is making it again\u2026",
@@ -3910,7 +3911,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* **送信は必ず終わらせる**。XMLHttpRequest は既定で待ち続けるので、回線が切れて応答が
      返ってこないと窓が出たまま止まる（実機で「この画面から動かない」と報告があった）。
      時間切れを入れ、経過秒も出し、自分でやめられるようにしておく */
-  const UPLOAD_TIMEOUT = 180000;   // 3 分。細い上りで 1MB を送るのに 81 秒かかった実測がある
+  /* **時間切れは「全体」ではなく「止まったら」で測る**（2026-09-16）。
+     全体を短くすると、**成功するはずの送信まで切ってしまう**（本番の点検で `/share/upload` の
+     受け取りに 94.6 秒・122.7 秒かかった例が実際にある。回線が細いだけで、放っておけば通る）。
+     一方「固まった」と感じるのは、**進みが止まったまま動かない**ときなので、そちらを短く切る。
+     全体（3 分）は最後の保険 */
+  const UPLOAD_TIMEOUT = 180000;   // 全体の保険。実測の最長 122.7 秒 + 余裕
+  const UPLOAD_STALL = 45000;      // 送っている途中、これだけ進みが止まったら切る
+  const UPLOAD_WAIT = 60000;       // 送り終えたあと、返事をこれだけ待って切る
   const UPLOAD_SLOW = 25;          // これを過ぎたら「時間がかかっています」と添える
   let upXhr = null, upTimer = 0, upStart = 0;
   function openUpload() {
@@ -3952,19 +3960,34 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       upXhr = x;
       x.open("POST", api(path));
       x.timeout = UPLOAD_TIMEOUT;   // 既定は「無制限」。入れないと応答が返らないときに永久に待つ
-      x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
-      x.onload = () => {
+      /* **止まったら切る**。進みが来るあいだは何分かかっても待ち、来なくなったら諦める。
+         送り終えたあと（100%）は進みが来ないので、そこからは別の待ち時間で見る */
+      let lastAt = Date.now(), sent = false, stalled = false;
+      const watch = setInterval(() => {
+        if (Date.now() - lastAt > (sent ? UPLOAD_WAIT : UPLOAD_STALL)) { stalled = true; x.abort(); }
+      }, 1000);
+      const done = (fn) => (...a) => { clearInterval(watch); fn(...a); };
+      x.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        lastAt = Date.now();
+        if (e.loaded >= e.total) sent = true;
+        onProgress(e.loaded / e.total);
+      };
+      x.onload = done(() => {
         let d = {};
         try { d = JSON.parse(x.responseText || "{}"); } catch { /* 本文が JSON でないこともある */ }
         if (x.status >= 200 && x.status < 300) return resolve(d);
         const e = new Error(d.detail || `HTTP ${x.status}`); e.status = x.status; reject(e);
-      };
+      });
       /* **どれで終わったのかを印に残す**。呼び出し元は
           「やめた（何もしない）」と「送れなかった（サーバーで作り直す）」を分けて扱う */
-      const fail = (msg, kind) => { const e = new Error(msg); e[kind] = true; reject(e); };
+      const fail = done((msg, kind) => { const e = new Error(msg); e[kind] = true; reject(e); });
       x.onerror = () => fail(tr("送れませんでした（通信が切れたようです）"), "sendFailed");
       x.ontimeout = () => fail(tr("時間切れです（回線が遅いか、途切れています）"), "sendFailed");
-      x.onabort = () => fail(tr("送信をやめました"), "aborted");
+      // **自分で切ったのか、利用者が「やめる」を押したのか**で、そのあとの動きが変わる
+      x.onabort = () => (stalled
+        ? fail(tr("送れませんでした（通信が止まりました）"), "sendFailed")
+        : fail(tr("送信をやめました"), "aborted"));
       x.send(fd);
     });
   }
