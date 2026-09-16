@@ -736,7 +736,11 @@ body.sheet-open { overflow: hidden; }
 @media (pointer: coarse) {
   /* **バーが要るときだけ幅を空ける**（`layout()` が付け外しする）。いつも空けると、
      スクロールしない並びでマスが狭くなる */
-  .tsb-host.tsb-on { padding-right: 24px; }
+  /* **溝のぶんは、出ていなくても常に空けておく**。出るときだけ padding を足すと、
+     中身の幅が変わる → `syncPreview` が枠の高さを取り直す → 中身の高さが変わる →
+     溝が要る／要らないが入れ替わる、という往復になり、**枠が痙攣して見える**
+     （実機で報告）。PC 側の `scrollbar-gutter: stable` と同じ考え方 */
+  .tsb-host { padding-right: 24px; }
   .tsb-host::-webkit-scrollbar { width: 0; height: 0; }    /* ブラウザのものは出さない（二重になる） */
   .tsb { display: block; position: absolute; width: 24px; background: var(--color-paper-3);
     box-shadow: inset 1px 0 0 var(--color-bar-dark), inset -1px 0 0 var(--color-bar-dark); touch-action: none; }

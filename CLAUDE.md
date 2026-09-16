@@ -740,6 +740,12 @@ claude --remote-control TRACKMENTO                                             #
   影がおかしく見えた**（実機で報告）。
   溝を押したら 1 画面ぶん送る（OS 9 と同じ）。見た目は `::-webkit-scrollbar` と同じ規則で描く。
   **ブラウザのものは `width: 0` で消す**（二重に出る）。PC（`pointer: fine`）では作らない
+- **指で触る画面の溝のぶんは、スクロールバーが出ていなくても常に空けておく**（`.tsb-host` の
+  `padding-right`、2026-09-16）。出るときだけ足すと、**中身の幅が変わる → `syncPreview` が枠の高さを
+  取り直す → 中身の高さが変わる → 溝が要る／要らないが入れ替わる**、という往復になり、
+  枠が痙攣して見えることがある（実機で報告）。PC 側の `scrollbar-gutter: stable` と同じ考え方。
+  `attachTouchScrollbar` の `layout()` と `syncPreview` が**それぞれ ResizeObserver を持っている**ので、
+  片方が寸法を変えるともう片方が反応する。**寸法を変えない形にするのが唯一の確実な止め方**
 - **指で操作する画面ではスクロールバーを 24px にする**（`@media (pointer: coarse)`）。16px は指の当たり判定として
   狭く（Material は 48dp、Apple は 44pt）、つまみを掴み損ねて溝を押し、別の場所へ飛んでしまう。
   つまみの最小の長さも 44px にしてある
