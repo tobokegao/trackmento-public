@@ -4,7 +4,7 @@
 
 `outputs/note/note-article.md` を、**note のエディタが受け取れる部品だけ**に変換して
 `outputs/note/note-paste.html` に書き出す。ブラウザでこのページを開き、全選択してコピー →
-note の本文に貼ると、見出し・太字・箇条書き・引用・リンク・区切り線がそのまま入る。
+note の本文に貼ると、見出し・太字・箇条書き・引用・区切り線がそのまま入る。
 
 note に無いもの（と、その扱い）:
 
@@ -12,6 +12,8 @@ note に無いもの（と、その扱い）:
 - **小見出しは 2 段まで** → `####` は太字の段落にする
 - **画像は貼り付けでは入らない**（外部の画像は落ちる）→ 置き場所に「【画像】ファイル名」の
   行を出しておき、note のエディタでその位置に上げ直してもらう
+- **文中のリンクは貼り付けで落ちる**（2026-09-17 に確認。a が文字だけになる）→ リンクのある段落の
+  すぐ下に「【リンク】「文字」に URL」の行を出し、note のエディタで付け直してもらう
 """
 from __future__ import annotations
 
@@ -44,9 +46,20 @@ def inline(s: str) -> str:
     return "".join(out)
 
 
+LINK_RE = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)]+)\)")
+
+
+def link_marks(text: str) -> list[str]:
+    """文中のリンクごとに目印の行を作る。**note に貼るとリンクが落ちる**（「ここ」などが文字だけになった）ので、
+    貼ったあとに手で付け直せるよう、文字と URL を黄色い行で添える。"""
+    return [f'<p class="ph">【リンク】「{html.escape(t)}」に {html.escape(u)}</p>' for t, u in LINK_RE.findall(text)]
+
+
 ARTIFACT_USAGE = (
     '<p class="ph" style="background:#d7f0ff"><b>使い方</b>: この画面を全選択してコピー → note の本文に貼り付け。'
-    '見出し・太字・箇条書き・リンク・区切り線はそのまま入ります。<b>黄色い行は目印</b>なので、その位置に画像を上げてから消してください。</p>\n'
+    '見出し・太字・箇条書き・区切り線はそのまま入ります。<b>黄色い行は目印</b>です。'
+    '【画像】はその位置に画像を上げ、【リンク】はすぐ上の文の該当する文字にリンクを付けてから消してください'
+    '（note に貼るとリンクは落ちます）。</p>\n'
 )
 
 
@@ -70,16 +83,20 @@ def main() -> int:
 
     def flush_p():
         if buf:
-            body.append("<p>" + inline(" ".join(buf).strip()) + "</p>")
+            text = " ".join(buf).strip()
+            body.append("<p>" + inline(text) + "</p>")
+            body.extend(link_marks(text))
             buf.clear()
 
     def flush_list():
         nonlocal ul, ol
         if ul:
             body.append("<ul>" + "".join(f"<li>{inline(x)}</li>" for x in ul) + "</ul>")
+            body.extend(m for x in ul for m in link_marks(x))
             ul = []
         if ol:
             body.append("<ol>" + "".join(f"<li>{inline(x)}</li>" for x in ol) + "</ol>")
+            body.extend(m for x in ol for m in link_marks(x))
             ol = []
 
     for raw in lines:
