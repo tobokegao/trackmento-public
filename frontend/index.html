@@ -836,7 +836,7 @@ body.sheet-open { overflow: hidden; }
   -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
 }
 /* 印の影（OS 9 の実物と同じ。同じ形を 1px 右下にずらして濃いグレーで敷く。::before なので印の下に来る） */
-.check input:checked::before { left: 1px; top: 1px; background: var(--color-bar-dark);
+.check input:checked::before { left: 1px; top: 1px; background: var(--color-paper-3);   /* 箱の内側の影（inset の paper-3）と同じ薄さ */
   clip-path: inset(0 5px 0 0); }   /* 影は枠の内側だけ（右は枠の内寸 14px で切る。印そのものは枠の外へ出てよい） */
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
