@@ -3702,24 +3702,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.ratioMsg.hidden = !show;
     if (show) els.ratioMsg.textContent = tr`この並びと比率だとジャケットが ${cellPx}px になります。正方形に近い比率にすると大きくなります。`;
   }
-  window.__flowRows = flowRows;   // 突き合わせ用
+  // 突き合わせ用（promo/dump_layouts.mjs）: 比率を差し替えて割り付けだけ取る
   window.__layoutFor = (q, ms) => { const b = state.ratio; state.ratio = q; try { return layout(ms); } finally { state.ratio = b; } };
-  // 突き合わせ用: 曲名の折り方だけを覗く（promo/dump_split.mjs）
-  window.__splitTitle = (title, px, maxW) => {
-    const c = document.createElement("canvas").getContext("2d");
-    return splitTitle(c, oneLine(title), fontBold(px), maxW);
-  };
-  window.__oneLine = (v) => oneLine(v);   // oneLine は後ろで const 宣言なので、遅延して呼ぶ
-  window.__titles = () => state.cells.filter(Boolean).map((t) => oneLine(t.title));
-  // 突き合わせ用: 曲ごとの行数の決め方を覗く（promo/dbg_split.mjs）
-  window.__rowPlanDbg = (px, avail) => {
-    const c = document.createElement("canvas").getContext("2d");
-    c.font = fontBold(px);
-    return state.cells.filter(Boolean).map((t) => {
-      const w = c.measureText(oneLine(t.title)).width;
-      return [Math.round(w), Math.round(avail), w > avail ? 3 : 2];
-    });
-  };
   window.__layout = layout;   // 突き合わせ（scripts/compare_render.py）から割り付けを覗くため
   window.__loadShareFonts = () => loadShareFonts();   // 割り付けを測る前に Web フォントを読む（promo/dump_layouts.mjs）
   window.__clearCharW = () => CHAR_W.clear();
@@ -3828,7 +3812,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     ["Moving Back", "https://tbkgao.bandcamp.com/track/moving-back"],
     ["Nesugoshi (No Noise Song #2)", "https://tbkgao.bandcamp.com/track/nesugoshi-no-noise-song-2"],
     ["Quibbles", "https://tbkgao.bandcamp.com/track/quibbles-2"],
-    ["Quibbles", "https://tbkgao.bandcamp.com/track/quibbles"],
     ["R A I N & tobokegao - Tokyo Drift [Remaster]", "https://tbkgao.bandcamp.com/track/tokyo-drift-remaster"],
     ["Room To Room", "https://tbkgao.bandcamp.com/track/room-to-room"],
     ["START", "https://tbkgao.bandcamp.com/track/start"],
@@ -3845,7 +3828,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     ["Skip (Vocal Version)", "https://tbkgao.bandcamp.com/track/skip-vocal-version"],
     ["Skip(Album Version)", "https://tbkgao.bandcamp.com/track/skip-album-version"],
     ["Skweeeee B4 (B5 version)", "https://tbkgao.bandcamp.com/track/skweeeee-b4-b5-version"],
-    ["So You Say", "https://tbkgao.bandcamp.com/track/so-you-say"],
     ["Stop", "https://tbkgao.bandcamp.com/track/stop"],
     ["Stop (20200807 BGB Full WIP)", "https://tbkgao.bandcamp.com/track/stop-20200807-bgb-full-wip"],
     ["Stop (20200814 Groovy Sameboy Test WIP)", "https://tbkgao.bandcamp.com/track/stop-20200814-groovy-sameboy-test-wip"],
@@ -3883,26 +3865,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     ["たなしい毎日", "https://tbkgao.bandcamp.com/track/being-rusty-tanashii-mainichi"],
     ["つかれた顔(ゲームは終わらない) (Tired Face (The Game Never Ends))", "https://tbkgao.bandcamp.com/track/tired-face-the-game-never-ends-2"],
     ["なぜ", "https://tbkgao.bandcamp.com/track/why-2"],
-    ["なぜ", "https://tbkgao.bandcamp.com/track/why"],
     ["イヌぞりレース リプレイのテーマ", "https://tbkgao.bandcamp.com/track/dogsled-race-replay-theme-2"],
-    ["イヌぞりレース リプレイのテーマ", "https://tbkgao.bandcamp.com/track/dogsled-race-replay-theme"],
     ["サンタクロース・アリガト", "https://tbkgao.bandcamp.com/track/santa-claus-arigato"],
     ["サンドバック", "https://tbkgao.bandcamp.com/track/sandbag"],
     ["シャンプー", "https://tbkgao.bandcamp.com/track/shampoo"],
     ["シャーベット", "https://tbkgao.bandcamp.com/track/sherbet-2"],
-    ["シャーベット", "https://tbkgao.bandcamp.com/track/sherbet"],
     ["トゥナイト通信", "https://tbkgao.bandcamp.com/track/tonight"],
     ["バースデーパーティ", "https://tbkgao.bandcamp.com/track/birthday-party-2"],
-    ["バースデーパーティ", "https://tbkgao.bandcamp.com/track/birthday-party"],
     ["ピクニック", "https://tbkgao.bandcamp.com/track/picnic-2"],
-    ["ピクニック", "https://tbkgao.bandcamp.com/track/picnic"],
     ["ブルーベリーパイ", "https://tbkgao.bandcamp.com/track/blueberry-pie-2"],
-    ["ブルーベリーパイ", "https://tbkgao.bandcamp.com/track/blueberry-pie"],
     ["古町MOI - ハピイバスデ (Hapii Basude) (tobokegao 8bit Remix) [Remaster]", "https://tbkgao.bandcamp.com/track/hapii-basude-tobokegao-8bit-remix-remaster"],
     ["孤独なフルーツ", "https://tbkgao.bandcamp.com/track/kodoku-na-fruits-2"],
-    ["孤独なフルーツ", "https://tbkgao.bandcamp.com/track/kodoku-na-fruits"],
     ["孤独なフルーツ（歌入り版）", "https://tbkgao.bandcamp.com/track/kodoku-na-fruits-vocal-version-2"],
-    ["孤独なフルーツ（歌入り版）", "https://tbkgao.bandcamp.com/track/kodoku-na-fruits-vocal-version"],
     ["幽霊へ", "https://tbkgao.bandcamp.com/track/dear-ghost"],
     ["疲れた顔(ゲームは終わらない) (Tired Face (The Game Never Ends))", "https://tbkgao.bandcamp.com/track/tired-face-the-game-never-ends"],
     ["空色平原(100年前) (Azure Fields(100 Years Ago))", "https://tbkgao.bandcamp.com/track/100-azure-fields-100-years-ago"],
@@ -3912,7 +3886,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     ["黄泉で足踏み（raphaelgoulart MD Remix）", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-raphaelgoulart-md-remix"],
     ["黄泉で足踏み（アルバム版）", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-album-version"],
     ["黄泉で足踏み（歌入り版）", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-vocal-version-2"],
-    ["黄泉で足踏み（歌入り版）", "https://tbkgao.bandcamp.com/track/yomi-de-ashibumi-vocal-version"],
   ];
   const upModal = $("#up-modal"), upFill = $("#up-fill"), upPct = $("#up-pct"), upNote = $("#up-note");
   /* **送信は必ず終わらせる**。XMLHttpRequest は既定で待ち続けるので、回線が切れて応答が
@@ -3935,7 +3908,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     a.textContent = title;
     const box = $("#up-track"); box.textContent = ""; box.append("♪ ", a);
     upFill.style.width = "0%"; upFill.removeAttribute("data-done");
-    upPct.textContent = "0%";
+    upPct.dataset.pct = 0; upPct.textContent = "0%";
     upNote.textContent = tr("回線が細いと少し時間がかかります。このままお待ちください。");
     upModal.hidden = false; document.body.classList.add("sheet-open");
     upStart = Date.now();
@@ -3950,8 +3923,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
     upFill.style.width = pct + "%";
     if (pct >= 100) upFill.dataset.done = "1";
-    upPct.dataset.pct = pct;
-    upPct.textContent = pct + "%";
+    upPct.dataset.pct = pct;          // 文字は 1 秒ごとの表示（openUpload の setInterval）が書く
     if (pct >= 100) upNote.textContent = tr("サーバーで保存しています…");
   }
   function closeUpload() {

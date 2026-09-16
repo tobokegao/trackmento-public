@@ -168,18 +168,6 @@ def search(q: str, limit: int = 40) -> list[dict]:
     return out
 
 
-def remove(sid: str) -> None:
-    """載せるのをやめる（今は使っていないが、通報や本人からの申し出で消せるように）。"""
-    with _lock:
-        if sid in _ids:
-            _ids.discard(sid)
-            _entries[:] = [e for e in _entries if e["id"] != sid]
-    try:
-        storage.get_storage().delete(PREFIX + sid + ".json")
-    except Exception:
-        pass
-
-
 def newest(limit: int = 12) -> list[dict]:
     """探す前の画面に出す「最近の並び」。題のあるものだけ（無題ばかり並べても選べない）。"""
     with _lock:

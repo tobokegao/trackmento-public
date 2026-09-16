@@ -87,7 +87,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 | `backend/merge.py` | 出どころ違いの結果をまとめる | 曲名の正規化はブラウザの `nkey()` と**同じ規則**にする |
 | `cli.py` | スマホから使うための命令 | サーバーが動いていないと使えない |
 | `scripts/` | 点検・突き合わせ・フォント生成・割り付けの総点検 | 下の「変更したら回すもの」に載っているものは必ず回す |
-| `promo/` | 紹介動画（Remotion + Playwright） | 詳しくは `video-notes.md` |
+| `promo/` | 紹介動画（Remotion + Playwright）と、記事用の GIF・写真の撮影 | 詳しくは `video-notes.md`。**使い捨ての調査スクリプトは置かない**（scratchpad で済ませる。2026-09-16 に 19 本たまって消した） |
 
 ### データはどこにあるか
 
@@ -903,6 +903,13 @@ claude --remote-control TRACKMENTO                                             #
   - ページは `share.find_html`。**JavaScript を使わない**（フォームの GET だけ）で、共有ページと同じ CSS。
     `noindex` は付けたまま（載せた人が同意したのは「このサイトの中で探せること」）
   - JSON は `/find.json`。**`/shares/{fname}` と経路がぶつかる**ので `/shares/search` にはできない
+- **記事用の GIF・写真**（2026-09-16）。`node promo/gif_windows.mjs <出力> [場面|all]` がコマを撮り、
+  `scripts/make_gifs.py <出力>` が GIF にする（色 200、縦長は幅を落とす）。写真は `promo/shots.mjs`、
+  表の画像は `promo/shoot_tables.mjs`、note に貼る HTML は `scripts/build_note_paste.py`
+  - **カーソルは `promo/cursor.js` を `addInitScript` で入れて自前で描く**。システムのカーソルは
+    スクリーンショットに写らない（OS が重ねているだけで、ページの絵ではない）。矢印＋押した合図の輪、
+    指の画面では丸。**HTML5 のドラッグ中は mousemove が来ない**ので `dragover` からも位置を拾う
+  - 撮影に使う `window.__setGridUI` は画面も描き直す版（`__setGrid` は割り付けを測るだけで描かない）
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）
   - **`?src=…` でどこから来たかを数える**（2026-09-15）。投稿に貼るリンクへ `?src=x` のように付けると、

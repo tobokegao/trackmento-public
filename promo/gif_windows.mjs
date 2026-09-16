@@ -19,6 +19,8 @@ const browser = await chromium.launch();
     候補に出るが、本番では未設定なので画面に出ない。記事の図と本番の画面を合わせる） */
 async function openPage(opts) {
   const c = await browser.newContext({ locale: "ja-JP", ...opts });
+  // **カーソルは自前で描く**（システムのカーソルはスクリーンショットに写らない）。promo/cursor.js
+  await c.addInitScript({ path: "promo/cursor.js" });
   const p = await c.newPage();
   await p.goto("http://127.0.0.1:8000/", { waitUntil: "networkidle" });
   await p.waitForFunction(() => window.__setGridUI);

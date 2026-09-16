@@ -135,9 +135,10 @@ def main() -> int:
                 continue
             new = 0
             for title, url in got:
-                if not title or url in seen:
+                # **同じ題は 1 つだけ**（アルバム版と Deluxe 版など。窓に出すのは題だけなので 2 つ要らない）
+                if not title or url in seen or title.casefold() in seen:
                     continue
-                seen.add(url)
+                seen.add(url); seen.add(title.casefold())
                 rows.append((title, url))
                 new += 1
             print(f"  {i:2d}/{len(rel)} {x['url']}  {len(got)} 曲（新しく {new}）")
