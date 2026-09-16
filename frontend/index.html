@@ -1009,7 +1009,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>それぞれのサービスのプレイリスト URL なら、収録曲をまとめて取得出来ます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>それぞれのサービスのプレイリスト URL（Bandcamp はアルバムも）なら、収録曲をまとめて取得出来ます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
@@ -1182,7 +1182,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>MusicBrainz</b>: 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
-          <p><b>まとめて取る</b>: プレイリスト・マイリスト・セット・収藏夹・再生リストの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで</b>（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
+          <p><b>まとめて取る</b>: プレイリスト・マイリスト・セット・収藏夹・再生リスト、それに Bandcamp のアルバムの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで</b>（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>VocaDB</b>: ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。既定ではオフです。</p>
           <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
@@ -1291,7 +1291,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "URL から": "From a URL",
         "Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。": "A page URL from Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify or Apple Music (a bare video ID such as sm… also works).",
         "改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。": "Put one per line to pull from several sites at once.",
-        "それぞれのサービスのプレイリスト URL なら、収録曲をまとめて取得出来ます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）": "A playlist URL from any of these services pulls in every track at once (up to 500; YouTube stops at 100 and bilibili at 20).",
+        "それぞれのサービスのプレイリスト URL（Bandcamp はアルバムも）なら、収録曲をまとめて取得出来ます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）": "A playlist URL from any of these services — or a Bandcamp album — pulls in every track at once (up to 500; YouTube stops at 100 and bilibili at 20).",
         "URL から取得": "Fetch from URL",
         "手入力（画像 URL＋曲名）": "By hand (image URL + track name)",
         "手入力: ジャケット画像の URL": "By hand: cover image URL",
@@ -1352,7 +1352,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "組み合わせ": "Combining sources",
         ": ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。": ": you can pick several. Results follow the order of the buttons (iTunes → MusicBrainz → …), and for duplicates the earlier source wins, since iTunes is fast and steady while MusicBrainz gets busy. Your choice is remembered.",
         "まとめて取る": "Fetching a whole list",
-        ": プレイリスト・マイリスト・セット・収藏夹・再生リストの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。": ": paste a playlist, mylist, set, favourites or watch-list URL and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
+        ": プレイリスト・マイリスト・セット・収藏夹・再生リスト、それに Bandcamp のアルバムの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。": ": paste a playlist, mylist, set, favourites or watch-list URL — or a Bandcamp album — and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
         "YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで": "YouTube playlists stop at 100 tracks and bilibili favourites at 20",
         "（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。": " because neither publishes a way to page through the rest. Put URLs on separate lines to mix several sites in one go.",
         ": Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track or album), SoundCloud (track), Spotify (track or album), YouTube (video), Niconico or bilibili and it picks up the cover or thumbnail along with the title and the artist (or uploader). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bare ID such as sm12345 works too.",
@@ -2045,7 +2045,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (h.endsWith("soundcloud.com") && /^\/[^/]+\/sets\/[^/]+/.test(p)) return true;
     if (h.endsWith("bilibili.com") && p.includes("favlist") && u.searchParams.get("fid")) return true;
     if (h.endsWith("spotify.com") && /\/playlist\/[A-Za-z0-9]+/.test(p)) return true;
-    if (h.endsWith("bandcamp.com") && /^\/[^/]+\/playlist\/[^/]+/.test(p)) return true;
+    // Bandcamp はファンのプレイリストと**アルバムのページ**（収録曲をまとめて取る）
+    if (h.endsWith("bandcamp.com") && (/^\/[^/]+\/playlist\/[^/]+/.test(p) || /^\/album\/[^/]+/.test(p))) return true;
     // Apple Music はアルバム（?i= が無いもの）とプレイリストがまとめ取り
     if (h === "music.apple.com") {
       if (/\/playlist\/[^/]*\/pl\./.test(p)) return true;

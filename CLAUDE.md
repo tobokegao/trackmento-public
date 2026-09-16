@@ -394,8 +394,14 @@ claude --remote-control TRACKMENTO                                             #
   - 見る順は「1 曲のページなら `trackinfo[0].artist` → `current.artist` → `artist` → JSON-LD の `byArtist`」。
     **アルバムのページで `trackinfo[0]` を見てはいけない**（1 曲目のアーティストがアルバム全体の名前になる）
   - `og:site_name` は**最後の保険**。あれは「ページの持ち主」の名前なので、レーベルのページでは必ずレーベル名になる
-  - **Bandcamp のアルバム URL は 1 マスとして扱われる**（`playlist.kind()` が拾うのは
-    `bandcamp.com/<user>/playlist/…` だけ）。アルバムを曲ごとに展開する仕組みは入っていない
+  - **Bandcamp のアルバム URL は収録曲に展開する**（2026-09-16）。以前は 1 マス（アルバム 1 枚）に
+    しかならず、レーベルのアカウントのものだと、その 1 マスのアーティストがレーベル名になっていた。
+    `playlist.kind()` が `/album/<名前>` も拾い、`_bc_album` が `data-tralbum` の `trackinfo` を読む
+    - **曲ごとの `artist` を優先**する（コンピレーションでは曲ごとに違う）。無ければアルバムの `artist`
+    - ジャケットは曲ごとの `art_id`、無ければアルバムの `art_id` から組み立てる
+    - ファンのプレイリスト（`bandcamp.com/<user>/playlist/…`）は今までどおり `data-blob` を読む。
+      アルバムの読み取りを先に試し、空なら従来の経路に落ちる
+    - 判定は画面側（`isPlaylist`）にも同じものがある。**片方だけ直すと、貼っても 1 マスのまま**になる
 - **VocaDB（ボカロのデータベース）**（`backend/sources/vocadb.py`、2026-09-16）。iTunes に配信の無い
   ボカロ曲を引くための、**選んだときだけ使う**ソース（応答が 1.6〜2.8 秒と iTunes より遅い）
   - **並べ替えを指定しないと原曲が上に来ない**。`sort=RatingScore` と `preferAccurateMatches=true` を

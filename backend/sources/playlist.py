@@ -45,6 +45,9 @@ _NICO_MYLIST_RE = re.compile(r"/mylist/(\d+)")
 _SC_SET_RE = re.compile(r"^/[^/]+/sets/[^/]+")
 _SPOTIFY_PLAYLIST_RE = re.compile(r"/playlist/([A-Za-z0-9]+)")
 _BC_PLAYLIST_RE = re.compile(r"^/[^/]+/playlist/[^/]+")
+# **アルバムのページも「まとめて取る」対象にする**。以前は 1 マス（アルバム 1 枚）にしかならず、
+# しかもレーベルのアカウントが上げたものだと、その 1 マスのアーティストがレーベル名になっていた
+_BC_ALBUM_RE = re.compile(r"^/album/[^/]+")
 
 
 def _host(url: str) -> str:
@@ -66,7 +69,7 @@ def kind(url: str) -> str:
         return "bilibili"
     if h.endswith("spotify.com") and _SPOTIFY_PLAYLIST_RE.search(path):
         return "spotify"
-    if h.endswith("bandcamp.com") and _BC_PLAYLIST_RE.match(path):
+    if h.endswith("bandcamp.com") and (_BC_PLAYLIST_RE.match(path) or _BC_ALBUM_RE.match(path)):
         return "bandcamp"
     if (h.endswith("youtube.com") or h == "youtu.be") and qs.get("list"):
         return "youtube"
@@ -247,10 +250,50 @@ async def _spotify(url: str, client: httpx.AsyncClient) -> list[Track]:
 
 # ---- Bandcamp のプレイリスト ----
 
+def _bc_album(text: str, url: str) -> list[Track]:
+    """アルバムのページ（`data-tralbum`）から収録曲を取り出す。
+
+    **曲ごとの `artist` を優先する**（コンピレーションやレーベルのアカウントでは、
+    アルバム全体の名前がレーベル名になっていることがある）。無ければアルバムの `artist`。
+    ジャケットは曲ごとの `art_id` があればそれ、無ければアルバムの `art_id` から組み立てる。
+    """
+    m = re.search(r'data-tralbum="(.*?)"', text, re.S)
+    if not m:
+        return []
+    try:
+        d = json.loads(html.unescape(m.group(1)))
+    except json.JSONDecodeError:
+        return []
+    tracks = d.get("trackinfo") or []
+    if not tracks:
+        return []
+    base = (d.get("url") or url).split("/album/")[0]
+    album_artist = (d.get("artist") or "").strip()
+    album_title = ((d.get("current") or {}).get("title") if isinstance(d.get("current"), dict) else None)
+    album_art = d.get("art_id")
+    out: list[Track] = []
+    for t in tracks[:MAX_ITEMS]:
+        title = (t.get("title") or "").strip()
+        art_id = t.get("art_id") or album_art
+        if not (title and art_id):
+            continue
+        link = t.get("title_link") or ""
+        out.append(Track(source="bandcamp", title=title,
+                         artist=(t.get("artist") or album_artist or "").strip(),
+                         album=album_title,
+                         image=f"https://f4.bcbits.com/img/a{art_id}_{bandcamp.COVER_SIZE}.jpg",
+                         thumb=f"https://f4.bcbits.com/img/a{art_id}_{bandcamp.THUMB_SIZE}.jpg",
+                         external_url=(base + link) if link.startswith("/") else (link or None)))
+    return out
+
+
 async def _bandcamp(url: str, client: httpx.AsyncClient) -> list[Track]:
     r = await client.get(url, headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"})
     r.raise_for_status()
-    m = re.search(r'data-blob="(.*?)"', r.text, re.S)
+    got = _bc_album(r.text, url)          # アルバムのページ
+    if got:
+        return got
+    m = re.search(r'data-blob="(.*?)"', r.text, re.S)   # ファンのプレイリスト
     if not m:
         raise ValueError("Bandcamp のページから曲の一覧を読めませんでした")
     try:
