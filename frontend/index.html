@@ -832,7 +832,7 @@ body.sheet-open { overflow: hidden; }
 /* **印は箱から右上へはみ出す**（OS 9 の実物と同じ。箱の中に収めると窮屈で、印が小さく見える） */
 .check input { position: relative; overflow: visible; }
 .check input:checked::after {
-  content: ""; position: absolute; left: 2px; top: -1px; width: 18px; height: 13px; background: var(--color-ink);   /* 右へ 2px はみ出す（OS 9 と同じ向き） */
+  content: ""; position: absolute; left: 1px; top: 0; width: 18px; height: 13px; background: var(--color-ink);   /* 右上へ 1px だけはみ出す（OS 9 と同じ向き） */
   -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
 }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
