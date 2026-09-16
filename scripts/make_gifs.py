@@ -14,7 +14,11 @@ from PIL import Image
 
 ROOT = pathlib.Path(sys.argv[1])
 WIDTH = int(sys.argv[2]) if len(sys.argv) > 2 else 720
-COLORS = 96
+# **色数はけちらない**。96 色では中間色が潰れて**全体がくすんで見える**（利用者から 3 回報告）。
+# 特に、暗い覆い（モーダルやシートの背景）が写る場面は、そちらに色を取られて紙の色が灰色に寄る。
+# GIF は 256 色まで使えるので、200 を既定にして、色の変化そのものが主題の場面はさらに上げる
+COLORS = 200
+HI_COLOR = {"palette": 240, "touchbar": 240, "sheet": 240, "custom": 224}
 MS = 100
 LAST_MS = 900
 # **縦に長いものは横幅も落とす**。スマホの画面を丸ごと撮った場面は 720px 幅だと高さが
@@ -43,7 +47,7 @@ def build(dirpath: pathlib.Path) -> None:
     montage = Image.new("RGB", (frames[0].width, frames[0].height * len(sample)))
     for i, f in enumerate(sample):
         montage.paste(f, (0, frames[0].height * i))
-    base = montage.quantize(colors=COLORS, method=Image.MEDIANCUT)
+    base = montage.quantize(colors=HI_COLOR.get(dirpath.name, COLORS), method=Image.MEDIANCUT)
     conv = [f.quantize(palette=base, dither=Image.FLOYDSTEINBERG) for f in frames]
     out = ROOT.parent / f"gif-{dirpath.name}.gif"
     durations = [MS] * (len(conv) - 1) + [LAST_MS]

@@ -183,12 +183,14 @@ if (want("url")) {
     }
     await hold(shot, 0.6);
   });
-  // 「まとめて取れました」の窓は別の切り取りで見せる
+  // 「まとめて取れました」の窓は別の場面にする。**切り取らない**（窓だけを切り取ると、
+  // 「マスに入れる」を押した瞬間に窓が消えて、以降のコマが真っ白になる。利用者から報告）
   if (await page.$("#pl-modal:not([hidden])")) {
-    await scene("url-pl", rectOf("#pl-modal .modal-panel"), async (shot) => {
-      await hold(shot, 1.4);
+    await scene("url-pl", null, async (shot) => {
+      await hold(shot, 1.6);
       await page.click("#pl-to-grid");
-      await hold(shot, 0.4);
+      await page.waitForTimeout(400);
+      await hold(shot, 1.6);
     });
   }
 }
@@ -327,21 +329,21 @@ if (want("palette")) {
   await seed(9);
   await waitArt();
   await page.waitForTimeout(400);
-  // 画面ぜんぶを撮る。**組を替えると背景色の見本だけでなく画面の装飾色まで変わる**のが要点
+  // 画面ぜんぶを撮る。**組を替えると背景色の見本だけでなく画面の装飾色まで変わる**のが要点。
+  // **替えるたびに窓を閉じる**。開けっ放しだと暗い覆いが掛かったままで、
+  // せっかく替えた色が沈んで見える（利用者から「くすんで見える」と報告）
   await scene("palette", null, async (shot) => {
     await hold(shot, 0.8);
-    await page.click("#palette-btn");
-    await page.waitForTimeout(300);
-    await hold(shot, 1.0);
     for (const i of [2, 3, 1]) {
+      await page.click("#palette-btn");
+      await page.waitForTimeout(300);
+      await hold(shot, 0.7);
       const b = await page.$(`.pal-lane:nth-child(${i}) .pal-btns .btn`);
-      if (!b || await b.isDisabled()) continue;
-      await b.click();
-      await hold(shot, 1.3);
+      if (b && !(await b.isDisabled())) { await b.click(); await hold(shot, 0.5); }
+      await page.click("#pal-modal-close");
+      await page.waitForTimeout(300);
+      await hold(shot, 1.2);
     }
-    await page.click("#pal-modal-close");
-    await page.waitForTimeout(300);
-    await hold(shot, 0.8);
   });
 }
 

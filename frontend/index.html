@@ -491,8 +491,11 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
   box-shadow: inset 2px 2px 0 var(--color-paper-3);
   transition: box-shadow var(--dur-short) var(--ease-out);
 }
-/* textarea は font を継承しないので揃える。縦だけ伸ばせるようにして、横に広げて崩されないようにする */
-textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
+/* textarea は font を継承しないので揃える。縦だけ伸ばせるようにして、横に広げて崩されないようにする。
+   **上の余白を 2px 足す**。凹みの影（`inset 2px 2px`）が上辺と左辺にだけ乗るので、
+   上下の余白が同じだと**文字が上に寄って見える**（利用者から報告）。影のぶんだけ下げて釣り合わせる */
+textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
+  padding-top: calc(var(--space-2) + 2px); }
 .input::placeholder { color: var(--color-muted); }
 .input:hover { box-shadow: inset 2px 2px 0 var(--color-rule-2); }
 .input:focus-visible { outline-offset: 0; box-shadow: inset 2px 2px 0 var(--color-paper-3); }
