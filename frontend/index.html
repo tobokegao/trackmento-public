@@ -838,6 +838,15 @@ body.sheet-open { overflow: hidden; }
 /* 印の影（OS 9 の実物と同じ。同じ形を 1px 右下にずらして濃いグレーで敷く。::before なので印の下に来る） */
 .check input:checked::before { left: 1px; top: 1px; background: var(--color-paper-3);   /* 箱の内側の影（inset の paper-3）と同じ薄さ */
   clip-path: inset(0 5px 0 0); }   /* 影は枠の内側だけ（右は枠の内寸 14px で切る。印そのものは枠の外へ出てよい） */
+/* **枠の外へ出た先端の影は 2px 右下**（壁が遠いぶん影は印から離れる。中は 1px）。label の擬似要素で
+   同じ形をもう 1 枚敷き、枠の外にある先端の影（label の x ≥ 20px）だけ残す。箱は label の左端・上下中央 */
+.check { position: relative; }
+.check:has(> input:checked)::before {
+  content: ""; position: absolute; left: 4px; top: calc(50% - 9px + 4px); width: 18px; height: 13px;
+  background: var(--color-paper-3); pointer-events: none;
+  -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
+  clip-path: inset(0 0 0 16px);   /* 枠の外にある先端（印の x ≥ 16）の影だけ。枠の線の上に乗った部分の影まで出すと、枠に沿った灰色の筋になる */
+}
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
 .swatches label { position: relative; flex: 1 1 28px; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに広がる（PC の列幅では 28px）。右に空きが残らない */
