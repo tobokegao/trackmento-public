@@ -835,18 +835,18 @@ body.sheet-open { overflow: hidden; }
   content: ""; position: absolute; left: 0; top: 0; width: 18px; height: 13px; background: var(--color-ink);   /* 右上の先端が枠の角に乗る（OS 9 と同じ向き） */
   -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
 }
-/* 印の影（同じ形を右下にずらして敷く。::before なので印の下に来る）。**箱は凹みなので、中の床は紙より深い＝印から遠く、
-   枠の外の紙は浅い＝印から近い**。影は壁までの距離に比例するので、中は 2px、外は 1px（利用者の指摘で直した） */
-.check input:checked::before { left: 2px; top: 2px; background: var(--color-paper-3);   /* 箱の内側の影（inset の paper-3）と同じ薄さ */
-  clip-path: inset(0 5px 0 0); }   /* 影は枠の内側だけ（右は枠の内寸 14px で切る。印そのものは枠の外へ出てよい） */
-/* **枠の外へ出た先端の影は 1px 右下**（紙の面は印に近いぶん影が寄る。中は 2px）。label の擬似要素で
-   同じ形をもう 1 枚敷き、枠の外にある先端の影だけ残す。箱は label の左端・上下中央 */
+/* 印の影（同じ形を 1px 右下にずらして敷く。::before なので印の下に来る）。**枠の線には掛けない**:
+   影は枠の内側だけで切る（線の上に乗ると、線が灰色ににじんで見える。利用者の指摘） */
+.check input:checked::before { left: 1px; top: 1px; background: var(--color-paper-3);   /* 箱の内側の影（inset の paper-3）と同じ薄さ */
+  clip-path: inset(0 5px 0 0); }   /* 枠の内寸（14×14）で切る。印そのものは枠の外へ出てよい */
+/* **枠の外へ出た先端にも同じ 1px 右下の影**。label の擬似要素で同じ形をもう 1 枚敷き、**枠より外側だけ**残す
+   （枠の線に掛からない）。印は label の x=2（枠の内側）から始まるので、影は x=3、枠の外は x≥18 → 局所 15px で切る */
 .check { position: relative; }
 .check:has(> input:checked)::before {
-  content: ""; position: absolute; left: 1px; top: calc(50% - 9px + 1px); width: 18px; height: 13px;
+  content: ""; position: absolute; left: 3px; top: calc(50% - 8px); width: 18px; height: 13px;
   background: var(--color-paper-3); pointer-events: none;
   -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
-  clip-path: inset(0 0 0 17px);   /* 枠の外（label の x ≥ 18px）に出た先端の影だけ。枠の線の上に乗った部分まで出すと、枠に沿った灰色の筋になる */
+  clip-path: inset(0 0 0 15px);   /* 枠の外（label の x ≥ 18px）に出た先端の影だけ */
 }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
