@@ -615,6 +615,13 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .grid-head .btn { white-space: nowrap; min-height: calc(1lh + 2 * var(--space-2) + 2 * var(--line)); }
 .pl-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2); }
 .note p { margin: 0; overflow-wrap: anywhere; }
+/* **リンクの色の既定は組の青**（`--color-cerulean`。ナイトならアジュール）。指定の無いリンクはブラウザ既定の
+   青（#0000EE）になり、暗い地では読めなかった（「サーバー代のおねがい」の中で報告）。
+   黒で置きたい所は各所の `.x a` が上書きする */
+a { color: var(--color-cerulean); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+/* 訪問済みは組の紫のスロット（`--color-lavender`。ナイトならバイオレット）。ラベンダーは淡い色で明るい地では
+   薄すぎるので、文字色を 35% 混ぜて沈める（暗い地では文字色が明るいので、混ぜると逆に浮いて読める） */
+a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-ink)); }   /* oklch だと色相が回り込んでピンクに寄る */
 .note a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .note code { font-family: ui-monospace, monospace; background: var(--color-paper); padding: 0 4px; border: 1px solid var(--color-rule); }
 .sub-form { border-top: var(--line) dashed var(--color-rule); }
