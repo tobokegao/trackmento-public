@@ -1187,6 +1187,14 @@ def _sniff_image_type(data: bytes) -> str | None:
     return None
 
 
+def _host_of(url: str) -> str:
+    """ログに添えるホスト名（URL 全体は利用者のデータなので出さない）。"""
+    try:
+        return (urlparse(url).hostname or "?")[:60]
+    except Exception:
+        return "?"
+
+
 async def fetch_image(url: str) -> tuple[str, bytes]:
     """画像を取得して (content-type, bytes) を返す。失敗は HTTPException。"""
     client: httpx.AsyncClient = app.state.http
@@ -1197,9 +1205,11 @@ async def fetch_image(url: str) -> tuple[str, bytes]:
     except netguard.BlockedURL as e:
         raise HTTPException(403, str(e)) from e
     except httpx.HTTPError as e:
-        raise HTTPException(502, f"取得失敗: {e}") from e
+        # **配信元のホスト名だけ理由に添える**（2026-09-17）。点検で「404 が 1,039 件」と出ても、どの配信元かが
+        # 分からず手が打てなかった。URL 全体は利用者のデータなので出さない（ホストは出どころの種類にすぎない）
+        raise HTTPException(502, f"取得失敗 ({_host_of(url)}): {type(e).__name__} {e}"[:120]) from e
     if r.status_code != 200:
-        raise HTTPException(502, f"画像サーバーが {r.status_code} を返しました")
+        raise HTTPException(502, f"画像サーバーが {r.status_code} を返しました ({_host_of(url)})")
     ctype = r.headers.get("content-type", "").split(";")[0].strip()
     if not ctype.startswith("image/"):
         # Content-Type を付けずに返す配信元がある（otoDB の CDN が実際にそう。
