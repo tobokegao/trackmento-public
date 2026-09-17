@@ -327,7 +327,8 @@ class FlowRow(NamedTuple):
     gaps: int                      # 曲の切れ目の数（余った幅をここに配る）
 
 
-FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さくなるなら流し込みに切り替える
+FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さくなるなら流し込み（や回り込み）を試す
+FLOW_KEEP_FONT = 16       # 試した結果が流し込みなら、1 曲 1 行が出力でこれ以上あるかぎり 1 曲 1 行を残す
 # 行の中心からベースラインまでの下向きの量（字の大きさに対する比）。**実測せず固定比にする**。
 # PIL の字面（getbbox）と Canvas の actualBoundingBox は数 px 違い、実測で決めると
 # 小さい文字ほど食い違いが目立つ。IBM Plex Sans JP の「あ」で 10〜128px を測ると 0.375〜0.406、
@@ -1478,6 +1479,7 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         if up + rows_now * line_h <= gh:
             title_h = up
     # 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
+    keep = (sb_w, sb_h, sb_cols, line_h, font_s, W, H, scale, title_h)   # 1 曲 1 行の組み方（下で戻すことがある）
     sb_flow = side != "none" and font_s * scale < FLOW_MIN_FONT
     if sb_flow:
         if side == "right" and ratio is not None:
@@ -1558,6 +1560,13 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
             return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
                           side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (),
                           True, wp.pad, wp.top, wp.segs, wp.rows_mode)
+    # **流し込みに落ちるくらいなら、1 曲 1 行を残す**（2026-09-17）。回り込みや柱・帯のほうがマスを大きく
+    # 取れる並びは上で返っている。ここに来るのは「流し込みの右サイドバー」で、字は 24〜34px と大きいが
+    # 高さの半分が空き、曲の区切りも見えない（利用者の 4x4・5x5・6x6 の 16:9 で「整列できそう」と指摘）。
+    # 1 曲 1 行が FLOW_KEEP_FONT（16px）以上あるなら、そちら（実測 17〜21px）のほうが整って見える
+    if sb_flow and keep[4] * keep[7] >= FLOW_KEEP_FONT:
+        sb_w, sb_h, sb_cols, line_h, font_s, W, H, scale, title_h = keep
+        sb_flow = False
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,

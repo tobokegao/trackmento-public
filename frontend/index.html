@@ -3136,7 +3136,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を続けて流し込み、
   // 幅で折り返す。区切りの記号は置かない。番号がピクセルフォントで本文と書体も色も違うので、それ自体が切れ目になる。
   // サーバー描画（backend/render.py の FLOW_* と _flow_rows）と同じ式にしてある。片方だけ変えてはいけない
-  const FLOW_MIN_FONT = 20;
+  const FLOW_MIN_FONT = 20, FLOW_KEEP_FONT = 16;
   // 行の中心からベースラインまでの下向きの量（字の大きさに対する比）。**実測せず固定比**
   // （backend/render.py の BASELINE と同じ。字面の測り方が PIL と Canvas で数 px 違うため）
   const BASELINE = 0.38;
@@ -3956,7 +3956,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (up + rowsNow * lineH <= gh) titleH = up;
     }
     // 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
-    const sbFlow = side !== "none" && fontS * scale < FLOW_MIN_FONT;
+    const keep = [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH];   // 1 曲 1 行の組み方（下で戻すことがある）
+    let sbFlow = side !== "none" && fontS * scale < FLOW_MIN_FONT;
     if (sbFlow) {
       if (side === "right" && ratio !== null) {
         // 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す。
@@ -4025,6 +4026,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
                  wrapRows: wp.rowsMode === true };
       }
     }
+    // **流し込みに落ちるくらいなら、1 曲 1 行を残す**（backend/render.py と同じ）。1 曲 1 行が FLOW_KEEP_FONT 以上なら戻す
+    if (sbFlow && keep[4] * keep[7] >= FLOW_KEEP_FONT) { [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH] = keep; sbFlow = false; }
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
     const contentH = titleTopH + gh + (side === "bottom" ? sbGap + sbH : 0);
     const ox = Math.round((W - contentW) / 2), oy = Math.round((H - contentH) / 2);
