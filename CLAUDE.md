@@ -1116,6 +1116,12 @@ claude --remote-control TRACKMENTO                                             #
   - `scripts/compare_layout.py --tracks=<json>` で曲を差し替えて突き合わせられる（長い題の並びを試すとき）
 - **画像が `/image-proxy` を通るかはホストで決まる**。`frontend/index.html` の `DIRECT_IMAGE_HOSTS`（mzstatic / coverartarchive.org / archive.org）はブラウザが直接読むので **Render の転送量に乗らない**。それ以外（Bandcamp・SoundCloud・YouTube・ニコニコ・bilibili・Discogs・otoDB）はサーバーを通る。帯域を調べるときは、まずここで対象を絞る
 - **`raise HTTPException(...)` で返した 5xx は `[error]` に出ない**。`http_error` が握るので `unhandled_error` を通らず、点検では「エラー行 0・5xx N」としか分からなかった。理由（detail）を見るために `[5xx]` という別の印を足してある（`main.py` の `_log_5xx` が理由ごとに数え、`_load_monitor` が `[stats]` と同じ 60 秒窓で `[5xx] <件数> <status> <パス種別> <理由>` を出す。上位 `_5XX_TOP` 件＋残りは「ほか」にまとめる）。
+  **配信元に無い画像は 404 で返し、1 時間覚えて取りに行かない**（`_IMG_MISSING` / `IMG_MISSING_TTL`、2026-09-17）。
+  それまで 502 で数えていたので、点検の 5xx に「消えた画像」（削除された動画のサムネイルなど。2 時間で 1,000 件）が
+  混ざり、本当の障害が埋もれていた。消えた画像が人気の共有に 1 枚入っているだけで、見られるたびに配信元へ
+  取りに行き直していたのも止まる。**404 だけは 4xx でも `[5xx]` の内訳に残す**（どの配信元が消えているかを見るため）。
+  取りに行く前に**別の版を順に試す**（`_image_fallbacks`）: 縮小版の URL を書き換える前の原寸、YouTube の
+  hqdefault → mqdefault → default、ニコニコの `.L` → 無印（sm9 のような古い動画は `.L` が無く、無印なら取れる。実測）。
   **理由には配信元のホスト名だけ添える**（`_host_of`、2026-09-17）。「404 が 1,039 件」だけではどの配信元か分からず手が打てなかった。URL 全体は利用者のデータなので出さない。
   **`[error]` に混ぜてはいけない**。あちらは「想定外の例外」を数えて判定に使う枠なので、配信元都合の 502 を入れると閾値が鈍る。`render_check.py` 側は `FIVEXX_RE` で拾って要約に内訳を出すだけで、判定は従来どおり `[stats]` の 5xx 合計で見る
 - **`[stats]` のログに転送量は入っていない**（件数・所要時間・5xx のみ）。どの経路が何バイト出しているかはログから分からないので、`curl` で実際のサイズを測るか、ブラウザの `performance.getEntriesByType('resource')` の `transferSize` を見る。件数が多い経路が重いとは限らない（実例: `/grids/*` は最多だが 1 件 3.6KB、フォントは件数が少ないのに 210KB）
