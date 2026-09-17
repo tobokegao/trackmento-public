@@ -83,6 +83,59 @@ def _to_track(item: dict) -> Track | None:
     )
 
 
+LOOKUP = "https://itunes.apple.com/lookup"
+ENGLISH_COUNTRY = "US"
+ENGLISH_TIMEOUT = 5.0
+_TRACK_ID_RE = re.compile(r"[?&]i=(\d+)")
+
+
+def track_id(url: str | None) -> str | None:
+    """trackViewUrl（`https://music.apple.com/jp/album/…/1538265733?i=1538265741`）から曲の ID を取る。"""
+    m = _TRACK_ID_RE.search(url or "")
+    return m.group(1) if m else None
+
+
+async def to_english(tracks: list[Track], *, client: httpx.AsyncClient | None = None) -> list[Track]:
+    """**英語の画面向けに、iTunes の曲名・アーティスト名・アルバム名を米国のストアの表記に差し替える**（2026-09-17）。
+
+    検索そのものは日本のストアのまま（米国のストアには無い曲があり、「ずっと真夜中でいいのに 秒針を噛む」は
+    カラオケ版が先頭に来る。絞り込みも日本語の入力と英語表記が合わず候補から消える）。見つかった曲の ID を
+    まとめて米国のストアに 1 回だけ問い合わせ、表記があるものだけ差し替える（「マリーゴールド / あいみょん」→
+    「Marigold / Aimyon」）。米国のストアに無い曲・問い合わせに失敗したときは日本語表記のまま返す。
+    ID は trackViewUrl の `i=` から取るので、キャッシュ済みの結果にもそのまま効く。
+    frontend の `itunesEnglish` と同じ規則。
+    """
+    ids = list(dict.fromkeys(i for t in tracks if t.source == "itunes" and (i := track_id(t.external_url))))
+    if not ids or is_blocked() or proxy_url():
+        return tracks
+    own = client is None
+    client = client or httpx.AsyncClient(timeout=ENGLISH_TIMEOUT)
+    try:
+        r = await client.get(LOOKUP, params={"id": ",".join(ids[:200]), "country": ENGLISH_COUNTRY, "entity": "song"},
+                             timeout=ENGLISH_TIMEOUT)
+        if r.status_code != 200:
+            return tracks
+        data = r.json()
+    except (httpx.HTTPError, ValueError):
+        return tracks
+    finally:
+        if own:
+            await client.aclose()
+    en = {str(it.get("trackId")): it for it in data.get("results", []) if it.get("wrapperType") == "track"}
+    out: list[Track] = []
+    for t in tracks:
+        it = en.get(track_id(t.external_url) or "") if t.source == "itunes" else None
+        if it:
+            t = t.model_copy(update={
+                "title": it.get("trackName") or t.title,
+                "artist": it.get("artistName") or t.artist,
+                "album": it.get("collectionName") or t.album,
+                "external_url": it.get("trackViewUrl") or t.external_url,
+            })
+        out.append(t)
+    return out
+
+
 async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "JP",
                  client: httpx.AsyncClient | None = None) -> list[Track]:
     term = f"{artist} {q}".strip()

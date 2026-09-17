@@ -807,6 +807,7 @@ async def search(
     artist: str = Query("", description="アーティスト名", max_length=200),
     source: str | None = Query(None, description="itunes|musicbrainz|discogs|otodb|vocadb。省略時は iTunes だけ（otodb・vocadb は含まない）"),
     nocache: bool = Query(False, description="true でキャッシュを使わず取り直す（公開モードでは無視）"),
+    lang: str = Query("ja", pattern="^(ja|en)$", description="en で iTunes の曲名・アーティスト名を米国のストアの表記にする"),
 ) -> JSONResponse:
     if public_mode():
         nocache = False
@@ -831,6 +832,9 @@ async def search(
         results, failed = await search_sources(names, q, artist, nocache=nocache)
         for res in results:
             out.extend(res)
+    if lang == "en":
+        # 英語の画面では iTunes の表記を米国のストアのものに（まとめる前に差し替え、重複の判定も英語表記で行う）
+        out = await itunes.to_english(out, client=app.state.http)
     tracks = merge(out) if len(names) > 1 else out
     headers = {}
     if failed:
