@@ -4061,6 +4061,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     save();
   }
   /* グリッドのプレビューを出力と同じ比率にする: 余白・マスの間隔を幅に合わせて縮尺し、背景色も反映 */
+  const ZOOM_MIN_CELL = 48;   // 拡大窓でのマスの下限（CSS px。指の当たり判定の 44〜48px）
   function syncPreview() {
     const gw = state.cols * CELL_PX + (state.cols - 1) * state.gap;
     const gh = state.rows * CELL_PX + (state.rows - 1) * state.gap;
@@ -4072,15 +4073,31 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.gridScroll.style.width = els.gridScroll.style.height = "0px";
       const cs = getComputedStyle(zoomSlot);
       const pad = (a, b) => parseFloat(cs[a]) + parseFloat(cs[b]);
-      // 枠線（上下・左右 2px ずつ）と、下で高さに足す 4px のぶんを引いておく
-      const availW = zoomSlot.clientWidth - pad("paddingLeft", "paddingRight") - 8;
+      const slotW = zoomSlot.clientWidth - pad("paddingLeft", "paddingRight");
       // **編集欄の高さも引く**。窓の高さ全部で計算すると、選択中のマスの編集が出たときに
       // グリッドがそのぶんはみ出して、編集欄と重なって見える
       const edH = els.editor.hidden ? 0 : els.editor.offsetHeight + parseFloat(cs.rowGap || 0);
-      const availH = zoomSlot.clientHeight - pad("paddingTop", "paddingBottom") - edH - 8;
-      els.gridScroll.style.width = `${Math.round(Math.max(160, Math.min(availW, availH * ar)))}px`;
+      const slotH = zoomSlot.clientHeight - pad("paddingTop", "paddingBottom") - edH;
+      // 並びに使える大きさ ＝ 窓から枠線（2px × 2）と、指の画面のスクロールバーの溝（出ているときだけ）を引いたもの
+      const padR = parseFloat(getComputedStyle(els.gridScroll).paddingRight) || 0;
+      const innerW = slotW - 4 - padR, innerH = slotH - 4;
+      let gridW = Math.round(Math.max(160, Math.min(innerW, innerH * ar)));
+      // **マスは ZOOM_MIN_CELL と「欄の中で見えていた大きさ」より小さくしない**（2026-09-17）。
+      // 「全部入る大きさ」だけだと、スマホでは幅で頭打ちになって欄の中と同じ大きさにしかならない
+      // （32x1 で 1 マス 10px のまま、と実機で報告）。下限を割るなら並びを大きくして、
+      // 入らないぶんは窓の中でスクロールさせる
+      const minCell = Math.max(ZOOM_MIN_CELL, zoomBaseCell);
+      if (CELL_PX * gridW / (gw + state.margin * 2) < minCell) gridW = Math.round(minCell / CELL_PX * (gw + state.margin * 2));
+      const gridH = Math.round(gridW / ar);
+      // あふれる向きには PC のスクロールバー（16px）のぶんを足す（足りないと、もう片方にもスクロールバーが出る）
+      const fine = !matchMedia("(pointer: coarse)").matches;
+      const sbW = fine && gridH > innerH ? 16 : 0, sbH = fine && gridW > innerW ? 16 : 0;
+      els.grid.style.width = `${gridW}px`;
+      els.gridScroll.style.width = `${Math.min(gridW + 4 + padR + sbW, slotW)}px`;
+      els.gridScroll.style.height = `${Math.min(gridH + 4 + sbH, slotH)}px`;
     } else {
       els.gridScroll.style.width = "";
+      els.grid.style.width = "";
     }
     const W = els.grid.getBoundingClientRect().width;
     if (!W) return;
@@ -4090,8 +4107,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.grid.style.gap = `${gap}px`;
     els.grid.style.background = bgColor();
     // 欄の中では、枠の大きさは列数・行数によらず 3×3 のときと同じ正方形に固定
-    // （行が列より多いとスクロールバーが出る）。拡大窓では中身の比のままにして全部見せる
-    els.gridScroll.style.height = `${Math.round(gridZoomed ? W / ar : W) + 4}px`;
+    // （行が列より多いとスクロールバーが出る）。拡大窓の高さは上で決めてある
+    if (!gridZoomed) els.gridScroll.style.height = `${Math.round(W) + 4}px`;
   }
 
   // ---- 送信中の窓（進み具合と、作者の曲） ----
@@ -4301,9 +4318,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 16x16 だと欄の中では 1 マス 26px しかなく、PC でも狙って掴めない、という報告から
   const zoomModal = $("#zoom-modal"), zoomSlot = $("#zoom-slot");
   const editorHome = els.editor.parentNode;   // 閉じるときに戻す先（検索ペイン）
-  let gridZoomed = false;
+  let gridZoomed = false, zoomBaseCell = 0;   // zoomBaseCell … 開く直前に欄の中で見えていたマスの大きさ
   function openZoom() {
     if (gridZoomed) return;
+    const cell = els.grid.querySelector(".cell");
+    zoomBaseCell = cell ? cell.getBoundingClientRect().width : 0;
     zoomSlot.append(els.gridScroll, els.editor);
     els.gridScroll.classList.add("is-zoom");
     gridZoomed = true; zoomModal.hidden = false; lockScroll();
