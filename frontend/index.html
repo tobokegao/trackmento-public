@@ -610,7 +610,9 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 /* 拡大窓では全部入る大きさにするので、溝のぶんを空けておく必要がない */
 /* 「大きく見る」ボタン。タイトル欄の右に置く（タイトルバーの縞の規則に触らないため） */
 .grid-head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
-.grid-head .btn { white-space: nowrap; }
+/* **ボタンの高さはタイトル欄と同じ式で出す**（1 行ぶん＋欄の上下の余白＋枠線）。ボタン共通の 40px のままだと
+   欄（44.8px）より 5px 低く、下辺でそろえているぶん上に段差が出ていた（記事のサムネで指摘） */
+.grid-head .btn { white-space: nowrap; min-height: calc(1lh + 2 * var(--space-2) + 2 * var(--line)); }
 .pl-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2); }
 .note p { margin: 0; overflow-wrap: anywhere; }
 .note a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
