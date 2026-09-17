@@ -1,7 +1,8 @@
 // 拍・小節の割り付けと、録画（events.json）との対応。
 // 9:16（tall）と 16:9（wide）、日本語と英語で同じ拍割りを使う。
 //
-// 曲は Sherbet（BPM 129.20 / 1 小節 1.858 秒 / 拍 0 = 0.557 秒）。全 77 小節だが、使うのは 47 小節（≒ 87 秒）。
+// 曲は Sherbet（**BPM 130.00 ちょうど** / 1 小節 1.846 秒 / 1 小節目の頭 = 0.52 秒 = 頭の無音のあとの最初の音）。全 77 小節だが、使うのは 47 小節（≒ 87 秒）。
+// 拍は beats.json の固定の格子（2026-09-17 に全曲の櫛で測り直した。librosa の拍は 40〜100ms 遅れていた）。
 // 録画は本編（9 マスを埋めて共有まで）と feat（新機能だけ）の 2 本立て。
 // ① で 500 曲入れると並びが壊れるので、同じセッションでは撮れないため。
 //
@@ -19,7 +20,7 @@ import evWideEnFeat from "../public/recordings-pc-feat-en/events.json";
 
 export const FPS = 30;
 export const BAR = 4;                                   // 4/4 拍子
-const BEATS: number[] = beatsJson.beats;                // librosa の拍（秒）
+const BEATS: number[] = beatsJson.beats;                // 拍（秒）。BPM 130 の固定の格子
 
 export const beatTime = (i: number) => {
   if (i < BEATS.length) return BEATS[i];

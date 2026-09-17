@@ -72,8 +72,13 @@
 
 ## v2 の構成（2026-09-14 確定）
 
-曲は **Sherbet.mp3**（`promo/public/sherbet.mp3`、2:31.9）。**BPM 129.20 / 1 小節 1.858 秒 / 拍 0 = 0.557 秒**
-（音の立ち上がり 0.646 秒とほぼ同時）。拍は `promo/src/beats.json`（306 拍、拍抜けなし）。
+曲は **Sherbet.mp3**（`promo/public/sherbet.mp3`、2:31.9）。**BPM 130.00 ちょうど / 1 小節 1.846 秒 /
+1 小節目の頭 = 0.52 秒**（頭の無音のあとの最初の音。2026-09-17 に全曲の櫛で測り直した。それまでの
+「129.20・0.557 秒」は librosa の拍（40〜100ms 遅れ、末尾で 0.1 秒ずれる）から出した値で、
+41〜42 小節のキメが 1 拍近く遅れていた）。拍は `promo/src/beats.json`（固定の格子、328 拍）。
+測り方: scratchpad の `tempo.py` / `phase.py` 相当（ffmpeg でデコード → スペクトル流束 → 127〜133 を 0.01 刻みの櫛で当てる）。
+**譜割りの共有エディタ** https://claude.ai/artifact/KNEULMAUpPGXSYdrCmWC1Q（場面・キメ・勢いを小節に乗せて書き込める。
+共有ストレージ `plan/main` を Claude が直接読めるので、そこから timeline.ts に写す）
 v1 の `theme.mp3` は 129.31 でテンポがほぼ同じなので、`SHOTS` の `speed` と尺はそのまま流用できる。
 v1 の拍は `promo/src/beats-v1.json` に残してある。
 
