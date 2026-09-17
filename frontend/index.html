@@ -3468,7 +3468,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // 中央に置くと左右が両方とも「文字を流すには狭い」幅になって捨てになる。塊を左・文字を
       // 上／右／下に置くと文字がちょうど「コ」の形になる（backend/render.py と同じ規則）
       if (gx - wgap - pad < minW && W - pad * 2 - gw - wgap >= minW) gx = pad;
-      const x0 = pad, x1 = W - pad;
+      let x0 = pad, x1 = W - pad;
       const ox0 = gx - wgap, ox1 = gx + gw + wgap;
       /* **左右に段が作れないなら、塊を上に寄せて文字を全部下に流す**
         （タイトル → マス → 曲名リスト）。上下に分かれると 01〜13 が上・14〜20 が下になり、
@@ -3476,7 +3476,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         マスの大きさはそのまま**。左右のどちらかが使えるときは今までどおり（コの字・回り込み）
          （backend/render.py と同じ規則） */
       const stack = !!nTop && ox0 - x0 < minW && x1 - ox1 < minW;
-      if (stack) nTop = 0;
+      if (stack) { nTop = 0; x0 = gx; x1 = gx + gw; }   // 文字の幅は塊の幅にそろえる（backend/render.py と同じ）
       const nSide = Math.floor((gh + a * 2) / lineH);
       const leftOk = ox0 - x0 >= minW, rightOk = x1 - ox1 >= minW;
       /* 上の帯を nt 行にしたときの [塊の y, 段の並び, 流し込んだ行]。入らなければ null（backend/render.py の lay と同じ） */

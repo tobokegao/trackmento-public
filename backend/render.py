@@ -1153,6 +1153,9 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         stack = bool(n_top) and ox0 - x0 < min_w and x1 - ox1 < min_w
         if stack:
             n_top = 0
+            # **文字の幅は塊の幅にそろえる**（2026-09-17）。塊の下に全部流すとき、枠のほうが塊より広いと
+            # 文字だけ左右にはみ出して「マスと幅が合っていない」見た目になる（利用者の 7x10・9:16 で指摘）
+            x0, x1 = gx, gx + gw
         n_side = (gh + a * 2) // line_h
         left_ok, right_ok = ox0 - x0 >= min_w, x1 - ox1 >= min_w
 
