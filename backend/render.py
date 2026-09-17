@@ -335,7 +335,7 @@ FLOW_MIN_FONT = 20        # 1 曲 1 行のとき、出力でこれより小さ�
 BASELINE = 0.38
 # 回り込み（正方形以下の比率で曲が多いとき）。マスの塊を中央に置き、左上から右下へ文字を流す。
 # 塊にぶつかる行は「左の段 → 塊の向こう側の右の段」と続ける
-WRAP_GAP_EM = 0.75        # マスの塊と文字（字面）のあいだ。文字の大きさに対する割合
+WRAP_GAP_EM = 0.5         # マスの塊と文字（字面）のあいだ。文字の大きさに対する割合（0.75 は広すぎると指摘があった）
 WRAP_MIN_SEG = 20         # 段の最小幅（文字の大きさの何倍か＝だいたい何字入るか）。
                           # これ未満の隙間には流さない。**8 字だと曲名が数文字ごとに折れて読めない**
                           # （実測で 8x12・9:16 の左右が 8 字ぶんしかなかった）。
@@ -365,6 +365,7 @@ WRAP_CELL_KEEP_SMALL = 0.6
 # 塊が枠の 66% の幅で、左右に 182px ずつ死んでいた）。この倍率以上大きくなるなら落とす
 WRAP_CELL_GAIN = 1.25
 WRAP_TARGET_FLOOR = 14    # ただし、マスのために文字をここまでしか落とさない
+WRAP_FINE_STEPS = 24      # 枠を決めたあと、字を 1 論理 px ずつ大きくして余りを埋める回数の上限
 WRAP_SWITCH_PX = 12       # 出力での文字がこれを下回るなら回り込みに切り替える
 WRAP_SWITCH_GAIN = 1.3    # 文字がこの倍率以上大きくなるなら、マスが少し小さくなっても切り替える
 WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
@@ -519,21 +520,44 @@ def _break_at(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_
     return text[:cut].rstrip(), text[cut:].lstrip()
 
 
+# 行頭に来てはいけない字（長音・小書き・句読点）。ここで折ると「アンハッピ／ーリフレイン」のように読めなくなる
+_NO_HEAD = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ゛゜、。，．・！？!?）)］]」』】〉》"
+_LATIN = re.compile(r"[A-Za-z0-9'’]")
+
+
+def _break_ok(text: str, i: int) -> bool:
+    """i の手前で折ってよいか。長音・小書きの前と、英単語の途中（Child's G|arden）は避ける（frontend の breakOk と同じ）。"""
+    if text[i] in _NO_HEAD:
+        return False
+    return not (_LATIN.match(text[i - 1]) and _LATIN.match(text[i]))
+
+
 def _break_near(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont,
                 max_w: float, target: float) -> tuple[str, str]:
-    """字の途中で折る。**行の真ん中にいちばん近い所**を選ぶ（`_break_at` は右端まで詰める）。"""
+    """字の途中で折る。**行の真ん中にいちばん近い所**を選ぶ（`_break_at` は右端まで詰める）。
+    **折ってよい位置（`_break_ok`）を先に探し**、無いときだけどこでも折る（2026-09-17）。"""
     best: tuple[float, int] | None = None
     fit: tuple[float, int] | None = None     # **2 行目も収まる**位置の中でいちばん真ん中に近いもの
+    best_any: tuple[float, int] | None = None
+    fit_any: tuple[float, int] | None = None
     for i in range(1, len(text)):
         w1 = d.textlength(text[:i], font=f)
         if w1 > max_w:
             break
         score = abs(w1 - target)
+        ok = _break_ok(text, i)
+        fits = d.textlength(text[i:].lstrip(), font=f) <= max_w
+        if best_any is None or score < best_any[0]:
+            best_any = (score, i)
+        if fits and (fit_any is None or score < fit_any[0]):
+            fit_any = (score, i)
+        if not ok:
+            continue
         if best is None or score < best[0]:
             best = (score, i)
-        if d.textlength(text[i:].lstrip(), font=f) <= max_w and (fit is None or score < fit[0]):
+        if fits and (fit is None or score < fit[0]):
             fit = (score, i)
-    best = fit or best
+    best = fit or best or fit_any or best_any
     if best is None:
         return _break_at(d, text, f, max_w)
     i = best[1]
@@ -715,6 +739,7 @@ class WrapPlan(NamedTuple):
     rows: list[FlowRow]
     use: float = 1.0      # 文字の置き場所のうち実際に使った割合（帯・柱でだけ 1 未満になる）
     rows_mode: bool = False   # 段を 1 曲ずつマスの横に並べる（柱・1 列の並びだけ）
+    pct: int = 0          # 枠が塊の何 % か（回り込みで、枠を変えずに字を詰め直すときに使う）
 
 
 # ---- 帯・柱: マスの塊を枠の辺にぴったり付ける組み方 ----
@@ -1070,10 +1095,10 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
     pad0 = _mod_pad(max(m, rnd(min(gw, title_h + gh) * 0.035)), doc.options.gap)
     Wb, Hb = _fit(gw, title_h + gh, pad0, ratio)
 
-    def build(pct: int, target: int) -> WrapPlan | None:
+    def build(pct: int, target: int, fs: int | None = None, seg_fs: int | None = None) -> WrapPlan | None:
         W, H = rnd(Wb * pct / 100), rnd(Hb * pct / 100)
         scale = min(1.0, max_side_v / max(W, H))
-        font_s = max(18, rnd(target / scale))
+        font_s = fs if fs else max(18, rnd(target / scale))
         # **マスの送りの約数に寄せる**（塊の左右に流れる行が、ジャケットの段とそろう）。
         # ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
         line_h = _snap_lead(rnd(font_s * 1.5), CELL_PX + doc.options.gap)
@@ -1105,7 +1130,9 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         gy = top + n_top * line_h - a * 2 + wgap
         if gx < pad or gy < top or gy + gh > bot:      # 塊が枠に入らない
             return None
-        min_w = font_s * WRAP_MIN_SEG
+        # 段の最小幅。**枠を決めたあとの詰め直し（fs 指定）では、枠を決めたときの字（seg_fs）で測る**。
+        # 字を 1px 大きくしただけで「20 字に 1 字足りない」と段が消え、詰め直しが 1 歩も進めなかった
+        min_w = (seg_fs or font_s) * WRAP_MIN_SEG
         if gx - wgap - pad < min_w and W - pad * 2 - gw - wgap >= min_w:
             gx = pad                   # コの字（塊は左端の中央、文字は上・右・下）
         x0, x1 = pad, W - pad
@@ -1114,36 +1141,73 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         # （タイトル → マス → 曲名リスト）。上下に分かれると 01〜13 が上・14〜20 が下になり、
         # 読み順が塊をまたいで飛ぶ（利用者から指摘）。**枠の大きさも文字の総量も変わらないので、
         # マスの大きさはそのまま**。左右のどちらかが使えるときは今までどおり（コの字・回り込み）
-        if n_top and ox0 - x0 < min_w and x1 - ox1 < min_w:
-            n_top, gy = 0, top
-        segs: list[tuple[int, int, int]] = []
-        for r in range(n_top):                          # 塊の上の帯（枠いっぱい）
-            segs.append((x0, top - a + r * line_h, x1 - x0))
-        # 塊の左右。**左の段をぜんぶ埋めてから右の段へ移る**（1 行ごとに左右へ飛ぶと読みにくい、
-        # と実際に読んでみての指摘があった）。新聞の段組みと同じ読み方になる
+        stack = bool(n_top) and ox0 - x0 < min_w and x1 - ox1 < min_w
+        if stack:
+            n_top = 0
         n_side = (gh + a * 2) // line_h
-        if ox0 - x0 >= min_w:
-            segs += [(x0, gy - a + r * line_h, ox0 - x0) for r in range(n_side)]
-        if x1 - ox1 >= min_w:
-            segs += [(ox1, gy - a + r * line_h, x1 - ox1) for r in range(n_side)]
-        y = gy + gh + wgap - a                          # 塊の下の帯（枠いっぱい）
-        while y + line_h - a <= bot:
-            segs.append((x0, y, x1 - x0))
-            y += line_h
-        if not segs:
+        left_ok, right_ok = ox0 - x0 >= min_w, x1 - ox1 >= min_w
+
+        def lay(nt: int):
+            """上の帯を nt 行にしたときの (塊の y, 段の並び, 流し込んだ行)。入らなければ None"""
+            gy_ = top if stack else top + nt * line_h - a * 2 + wgap
+            if gy_ < top or gy_ + gh > bot:
+                return None
+            sg: list[tuple[int, int, int]] = [(x0, top - a + r * line_h, x1 - x0) for r in range(nt)]   # 塊の上の帯（枠いっぱい）
+            # 塊の左右。**左の段をぜんぶ埋めてから右の段へ移る**（1 行ごとに左右へ飛ぶと読みにくい、
+            # と実際に読んでみての指摘があった）。新聞の段組みと同じ読み方になる
+            if left_ok:
+                sg += [(x0, gy_ - a + r * line_h, ox0 - x0) for r in range(n_side)]
+            if right_ok:
+                sg += [(ox1, gy_ - a + r * line_h, x1 - ox1) for r in range(n_side)]
+            y = gy_ + gh + wgap - a                       # 塊の下の帯（枠いっぱい）
+            while y + line_h - a <= bot:
+                sg.append((x0, y, x1 - x0))
+                y += line_h
+            if not sg:
+                return None
+            rw = _flow_rows(doc, font_s, 0.0, [float(q[2]) for q in sg], len(sg) + 1)
+            return (gy_, sg, rw) if len(rw) <= len(sg) else None
+
+        got = lay(n_top)
+        if got is None:
             return None
-        rows = _flow_rows(doc, font_s, 0.0, [float(sg[2]) for sg in segs], len(segs) + 1)
-        if len(rows) > len(segs):
-            return None
-        # **使わなかった行のぶんは、上下に半分ずつ分ける**。文字が下の帯の途中で終わると
-        # 下だけ大きく空いて「途中で終わった」ように見える。中身ごと下げれば上下が同じ余白になる
+        gy, segs, rows = got
+        # **上下の帯の厚みをそろえる**（2026-09-17）。上の帯の行数は「塊を枠の中央に置く」前提で決まるので、
+        # 文字が下の帯の途中で終わると上 4 行・下 2 行のように偏る（利用者の 6x9・4:5 で指摘）。
+        # 下に使った行数を見て、上下が同じ行数になるまで上の帯を減らして組み直す
+        n_sidef = n_side * (int(left_ok) + int(right_ok))
+        for _ in range(3):
+            n_bot = max(0, len(rows) - n_top - n_sidef)
+            nt = (n_top + n_bot + 1) // 2
+            if not n_top or nt >= n_top:
+                break
+            got = lay(nt)
+            if got is None:
+                break
+            n_top, (gy, segs, rows) = nt, got
         segs = segs[:len(rows)]
-        last = (segs[-1][1] + line_h - a) if segs else top
-        dy = max(0, (bot - max(gy + gh, last)) // 2)
-        if dy:
-            gy += dy
-            segs = [(sx, sy + dy, sw) for sx, sy, sw in segs]
-        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, pad + dy, gx, gy, tuple(segs), rows)
+        # **余った高さは、上下の外側の余白と塊の上下のすきまに、それぞれの大きさに比例して配る**（2026-09-17）。
+        # 行は段の数で決まるので、枠と字をどう選んでも 1 行に満たない余りは残る（段が 1 行減る所で
+        # 字を大きくできなくなる）。外側の余白だけに振ると上下だけ左右より広くなり、すきまだけに
+        # 振ると塊の上下だけ右より空く、とどちらも指摘があった。縦の空気を全部同じ割合で広げる
+        top_ = pad
+        last = (segs[-1][1] + line_h - a) if segs else gy + gh
+        spare = max(0, bot - max(gy + gh, last))
+        if spare:
+            d_m = rnd(spare * pad / (2 * (pad + wgap)))   # 外側の余白（片側）に足すぶん
+            d_g = spare // 2 - d_m                          # 塊の上下のすきま（片側）に足すぶん
+            out: list[tuple[int, int, int]] = []
+            for sx, sy, sw in segs:
+                if sy >= gy + gh - a:            # 下の帯（塊より下）
+                    out.append((sx, sy + d_m + d_g * 2, sw))
+                elif sy >= gy - a:               # 塊の左右の段は塊と一緒に
+                    out.append((sx, sy + d_m + d_g, sw))
+                else:                            # 上の帯はタイトルと一緒に
+                    out.append((sx, sy + d_m, sw))
+            segs = out
+            gy += d_m + d_g
+            top_ += d_m
+        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, top_, gx, gy, tuple(segs), rows, pct=pct)
 
     # 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始める
     lo0 = max(100, math.ceil(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MAX))
@@ -1186,6 +1250,21 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
                 break
             got = search(down)
             if not got or got.scale < base.scale * WRAP_CELL_GAIN:
+                break
+            best = got
+        # **枠はそのままで、字を 1 論理 px ずつ大きくして余りを埋める**（2026-09-17）。WRAP_TARGET_UP の
+        # 刻みは出力で 2〜4px あり、その間では「まだ入るのに使っていない高さ」が 1〜2 行ぶん残る。
+        # 余りは塊の上下のすきまに振るので、そこだけ左右より広く見えていた（利用者の 6x9・4:5 で指摘）。
+        # 枠（＝マスの大きさ）は変えないので、大きくなるのは字だけ
+        # 字が大きくできなくなったら、**枠を 1% ずつ小さくする**（＝マスが大きくなる）。段の行は
+        # マスの高さで数が決まるので、字だけ大きくしても「段が 1 行減って入らない」所で止まる。
+        # 枠を縮めると帯の幅が減るぶん段の行が増え、また字を大きくできることがある
+        seg_fs = best.font_s
+        for _ in range(WRAP_FINE_STEPS):
+            got = build(best.pct, 0, best.font_s + 1, seg_fs)
+            if got is None and best.pct > lo0:
+                got = build(best.pct - 1, 0, best.font_s, seg_fs)
+            if got is None:
                 break
             best = got
         return best
@@ -1313,6 +1392,14 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
                 fs_now, dmg_now = _right_final(sb_cols)
                 fs_new, dmg_new = _right_final(sb_cols + 1)
                 if dmg_new > dmg_now and fs_new * scale2 < fs_now * scale * LIST_COL_TIDY_GAIN:
+                    break
+            else:
+                # **下に置くときも同じ**（2026-09-17）。マスが少し大きくなるだけで 3 列にすると、
+                # 4x4・1:1・16 曲でアーティスト名が「…」になり、曲名が変な所で折れていた（利用者の画像で指摘）。
+                # 崩れる曲が増えるなら、マスが LIST_COL_TIDY_GAIN 倍以上大きくならない限り増やさない
+                dmg_now = _list_damage(doc, font_s, (sb_w - LIST_COL_GAP * (sb_cols - 1)) // sb_cols)
+                dmg_new = _list_damage(doc, fs, (w - LIST_COL_GAP * sb_cols) // (sb_cols + 1))
+                if dmg_new > dmg_now and scale2 < scale * LIST_COL_TIDY_GAIN:
                     break
             sb_cols, line_h, font_s, sb_w, sb_h = sb_cols + 1, lh, fs, w, sb_h2
             W, H, scale = _frame(sb_w, sb_h)

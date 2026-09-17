@@ -3212,7 +3212,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 回り込み（正方形以下の比率で曲が多いとき）。マスの塊を中央に置き、左上から右下へ文字を流す。
   // 塊にぶつかる行は「左の段 → 塊の向こう側の右の段」と続ける（backend/render.py の WRAP_* と同じ値）
   // WRAP_MIN_SEG は段の最小幅（文字の大きさの何倍か＝だいたい何字入るか）。8 字だと曲名が数文字ごとに折れて読めない
-  const WRAP_GAP_EM = 0.75, WRAP_MIN_SEG = 20, WRAP_GRID_MAX = 0.96, WRAP_GRID_MIN = 0.45;
+  const WRAP_GAP_EM = 0.5, WRAP_MIN_SEG = 20, WRAP_GRID_MAX = 0.96, WRAP_GRID_MIN = 0.45;
   const WRAP_MAX_PCT = 400, WRAP_TITLE_SCALE = 4.0, WRAP_TITLE_MAX = 0.3, WRAP_TITLE_MIN = 1.6, WRAP_SWITCH_PX = 12, WRAP_SWITCH_GAIN = 1.3;
   // 出力での文字の大きさ（px）。上から順に試し、入る中でいちばん大きいものを使う
   const WRAP_TARGET_PX = [FLOW_MIN_FONT, 18, 16, 14, 12];
@@ -3221,7 +3221,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const WRAP_TARGET_UP = [22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72, 84, 96, 112, 128], WRAP_CELL_KEEP = 0.85;
   // 逆に、文字を 1〜2 段落とすとマスが大きく取れることがある（塊の形と枠の比率が食い違うと、
   // 大きい文字のままでは塊を横いっぱいにできず、左右に使えない空白が残る）
-  const WRAP_CELL_GAIN = 1.25, WRAP_TARGET_FLOOR = 14;
+  const WRAP_CELL_GAIN = 1.25, WRAP_TARGET_FLOOR = 14, WRAP_FINE_STEPS = 24;
   // マスがもともと小さいときは守る意味が薄いので、文字を大きくする許容を緩める
   const WRAP_CELL_OK = 40, WRAP_CELL_KEEP_SMALL = 0.6;
   const TITLE_MIN_SCALE = 1.6;   // 曲名リストに対するタイトルの最低倍率（回り込み以外の組み方）
@@ -3432,10 +3432,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function wrapPlan(gw, gh, titleH, ratio, m, maxSide) {
     const pad0 = modPad(Math.max(m, Math.round(Math.min(gw, titleH + gh) * 0.035)), state.gap);
     const [Wb, Hb] = fit(gw, titleH + gh, pad0, ratio);
-    const build = (pct, target) => {
+    const build = (pct, target, fs, segFs) => {
       const W = Math.round(Wb * pct / 100), H = Math.round(Hb * pct / 100);
       const scale = Math.min(1, maxSide / Math.max(W, H));
-      const fontS = Math.max(18, Math.round(target / scale));
+      const fontS = fs || Math.max(18, Math.round(target / scale));
       // **マスの送りの約数に寄せる**（塊の左右に流れる行がジャケットの段とそろう）。
       // ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
       const lineH = snapLead(Math.round(fontS * 1.5), CELL_PX + state.gap);
@@ -3458,10 +3458,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // 行を等間隔に並べただけだと、格子の余りが塊の上下に溜まって左右より広く見える
       const a = Math.round((lineH - Math.round(fontS * 0.9)) / 2);
       const wgap = Math.round(fontS * WRAP_GAP_EM);
-      const nTop = Math.max(0, Math.round((top + Math.round((bot - top - gh) / 2) - wgap + a * 2 - top) / lineH));
+      let nTop = Math.max(0, Math.round((top + Math.round((bot - top - gh) / 2) - wgap + a * 2 - top) / lineH));
       let gy = top + nTop * lineH - a * 2 + wgap;
       if (gx < pad || gy < top || gy + gh > bot) return null;   // 塊が枠に入らない
-      const minW = fontS * WRAP_MIN_SEG;
+      const minW = (segFs || fontS) * WRAP_MIN_SEG;   // 詰め直し（fs 指定）では枠を決めたときの字で測る（backend/render.py と同じ）
       // 中央に置くと左右が両方とも「文字を流すには狭い」幅になって捨てになる。塊を左・文字を
       // 上／右／下に置くと文字がちょうど「コ」の形になる（backend/render.py と同じ規則）
       if (gx - wgap - pad < minW && W - pad * 2 - gw - wgap >= minW) gx = pad;
@@ -3472,25 +3472,50 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         読み順が塊をまたいで飛ぶ（利用者から指摘）。**枠の大きさも文字の総量も変わらないので、
         マスの大きさはそのまま**。左右のどちらかが使えるときは今までどおり（コの字・回り込み）
          （backend/render.py と同じ規則） */
-      let nTop2 = nTop;
-      if (nTop2 && ox0 - x0 < minW && x1 - ox1 < minW) { nTop2 = 0; gy = top; }
-      const segs = [];
-      for (let r = 0; r < nTop2; r++) segs.push([x0, top - a + r * lineH, x1 - x0]);   // 塊の上の帯
-      // 塊の左右。**左の段をぜんぶ埋めてから右の段へ移る**（1 行ごとに左右へ飛ぶと読みにくい）
+      const stack = !!nTop && ox0 - x0 < minW && x1 - ox1 < minW;
+      if (stack) nTop = 0;
       const nSide = Math.floor((gh + a * 2) / lineH);
-      if (ox0 - x0 >= minW) for (let r = 0; r < nSide; r++) segs.push([x0, gy - a + r * lineH, ox0 - x0]);
-      if (x1 - ox1 >= minW) for (let r = 0; r < nSide; r++) segs.push([ox1, gy - a + r * lineH, x1 - ox1]);
-      for (let y = gy + gh + wgap - a; y + lineH - a <= bot; y += lineH) segs.push([x0, y, x1 - x0]);   // 塊の下の帯
-      if (!segs.length) return null;
-      let rows = flowRows(fontS, 0, segs.map((sg) => sg[2]), segs.length + 1);
-      if (rows.length > segs.length) return null;
-      // **使わなかった行のぶんは上下に半分ずつ分ける**（backend/render.py と同じ）。文字が下の帯の
-      // 途中で終わると下だけ大きく空いて「途中で終わった」ように見える
+      const leftOk = ox0 - x0 >= minW, rightOk = x1 - ox1 >= minW;
+      /* 上の帯を nt 行にしたときの [塊の y, 段の並び, 流し込んだ行]。入らなければ null（backend/render.py の lay と同じ） */
+      const lay = (nt) => {
+        const gy2 = stack ? top : top + nt * lineH - a * 2 + wgap;
+        if (gy2 < top || gy2 + gh > bot) return null;
+        const sg = [];
+        for (let r = 0; r < nt; r++) sg.push([x0, top - a + r * lineH, x1 - x0]);   // 塊の上の帯
+        // 塊の左右。**左の段をぜんぶ埋めてから右の段へ移る**（1 行ごとに左右へ飛ぶと読みにくい）
+        if (leftOk) for (let r = 0; r < nSide; r++) sg.push([x0, gy2 - a + r * lineH, ox0 - x0]);
+        if (rightOk) for (let r = 0; r < nSide; r++) sg.push([ox1, gy2 - a + r * lineH, x1 - ox1]);
+        for (let y = gy2 + gh + wgap - a; y + lineH - a <= bot; y += lineH) sg.push([x0, y, x1 - x0]);   // 塊の下の帯
+        if (!sg.length) return null;
+        const rw = flowRows(fontS, 0, sg.map((g) => g[2]), sg.length + 1);
+        return rw.length <= sg.length ? [gy2, sg, rw] : null;
+      };
+      let got = lay(nTop);
+      if (!got) return null;
+      let [, segs, rows] = got; gy = got[0];
+      // **上下の帯の厚みをそろえる**（backend/render.py と同じ）。下に使った行数を見て、上下が同じ行数になるまで上の帯を減らす
+      const nSideF = nSide * ((leftOk ? 1 : 0) + (rightOk ? 1 : 0));
+      for (let k = 0; k < 3; k++) {
+        const nBot = Math.max(0, rows.length - nTop - nSideF);
+        const nt = Math.floor((nTop + nBot + 1) / 2);
+        if (!nTop || nt >= nTop) break;
+        got = lay(nt);
+        if (!got) break;
+        nTop = nt; gy = got[0]; segs = got[1]; rows = got[2];
+      }
       let used = segs.slice(0, rows.length);
-      const last = used.length ? used[used.length - 1][1] + lineH - a : top;
-      const dy = Math.max(0, Math.floor((bot - Math.max(gy + gh, last)) / 2));
-      if (dy) { gy += dy; used = used.map(([sx, sy, sw]) => [sx, sy + dy, sw]); }
-      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: pad + dy, gx, gy, segs: used };
+      // **余った高さは、上下の外側の余白と塊の上下のすきまに、それぞれの大きさに比例して配る**（backend/render.py と同じ）
+      let top2 = pad;
+      const last = used.length ? used[used.length - 1][1] + lineH - a : gy + gh;
+      const spare = Math.max(0, bot - Math.max(gy + gh, last));
+      if (spare) {
+        const dM = Math.round(spare * pad / (2 * (pad + wgap)));   // 外側の余白（片側）に足すぶん
+        const dG = Math.floor(spare / 2) - dM;                        // 塊の上下のすきま（片側）に足すぶん
+        used = used.map(([sx, sy, sw]) => sy >= gy + gh - a ? [sx, sy + dM + dG * 2, sw] : sy >= gy - a ? [sx, sy + dM + dG, sw] : [sx, sy + dM, sw]);
+        gy += dM + dG;
+        top2 += dM;
+      }
+      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: top2, gx, gy, segs: used, pct };
     };
     // 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始め、WRAP_GRID_MIN を下回るほどは広げない
     const tight = Math.max(gw / Wb, (titleH + gh) / Hb);
@@ -3529,6 +3554,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         if (down < WRAP_TARGET_FLOOR) break;
         const got = search(down);
         if (!got || got.scale < base.scale * WRAP_CELL_GAIN) break;
+        best = got;
+      }
+      // **枠はそのままで、字を 1 論理 px ずつ大きくして余りを埋める**（backend/render.py と同じ）。
+      // 枠（＝マスの大きさ）は変えないので、大きくなるのは字だけ
+      // 字が大きくできなくなったら枠を 1% ずつ小さくする（＝マスが大きくなる。backend/render.py と同じ）
+      const segFs = best.fontS;
+      for (let k = 0; k < WRAP_FINE_STEPS; k++) {
+        let got = build(best.pct, 0, best.fontS + 1, segFs);
+        if (!got && best.pct > lo0) got = build(best.pct - 1, 0, best.fontS, segFs);
+        if (!got) break;
         best = got;
       }
       return best;
@@ -3662,17 +3697,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return [text.slice(0, cut).replace(/\s+$/, ""), text.slice(cut).replace(/^\s+/, "")];
   }
   /* 字の途中で折る。**行の真ん中にいちばん近い所**を選ぶ（breakAt は右端まで詰める） */
+  // 行頭に来てはいけない字（長音・小書き・句読点）と、英単語の途中では折らない（backend/render.py の _break_ok と同じ）
+  const NO_HEAD = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ゛゜、。，．・！？!?）)］]」』】〉》", LATIN = /[A-Za-z0-9'’]/;
+  const breakOk = (text, i) => !NO_HEAD.includes(text[i]) && !(LATIN.test(text[i - 1]) && LATIN.test(text[i]));
   function breakNear(ctx, text, f, maxW, target) {
     ctx.font = f;
     let best = null, fit = null;   // fit は「2 行目も収まる」位置の中でいちばん真ん中に近いもの
+    let bestAny = null, fitAny = null;   // 折ってよい位置が無いときの控え
     for (let i = 1; i < text.length; i++) {
       const w1 = ctx.measureText(text.slice(0, i)).width;
       if (w1 > maxW) break;
       const score = Math.abs(w1 - target);
+      const fits = ctx.measureText(text.slice(i).replace(/^\s+/, "")).width <= maxW;
+      if (bestAny === null || score < bestAny[0]) bestAny = [score, i];
+      if (fits && (fitAny === null || score < fitAny[0])) fitAny = [score, i];
+      if (!breakOk(text, i)) continue;
       if (best === null || score < best[0]) best = [score, i];
-      if (ctx.measureText(text.slice(i).replace(/^\s+/, "")).width <= maxW && (fit === null || score < fit[0])) fit = [score, i];
+      if (fits && (fit === null || score < fit[0])) fit = [score, i];
     }
-    best = fit || best;
+    best = fit || best || fitAny || bestAny;
     if (best === null) return breakAt(ctx, text, f, maxW);
     const i = best[1];
     return [text.slice(0, i).replace(/\s+$/, ""), text.slice(i).replace(/^\s+/, "")];
@@ -3842,6 +3885,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           const [fsNow, dmgNow] = rightFinal(sbCols);
           const [fsNew, dmgNew] = rightFinal(sbCols + 1);
           if (dmgNew > dmgNow && fsNew * scale2 < fsNow * scale * LIST_COL_TIDY_GAIN) break;
+        } else {
+          // 下に置くときも同じ（backend/render.py と同じ規則）。崩れる曲が増えるなら、マスが LIST_COL_TIDY_GAIN 倍以上
+          // 大きくならない限り増やさない（4x4・1:1・16 曲で 3 列になり、アーティスト名が「…」になっていた）
+          const dmgNow = listDamage(fontS, Math.floor((sbW - LIST_COL_GAP * (sbCols - 1)) / sbCols));
+          const dmgNew = listDamage(fs, Math.floor((w - LIST_COL_GAP * sbCols) / (sbCols + 1)));
+          if (dmgNew > dmgNow && scale2 < scale * LIST_COL_TIDY_GAIN) break;
         }
         sbCols += 1; lineH = lh; fontS = fs; sbW = w; sbH = sbH2;
         [W, H, scale] = frame(sbW, sbH);

@@ -229,7 +229,12 @@ v2（9/14）より後に増えたものを頭にまとめ、本編は v2 の小�
 - v2 と同じ **main / feat × phone / pc × ja / en の 8 本**。`record.mjs` の feat の操作列に足すもの:
   「載せる」チェック → 共有 → `/find` で検索、パレットの切替とコピー／貼り付け、EN に切り替えて「マリーゴールド あいみょん」、
   VocaDB で「恐怖ガーデン」、大きく見るで 16×16、全部外す → 元に戻す
-- 10–11 と 41–42 の静止画は `backend.render.render()` で作る（曲は `grids/default.json` の 9 曲を繰り返して埋める）
+- 10–11 と 41–42 の静止画は `backend.render.render()` で作る（曲はボカロ 25 曲の一覧を繰り返して埋める。
+  `promo/public/stills/*.png`、git 管理外）。**必ず `PUBLIC_MODE=1` で作る**（出力の最大辺が 2400 になる。
+  付けないと割り付けが別物になり、文字が豆粒になる）。割り付けの規則を直したら作り直す
+- 録画の印（`events.json` の `name`）は場面で分かれる: main の 8 本に `src:musicbrainz` … `bg:custom`、
+  feat の 8 本に `listed:check` … `clear:tap`。`timeline.ts` が使う印がそろっているかは、各 `events.json` の
+  `name` を集めて `timeline.ts` の `"x:y"` と突き合わせる（2026-09-17 は 8 本とも欠けなし）
 - `/find` は同じサーバーで載せた共有がそのまま出る（手元は `PUBLIC_MODE=1 SHARE_LIMIT_PER_DAY=0`）
 
 ## 構成案
