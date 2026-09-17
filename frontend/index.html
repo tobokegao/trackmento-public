@@ -719,6 +719,9 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .cell.is-over { outline: 4px solid var(--color-cerulean); outline-offset: -4px; }
 .cell { cursor: pointer; }
 .cell.is-selected::after { content: ""; position: absolute; inset: 0; border: 5px solid var(--color-mustard); box-shadow: inset 0 0 0 2px var(--color-ink); pointer-events: none; z-index: 2; }
+/* **番号バッジと × は選択の枠（z-index 2）より手前に出す**。枠の帯（5px＋黒線 2px）が角に重なって番号が隠れていた
+   （ナイトのスマホで報告）。枠の角にかぶさる札として見えるように、位置は動かさない */
+.cell .num, .cell .rm { z-index: 3; }
 /* 「入れる先」の空マス: 破線のマスタード枠 + 中央に矢印 */
 .cell.is-target::after { content: ""; position: absolute; inset: 0; border: 5px dashed var(--color-mustard); box-shadow: inset 0 0 0 2px var(--color-ink); pointer-events: none; z-index: 2; }
 .cell.is-target::before { content: ""; position: absolute; inset: 0; background: color-mix(in oklab, var(--color-mustard) 55%, transparent); z-index: 1; }
