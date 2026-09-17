@@ -359,8 +359,8 @@ def _log_5xx(request: Request, status: int, detail: str) -> None:
     1 件ごとに出さず [stats] と同じ 60 秒窓でまとめるのは、件数を取りこぼさずに行数を抑えるため。
     パスは _stat_key で種別に潰す（query には外部の画像 URL が入るので出さない）。
     """
-    if status < 500:
-        return
+    if status < 500 and not (status == 404 and request.url.path.startswith("/image-proxy")):
+        return   # /image-proxy の 404（配信元に無い）だけは 4xx でも内訳に残す（どの配信元が消えているかを見るため）
     key = f"{status} {_stat_key(request.url.path)} {detail[:80]}"
     if not public_mode():
         print(f"[5xx] 1 {key}")   # ローカルは _load_monitor が動かないので、その場で出す
@@ -1130,6 +1130,7 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     # 欲しい実寸に合わせて取り直す。ホストは変わらないので検査の後でよい。
     # px はマスが小さいとき（8x8 以上）にブラウザが指定する。既定は書き出しのマスと同じ 600
     want = max(100, min(600, px or 600))
+    orig = url
     for _src in (itunes, bandcamp, video, soundcloud, musicbrainz):
         url = _src.clamp_size(url, want)
     # otoDB だけは URL に大きさを指定できないので、取ったあとにこちらで縮める。
@@ -1147,6 +1148,10 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     if hit:
         ctype, data = hit
         _image_to_r2_bg(ckey, ctype, data)   # 既にキャッシュ済みの分も、一度返すついでに R2 へ寄せる
+    elif (_exp := _IMG_MISSING.get(ckey)) and _exp > time.time():
+        # **配信元に無かった画像は IMG_MISSING_TTL のあいだ取りに行かない**（2026-09-17）。消えた画像が
+        # 人気の共有に 1 枚入っているだけで、見られるたびに配信元へ取りに行き、2 時間で 1,000 件の 404 になっていた
+        raise HTTPException(404, "配信元に画像が無い（しばらく前に確かめた）")
     else:
         # 配信元からの取得の同時本数を IMAGE_PROXY_CONCURRENCY で絞る（既定 16）。
         # 取りこぼすと 503 になるので、CPU の割当を変えたらこちらも見直す（0.1 vCPU の頃は 8 本だった）
@@ -1155,12 +1160,32 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
         except asyncio.TimeoutError:
             raise HTTPException(503, "画像の取得が混み合っています", headers={"Retry-After": "5"})
         try:
-            ctype, data = await fetch_image(url)
+            shrink_to = shrink_px
+            try:
+                ctype, data = await fetch_image(url)
+            except HTTPException as e:
+                if e.status_code != 404:
+                    raise
+                # **配信元に無ければ、別の版を順に取りに行く**（2026-09-17）: 縮小版の URL を書き換える前の原寸、
+                # YouTube の hqdefault → mqdefault → default、ニコニコの .L → 無印。どれも無ければ 404 を覚える
+                got = None
+                for alt in _image_fallbacks(url, orig):
+                    try:
+                        got = await fetch_image(alt)
+                        break
+                    except HTTPException as e2:
+                        if e2.status_code != 404:
+                            raise
+                if got is None:
+                    _remember_missing(ckey)
+                    raise
+                ctype, data = got
+                shrink_to = shrink_px or want   # 原寸は大きいことがあるので、こちらで縮める
             if imgtools.is_video_thumb(url):
                 # 動画サムネイルの黒帯（レターボックス）を落とす。プレビューと書き出しで同じ見た目になる
                 data, ctype = await asyncio.to_thread(imgtools.trim_letterbox_bytes, data, ctype)
-            if shrink_px:
-                data, ctype = await asyncio.to_thread(imgtools.shrink_bytes, data, ctype, shrink_px)
+            if shrink_to:
+                data, ctype = await asyncio.to_thread(imgtools.shrink_bytes, data, ctype, shrink_to)
             await asyncio.to_thread(cache.set_image, ckey, ctype, data)
         finally:
             _PROXY_SEM.release()
@@ -1169,6 +1194,33 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
 
 
 _PROXY_SEM = asyncio.Semaphore(max(1, int(os.getenv("IMAGE_PROXY_CONCURRENCY", "16"))))
+IMG_MISSING_TTL = int(os.getenv("IMG_MISSING_TTL", "3600"))   # 配信元に無かった画像を覚えておく秒数
+_IMG_MISSING: dict[str, float] = {}                             # キャッシュのキー → 期限（time.time()）
+
+
+def _image_fallbacks(url: str, orig: str) -> list[str]:
+    """配信元に無かったときに試す別の版。順に試す（重複は除く）。"""
+    out: list[str] = []
+    for u in (url, orig):
+        if u == url and u == orig:
+            pass
+        if "i.ytimg.com/vi/" in u:
+            for a, b in (("/hqdefault.jpg", "/mqdefault.jpg"), ("/hqdefault.jpg", "/default.jpg"), ("/mqdefault.jpg", "/default.jpg")):
+                if a in u:
+                    out.append(u.replace(a, b))
+        if u.endswith(".L") and "nimg.jp" in u:
+            out.append(u[:-2])
+    if orig != url:
+        out.insert(0, orig)
+    seen: set[str] = set()
+    return [u for u in out if u != url and not (u in seen or seen.add(u))]
+
+
+def _remember_missing(ckey: str) -> None:
+    """配信元に無かった画像を覚える。膨らみすぎたら丸ごと忘れる（取り直すだけで壊れない）。"""
+    if len(_IMG_MISSING) >= 5000:
+        _IMG_MISSING.clear()
+    _IMG_MISSING[ckey] = time.time() + IMG_MISSING_TTL
 
 
 def _sniff_image_type(data: bytes) -> str | None:
@@ -1208,6 +1260,10 @@ async def fetch_image(url: str) -> tuple[str, bytes]:
         # **配信元のホスト名だけ理由に添える**（2026-09-17）。点検で「404 が 1,039 件」と出ても、どの配信元かが
         # 分からず手が打てなかった。URL 全体は利用者のデータなので出さない（ホストは出どころの種類にすぎない）
         raise HTTPException(502, f"取得失敗 ({_host_of(url)}): {type(e).__name__} {e}"[:120]) from e
+    if r.status_code == 404:
+        # **配信元に無いものは 404 で返す**（2026-09-17）。こちらの障害ではないのに 502 で数えていたので、
+        # 点検の「5xx」に消えた画像（削除された動画のサムネイルなど）が混ざり、本当の障害が埋もれていた
+        raise HTTPException(404, f"配信元に画像が無い ({_host_of(url)})")
     if r.status_code != 200:
         raise HTTPException(502, f"画像サーバーが {r.status_code} を返しました ({_host_of(url)})")
     ctype = r.headers.get("content-type", "").split(";")[0].strip()
