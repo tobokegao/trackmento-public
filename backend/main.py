@@ -1190,7 +1190,7 @@ def _sniff_image_type(data: bytes) -> str | None:
 def _host_of(url: str) -> str:
     """ログに添えるホスト名（URL 全体は利用者のデータなので出さない）。"""
     try:
-        return (urlparse(url).hostname or "?")[:60]
+        return (urllib.parse.urlsplit(url).hostname or "?")[:60]
     except Exception:
         return "?"
 
