@@ -857,6 +857,12 @@ claude --remote-control TRACKMENTO                                             #
     実測: スマホ 412px 幅で 32x1 が 10 → 48px（横スクロール）、16x16 が 21 → 48px、
     PC の 8x30 は欄の中の 53px のまま（縮めない）。確かめ方は scratchpad の `test_zoom.mjs` 相当
     （`__setGridUI` → `#zoom-btn` → `.cell` の幅を測る）
+  - **横にしかあふれない帯は、シートの `touchmove` の番人に通してもらう必要がある**（2026-09-17）。
+    番人は「縦にスクロールできる要素の中で始まった touchmove だけ通す」だったので、32x1 の帯（横にしか
+    あふれない）が指で動かせなかった（実機で報告）。`overflowX` と `scrollWidth` も見る。
+    確かめ方は CDP の `Input.dispatchTouchEvent` で touchStart → touchMove × 12 → touchEnd を送って
+    `scrollLeft` を見る（`Input.synthesizeScrollGesture` はこの環境では動かず、直す前でも後でも 0 になる）。
+    窓（`.zoom-slot`）の横の overflow は hidden（実機で窓の下に横スクロールバーが出ていた）
 - **指で触る画面（`(pointer: coarse)`）では、スクロールバーを自前で描いて自分で動かす**（`attachTouchScrollbar`）。
   **スマホのブラウザはスクロールバーを「触れる部品」として扱わない**（指の入力はつまみの上にあっても
   中身のスクロールに回る）ので、ブラウザ任せでは掴めない。24px に広げても掴む対象になっていないので効かなかった。

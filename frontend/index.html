@@ -609,7 +609,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 /* 上がグリッド（余りの高さいっぱい）、下が選択中のマスの編集。**編集は窓の中へ移す**。
    もとの場所（検索ペインの中）は窓の裏に隠れてしまい、マスを選んでも何も起きないように見える */
 .zoom-slot { display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center;
-             gap: var(--space-2); padding: var(--space-2); min-height: 0; overflow: auto; }
+             gap: var(--space-2); padding: var(--space-2); min-height: 0; overflow: hidden auto; }   /* 横は中の枠がスクロールするので、窓自身には出さない */
 .zoom-slot .editor { width: min(100%, 48rem); }
 /* 拡大窓では全部入る大きさにするので、溝のぶんを空けておく必要がない */
 /* 「大きく見る」ボタン。タイトル欄の右に置く（タイトルバーの縞の規則に触らないため） */
@@ -1951,8 +1951,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 拡大している間の 1 本指は「見えている範囲の移動」で、後ろのスクロールではない。止めない
     if (window.visualViewport && window.visualViewport.scale > 1.01) return;
     for (let el = e.target; el && el !== document.body; el = el.parentElement) {
-      const o = getComputedStyle(el).overflowY;
-      if ((o === "auto" || o === "scroll") && el.scrollHeight > el.clientHeight + 1) return;   // 中のスクロール領域: 通す
+      const cs = getComputedStyle(el), scrollable = (o) => o === "auto" || o === "scroll";
+      if (scrollable(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) return;   // 中のスクロール領域: 通す
+      // **横だけあふれる領域も通す**（2026-09-17）。縦しか見ていなかったので、「大きく見る」の 32x1 の帯
+      // （横にしかあふれない）が指で横に動かせなかった（実機で報告）
+      if (scrollable(cs.overflowX) && el.scrollWidth > el.clientWidth + 1) return;
     }
     if (e.cancelable) e.preventDefault();
   }, { passive: false });
