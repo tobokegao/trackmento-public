@@ -1813,8 +1813,13 @@ def render(doc: GridDoc) -> Image.Image:
         f_num = font("pixel", max(8, sc(L.font_s * 0.8)))
         f_title = font("bold", font_s)
         f_artist = font("regular", max(8, rnd(font_s * ARTIST_SCALE)))
+        # **割り付けで取った行数より少ない行で描けた曲のぶん、その列の後ろの曲を詰める**（2026-09-17）。
+        # 割り付けは字ごとに 1px に丸めた幅で「3 行」と見込むが、実際に折ると 2 行で入ることがあり、
+        # 空いた 1 行がそのまま隙間になっていた（利用者の 4x4・16:9 で 2 か所）。列の下に余りが出るほうがまし
+        shift: dict[int, int] = {}
         for i, t in enumerate(doc.cells):
             col, row = places[i]
+            row -= shift.get(col, 0)
             x = sc(sx + col * (col_w + LIST_COL_GAP))
             row_y = lambda r: sc(sy + r * L.line_h + L.line_h / 2)   # noqa: E731
             yy = row_y(row)
@@ -1860,6 +1865,7 @@ def render(doc: GridDoc) -> Image.Image:
                 # どの曲名の下なのかが読み取りにくい）
                 ay = row_y(row + title_rows) - sc(L.line_h * 0.14)
                 d.text((x + nw, ay), _ellipsize(d, artist, f_artist, max_w), font=f_artist, fill=muted, anchor="lm")
+            shift[col] = shift.get(col, 0) + max(0, plan[i] - (title_rows + (1 if artist else 0)))
 
     _release_memory()
     return im

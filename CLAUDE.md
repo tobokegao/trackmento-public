@@ -1119,6 +1119,12 @@ claude --remote-control TRACKMENTO                                             #
     実測: 4x4 16:9 は行に余りがあり**マスも文字も変わらない**、4x4 1:1 は 11 曲が 3 段になり
     マス 303 → 278px（-8%）、3x3 1:1 は 3 曲で 422 → 400px（-5%）。**利用者の判断で読めるほうを取った**。
     判定は `_row_plan` / `rowPlan`、描くのは `_sidebar` の描画と JS の同じ所。**片方だけ直さない**
+  - **割り付けで取った行数より少ない行で描けた曲のぶん、その列の後ろの曲を詰める**（`shift`、2026-09-17）。
+    割り付けは字ごとに 1px に丸めた幅で「3 行」と見込むが、実際に折ると 2 行で入ることがあり、空いた 1 行が
+    そのまま隙間になっていた（利用者の 4x4・16:9 で 03 と 09 の下）。列の下に余りが出るほうがまし。
+    PIL と Canvas で「入る・入らない」が食い違えばそこから下の位置がずれるが、隙間よりよい
+  - **ブラウザ描画の絵は `window.__renderShare(2400)`（`renderShareCanvas` の口）で拡張機能なしに確かめられる**。
+    `__setGridUI(c, r, opt, cells)` で並びを入れてから呼び、`canvas.toDataURL()` を保存する
   - `scripts/compare_layout.py --tracks=<json>` で曲を差し替えて突き合わせられる（長い題の並びを試すとき）
 - **画像が `/image-proxy` を通るかはホストで決まる**。`frontend/index.html` の `DIRECT_IMAGE_HOSTS`（mzstatic / coverartarchive.org / archive.org）はブラウザが直接読むので **Render の転送量に乗らない**。それ以外（Bandcamp・SoundCloud・YouTube・ニコニコ・bilibili・Discogs・otoDB）はサーバーを通る。帯域を調べるときは、まずここで対象を絞る
 - **`raise HTTPException(...)` で返した 5xx は `[error]` に出ない**。`http_error` が握るので `unhandled_error` を通らず、点検では「エラー行 0・5xx N」としか分からなかった。理由（detail）を見るために `[5xx]` という別の印を足してある（`main.py` の `_log_5xx` が理由ごとに数え、`_load_monitor` が `[stats]` と同じ 60 秒窓で `[5xx] <件数> <status> <パス種別> <理由>` を出す。上位 `_5XX_TOP` 件＋残りは「ほか」にまとめる）。

@@ -4049,6 +4049,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (show) els.ratioMsg.textContent = tr`この並びと比率だとジャケットが ${cellPx}px になります。正方形に近い比率にすると大きくなります。`;
   }
   // 突き合わせ用（promo/dump_layouts.mjs）: 比率を差し替えて割り付けだけ取る
+  window.__renderShare = (ms) => renderShareCanvas(ms || 2400, () => {});   // 描画の確認用（promo の点検スクリプトから呼ぶ。絵を data URL にして比べる）
   window.__layoutFor = (q, ms) => { const b = state.ratio; state.ratio = q; try { return layout(ms); } finally { state.ratio = b; } };
   window.__layout = layout;   // 突き合わせ（scripts/compare_render.py）から割り付けを覗くため
   window.__loadShareFonts = () => loadShareFonts();   // 割り付けを測る前に Web フォントを読む（promo/dump_layouts.mjs）
@@ -4844,8 +4845,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const fontS = Math.max(8, sc(L.fontS)), numFont = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
       const titleFont2 = fontBold(fontS), artistFont = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
       const rowY = (r) => sc(sy + r * L.lineH + L.lineH / 2);
+      const shift = {};   // 割り付けより少ない行で描けた曲のぶん、その列の後ろを詰める（backend/render.py と同じ）
       for (let i = 0; i < n; i++) {
-        const t = state.cells[i], [col, row] = places[i];
+        const t = state.cells[i], [col, row0] = places[i];
+        const row = row0 - (shift[col] || 0);
         const x = sc(sx + col * (colW + LIST_COL_GAP)), yy = rowY(row);
         const num = String(i + 1).padStart(2, "0");
         ctx.font = numFont; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(muted);
@@ -4884,6 +4887,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           ctx.font = artistFont; ctx.fillStyle = cssRgb(muted);
           ctx.fillText(ellipsizeText(ctx, artist, maxW), x + nw, rowY(row + titleRows) - sc(L.lineH * 0.14));
         }
+        shift[col] = (shift[col] || 0) + Math.max(0, plan[i] - (titleRows + (artist ? 1 : 0)));
       }
     }
     return { canvas, bg };
