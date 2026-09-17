@@ -19,7 +19,7 @@ FF="$PWD/node_modules/@remotion/compositor-win32-x64-msvc/ffmpeg.exe"
 # ずれていると Remotion が「frame range が durationInFrames の外」と言って止まる
 TOTAL="${4:-$(node -e '
 const b = require("./src/beats.json").beats;
-const FPS = 30, LAST = 180;                       // LAST_BEAT = bar(46) = 拍 180
+const FPS = 30, LAST = 184;                       // LAST_BEAT = bar(47) = 拍 184
 const t = LAST < b.length ? b[LAST] : b[b.length-1] + (b[b.length-1]-b[b.length-2])*(LAST-b.length+1);
 console.log(Math.round(t*FPS) + 12);
 ')}"

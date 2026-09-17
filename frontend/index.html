@@ -598,7 +598,11 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .modal-panel { position: relative; width: min(100%, 40rem); max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--line) solid var(--color-ink); background: var(--color-paper); box-shadow: var(--shadow); }
 .modal-body { overflow-y: auto; }
 /* グリッドを大きく見る窓。**画面いっぱいに広げる**（16x16 だと欄の中では 1 マス 26px しかない） */
-.modal-wide { padding: var(--space-2); }
+/* **行の高さを画面に固定する**（`minmax(0, 1fr)`）。既定の auto だと、中の並びが縦に長いとき（1x32 で 4,874px）
+   窓の中身の高さで行が決まり、`place-items: center` がその行の真ん中に窓を置くので、窓ごと画面の外
+   （y = 2,038px）に出て、白い下敷きしか見えなかった（スマホで報告、2026-09-17） */
+.modal-wide { padding: var(--space-2); grid-template-rows: minmax(0, 1fr); }
+.modal-wide .modal-panel { min-height: 0; }
 /* **max-height を外す**。もとの .modal-panel は 88dvh で頭打ちにしていて、
    height を指定してもそちらが勝っていた（16x16 で 1 マス 42px から伸びなかった） */
 .modal-wide .modal-panel { width: min(100%, 96rem); height: min(100%, 98dvh); max-height: none; }

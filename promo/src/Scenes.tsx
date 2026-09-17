@@ -5,8 +5,8 @@ import {
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
 import {
-  FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
-  INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, BANDWIDTH_BEAT, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
+  FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, CODA, SHOWCASE_STILLS, SHOWCASE_SWITCH, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
+  INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, CODA_BEAT, BANDWIDTH_BEAT, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
 } from "./timeline";
 
 // ---- フォント（アプリと同じ OFL 同梱フォント） ----
@@ -261,6 +261,34 @@ const Clip: React.FC<{ kind: Kind; lang: Lang; session: "main" | "feat"; from: n
   );
 };
 
+/** 静止画を拍で切り替えて見せる（曲名リストの組み方など、録画より作った絵のほうが伝わるもの）。
+    public/stills/<名前>.png（横は -pc）。切り替えごとに少し弾ませ、添え書きを枠の下に出す */
+const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const names = shot.stills ?? [];
+  const at = (shot.stillBeats ?? names.map((_, i) => i)).map((b) => beatFrame(shot.beat + b) - beatFrame(shot.beat));
+  let idx = 0;
+  for (let i = 0; i < at.length; i++) if (frame >= at[i]) idx = i;
+  const s = spring({ frame: frame - at[idx], fps, config: { damping: 12, stiffness: 240 } });
+  const tall = L.kind === "tall";
+  const label = shot.labels?.[idx];
+  return (
+    <>
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: C.paper, transform: `scale(${0.94 + s * 0.06})` }}>
+        <Img src={staticFile(`stills/${names[idx]}${tall ? "" : "-pc"}.png`)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+      </div>
+      {label && (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: tall ? 28 : 20, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+          <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 40 : 34, padding: "8px 26px", transform: `translateY(${(1 - s) * 20}px)`, opacity: s }}>
+            {L.lang === "ja" ? label.jp : label.en}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 // ---- タイムラプス（1 小節に 16 コマ） ----
 const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
   const times = timelapseTimes(L.kind, L.lang);
@@ -280,22 +308,28 @@ const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
   );
 };
 
-// ---- できあがり（2 小節） ----
+// ---- できあがり（2 小節）。**4 枚の出力を曲のキメで切り替える**（timeline.ts の SHOWCASE_SWITCH） ----
 const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const { pulse, beat } = useBeatPulse(0.7);
   const s = spring({ frame, fps, config: { damping: 13, stiffness: 90 } });
-  const drift = interpolate(frame, [0, beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)], [1.0, 1.05]);
+  const drift = interpolate(frame, [0, beatFrame(CODA_BEAT) - beatFrame(SHOWCASE_BEAT)], [1.0, 1.05]);
   const color = STRIPE[Math.max(0, beat) % 6];
   const img = L.kind === "tall"
     ? { left: 90, top: 200, width: 900, height: 1600 }
     : { left: 222, top: 215, width: 1476, height: 830 };
+  // 切り替えの拍（ショットの頭からの拍数）→ フレーム。1 枚目は録画の最後の出力、2 枚目以降は作った静止画
+  const at = SHOWCASE_SWITCH.map((b) => beatFrame(SHOWCASE_BEAT + b) - beatFrame(SHOWCASE_BEAT));
+  let idx = 0;
+  for (let i = 0; i < at.length; i++) if (frame >= at[i]) idx = i;
+  const hit = spring({ frame: frame - at[idx], fps, config: { damping: 11, stiffness: 300 } });
+  const src = idx === 0 ? RECORDINGS[L.kind][L.lang].main.final : `stills/${SHOWCASE_STILLS[idx]}${L.kind === "tall" ? "" : "-pc"}.png`;
   return (
     <AbsoluteFill style={{ background: color }}>
       <AbsoluteFill style={{ backgroundImage: `radial-gradient(${C.ink}22 1.2px, transparent 1.3px)`, backgroundSize: "14px 14px" }} />
-      <div style={{ position: "absolute", ...img, border: `6px solid ${C.ink}`, boxShadow: `16px 16px 0 ${C.ink}`, overflow: "hidden", background: C.paper, transform: `scale(${s * (drift + pulse * 0.01)})`, transformOrigin: "50% 50%" }}>
-        <Img src={staticFile(RECORDINGS[L.kind][L.lang].main.final)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      <div style={{ position: "absolute", ...img, border: `6px solid ${C.ink}`, boxShadow: `16px 16px 0 ${C.ink}`, overflow: "hidden", background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", transform: `scale(${s * (drift + pulse * 0.01) * (0.97 + hit * 0.03)})`, transformOrigin: "50% 50%" }}>
+        <Img src={staticFile(src)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
       </div>
       {L.kind === "tall" ? (
         <>
@@ -362,7 +396,7 @@ const Bandwidth: React.FC<{ L: Layout }> = ({ L }) => {
         <div style={{ background: C.ink, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700,
           fontSize: tall ? 58 : 60, padding: "12px 30px", whiteSpace: "nowrap",
           transform: `translateY(${-rise * (tall ? 300 : 190)}px) scale(${shrink})` }}>
-          {ja ? "動作が軽くなりました" : "And it got lighter"}
+          {ja ? "さらに軽くなりました" : "Even lighter now"}
         </div>
         <div style={{ position: "absolute", left: tall ? 60 : 200, right: tall ? 60 : 200, top: "46%",
           display: "flex", flexDirection: "column", gap: tall ? 18 : 14, opacity: rise }}>
@@ -410,7 +444,9 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
                 {s.ab && <AbBadge L={L} />}
                 <Caption L={L} jp={s.jp} en={s.en} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>
                 <Phone L={L} fx={s.fx}>
-                  {s.ab ? (
+                  {s.stills ? (
+                    <Stills L={L} shot={s} />
+                  ) : s.ab ? (
                     <BeforeAfter L={L} file={s.ab} zoom={L.kind === "wide" ? s.zoomPc : s.zoom}>
                       <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
                     </BeforeAfter>
@@ -431,7 +467,17 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
       <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
         <Paper><div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div><Timelapse L={L} /></Paper>
       </Sequence>
-      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
+      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(CODA_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
+      {/* 43 小節目: 全部外す → 元に戻す（録画の 1 ショット） */}
+      <Sequence from={beatFrame(CODA_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(CODA_BEAT)} name="Coda">
+        <Paper>
+          <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
+          <Caption L={L} jp={CODA.jp} en={CODA.en} />
+          <Phone L={L}>
+            <Clip kind={L.kind} lang={L.lang} session="feat" from={evTime(L.kind, L.lang, "feat", CODA.ev) + CODA.off * rate(L.kind, L.lang, "feat")} speed={CODA.speed} zoom={L.kind === "wide" ? CODA.zoomPc : CODA.zoom} />
+          </Phone>
+        </Paper>
+      </Sequence>
       <Sequence from={beatFrame(END_BEAT)} name="End"><EndCard L={L} /></Sequence>
     </AbsoluteFill>
   );

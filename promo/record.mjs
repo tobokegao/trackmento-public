@@ -180,38 +180,23 @@ await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}"
 await page.evaluate((lang) => { localStorage.clear(); localStorage.setItem("trackmento.lang", lang); }, EN ? "en" : "ja");
 await page.reload({ waitUntil: "networkidle" });
 await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}" });
-if (await page.locator("#grid .cell img").count()) { await page.locator("#clear-btn").click(); await page.locator("#confirm-yes").click();   // 確認の窓 await wait(500); }
+if (await page.locator("#grid .cell img").count()) { await page.locator("#clear-btn").click(); await page.locator("#confirm-yes").click(); await wait(500); }   // 確認の窓（2026-09-17 から）
 await wait(1000);
 await mark("start");
 
 // ---- 新機能（SCENE=feat）----
 // 撮る順番は動画の構成順とは別でよい（Remotion 側はマーカー名で切り出すため）。
-// マスを先に 16×16 へ広げてからプレイリストを入れると、「256 マスが埋まる」絵がそのまま撮れる
+// v3（2026-09-17）: みんなのグリッド／パレット／ローマ字／VocaDB／大きく見る／全部外す を足し、
+// v2 の見た目の見くらべ（look:*）は外した。マスが少ないうちに「載せる → 共有 → 探す」を済ませる
+// （256 マスで共有すると描画に時間がかかる）
+async function closeSheet(name) {
+  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", name); await wait(500); }
+}
+async function openOptions(name) {   // スマホでは出力オプションが畳まれている
+  const fold = page.locator(".pane-options .fold");
+  if ((await fold.getAttribute("aria-expanded")) !== "true") { await tap(fold, name); await wait(700); }
+}
 async function featScene() {
-  // ⑤ さらにダサくなった見た目: 候補を並べて Mac OS 9 風のスクロールバーを見せる
-  await openSheet();
-  await type("#artist", "米津玄師");
-  await tap("#search-btn", "look:search");
-  await page.waitForSelector("#results .result", { timeout: 60000 });
-  await wait(900);
-  await mark("look:scroll");
-  for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 240); await wait(320); }
-  await wait(600);
-  if (!PC) { await tap("#sheet-close", "look:close"); await wait(400); }
-
-  // 出力オプションは畳まれていることがあるので、開いてから見せる（畳んだまま撮ると中身が映らない）
-  {
-    const fold = page.locator(".pane-options .fold");
-    if ((await fold.getAttribute("aria-expanded")) !== "true") { await tap(fold, "open-options-look"); await wait(700); }
-  }
-  // 画面の下のほうにあるので、スクロールして全体を見せる
-  await page.locator(".pane-options").scrollIntoViewIfNeeded();
-  await wait(700);
-  await mark("look:options");
-  await wait(1400);
-  await page.locator("#grid").scrollIntoViewIfNeeded();
-  await wait(600);
-
   // 複数の URL を改行で区切ってまとめて貼る（ちがうサイトを混ぜられる）
   await openSheet();
   await expandSub("sub-bandcamp", "url-multi");
@@ -219,17 +204,12 @@ async function featScene() {
   await wait(300);
   await setUrl(MULTI_URLS, 12);
   await tap("#bc-btn", "multi:paste");
-  // 単体の URL を並べただけのときは「入れ方を選ぶ」オーバーレイは出ず、そのまま候補に入る
-  // （オーバーレイが出るのはプレイリストの URL を含むときだけ）
   await page.waitForSelector("#results .result", { timeout: 120000 });
   await wait(2000); await mark("multi:got");
   await wait(1200);
-
-  // 複数 URL のあとはシートを開き直す。開いたまま次の URL を打つと入力が効かないことがあった
-  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "multi-close"); await wait(600); }
+  await closeSheet("multi-close");
 
   // ② 消えた動画の復活: 削除済みの ID を貼ると otoDB がタイトル・作者・サムネを埋める
-  // マスが空いているうちにやる（① のあとだと 256 マスが満杯で、候補をタップしても入らない）
   await openSheet();
   await expandSub("sub-bandcamp", "url-revive");
   await page.locator("#bc-url").scrollIntoViewIfNeeded();
@@ -237,42 +217,82 @@ async function featScene() {
   await setUrl(REVIVE);
   await tap("#bc-btn", "revive:paste");
   await pickFirstResult("revive", "otodb");
-  // マスに入ったジャケットが出るまで待つ。待たずに印を付けると、動画では白いマスのまま映る
   await page.waitForFunction(() => {
     const img = document.querySelector("#grid .cell img");
     return img && img.complete && img.naturalWidth > 0;
   }, null, { timeout: 30000 }).catch(() => console.log("   （復活したジャケットが出そろわなかった）"));
   await wait(1200);
-  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "revive-close"); await wait(500); }
+  await closeSheet("revive-close");
   await page.locator(".pane-grid").scrollIntoViewIfNeeded();
   await wait(1800);
   await mark("revive:done");
   await wait(1500);
 
-  // ③ マスを 16×16（256 マス）に広げる
-  // 出力オプションはスマホだと畳まれている。開いてからでないと #cols が見えない
-  {
-    const fold = page.locator(".pane-options .fold");
-    if ((await fold.getAttribute("aria-expanded")) !== "true") { await tap(fold, "open-options"); await wait(700); }
-  }
+  // ⑦ みんなのグリッド: 「載せる」にチェックして共有 → 探すページで曲名を引く
+  await page.locator("#opt-listed").scrollIntoViewIfNeeded();
+  await wait(400);
+  await tap(page.locator("label.check:has(#opt-listed) > span"), "listed:check");
+  await wait(900);
+  await tap("#share-btn", "listed:share");
+  await page.waitForSelector("#output:not([hidden])", { timeout: 120000 });
+  await page.waitForFunction(() => document.querySelector("#output-img")?.complete && document.querySelector("#output-img")?.naturalWidth > 0, null, { timeout: 120000 });
+  await wait(1200); await mark("listed:shared");
+  await wait(800);
+  await page.goto(`${BASE}/find?q=${encodeURIComponent("グルメレース")}`, { waitUntil: "networkidle" });
+  await mark("find:page");
+  await wait(2200);
+  await page.mouse.wheel(0, 300); await wait(900);
+  await mark("find:results");
+  await wait(800);
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}" });
+  await wait(800);
+
+  // ⑧ パレット: 組を切り替え（ポップ → ナイト）→ ナイトの 8 色をコピー → 貼って読み込む（自作の組ができる）
+  await openOptions("open-options-pal");
+  await page.locator("#palette-btn").scrollIntoViewIfNeeded();
+  await wait(400);
+  await tap("#palette-btn", "pal:open");
+  await page.waitForSelector("#pal-modal:not([hidden])");
+  await wait(900);
+  const laneUse = (n) => page.locator(`#pal-lanes .pal-lane:nth-child(${n}) .pal-btns .btn`).nth(0);
+  const laneCopy = (n) => page.locator(`#pal-lanes .pal-lane:nth-child(${n}) .pal-btns .btn`).nth(1);
+  await tap(laneUse(2), "pal:pop"); await wait(1100);
+  await tap(laneUse(3), "pal:night"); await wait(1400);
+  // コピー。ヘッドレスではクリップボードに書けないことがあるので、欄には自分で色コードを入れる
+  await tap(laneCopy(3), "pal:copy");
+  await wait(700);
+  const codes = await page.evaluate(() => {
+    const toHex = (c) => { const m = c.match(/\d+/g) || []; return "#" + m.slice(0, 3).map(v => (+v).toString(16).padStart(2, "0")).join(""); };
+    return [...document.querySelectorAll("#pal-lanes .pal-lane:nth-child(3) .pal-chips > *")].map(el => toHex(getComputedStyle(el).backgroundColor)).join(", ");
+  });
+  await page.locator("#pal-import").scrollIntoViewIfNeeded();
+  await page.locator("#pal-import").click();
+  await page.locator("#pal-import").fill("");
+  await page.locator("#pal-import").pressSequentially(codes, { delay: 18 });
+  await wait(400); await mark("pal:paste");
+  await tap("#pal-import-btn", "pal:import");
+  await wait(1400);
+  await page.locator("#pal-lanes").scrollIntoViewIfNeeded();
+  await wait(600); await mark("pal:made");
+  await tap(laneUse(1), "pal:riso"); await wait(700);   // 元の組に戻す
+  await tap("#pal-modal-close", "pal:close");
+  await wait(500);
+
+  // ③ マスを 16×16（256 マス）に広げる → ① プレイリストで埋める
+  await openOptions("open-options");
   await page.locator("#cols").scrollIntoViewIfNeeded();
   await wait(300);
-  // 「縦長も横長も自由」で使うので、横×縦を動かしているところを見せる
   await type("#cols", "16");
   await type("#rows", "9");
   await page.locator("#rows").press("Enter");
   await wait(1100); await mark("cells:wide");
-  await type("#cols", "9");
-  await type("#rows", "16");
-  await page.locator("#rows").press("Enter");
-  await wait(1100); await mark("cells:tall");
   await type("#cols", "16");
   await type("#rows", "16");
   await page.locator("#rows").press("Enter");
   await wait(900); await mark("cells:16");
-  await wait(900);
+  await wait(600);
 
-  // ① プレイリストをまとめて挿入（マイリスト 1 本で最大 500 曲）
   await openSheet();
   await expandSub("sub-bandcamp", "url");
   await page.locator("#bc-url").scrollIntoViewIfNeeded();
@@ -284,24 +304,70 @@ async function featScene() {
   await tap("#pl-to-grid", "pl:fill");
   await page.waitForSelector("#pl-modal[hidden]", { state: "attached" });
   await wait(2000);
-  // グリッドの全体が入るよう頭まで戻す（入れた直後は下のほうを映していてマスが見切れる）
-  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "pl-close"); await wait(500); }
+  await closeSheet("pl-close");
   await page.locator(".pane-grid").scrollIntoViewIfNeeded();
   await wait(1600); await mark("pl:filled");
-  await wait(1200);
+  await wait(1000);
 
-  // ④ 日本語 / 英語の切り替え
-  // プレイリストを入れたあとはシートが開いたままなので、閉じてからでないと下敷きに阻まれる
-  if (!PC && await page.locator("#sheet:not([hidden])").count()) { await tap("#sheet-close", "sheet-close"); await wait(600); }
-  // 押す前にボタンが画面に入った状態でしばらく静止させる（動画はここから 3 拍目で押す作りなので、
-  // 押す瞬間まで「ボタンが見えている」必要がある）
-  await page.evaluate(() => window.scrollTo({ top: 0 }));
-  await page.locator("#lang-switch").scrollIntoViewIfNeeded();
-  await wait(2200);
-  await tap("#lang-switch", "lang:tap");        // 押した瞬間。英語版でも同じ名前にする（動画から名前で引くため）
-  await wait(3000); await mark("lang:switched");   // 切り替わった画面を長めに映す
-  await tap("#lang-switch", "lang:back");       // 元の言語に戻す
+  // ⑩ 大きく見る: 256 マスを画面いっぱいに開いて、掴んで入れ替える
+  await page.locator("#zoom-btn").scrollIntoViewIfNeeded();
+  await wait(400);
+  await tap("#zoom-btn", "zoom:open");
+  await page.waitForSelector("#zoom-modal:not([hidden])");
   await wait(1200);
+  await tap(cell(1), "zoom:select"); await wait(600);
+  await tap(cell(20), "zoom:swap"); await wait(1000);
+  await mark("zoom:done");
+  await wait(600);
+  await tap("#zoom-modal-close", "zoom:close");
+  await wait(500);
+
+  // ⑫ 英語の画面ならローマ字: EN に切り替えて「マリーゴールド / あいみょん」→ Marigold / Aimyon
+  if (!EN) {
+    await page.evaluate(() => window.scrollTo({ top: 0 }));
+    await page.locator("#lang-switch").scrollIntoViewIfNeeded();
+    await wait(1200);
+    await tap("#lang-switch", "lang:tap");
+    await wait(1500); await mark("lang:switched");
+  }
+  await openSheet();
+  await type("#q", "マリーゴールド");
+  await type("#artist", "あいみょん");
+  await tap("#search-btn", "romaji:search");
+  await page.waitForSelector('#results .result:has-text("Marigold")', { timeout: 60000 }).catch(() => console.log("   （Marigold が出なかった）"));
+  await wait(1800); await mark("romaji:got");
+  await wait(600);
+  await closeSheet("romaji-close");
+  if (!EN) { await page.locator("#lang-switch").scrollIntoViewIfNeeded(); await tap("#lang-switch", "lang:back"); await wait(900); }
+
+  // ⑪ VocaDB: iTunes には無い「恐怖ガーデン」を VocaDB で
+  await openSheet();
+  await type("#q", "恐怖ガーデン");
+  await page.locator("#artist").fill("");
+  await tap("#search-btn", "vocadb:itunes");
+  await wait(4000); await mark("vocadb:none");
+  await tap(page.locator('#sources input[value="vocadb"] + span'), "source:vocadb");
+  await wait(500);
+  await tap("#search-btn", "vocadb:search");
+  await page.waitForSelector('#results .result:has(.badge[data-source="vocadb"])', { timeout: 60000 }).catch(() => console.log("   （VocaDB の候補が出なかった）"));
+  await wait(1800); await mark("vocadb:got");
+  await wait(600);
+  await tap(page.locator('#sources input[value="vocadb"] + span'), "source-off:vocadb");
+  await closeSheet("vocadb-close");
+
+  // ⑬ 全部外す → 元に戻す
+  await page.locator("#clear-btn").scrollIntoViewIfNeeded();
+  await wait(600);
+  await tap("#clear-btn", "clear:tap");
+  await page.waitForSelector("#confirm-modal:not([hidden])");
+  await wait(900);
+  await tap("#confirm-yes", "clear:yes");
+  await wait(1000); await mark("clear:empty");
+  await page.locator("#grid-msg .undo").scrollIntoViewIfNeeded();
+  await wait(500);
+  await tap("#grid-msg .undo", "clear:undo");
+  await wait(1400); await mark("clear:back");
+  await wait(800);
   await mark("end");
 }
 
