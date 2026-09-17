@@ -200,10 +200,17 @@ def check_uploaded(image: bytes, og: bytes | None = None) -> tuple[int, int, str
 
 def count_today() -> int:
     """今日（UTC）保存した共有の数。本体画像（.jpg / .png、カード用 -og.jpg を除く）を数える。
-    起動時に 1 日の回数カウンタをここから復元する（プロセス内カウンタはデプロイ・再起動で 0 に戻るため）。"""
+    起動時に 1 日の回数カウンタをここから復元する（プロセス内カウンタはデプロイ・再起動で 0 に戻るため）。
+
+    **数えるのはバケットの直下（キーに `/` を含まないもの）だけ**（2026-09-17）。同じバケットには
+    画像キャッシュ（`imgcache/`）とアップロード画像（`uploads/`）の .jpg / .png も入っていて、以前は
+    それも数えていた。9/16（UTC）は共有 2,806 件に対して「42,410 件」と出ており、1 日の上限
+    （`SHARE_LIMIT_PER_DAY`）を入れるとキャッシュの数で上限に当たって共有が止まる（9/15 の 3,788 件で 429 もこれ）"""
     today = datetime.now(timezone.utc).date()
     n = 0
     for key, _, modified in storage.get_storage().list_objects():
+        if "/" in key:
+            continue
         if modified.date() == today and (key.endswith(".jpg") or key.endswith(".png")) and not key.endswith("-og.jpg"):
             n += 1
     return n

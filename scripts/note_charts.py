@@ -5,10 +5,15 @@
 出力: `outputs/note/chart-shares.png`（日ごとの共有数）、`chart-requests.png`（2 時間ごとの要求数）、
 `chart-bandwidth.png`（2 時間ごとの帯域）。見た目はサイトと同じ（クリームの地・黒い縁取り・右下に影）。
 
-series.json の 1 件は点検 1 回ぶん（`jst`、`gb`、`req_total`、`shares_today` など）。
+series.json の 1 件は点検 1 回ぶん（`jst`、`gb`、`req_total` など）。
 点検のログから足すのは、要約の行を正規表現で拾うだけ（このスクリプトの `extend()`）。
-**共有数の日付は UTC の日**（サーバーの「本日」が 09:00 JST で切り替わるため）。
-09:00 JST 直後の点検に前日の値が残ることがあるので、直後の点検で数が減っていたら前日に入れる。
+
+**作られた画像の枚数は点検のログから取らない**（2026-09-17）。ログの「本日の共有数」は、以前は
+画像キャッシュ（`imgcache/`）まで数えていて 10 倍以上多かった（9/16 は共有 2,806 件に対して 42,410 件）。
+`--r2` を付けると R2 の直下の本体画像を **UTC の日ごと**（09:00 JST で区切る）に数えて
+`shares-daily.json` に書き、それを描く。R2 から消えた日（保持期間を過ぎた日）は数えられない。
+
+    PYTHONUTF8=1 .venv/Scripts/python scripts/note_charts.py --r2 [点検のログ…]
 """
 from __future__ import annotations
 
@@ -27,6 +32,7 @@ from matplotlib import font_manager  # noqa: E402
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "outputs" / "note"
 SERIES = OUT / "series.json"
+SHARES_DAILY = OUT / "shares-daily.json"   # UTC の日 → その日に作られた共有の数（`--r2` で数え直す）
 
 # サイトの色（frontend の CSS 変数と同じ値）
 PAPER, INK, MUTED = "#f6f5f3", "#121717", "#6b6f73"
@@ -81,21 +87,23 @@ def sane(series: list[dict]) -> list[dict]:
     return [e for e in series if e.get("hours") == 2 and e.get("gb") and 0 < e["gb"] < 10]
 
 
-def shares_by_day(series: list[dict]) -> dict[dt.date, int]:
-    """UTC の日ごとの共有数（その日の最大値）。09:00 JST 直後の点検に前日の値が残っていたら前日へ。"""
-    days: dict[dt.date, int] = {}
-    prev = None
-    for e in series:
-        n = e.get("shares_today")
-        if not n:
+def count_r2() -> None:
+    """R2 の直下にある共有の本体画像（.jpg / .png、カード用 -og.jpg を除く）を UTC の日ごとに数える。
+    **終わっていない今日の分は入れない**（09:00 JST で切り替わる）"""
+    sys.path.insert(0, str(ROOT))
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+    from backend import storage
+    today = dt.datetime.now(dt.timezone.utc).date()
+    days: dict[str, int] = {}
+    for key, _, modified in storage.get_storage().list_objects():
+        if "/" in key or not key.endswith((".jpg", ".png")) or key.endswith("-og.jpg"):
             continue
-        utc = e["t"] - dt.timedelta(hours=9)
-        day = utc.date()
-        if utc.hour == 0 and utc.minute < 40 and prev is not None and n >= prev:
-            day = day - dt.timedelta(days=1)   # まだ切り替わる前の値
-        days[day] = max(days.get(day, 0), n)
-        prev = n
-    return days
+        d = modified.date()
+        if d < today:
+            days[d.isoformat()] = days.get(d.isoformat(), 0) + 1
+    SHARES_DAILY.write_text(json.dumps(dict(sorted(days.items())), indent=1), encoding="utf-8")
+    print("R2 の共有数:", days)
 
 
 def frame(title: str, sub: str, unit: str):
@@ -115,17 +123,19 @@ def frame(title: str, sub: str, unit: str):
 
 
 def chart_shares(series: list[dict], stamp: str) -> None:
-    days = shares_by_day(series)
+    days = {dt.date.fromisoformat(k): v for k, v in json.loads(SHARES_DAILY.read_text(encoding="utf-8")).items()}
     keys = sorted(days)
-    fig, ax = frame("作られた画像の枚数", "その日に作られた枚数（UTC の日ごと）。1 枚あたり約 900KB が置き場所に積み上がっていく", "枚 / 日")
+    stamp = ""   # 終わった日だけを描くので「何時時点」は付けない
+    fig, ax = frame("作られた画像の枚数",
+                    "その日に作られた共有画像の枚数（日本時間の朝 9 時で区切る）。9/11 朝 9:30 より前の分は、容量を空けるために削除し計測不能",
+                    "枚 / 日")
     xs = range(len(keys))
     for i, d in enumerate(keys):
         v = days[d]
-        last = i == len(keys) - 1
         ax.bar(i + 0.03, v, width=0.5, color=INK, zorder=2)             # 影
-        ax.bar(i, v, width=0.5, color=VERMILION if last else MUSTARD, edgecolor=INK, linewidth=2, zorder=3)
+        ax.bar(i, v, width=0.5, color=MUSTARD, edgecolor=INK, linewidth=2, zorder=3)
         ax.text(i, v + max(days.values()) * 0.02, f"{v:,}", ha="center", va="bottom", fontsize=15, fontweight="bold", color=INK)
-    ax.set_xticks(list(xs), [d.strftime("%m/%d") + ("\n（" + stamp + " 時点）" if i == len(keys) - 1 else "") for i, d in enumerate(keys)])
+    ax.set_xticks(list(xs), [d.strftime("%m/%d") + ("\n（" + stamp + " 時点）" if stamp and i == len(keys) - 1 else "") for i, d in enumerate(keys)])
     ax.set_xlim(-0.5, len(keys) - 0.5)
     ax.set_ylim(0, max(days.values()) * 1.18)
     ax.yaxis.set_major_formatter(lambda v, _: f"{int(v):,}")
@@ -156,7 +166,9 @@ def _line(series, key, color, fill, unit, title, sub, out, fmt, peak_label, mark
 
 
 def main() -> int:
-    logs = [pathlib.Path(a) for a in sys.argv[1:]]
+    if "--r2" in sys.argv[1:]:
+        count_r2()
+    logs = [pathlib.Path(a) for a in sys.argv[1:] if not a.startswith("--")]
     if logs:
         extend(logs)
     series = load()
