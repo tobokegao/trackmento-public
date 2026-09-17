@@ -3224,7 +3224,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const WRAP_TARGET_UP = [22, 24, 26, 28, 32, 36, 40, 44, 48, 56, 64, 72, 84, 96, 112, 128], WRAP_CELL_KEEP = 0.85;
   // 逆に、文字を 1〜2 段落とすとマスが大きく取れることがある（塊の形と枠の比率が食い違うと、
   // 大きい文字のままでは塊を横いっぱいにできず、左右に使えない空白が残る）
-  const WRAP_CELL_GAIN = 1.25, WRAP_TARGET_FLOOR = 14, WRAP_FINE_STEPS = 24;
+  const WRAP_CELL_GAIN = 1.25, WRAP_TARGET_FLOOR = 14, WRAP_FINE_STEPS = 24, WRAP_LAST_FILL = 0.8;
   // マスがもともと小さいときは守る意味が薄いので、文字を大きくする許容を緩める
   const WRAP_CELL_OK = 40, WRAP_CELL_KEEP_SMALL = 0.6;
   const TITLE_MIN_SCALE = 1.6;   // 曲名リストに対するタイトルの最低倍率（回り込み以外の組み方）
@@ -3498,9 +3498,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       let [, segs, rows] = got; gy = got[0];
       // **上下の帯の厚みをそろえる**（backend/render.py と同じ）。下に使った行数を見て、上下が同じ行数になるまで上の帯を減らす
       const nSideF = nSide * ((leftOk ? 1 : 0) + (rightOk ? 1 : 0));
+      const fillOf = (rw, sg) => { if (!rw.length || !sg.length) return 1; const w = sg[Math.min(rw.length, sg.length) - 1][2]; return w > 0 ? Math.min(1, rw[rw.length - 1].width / w) : 1; };
       for (let k = 0; k < 3; k++) {
         const nBot = Math.max(0, rows.length - nTop - nSideF);
-        const nt = Math.floor((nTop + nBot + 1) / 2);
+        // 下の帯の最後の行は埋まっている分だけ数える（backend/render.py と同じ）
+        const nBotF = nBot ? nBot - 1 + fillOf(rows, segs) : 0;
+        const nt = Math.round((nTop + nBotF) / 2);
         if (!nTop || nt >= nTop) break;
         got = lay(nt);
         if (!got) break;
@@ -3518,7 +3521,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         gy += dM + dG;
         top2 += dM;
       }
-      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: top2, gx, gy, segs: used, pct };
+      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: top2, gx, gy, segs: used, pct, rows };
     };
     // 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始め、WRAP_GRID_MIN を下回るほどは広げない
     const tight = Math.max(gw / Wb, (titleH + gh) / Hb);
@@ -3562,14 +3565,29 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // **枠はそのままで、字を 1 論理 px ずつ大きくして余りを埋める**（backend/render.py と同じ）。
       // 枠（＝マスの大きさ）は変えないので、大きくなるのは字だけ
       // 字が大きくできなくなったら枠を 1% ずつ小さくする（＝マスが大きくなる。backend/render.py と同じ）
-      const segFs = best.fontS;
+      const segFs = best.fontS, basePlan = best;
+      const cands = [best];
       for (let k = 0; k < WRAP_FINE_STEPS; k++) {
         let got = build(best.pct, 0, best.fontS + 1, segFs);
         if (!got && best.pct > lo0) got = build(best.pct - 1, 0, best.fontS, segFs);
         if (!got) break;
-        best = got;
+        best = got; cands.push(got);
       }
-      return best;
+      // 字を少し小さくした候補も並べる（出力で 1px まで。backend/render.py と同じ）
+      const baseOut = basePlan.fontS * basePlan.scale;
+      for (let k = 1; k < WRAP_FINE_STEPS; k++) {
+        const fs = segFs - k;
+        if (fs < 18 || fs * basePlan.scale < baseOut - 1.0) break;
+        const got = build(basePlan.pct, 0, fs, segFs);
+        if (!got) break;
+        cands.push(got);
+      }
+      // **最後の行が埋まっている候補を選ぶ**（backend/render.py と同じ）。WRAP_LAST_FILL 以上埋まっているうち
+      // 字がいちばん大きいもの。無ければいちばん埋まっているもの
+      const lastFill = (p) => { if (!p.rows || !p.rows.length || !p.segs.length) return 1; const w = p.segs[Math.min(p.rows.length, p.segs.length) - 1][2]; return w > 0 ? Math.min(1, p.rows[p.rows.length - 1].width / w) : 1; };
+      const ok = cands.filter((c) => lastFill(c) >= WRAP_LAST_FILL);
+      if (ok.length) return ok.reduce((a, c) => (c.fontS * c.scale > a.fontS * a.scale || (c.fontS * c.scale === a.fontS * a.scale && c.scale > a.scale)) ? c : a, ok[0]);
+      return best;   // 埋まりのために字を削らない（上下の帯の釣り合いで補う）
     }
     return null;
   }

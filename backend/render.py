@@ -366,6 +366,7 @@ WRAP_CELL_KEEP_SMALL = 0.6
 WRAP_CELL_GAIN = 1.25
 WRAP_TARGET_FLOOR = 14    # ただし、マスのために文字をここまでしか落とさない
 WRAP_FINE_STEPS = 24      # 枠を決めたあと、字を 1 論理 px ずつ大きくして余りを埋める回数の上限
+WRAP_LAST_FILL = 0.8      # 最後の行がこの割合まで埋まっている候補を優先する（数語だけの行で終わると「惜しい」見た目になる）
 WRAP_SWITCH_PX = 12       # 出力での文字がこれを下回るなら回り込みに切り替える
 WRAP_SWITCH_GAIN = 1.3    # 文字がこの倍率以上大きくなるなら、マスが少し小さくなっても切り替える
 WRAP_TITLE_SCALE = 4.0    # タイトルは本文の何倍か
@@ -724,6 +725,14 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             put("artist", " " + _one_line(t.artist))
     flush()
     return rows
+
+
+def _last_fill(p: "WrapPlan") -> float:
+    """流し込みの最後の行がどれだけ埋まっているか（0〜1）。frontend の lastFill と同じ。"""
+    if not p.rows or not p.segs:
+        return 1.0
+    seg_w = p.segs[min(len(p.rows), len(p.segs)) - 1][2]
+    return min(1.0, p.rows[-1].width / seg_w) if seg_w > 0 else 1.0
 
 
 def _fills_width(p: "WrapPlan", gw: int) -> bool:
@@ -1178,7 +1187,10 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         n_sidef = n_side * (int(left_ok) + int(right_ok))
         for _ in range(3):
             n_bot = max(0, len(rows) - n_top - n_sidef)
-            nt = (n_top + n_bot + 1) // 2
+            # **下の帯の最後の行は埋まっている分だけ数える**（2026-09-17）。上 3 行・下「1 行＋2 曲」を
+            # 3 対 2 と見て釣り合っているとしていたが、見た目は 3 対 1.3 で下が薄い（9x18・162 曲で指摘）
+            n_botf = (n_bot - 1 + _last_fill(WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, pad, gx, gy, tuple(segs[:len(rows)]), rows))) if n_bot else 0.0
+            nt = rnd((n_top + n_botf) / 2)
             if not n_top or nt >= n_top:
                 break
             got = lay(nt)
@@ -1260,6 +1272,8 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         # マスの高さで数が決まるので、字だけ大きくしても「段が 1 行減って入らない」所で止まる。
         # 枠を縮めると帯の幅が減るぶん段の行が増え、また字を大きくできることがある
         seg_fs = best.font_s
+        base_plan = best
+        cands = [best]
         for _ in range(WRAP_FINE_STEPS):
             got = build(best.pct, 0, best.font_s + 1, seg_fs)
             if got is None and best.pct > lo0:
@@ -1267,7 +1281,23 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             if got is None:
                 break
             best = got
-        return best
+            cands.append(got)
+        # **字を少し小さくした候補も並べる**（出力で 1px まで）。曲が多いと 1px 大きくしただけで段が 1 行減って
+        # 入らず、上の詰め直しが 1 歩も進めないことがある（9x18・162 曲）。小さくするぶんには必ず入る
+        base_out = base_plan.font_s * base_plan.scale
+        for k in range(1, WRAP_FINE_STEPS):
+            fs = seg_fs - k
+            if fs < 18 or fs * base_plan.scale < base_out - 1.0:
+                break
+            got = build(base_plan.pct, 0, fs, seg_fs)
+            if got is None:
+                break
+            cands.append(got)
+        # **最後の行が埋まっている候補を選ぶ**（2026-09-17）。字を 1px 変えるごとに最後の行の余りが変わるので、
+        # 候補の中から「最後の行が WRAP_LAST_FILL 以上埋まっている」うち字がいちばん大きいものを採る。
+        # 無ければ字がいちばん大きいもの（埋まりのために字を削らない。上下の帯の釣り合いで補う）
+        ok = [c for c in cands if _last_fill(c) >= WRAP_LAST_FILL]
+        return max(ok, key=lambda c: (c.font_s * c.scale, c.scale)) if ok else best
     return None
 
 
