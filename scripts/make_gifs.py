@@ -19,7 +19,7 @@ WIDTH = int(sys.argv[2]) if len(sys.argv) > 2 else 720
 # GIF は 256 色まで使えるので、200 を既定にして、色の変化そのものが主題の場面はさらに上げる
 COLORS = 200
 HI_COLOR = {"palette": 240, "touchbar": 240, "sheet": 240, "custom": 224}
-NO_DITHER = {"options", "touchbar", "drag"}   # custom は色の帯が段になるのでディザを残す。写真の場面でもディザ無しのほうが 2 割小さい（drag 3.7MB → 3.0MB）
+NO_DITHER = {"options", "touchbar", "drag", "clear"}   # custom は色の帯が段になるのでディザを残す。写真の場面でもディザ無しのほうが 2 割小さい（drag 3.7MB → 3.0MB）
 MS = 100
 LAST_MS = 900
 # **縦に長いものは横幅も落とす**。スマホの画面を丸ごと撮った場面は 720px 幅だと高さが

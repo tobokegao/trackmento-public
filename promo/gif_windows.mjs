@@ -1,6 +1,6 @@
 // 記事に添える「窓ごとの数秒 GIF」のコマを撮る。
 //   node promo/gif_windows.mjs <出力ディレクトリ> [場面名|all]
-// 場面: search results url manual grid zoom drag io options palette custom sheet touchbar
+// 場面: search results url manual grid zoom drag io clear options palette custom sheet touchbar
 // PNG のコマを <出力ディレクトリ>/<場面>/ に並べる。GIF への変換は scripts/make_gifs.py が行う。
 // **操作はゆっくり**にする（見る人が目で追えるように、1 手ごとに数コマ入れる）。
 // 最後の 2 つ（sheet / touchbar）だけは**スマホの画面**で撮る（指で触る画面にしか無い作りのため）。
@@ -117,6 +117,32 @@ const waitArt = () => page.waitForFunction(() => {
   const imgs = [...document.querySelectorAll("#grid img")];
   return imgs.length > 0 && imgs.every(i => i.complete && i.naturalWidth > 0);
 }, null, { timeout: 30000 }).catch(() => {});
+
+/** 矢印をその要素の真ん中まで**コマを撮りながら**運ぶ。`page.click` は一瞬で飛ぶので、
+    何を押したのか見ても分からない */
+let cursorAt = { x: 640, y: 450 };
+async function glide(sel, shot, steps = 5) {
+  const b = await (await page.$(sel)).boundingBox();
+  const to = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(cursorAt.x + (to.x - cursorAt.x) * i / steps, cursorAt.y + (to.y - cursorAt.y) * i / steps);
+    await shot(); await page.waitForTimeout(1000 / FPS);
+  }
+  cursorAt = to;
+}
+/** 運んで押す。**押したあとに画面がずれたら、矢印もボタンについて行く**。
+    「並びを保存」を押すとボタンの上にメッセージが出てボタンが下へずれ、矢印だけが残って
+    「トラックを共有」を押したように見えていた（利用者から「クリックがズレて見える」と報告） */
+async function press(sel, shot) {
+  await glide(sel, shot);
+  await hold(shot, 0.2);
+  await page.mouse.down(); await shot();
+  await page.mouse.up();
+  await page.waitForTimeout(80);
+  const el = await page.$(sel);
+  const b = el && await el.boundingBox();
+  if (b) { cursorAt = { x: b.x + b.width / 2, y: b.y + b.height / 2 }; await page.mouse.move(cursorAt.x, cursorAt.y); }
+}
 
 /** 折りたたまれている補助フォームを開き、画面の中へ入れる（初期値で閉じているものがある） */
 async function bring(sel) {
@@ -324,19 +350,73 @@ if (want("io")) {
   // **マスも一緒に写す**。ボタンだけを切り取っていたので、押した結果（ファイルに落ちた・戻ってきた）が
   // 見えなかった（利用者から報告）。空にしてから読み込みで戻すと、何が起きたのか目で追える
   await scene("io", rectSpan(".pane-grid", ".msg-under"), async (shot) => {
-    await hold(shot, 1.2);                            // 9 曲そろっているところ
-    const [dl] = await Promise.all([
-      page.waitForEvent("download", { timeout: 15000 }),
-      page.click("#json-export"),
-    ]);
-    await dl.saveAs(tmp);
-    await hold(shot, 2.0);                            // 「ファイルに保存しました」
-    await page.click("#clear-btn"); await page.click("#confirm-yes");   // わざと空にする（確認の窓を通す）
-    await hold(shot, 1.6);
-    await page.setInputFiles("#json-file", tmp);      // 「並びを読み込み」でファイルを選んだのと同じ
+    await hold(shot, 1.0);                            // 9 曲そろっているところ
+    const dlP = page.waitForEvent("download", { timeout: 15000 });
+    await press("#json-export", shot);                // 押したあと矢印がボタンについて行く
+    await (await dlP).saveAs(tmp);
+    await hold(shot, 1.8);                            // 「ファイルに保存しました」
+    // わざと空にする。確認の窓はこの切り取りの外に出るので、ここでは写さずに通す（窓は clear の場面で見せる）
+    await page.click("#clear-btn"); await page.click("#confirm-yes");
+    await page.waitForTimeout(400);   // メッセージが変わってボタンの位置が動き終わるのを待つ
+    // **矢印はいったん窓の外（右）へ出す**。窓の中に置くと、メッセージの長さでボタンが動くたびに
+    // 「元に戻す」やリンクの上に乗って、そこを押したように見える。外から「並びを読み込み」へ運ぶ
+    const g = await (await page.$(".pane-grid")).boundingBox(), b = await (await page.$("#json-import")).boundingBox();
+    cursorAt = { x: g.x + g.width + 60, y: b.y + b.height / 2 }; await page.mouse.move(cursorAt.x, cursorAt.y);
+    await hold(shot, 1.2);                            // 空になったところ
+    // **「並びを読み込み」を実際に押す**。以前はファイルを直接渡していて、押す動きが写らず
+    // 矢印が関係ない所に残っていた。ファイル選択の窓は Playwright が受け止めて同じファイルを渡す
+    const fcP = page.waitForEvent("filechooser", { timeout: 15000 });
+    await press("#json-import", shot);
+    await (await fcP).setFiles(tmp);
+    // 読み込むとメッセージが 2 行になってボタンが下へずれる。矢印もボタンについて行かせる
+    await page.waitForTimeout(250);
+    { const c = await (await page.$("#json-import")).boundingBox(); cursorAt = { x: c.x + c.width / 2, y: c.y + c.height / 2 }; await page.mouse.move(cursorAt.x, cursorAt.y); }
     await hold(shot, 2.2);                            // 9 曲が戻る
   });
   fs.rmSync(tmp, { force: true });
+}
+
+// ---- 8b. マスを全部外す（確認の窓 → 外す → 元に戻す） ----
+if (want("clear")) {
+  await seed(9);
+  await waitArt();
+  await page.waitForTimeout(500);
+  // 確認の窓は画面の真ん中に出るので、**グリッドの窓と確認の窓を合わせた範囲**を撮る（窓が閉じても大きさは変えない）
+  const clip = () => {
+    const g = document.querySelector(".pane-grid").getBoundingClientRect();
+    const m = document.querySelector("#confirm-modal");
+    const wasHidden = m.hidden; m.hidden = false;
+    const p = m.querySelector(".modal-panel").getBoundingClientRect();
+    m.hidden = wasHidden;
+    const x = Math.max(0, Math.min(g.x, p.x) - 8), y = Math.max(0, g.y - 8);
+    return { x, y, width: Math.max(g.right, p.right) + 8 - x, height: document.querySelector(".msg-under").getBoundingClientRect().bottom + 8 - y };
+  };
+  // **撮影のあいだだけ、隣の窓を隠し、確認の窓をグリッドの窓の真上に寄せる**。確認の窓はグリッドの窓より
+  // 横に広く画面の真ん中に出るので、そのまま撮ると隣の「候補」の窓の端が写り込む（5.2MB にもなった）
+  await page.addStyleTag({ content: ".pane-search,.pane-results,.pane-options{visibility:hidden}" });
+  await page.evaluate(() => {
+    const g = document.querySelector(".pane-grid").getBoundingClientRect();
+    const m = document.querySelector("#confirm-modal"), was = m.hidden; m.hidden = false;
+    const p = m.querySelector(".modal-panel"), r = p.getBoundingClientRect();
+    p.style.transform = `translateX(${Math.round(g.x + g.width / 2 - (r.x + r.width / 2))}px)`;
+    m.hidden = was;
+  });
+  cursorAt = { x: 900, y: 400 };
+  await page.mouse.move(cursorAt.x, cursorAt.y);
+  await scene("clear", clip, async (shot) => {
+    await hold(shot, 0.8);
+    await press("#clear-btn", shot);                  // 確認の窓が開く
+    await hold(shot, 1.2);
+    await press("#confirm-yes", shot);                // 全部外す
+    await hold(shot, 1.2);                            // 空になり、メッセージに「元に戻す」
+    await press("#grid-msg .undo", shot);             // 元に戻す
+    await hold(shot, 1.6);
+  });
+  // 次の場面のために戻す（同じページを使い回すため）
+  await page.evaluate(() => {
+    document.querySelector("#confirm-modal .modal-panel").style.transform = "";
+    document.querySelectorAll("style").forEach(st => { if (st.textContent.startsWith(".pane-search,.pane-results")) st.remove(); });
+  });
 }
 
 // ---- 9. 出力オプションの窓 ----
