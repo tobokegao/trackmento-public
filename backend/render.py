@@ -326,6 +326,7 @@ class Layout:
     wrap_top: int = 0                                   # タイトルの帯の上端（余り分を上下に分けて下げる）
     wrap_segs: tuple[tuple[int, int, int], ...] = ()    # 行ごとの (x, y, 幅)。左段 → 右段の順
     wrap_rows: bool = False                             # 段が 1 曲ずつ（マスの横に並べる）
+    sb_inline: bool = False                             # 1 行型（曲名の右端にアーティスト名を右寄せ。`_inline_plan`）
 
 
 # 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
@@ -392,6 +393,7 @@ WRAP_TITLE_MIN = 1.6      # **タイトルは本文の最低これだけ倍**。
 FLOW_FONT_STEPS = (132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18)
 # 右に置くときは**出力での大きさ**（px）で選ぶ。枠が先に決まるのでこちらのほうが素直
 FLOW_TARGET_PX = (56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12)
+FLOW_FINE_STEPS = 16      # 右に置く流し込みで、入った段から字を 1 論理 px ずつ大きくする回数の上限
 
 
 # 曲名の末尾の「(feat. …)」。**ここだけは 2 段目に落とせる**（曲名の本体とアーティスト名を守るため）。
@@ -517,6 +519,34 @@ def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, int]:
         elif aw > avail * ARTIST_ROWS1:
             folded += 1         # 2 行に折れば読める（行が 1 つ増えるだけ）
     return folded, clipped
+
+
+# **1 行型**（2026-09-18）。右に置く曲名リストで、曲名とアーティスト名を 1 行に並べ、アーティスト名を
+# 列の右端にそろえる。3x3・16:9 では曲名＋アーティストの 2 行 × 9 曲で高さを使い切り、字が出力 28px に
+# 止まって**右の 4 割が空いていた**（利用者の画像で指摘）。1 行にすれば行数が半分になって字が大きくなり、
+# 左端（番号）と右端（アーティスト名）の両方がそろう。利用者が「左右の端をそろえたい」と選んだ形
+INLINE_GAIN = 1.15        # 1 行型に切り替えるのは、字がこの倍率以上大きくなるとき
+INLINE_GAP_EM = 1.0       # 曲名とアーティスト名のあいだの最低の空き（字の大きさに対する割合）
+
+
+def _inline_plan(doc: GridDoc, font_s: int, col_w: float) -> tuple[int, ...] | None:
+    """1 行型の曲ごとの行数。1 … 曲名の右にアーティスト名、2 … 並ばないのでアーティスト名を次の行の右端に。
+    **曲名かアーティスト名が単独で 1 行に入らない曲があれば None**（折る組み方は 2 行型に任せる）。
+    幅は `_row_plan` と同じく字ごとに 1px へ丸めた和で見る（PIL と Canvas で食い違わない）"""
+    avail = max(1.0, col_w - _num_w(font_s))
+    fb, fa = max(12, font_s), max(8, rnd(font_s * ARTIST_SCALE))
+    gap = rnd(font_s * INLINE_GAP_EM)
+    plan = []
+    for t in doc.cells:
+        if not t:
+            plan.append(1)
+            continue
+        tw = sum(char_w("bold", fb, ch) for ch in _one_line(t.title))
+        aw = sum(char_w("regular", fa, ch) for ch in _one_line(t.artist))
+        if tw > avail or aw > avail:
+            return None
+        plan.append(1 if not aw or tw + gap + aw <= avail else 2)
+    return tuple(plan)
 
 
 def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
@@ -1351,7 +1381,7 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
     return None
 
 
-def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
+def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layout:
     o = doc.options
     cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
     n_tracks = max(1, sum(1 for t in doc.cells if t))   # 入っている曲の数（「消える曲」の割合を測る母数）
@@ -1532,7 +1562,26 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         fs2 = rnd(lh2 * 0.56)
         if fs2 > font_s and fs2 * scale >= FLOW_MIN_FONT:
             line_h, font_s = lh2, fs2
-    if side == "right" and title_h and line_h > 0:
+    # **1 行型を試す**（`_inline_plan`）。行数は「全曲 1 行」から始め、並ばない曲のぶん増やして字を
+    # 決め直す（字が小さくなるほど並ぶ曲が増えるので、必ず止まる）。字がはっきり大きくなるときだけ採る
+    sb_inline = False
+    if side == "right":
+        rows_i = len(doc.cells)
+        for _ in range(8):
+            lh_i, fs_i, w_i = _sidebar(1, rows_i)
+            ip = _inline_plan(doc, fs_i, w_i)
+            if ip is None or sum(ip) <= rows_i:
+                break
+            rows_i = sum(ip)
+        if (ip is not None and sum(ip) <= rows_i and fs_i * scale >= FLOW_MIN_FONT
+                and fs_i >= font_s * INLINE_GAIN):
+            sb_inline = True
+            sb_cols, line_h, font_s, sb_w, sb_plan, sb_arows = 1, lh_i, fs_i, w_i, ip, ()
+            # **行の高さは残りの高さいっぱいに広げる**（字の大きさはそのまま）。字は幅と行の上限
+            # （マスの送りの 1/4）で決まるので、曲が少ないと下が 4 分の 1 ほど空いていた
+            line_h = max(line_h, (gh - title_h) // max(1, sum(ip)))
+            W, H, scale = _frame(sb_w, sb_h)
+    if side == "right" and title_h and line_h > 0 and not sb_inline:
         # **曲名リストの先頭も段の境目に乗せる**。リストはタイトルの帯のぶん下から始まるので、
         # 帯が行の整数倍でないと、行がそろっていても全体が半端にずれる。
         # 収まらないなら動かさない（はみ出すくらいならそろえないほうがよい）
@@ -1557,13 +1606,25 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
             # **出力での大きさから字の大きさを決める**。論理 px の決め打ち（上限 132）だと、
             # 枠が大きいときに出力で 9px にしかならなかった（1x32 を 16:9 にしたとき）
             W, H, scale = _frame(sb_w, sb_h)
+            fitted = False
             for px in FLOW_TARGET_PX:
                 fs = max(18, rnd(px / scale))
                 # **マスの送りの約数に寄せる**（グリッドの横に流れる行が段とそろう）
                 lh = _snap_lead(rnd(fs * 1.5), pitch)
                 rows = _flow_rows(doc, fs, sb_w)
                 if len(rows) * lh <= avail:
+                    fitted = True
                     break
+            # **入った段から 1 論理 px ずつ大きくして下の余りを詰める**（2026-09-18）。段の刻みは出力で 4〜8px あり、
+            # 次の段との間の余りがそのまま下に残っていた（利用者の 10x15・150 曲で 1 行半ぶん）
+            if fitted and px != FLOW_TARGET_PX[0]:
+                for _ in range(FLOW_FINE_STEPS):
+                    fs2 = fs + 1
+                    lh2 = _snap_lead(rnd(fs2 * 1.5), pitch)
+                    rows2 = _flow_rows(doc, fs2, sb_w)
+                    if len(rows2) * lh2 > avail:
+                        break
+                    fs, lh, rows = fs2, lh2, rows2
         else:
             for fs in FLOW_FONT_STEPS:
                 lh = rnd(fs * 1.5)
@@ -1633,16 +1694,19 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
                title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap, sb_flow,
-               () if sb_flow else sb_plan, () if sb_flow else sb_arows)
+               () if sb_flow else sb_plan, () if sb_flow else sb_arows,
+               sb_inline=sb_inline and not sb_flow)
     # **タイトルは曲名リストより十分大きくする**。ふだんの規則（マスの幅の 4.5%・上限 96）は
     # マスの数だけで決まるので、曲が少なくて曲名が大きくなると**タイトルのほうが小さくなる**
     # （1x6・16:9 で本文 46.6px にタイトル 16.9px ＝ 0.36 倍だった）。
     # 曲名の大きさが決まってから組み直す。タイトルを大きくすると曲名は同じか小さくなるので、
-    # **1 回で必ず収まる**（回り込みは `_wrap_plan` の中で既に本文から決めているので対象外）
-    if L.title and _title_px is None:
+    # たいてい 1 回で収まる（回り込みは `_wrap_plan` の中で既に本文から決めているので対象外）。
+    # **ただし組み直しで組み方が変わると本文のほうが大きくなることがある**（3x20 の比率なしで、
+    # 1 曲 1 行 → 流し込みに変わって本文 85 → 120、タイトルが本文の 1.14 倍だった）。2 回まで回す
+    if L.title and _depth < 2:
         want = rnd(L.font_s * TITLE_MIN_SCALE)
         if want > L.title_size:
-            return layout(doc, want)
+            return layout(doc, want, _depth + 1)
     return L
 
 
@@ -1884,6 +1948,30 @@ def render(doc: GridDoc) -> Image.Image:
         f_num = font("pixel", max(8, sc(L.font_s * 0.8)))
         f_title = font("bold", font_s)
         f_artist = font("regular", max(8, rnd(font_s * ARTIST_SCALE)))
+        if L.sb_inline:
+            # 1 行型: 曲名は番号の後ろ、アーティスト名は列の右端にそろえる。2 つは同じベースラインに乗せる
+            # （字の大きさが違うので、行の中心で合わせると下端がずれて見える）
+            base = rnd(font_s * BASELINE)
+            right = sc(sx + col_w)
+            row = 0
+            for i, t in enumerate(doc.cells):
+                x = sc(sx)
+                yy = sc(sy + row * L.line_h + L.line_h / 2)
+                num = f"{i + 1:02d}"
+                _, top, _, bottom = f_num.getbbox(num, anchor="ls")
+                d.text((x, rnd(yy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
+                nw = d.textlength(num, font=f_num) + sc(L.font_s * 0.8)
+                if t:
+                    max_w = col_w * S - nw
+                    title, artist = _one_line(t.title), _one_line(t.artist)
+                    d.text((x + nw, yy + base), _ellipsize(d, title, f_title, max_w), font=f_title, fill=ink, anchor="ls")
+                    if artist:
+                        ay = yy if plan[i] < 2 else sc(sy + (row + 1) * L.line_h + L.line_h / 2)
+                        d.text((right, ay + base), _ellipsize(d, artist, f_artist, max_w), font=f_artist,
+                               fill=muted, anchor="rs")
+                row += plan[i]
+            _release_memory()
+            return im
         # **割り付けで取った行数より少ない行で描けた曲のぶん、その列の後ろの曲を詰める**（2026-09-17）。
         # 割り付けは字ごとに 1px に丸めた幅で「3 行」と見込むが、実際に折ると 2 行で入ることがあり、
         # 空いた 1 行がそのまま隙間になっていた（利用者の 4x4・16:9 で 2 か所）。列の下に余りが出るほうがまし

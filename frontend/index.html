@@ -3214,6 +3214,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const FLOW_FONT_STEPS = [132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18];
   // 右に置くときは出力での大きさ（px）で選ぶ（枠が先に決まるので）
   const FLOW_TARGET_PX = [56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12];
+  const FLOW_FINE_STEPS = 16;   // 右に置く流し込みで、入った段から字を 1 論理 px ずつ大きくする回数の上限（backend/render.py と同じ）
   function clipTo(ctx, text, font, maxW) {
     ctx.font = font;
     if (ctx.measureText(text).width <= maxW) return text;
@@ -3730,6 +3731,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* 曲ごとの行数。アーティスト名があれば 2 行（曲名 + アーティスト）、曲名が入らなければ +1 行。
      **字ごとに丸めた幅が段の TITLE_ROWS3 倍を超えれば 3 行**（backend/render.py の _row_plan と同じ規則。
      折って縮めて測る判定は折る位置の 1 字の差でサーバーと食い違うので、幅だけで決める） */
+  // **1 行型**（2026-09-18。backend/render.py の INLINE_GAIN / INLINE_GAP_EM / _inline_plan と同じ）。
+  // 曲名とアーティスト名を 1 行に並べ、アーティスト名を列の右端にそろえる。3x3・16:9 で右の 4 割が空いていた
+  const INLINE_GAIN = 1.15, INLINE_GAP_EM = 1.0;
+  /* 1 行型の曲ごとの行数（1: 曲名の右 / 2: 次の行の右端）。単独で 1 行に入らない曲があれば null */
+  function inlinePlan(fontS, colW) {
+    const avail = Math.max(1, colW - numW(fontS));
+    const fb = fontBold(Math.max(12, fontS)), fa = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
+    const gap = Math.round(fontS * INLINE_GAP_EM);
+    const plan = [];
+    for (const t of state.cells) {
+      if (!t) { plan.push(1); continue; }
+      let tw = 0, aw = 0;
+      for (const ch of oneLine(t.title)) tw += charW1(fb, ch);
+      for (const ch of oneLine(t.artist)) aw += charW1(fa, ch);
+      if (tw > avail || aw > avail) return null;
+      plan.push(!aw || tw + gap + aw <= avail ? 1 : 2);
+    }
+    return plan;
+  }
   function rowPlan(fontS, maxW) {
     // 幅は字ごとに 1px へ丸めた和で見る（2026-09-18。まるごと測るとサーバーと 1px 未満だけ違い、
     // 境目の題で「1 行に入る・入らない」が割れて、行数から決まる文字の大きさがずれる）
@@ -3886,7 +3906,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   /* レイアウト計算。描画せずにサイズだけ求める（右ペインの「出力サイズ」表示にも使う） */
   // `titlePx` は「曲名リストより十分大きく」するための組み直し（TITLE_MIN_SCALE を参照）
-  function layout(maxSide = MAX_SIDE, titlePx = null) {
+  function layout(maxSide = MAX_SIDE, titlePx = null, depth = 0) {
     const { cols, rows } = state;
     const m = state.margin;
     const title = state.showTitle ? state.title.trim() : "";
@@ -4041,7 +4061,26 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const fs2 = Math.round(lh2 * 0.56);
       if (fs2 > fontS && fs2 * scale >= FLOW_MIN_FONT) { lineH = lh2; fontS = fs2; }
     }
-    if (side === "right" && titleH && lineH > 0) {
+    // **1 行型を試す**（backend/render.py と同じ）。「全曲 1 行」から始め、並ばない曲のぶん行を増やして字を決め直す
+    let sbInline = false;
+    if (side === "right") {
+      let rowsI = state.cells.length, ip = null, lhI = 0, fsI = 0, wI = 0;
+      for (let k = 0; k < 8; k++) {
+        [lhI, fsI, wI] = sidebar(1, rowsI);
+        ip = inlinePlan(fsI, wI);
+        const sum = ip ? ip.reduce((a, b) => a + b, 0) : 0;
+        if (!ip || sum <= rowsI) break;
+        rowsI = sum;
+      }
+      if (ip && ip.reduce((a, b) => a + b, 0) <= rowsI && fsI * scale >= FLOW_MIN_FONT && fsI >= fontS * INLINE_GAIN) {
+        sbInline = true;
+        sbCols = 1; lineH = lhI; fontS = fsI; sbW = wI; sbPlan = ip; sbARows = [];
+        // 行の高さは残りの高さいっぱいに広げる（字の大きさはそのまま。backend/render.py と同じ）
+        lineH = Math.max(lineH, Math.floor((gh - titleH) / Math.max(1, ip.reduce((a, b) => a + b, 0))));
+        [W, H, scale] = frame(sbW, sbH);
+      }
+    }
+    if (side === "right" && titleH && lineH > 0 && !sbInline) {
       // **曲名リストの先頭も段の境目に乗せる**（タイトルの帯を行の整数倍にする）。
       // 収まらないなら動かさない
       const rowsNow = sbPlan.length ? planRows(sbPlan, sbCols) : baseRows;
@@ -4065,12 +4104,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         // **右に置くときは枠が先に決まる**ので、出力での大きさから字の大きさを決める
         // （論理 px の決め打ちだと、枠が大きいときに出力で 9px にしかならない）
         [W, H, scale] = frame(sbW, sbH);
+        let fitted = false, usedPx = 0;
         for (const px of FLOW_TARGET_PX) {
           fontS = Math.max(18, Math.round(px / scale));
           // **マスの送りの約数に寄せる**（グリッドの横に流れる行が段とそろう）
           lineH = snapLead(Math.round(fontS * 1.5), pitch);
           rows = flowRows(fontS, sbW);
-          if (rows.length * lineH <= avail) break;
+          usedPx = px;
+          if (rows.length * lineH <= avail) { fitted = true; break; }
+        }
+        // 入った段から 1 論理 px ずつ大きくして下の余りを詰める（backend/render.py の FLOW_FINE_STEPS と同じ）
+        if (fitted && usedPx !== FLOW_TARGET_PX[0]) {
+          for (let k = 0; k < FLOW_FINE_STEPS; k++) {
+            const fs2 = fontS + 1, lh2 = snapLead(Math.round(fs2 * 1.5), pitch), rows2 = flowRows(fs2, sbW);
+            if (rows2.length * lh2 > avail) break;
+            fontS = fs2; lineH = lh2; rows = rows2;
+          }
         }
       } else {
         for (const fs of FLOW_FONT_STEPS) {
@@ -4126,13 +4175,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const ox = Math.round((W - contentW) / 2), oy = Math.round((H - contentH) / 2);
     // **タイトルは曲名リストより十分大きくする**（backend/render.py と同じ）。ふだんの規則は
     // マスの数だけで決まるので、曲が少なくて曲名が大きくなるとタイトルのほうが小さくなる。
-    // タイトルを大きくすると曲名は同じか小さくなるので、組み直しは 1 回で必ず収まる
-    if (title && titlePx === null) {
+    // たいてい 1 回で収まるが、組み直しで組み方が変わると本文のほうが大きくなることがあるので 2 回まで回す
+    if (title && depth < 2) {
       const want = Math.round(fontS * TITLE_MIN_SCALE);
-      if (want > titleSize) return layout(maxSide, want);
+      if (want > titleSize) return layout(maxSide, want, depth + 1);
     }
     return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow,
-             sbPlan: sbFlow ? [] : sbPlan, sbARows: sbFlow ? [] : sbARows, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [], wrapRows: false };
+             sbPlan: sbFlow ? [] : sbPlan, sbARows: sbFlow ? [] : sbARows, sbInline: sbInline && !sbFlow, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [], wrapRows: false };
   }
   // **ジャケットが極端に小さくなるときは知らせる**（選択は塞がない）。並びの形と枠の比率が
   // 食い違うと、曲名を読める大きさにしたぶんマスが潰れる（1x32 を 16:9 にすると 23px）。
@@ -4941,6 +4990,32 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const fontS = Math.max(8, sc(L.fontS)), numFont = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
       const titleFont2 = fontBold(fontS), artistFont = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
       const rowY = (r) => sc(sy + r * L.lineH + L.lineH / 2);
+      if (L.sbInline) {
+        // 1 行型: 曲名は番号の後ろ、アーティスト名は列の右端にそろえる。同じベースラインに乗せる（backend/render.py と同じ）
+        const base = Math.round(fontS * BASELINE), right = sc(sx + colW);
+        let row = 0;
+        for (let i = 0; i < n; i++) {
+          const t = state.cells[i], x = sc(sx), yy = rowY(row);
+          const num = String(i + 1).padStart(2, "0");
+          ctx.font = numFont; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(muted);
+          const mm = ctx.measureText(num), top = -mm.actualBoundingBoxAscent, bottom = mm.actualBoundingBoxDescent;
+          ctx.fillText(num, x, Math.round(yy - (top + bottom) / 2));
+          const nw = mm.width + sc(L.fontS * 0.8);
+          if (t) {
+            const maxW = colW * S - nw, title = oneLine(t.title), artist = oneLine(t.artist);
+            ctx.font = titleFont2; ctx.fillStyle = cssRgb(ink);
+            ctx.fillText(ellipsizeText(ctx, title, maxW), x + nw, yy + base);
+            if (artist) {
+              const ay = plan[i] < 2 ? yy : rowY(row + 1);
+              ctx.font = artistFont; ctx.fillStyle = cssRgb(muted); ctx.textAlign = "right";
+              ctx.fillText(ellipsizeText(ctx, artist, maxW), right, ay + base);
+              ctx.textAlign = "left";
+            }
+          }
+          row += plan[i];
+        }
+        return { canvas, bg };
+      }
       const shift = {};   // 割り付けより少ない行で描けた曲のぶん、その列の後ろを詰める（backend/render.py と同じ）
       for (let i = 0; i < n; i++) {
         const t = state.cells[i], [col, row0] = places[i];
