@@ -178,6 +178,30 @@ def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, m
     return out
 
 
+def fetch_tracebacks(key: str, owner: str, sid: str, at: list[str], most: int = 3) -> list[tuple[str, list[str]]]:
+    """Traceback の本文を取り直す。ふだんは印付きの行だけ text で絞って読むので、本文（`File …` の行や
+    例外の名前）が取れず、「Traceback が 5 件」としか分からなかった（2026-09-19）。
+    時刻の近いものは 1 つにまとめ、最初の `most` 件だけ、その時刻から 3 秒ぶんを絞らずに読む"""
+    out: list[tuple[str, list[str]]] = []
+    last = None
+    for ts in at:
+        t = _dt(ts)
+        if t is None or (last is not None and (t - last).total_seconds() < 5):
+            continue
+        last = t
+        try:
+            page = _get("/logs", {"ownerId": owner, "resource": sid, "startTime": _iso(t), "endTime": _iso(t + timedelta(seconds=3)),
+                                  "limit": 60, "direction": "forward"}, key)
+        except RuntimeError as ex:
+            out.append((ts, [f"（取れなかった: {ex}）"]))
+        else:
+            body = [(it.get("message") or "")[:200] for it in page.get("logs", [])]
+            out.append((ts, [b for b in body if not b.startswith(("[stats]", "[ua]", "[health]", "[src]", "[ref]"))][:30]))
+        if len(out) >= most:
+            break
+    return out
+
+
 def fetch_metric(key: str, kind: str, sid: str, start: datetime, end: datetime, resolution: int, method: str | None = None) -> tuple[str, list[tuple[str, float]]]:
     """(unit, [(timestamp, value), …])。unit は API が返すもの（bytes / MB / GB など。空なら不明）。"""
     params = {"resource": sid, "startTime": _iso(start), "endTime": _iso(end), "resolutionSeconds": resolution}
@@ -232,6 +256,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     lags: list[float] = []
     budget_lines: list[str] = []
     search_fail = 0
+    tb_at: list[str] = []    # Traceback の時刻（本文を取り直すため）
     search_fail_by: dict[str, int] = defaultdict(int)   # "ソース 理由" → 件数（省略分を含む）
     restored: list[tuple[str, int]] = []
     uptime_resets = 0        # 入れ替え単位にまとめた回数（判定に使う）
@@ -286,6 +311,8 @@ def analyze_logs(logs: list[dict]) -> dict:
             fivexx[f"{fm.group(2)} {fm.group(3)} {fm.group(4)}"] += int(fm.group(1))
         elif m.startswith("[error]") or m.startswith("Traceback") or m.startswith("ERROR:"):
             errors.append(f"{_jst(ts)} {m[:160]}")
+            if m.startswith("Traceback"):
+                tb_at.append(ts)
         elif "[share] budget" in m or "[share] quota" in m:
             budget_lines.append(f"{_jst(ts)} {m[:160]}")
         elif "[search]" in m and "failed" in m:
@@ -310,6 +337,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "budget_lines": budget_lines,
         "search_fail": search_fail,
         "search_fail_by": dict(search_fail_by),
+        "tb_at": tb_at,
         "restored": restored,
         "uptime_resets": uptime_resets,
         "uptime_reset_lines": uptime_reset_lines,
@@ -435,6 +463,11 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         lines.append(f"  - {e}")
     for k, n in sorted((la.get("search_fail_by") or {}).items(), key=lambda kv: -kv[1])[:8]:
         lines.append(f"  - 検索失敗 {n} 件 `{k}`")
+    for at, body in (la.get("tb_body") or [])[:3]:
+        lines.append(f"  - Traceback の本文（{_jst(at)}）:")
+        lines.append("    ```")
+        lines.extend(f"    {b}" for b in body)
+        lines.append("    ```")
     if len(la["errors"]) > T["errors"]:
         problems.append(f"エラー行 {len(la['errors'])} が閾値 {T['errors']} を超過")
     slow = [l for l in la["lags"] if l >= 2.0]
@@ -481,6 +514,7 @@ def main() -> int:
         events = fetch_events(key, sid, start - timedelta(minutes=20), end)
         logs = fetch_logs(key, owner, sid, start, end)
         la = analyze_logs(logs)
+        la["tb_body"] = fetch_tracebacks(key, owner, sid, la.get("tb_at") or [])
         bw = fetch_metric(key, "bandwidth", sid, start.replace(minute=0, second=0, microsecond=0), end, 3600)
         mem = fetch_metric(key, "memory", sid, start, end, 300, "MAX")
         cpu = fetch_metric(key, "cpu", sid, start, end, 300, "MAX")
