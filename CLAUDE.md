@@ -1248,6 +1248,11 @@ claude --remote-control TRACKMENTO                                             #
   （読み取りの時間切れは遅いだけなので覚えない）。
   **理由には配信元のホスト名だけ添える**（`_host_of`、2026-09-17）。「404 が 1,039 件」だけではどの配信元か分からず手が打てなかった。URL 全体は利用者のデータなので出さない。
   **`[error]` に混ぜてはいけない**。あちらは「想定外の例外」を数えて判定に使う枠なので、配信元都合の 502 を入れると閾値が鈍る。`render_check.py` 側は `FIVEXX_RE` で拾って要約に内訳を出すだけで、判定は従来どおり `[stats]` の 5xx 合計で見る
+- **サーバー描画のフォントの控えには上限がある**（`render.py` の `FONT_CACHE_MAX` = 160 / `CHAR_W_CACHE_MAX` = 20 万、2026-09-19）。
+  `ImageFont.truetype` は大きさごとに FreeType の face を 1 つ持ち、1 つ 0.3MB ほど食う。割り付けの探索は 1px 刻みで
+  何百通りも作るので、上限なしだと `/share`（描けない端末の代わりに描く）が呼ばれるたびに溜まり、
+  **本番の `[health] rss` が 632MB まで伸びていた**。手元で 60 通り組むと 1,317 個・431MB → 上限 160 で 94MB。
+  速さは 1 割ほど落ちるだけ（60 通りで 9.4 → 10.3 秒）。値は変わらないので突き合わせには影響しない
 - **`[stats]` のログに転送量は入っていない**（件数・所要時間・5xx のみ）。どの経路が何バイト出しているかはログから分からないので、`curl` で実際のサイズを測るか、ブラウザの `performance.getEntriesByType('resource')` の `transferSize` を見る。件数が多い経路が重いとは限らない（実例: `/grids/*` は最多だが 1 件 3.6KB、フォントは件数が少ないのに 210KB）
 - **Render 前段の Cloudflare は Web Service の応答をキャッシュしない**（`cf-cache-status: DYNAMIC`）。`Cache-Control` を付けても効かないので、転送量を減らすには R2 へ逃がすしかない
 - **`python -c "from backend import storage"` のような直接実行では `.env` が読まれない**（`backend.main` が `load_dotenv` する）。環境変数が無いと `get_storage()` が LocalStorage に落ちるため、R2 を見ているつもりでローカルの `shares/` を見ていることがある。**サーバー経由では 404 なのに手元のスクリプトでは取れる、という食い違いはたいていこれ**。スクリプトから触るときは `.env` を自分で読む（`scripts/upload_fonts_r2.py` の冒頭が例）

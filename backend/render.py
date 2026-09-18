@@ -13,6 +13,7 @@ import unicodedata
 import os
 import re
 import time
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -115,9 +116,15 @@ def _is_light(rgb: tuple[int, int, int]) -> bool:
 
 
 # ---------- フォント ----------
-_font_cache: dict[tuple[str, int], ImageFont.FreeTypeFont] = {}
+# **大きさごとに FreeType の face を 1 つ持つので、1 つ 0.3MB ほど食う**。割り付けを探すあいだに
+# 1px 刻みで何百通りも作るので、上限を付けないと本番のプロセスに溜まり続ける
+# （2026-09-19 に調べた。手元で 60 通り組むと 1,317 個・+380MB。本番の rss が 632MB まで伸びていた原因）。
+# 使った順に並べ、上限を超えたら古いものから捨てる
+FONT_CACHE_MAX = int(os.getenv("FONT_CACHE_MAX", "160"))
+_font_cache: "OrderedDict[tuple[str, int], ImageFont.FreeTypeFont]" = OrderedDict()
 
-
+# 字幅の控え。1 件は小さいが、利用者の曲名の字 × 大きさで際限なく増えるので、上限で丸ごと捨てる
+CHAR_W_CACHE_MAX = int(os.getenv("CHAR_W_CACHE_MAX", "200000"))
 _char_w_cache: dict[tuple[str, int, str], float] = {}
 
 
@@ -127,6 +134,8 @@ def char_w(kind: str, size: int, ch: str) -> float:
     key = (kind, size, ch)
     w = _char_w_cache.get(key)
     if w is None:
+        if len(_char_w_cache) >= CHAR_W_CACHE_MAX:
+            _char_w_cache.clear()
         w = _char_w_cache[key] = float(rnd(font(kind, size).getlength(ch)))
     return w
 
@@ -134,14 +143,29 @@ def char_w(kind: str, size: int, ch: str) -> float:
 def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
     """kind: 'bold' | 'regular' | 'pixel'（Silkscreen Bold）"""
     key = (kind, size)
-    if key not in _font_cache:
+    f = _font_cache.get(key)
+    if f is not None:
+        _font_cache.move_to_end(key)
+        return f
+    name = {"bold": "IBMPlexSansJP-Bold.ttf", "regular": "IBMPlexSansJP-Regular.ttf", "pixel": "Silkscreen-Bold.ttf"}[kind]
+    p = FONTS / name
+    try:
+        f = _font_cache[key] = ImageFont.truetype(str(p), size)
+    except OSError as e:
+        raise RuntimeError(f"フォントが見つかりません: {p}") from e
+    while len(_font_cache) > FONT_CACHE_MAX:
+        _font_cache.popitem(last=False)
+    return f
+    if True:
         name = {"bold": "IBMPlexSansJP-Bold.ttf", "regular": "IBMPlexSansJP-Regular.ttf", "pixel": "Silkscreen-Bold.ttf"}[kind]
         p = FONTS / name
         try:
-            _font_cache[key] = ImageFont.truetype(str(p), size)
+            f = _font_cache[key] = ImageFont.truetype(str(p), size)
         except OSError as e:
             raise RuntimeError(f"フォントが見つかりません: {p}") from e
-    return _font_cache[key]
+        while len(_font_cache) > FONT_CACHE_MAX:
+            _font_cache.popitem(last=False)
+    return f
 
 
 _cmap_cache: set[int] | None = None
