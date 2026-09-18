@@ -29,53 +29,58 @@ OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io
 def _guide(lang: str, days: int) -> str:
     if lang == "en":
         return f"""
-<p>TRACKMENTO lays out the cover art of your favourite tracks in a grid and turns it into a single image —
-a “9 tracks that made me” post, for example. It works track by track rather than album by album, and you can mix
-tracks from almost any site, whether or not you use a streaming service. It is free and needs no account.</p>
+<p>TRACKMENTO is a tool that lays out the artwork (cover art) of your favourite tracks in a grid and turns it into a single image.
+You can make images like “9 tracks that made me” by combining tracks from many different music sites, whether or not you
+subscribe to a streaming service. Its distinguishing feature is that you can arrange music freely <b>track by track</b>, not only
+album by album. It is completely free, and no sign-up is required.</p>
 
-<h2>Making a grid</h2>
+<h2>How to make a grid</h2>
 <ol class="steps">
-<li><b>Choose the size.</b> Set how many cells go across and down (up to 32 on a side, 256 cells in total).</li>
-<li><b>Tap a cell and find a track.</b> Search by title and artist. The default source is iTunes; you can also search
-MusicBrainz, VocaDB (Vocaloid songs) and otoDB (otomad works).</li>
-<li><b>Or paste a URL.</b> Links from Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify and Apple Music work.
-If a track has no cover, you can add one by pasting an image URL or picking a picture from your device.</li>
-<li><b>Rearrange.</b> Tap two cells to swap them. “Zoom in” opens the grid full-screen so large grids are easy to sort.</li>
-<li><b>Share.</b> Pick an aspect ratio (1:1, 4:5, 16:9, 9:16 or free), a background colour and how the track list is shown,
-then press share. You get an image and a share page URL.</li>
+<li><b>Set the number of cells:</b> Choose how many cells go down and across (up to 32 per side, 256 cells in total).</li>
+<li><b>Pick a cell and find a track:</b> Tap (or click) a cell and search by track title or artist name. Besides the standard
+iTunes search, you can switch to MusicBrainz, VocaDB (Vocaloid songs) or otoDB (otomad works).</li>
+<li><b>Add directly from a URL:</b> You can paste links from Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify and
+Apple Music. If a track has no cover, you can fill it in with an image URL or by uploading an image from your device.</li>
+<li><b>Rearrange:</b> Select two cells one after the other to swap their positions. “Enlarge” shows the grid full-screen,
+so rearranging stays comfortable even with many cells.</li>
+<li><b>Export and share the image:</b> Choose the aspect ratio (1:1, 4:5, 16:9, 9:16 or no fixed ratio), the background colour
+and how the track list is shown, then share. You get the finished image and a dedicated share URL.</li>
 </ol>
 
 <h2>Handy features</h2>
 <ul>
-<li><b>Whole playlists at once.</b> Paste a playlist, mylist or set URL and up to 500 tracks come in together.
-Tracks that don't fit in the grid wait in the candidate list.</li>
-<li><b>Deleted videos come back.</b> If a Niconico video has been removed, TRACKMENTO asks otoDB and fills in the real
-title, uploader and thumbnail when the work is registered there.</li>
-<li><b>Track list options.</b> Show the list beside the grid, overlay titles on the covers, or hide it.
-When cells get too small to read, overlaid titles are skipped automatically.</li>
-<li><b>Palettes.</b> Switch the whole colour scheme, make your own set of eight colours and copy it to share with friends.</li>
-<li><b>Everyone's grids.</b> If you tick “Add to everyone's grids” when sharing, others can find your grid by searching
-for a track or artist. Nothing is listed unless you tick it.</li>
-<li><b>Japanese and English.</b> Switch with the button at the top right. In English, iTunes titles are shown as they appear
-in the US store where available.</li>
+<li><b>Import whole playlists:</b> Paste a single playlist, mylist or set URL to load up to 500 tracks at once.
+Tracks that don't fit in the grid stay in the candidate list.</li>
+<li><b>Automatic recovery of deleted videos:</b> Even if a Niconico video has been deleted, TRACKMENTO automatically restores the
+official title, creator name and thumbnail when the work is registered in otoDB (the otomad database).</li>
+<li><b>Three track list styles:</b> Choose from “beside the grid”, “on the covers” or “hidden”. When cells are too small and the
+text would be unreadable, the “on the covers” style turns off automatically.</li>
+<li><b>Colour palettes:</b> Switch the colour theme of the whole screen. You can also create your own set of eight colours, copy
+the colour codes and share them with others.</li>
+<li><b>Everyone's grids:</b> If you turn on “Add to everyone's grids” when sharing, other users can find your grid by track title or
+artist name (shares without the check are not listed).</li>
+<li><b>Japanese and English:</b> Switch the language with the button at the top right of the screen. In English, iTunes track
+information is also fetched as it appears in the US store.</li>
 </ul>
 
-<h2>Where your data lives</h2>
-<p>Your grid is saved in your browser, with a backup copy on the server so you can pick up where you left off.
-Shared images and share pages are kept for {days} days and then deleted automatically. See the
-<a href="/privacy?lang=en">privacy policy</a> for details.</p>
+<h2>Data storage and retention</h2>
+<p>Data you are editing is saved in your browser, and a backup is temporarily kept on the server so that you can resume your work.
+Images and share pages created with the share feature are deleted automatically {days} days after they are created. For details,
+please see the <a href="/privacy?lang=en">privacy policy</a>.</p>
 
 <h2>FAQ</h2>
 <dl>
-<dt>Is it free? Do I need an account?</dt>
-<dd>It is free, and there is no sign-up. The site may show ads to help cover server costs.</dd>
-<dt>Can I edit a grid I shared?</dt>
-<dd>Open the share page and press “Open in TRACKMENTO” to load the same layout into the app, then share again.</dd>
-<dt>A cover didn't show up.</dt>
-<dd>Some sites remove their images over time. You can replace the cover with an image URL or a picture from your device.</dd>
-<dt>Who owns the cover art?</dt>
-<dd>Cover art and titles belong to their artists and rights holders. TRACKMENTO shows images provided by the original
-services so that you can list the music you love; please follow each service's terms when you share.</dd>
+<dt>Is it free? Do I need to register?</dt>
+<dd>Everything is free and no account is required. Note that ads may be shown to help cover the cost of running the servers.</dd>
+<dt>I want to revise a grid I already shared.</dt>
+<dd>Press “Open in TRACKMENTO” on the share page to load that layout into the editor. Make your changes, then share it again.</dd>
+<dt>A cover image doesn't show up.</dt>
+<dd>The image may have been deleted or made private by the original site. In that case, specify an image URL or set an image from
+your device manually.</dd>
+<dt>What about the rights to the cover art?</dt>
+<dd>Copyright and other intellectual property rights in the artwork and track titles belong to the respective artists and rights
+holders. TRACKMENTO displays images that each music platform provides through its API or similar means, so that users can introduce
+and share the music they love. When sharing, please follow the terms of use and guidelines of each service.</dd>
 </dl>
 """
     return f"""
@@ -120,49 +125,50 @@ services so that you can list the music you love; please follow each service's t
 def _privacy(lang: str, days: int) -> str:
     if lang == "en":
         return f"""
-<p>This policy explains what information TRACKMENTO (https://trackmento.com, “the site”) handles and how.</p>
+<p>This policy sets out how TRACKMENTO (https://trackmento.com, “the Site”) handles user information.</p>
 
-<h2>1. Information we keep</h2>
+<h2>1. Information the Site stores</h2>
 <ul>
-<li><b>Your grids.</b> The tracks you place, the title and your output settings are saved in your browser
-(local storage). A backup copy is kept on the server under a random ID for your browser, so you can continue later.
-It contains no name, email address or account.</li>
-<li><b>Shared images and share pages.</b> When you share, the image and a snapshot of the layout are stored on
-Cloudflare R2 and deleted automatically after {days} days.</li>
-<li><b>Images you upload.</b> Pictures you pick from your device are resized and stored with their location and other
-metadata (EXIF) removed.</li>
-<li><b>Everyone's grids.</b> Only shares you choose to list are searchable within the site.</li>
+<li><b>Grid editing data:</b> The tracks placed in cells, the title and the display/output settings are saved in your browser
+(local storage). To let you restore your session, a temporary backup is also kept on the server, linked to a random ID issued for
+each browser. It contains no personally identifying information such as your name or email address.</li>
+<li><b>Shared images and share pages:</b> When you share, the image data and layout data are stored on Cloudflare R2. This data is
+permanently deleted automatically {days} days after it is created.</li>
+<li><b>Images uploaded from your device:</b> These are resized appropriately and stored after removing metadata such as location
+information (Exif).</li>
+<li><b>Everyone's grids:</b> Only data you have allowed to be listed (opted in) when sharing is stored and made searchable within the Site.</li>
 </ul>
 
 <h2>2. Access logs</h2>
-<p>To keep the service running, the server records counts and response times for each kind of request.
-IP addresses are only used in hashed form for rate limiting and daily share limits. We do not record search terms,
-full URLs you paste, or raw User-Agent strings; only broad categories (for example “person” or “link preview”)
-and the host name of the referring site are counted.</p>
+<p>For stable operation and maintenance, the server records the number of requests and response times for each type of request.
+To prevent abuse, limit rapid repeated requests and manage the daily share limit, IP addresses are converted into an irreversible
+(hashed) form and used only temporarily. Search keywords, the full text of URLs you enter and raw browser User-Agent strings are not
+kept. Only broad categories (for example, whether an access is by a person or by a URL preview bot) and statistics on referring
+domains (host names) are aggregated.</p>
 
-<h2>3. Services we send data to</h2>
-<p>To find tracks and covers, the search terms and URLs you enter are sent to the relevant service — for example
-Apple (iTunes Search API), MusicBrainz / Cover Art Archive, VocaDB, otoDB, Bandcamp, SoundCloud, YouTube, Niconico,
-bilibili and Spotify. Some searches go directly from your browser to these services. Each service handles data under its
-own privacy policy. The site is hosted on Render, and shared files are served through Cloudflare.</p>
+<h2>3. Communication with external services</h2>
+<p>When searching for or retrieving track and cover information, the search terms and URLs you enter are sent to the relevant external
+services (for example, the Apple iTunes Search API, MusicBrainz / Cover Art Archive, VocaDB, otoDB, Bandcamp, SoundCloud, YouTube,
+Niconico, bilibili and Spotify). Some searches are sent directly from your browser to these APIs. Information sent is handled under
+each platform's privacy policy.</p>
+<p>The Site's server infrastructure runs on Render, and Cloudflare is used to deliver and cache shared files.</p>
 
 <h2>4. Cookies and advertising</h2>
-<p>The site itself does not use cookies; your settings are kept in your browser's local storage.
-The site uses (or may use) Google AdSense, a third-party advertising service.
-Third-party vendors, including Google, use cookies to serve ads based on a user's prior visits to this website or other
-websites. Google's use of advertising cookies enables it and its partners to serve ads based on visits to this site and/or
-other sites on the Internet. You can opt out of personalised advertising in
-<a href="https://www.google.com/settings/ads" rel="noopener">Google Ads Settings</a>, or opt out of some third-party vendors'
-use of cookies at <a href="https://www.aboutads.info/" rel="noopener">www.aboutads.info</a>.
-See also <a href="https://policies.google.com/technologies/ads" rel="noopener">how Google uses information from sites that use its services</a>.</p>
+<p>The Site itself does not use its own cookies (settings are saved in your browser's local storage).</p>
+<p>The Site uses (or plans to use) Google AdSense, a third-party advertising service. Third-party vendors, including Google, use
+cookies to serve ads based on a user's prior visits to this website or other websites.</p>
+<p>You can opt out of personalised advertising in Google's <a href="https://www.google.com/settings/ads" rel="noopener">Ads Settings</a>.
+You can also opt out of third-party vendors' use of cookies by visiting <a href="https://www.aboutads.info/" rel="noopener">www.aboutads.info</a>.
+For details, please see <a href="https://policies.google.com/technologies/ads" rel="noopener">Google's Privacy &amp; Terms</a>.</p>
 
-<h2>5. Deleting your data</h2>
-<p>Pressing “Clear all” removes the tracks from your grid. Clearing this site's data in your browser removes the local copy;
-the server backup is removed automatically over time. Shares disappear after {days} days. If you want a share removed
-sooner, please contact us (see <a href="/about?lang=en">About</a>) with its URL.</p>
+<h2>5. Requests to delete data</h2>
+<p>You can reset your working data at any time by using “Clear all cells” in the editor or by deleting (clearing) this site's data in
+your browser. Shared data is erased automatically after {days} days; if you would like it removed before then, please contact the
+operator (see <a href="/about?lang=en">About &amp; contact</a>) with the share URL.</p>
 
-<h2>6. Changes</h2>
-<p>We may update this policy. The latest version is always on this page.</p>
+<h2>6. Changes to this policy</h2>
+<p>This privacy policy may be revised without notice in response to changes in law or to additions and changes in the service's features.
+The latest version is always published on this page.</p>
 """
     return f"""
 <p>TRACKMENTO（https://trackmento.com、以下「当サイト」）における利用者情報の取り扱いについて、以下のとおり定めます。</p>
@@ -199,24 +205,24 @@ def _about(lang: str, days: int) -> str:
     ja_url, en_url = OFFICIAL
     if lang == "en":
         return f"""
-<p>TRACKMENTO is made and run by <b>Tobokegao</b>, a chiptune musician based in Japan who has been making music on the
-Game Boy since 2014, runs the label TBKgao and contributed the song “Nouveau Monde” to the Nintendo Switch game
-<i>YARS RISING</i>.</p>
-<p>It started as a personal tool for making “tracks that made me” images from songs spread across many sites —
-Vocaloid songs, otomad and indie releases that aren't always on streaming services — and grew into a public site.</p>
+<p>TRACKMENTO is developed and run by <b>Tobokegao</b>, a chiptune artist who has been composing with the Game Boy since 2014.
+Tobokegao runs the independent label TBKgao and contributed the song “Nouveau Monde” to <i>YARS RISING</i> for Nintendo Switch,
+among other work.</p>
+<p>TRACKMENTO began as a personal tool for making “tracks that made me” images that include works not available on streaming
+services, such as Vocaloid songs, otomad and doujin music, and was later released to the public as a web service.</p>
 
 <h2>Contact</h2>
-<p>For questions, bug reports or removal requests, please reach out through the links on the
-<a href="{en_url}" rel="noopener">official site</a>. When asking about a share, please include its URL.</p>
+<p>For questions, bug reports or requests to delete shared data, please use the contact details listed on the
+<a href="{en_url}" rel="noopener">official site</a>. When asking about shared data, please be sure to include the share URL.</p>
 
-<h2>Support</h2>
-<p>TRACKMENTO is free. If you'd like to help with server costs, buying music on
-<a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" rel="noopener noreferrer">Bandcamp</a>
-is very much appreciated.</p>
+<h2>Supporting development and operation</h2>
+<p>Anyone can use TRACKMENTO for free. If you would like to support the server costs and continued development, buying or listening to
+music on <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" rel="noopener noreferrer">Bandcamp</a>
+would be a great encouragement.</p>
 
-<h2>Data sources</h2>
-<p>Track data comes from the iTunes Search API, MusicBrainz and Cover Art Archive, VocaDB (CC BY 3.0), otoDB and the
-sites you paste links from. TRACKMENTO is not affiliated with these services.</p>
+<h2>Data sources and attribution</h2>
+<p>Track information shown in this service is obtained from the iTunes Search API, MusicBrainz, Cover Art Archive, VocaDB (CC BY 3.0),
+otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated with these services or their operators.</p>
 """
     return f"""
 <p>TRACKMENTO は <b>Tobokegao（とぼけがお）</b>が開発・運営しています。2014年よりゲームボーイを用いた作曲活動を行っているチップチューンアーティストで、自主レーベル「TBKgao」の主宰や、Nintendo Switch用ソフト『YARS RISING』への楽曲提供（「Nouveau Monde」）などを手がけています。</p>
