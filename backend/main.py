@@ -76,6 +76,17 @@ IMAGE_FETCH_TIMEOUT = httpx.Timeout(float(os.getenv("IMAGE_FETCH_TIMEOUT", "12")
 # 503 の再試行（1.5 + 3 秒）で 20 秒近くまで伸びることがあり、点検で /search の最大が 20.1 秒になっていた。
 # MusicBrainz は iTunes で 0 件のときの予備なので、それ以上待たせるより「見つからない」を返すほうが親切
 SOURCE_TIMEOUT = 12
+# ソースごとの上限秒（無ければ SOURCE_TIMEOUT）。VocaDB は選んだときだけ使うソースで、応答に波がある
+# （2026-09-19 の実測で 0.3〜6.5 秒、点検で 2 時間に 7 件が 12 秒の時間切れ。利用者から「タイムアウトする」と報告）。
+# 12 秒は MusicBrainz の予備検索に合わせた値なので、選んで待っている VocaDB には短い
+SOURCE_TIMEOUTS = {"vocadb": 25}
+# 時間切れでも取得を捨てないソース。裏で最後まで待ち（`SOURCE_HARD_TIMEOUT` まで）、届いた結果を覚える。
+# 以前は時間切れを 60 秒「失敗」として覚えていたので、言われたとおり再検索すると即座にまた失敗が返っていた。
+# 今は再検索が走っている取得にそのまま合流するか、覚えた結果を即返す。
+# MusicBrainz は入れない（1 秒 1 回の順番待ちの枠を、誰も待っていない取得で握り続けることになる）
+KEEP_ON_TIMEOUT = {"vocadb", "otodb"}
+SOURCE_HARD_TIMEOUT = 45
+_inflight: dict[tuple[str, str, str], asyncio.Task] = {}   # (ソース, 曲名, アーティスト) → 走っている取得
 FAIL_TTL = 60         # 失敗した検索を覚えておく秒数（同じ検索の連打を外部に流さない）
 _fail_log: dict[str, list] = {}   # (ソース名 + 理由) → [最後に出した時刻, その後の省略件数]。同じ失敗は 60 秒に 1 行
 
@@ -898,7 +909,7 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
     if misses:
         client = app.state.http
         fetched = await asyncio.gather(
-            *(asyncio.wait_for(SOURCES[names[i]](q, artist, client=client), timeout=SOURCE_TIMEOUT) for i in misses), return_exceptions=True
+            *(_fetch_source(names[i], q, artist, client) for i in misses), return_exceptions=True
         )
         for i, res in zip(misses, fetched):
             if isinstance(res, BaseException):
@@ -906,15 +917,42 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
                 _log_search_failure(names[i], brief(res))
                 results[i] = []
                 failed[names[i]] = "busy" if isinstance(res, (musicbrainz.SourceBusy, itunes.SourceBlocked, asyncio.TimeoutError)) or "503" in str(res) else "error"
+                if isinstance(res, asyncio.TimeoutError) and names[i] in KEEP_ON_TIMEOUT:
+                    continue   # 取得は裏で続いている。再検索はそこへ合流するので、失敗として覚えない
                 _recent_fail[(names[i], q, artist)] = (now, failed[names[i]])
                 if len(_recent_fail) > 500:
                     for k in [k for k, v in _recent_fail.items() if now - v[0] >= FAIL_TTL]:
                         del _recent_fail[k]
                 continue
             results[i] = res
-            if res:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）
+            if res and names[i] not in KEEP_ON_TIMEOUT:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）
                 await asyncio.to_thread(cache.set_search, names[i], q, artist, [t.model_dump() for t in res])
     return [r or [] for r in results], failed
+
+
+async def _fetch_source(name: str, q: str, artist: str, client: httpx.AsyncClient) -> list[Track]:
+    """1 ソースを取りに行く。`KEEP_ON_TIMEOUT` のソースは時間切れでも取得を止めず、
+    同じ検索が走っていればそこへ合流する（同時に同じ語で検索されても外部へは 1 回）。"""
+    limit = SOURCE_TIMEOUTS.get(name, SOURCE_TIMEOUT)
+    if name not in KEEP_ON_TIMEOUT:
+        return await asyncio.wait_for(SOURCES[name](q, artist, client=client), timeout=limit)
+    key = (name, q, artist)
+    task = _inflight.get(key)
+    if task is None:
+        async def run() -> list[Track]:
+            try:
+                res = await asyncio.wait_for(SOURCES[name](q, artist, client=client), timeout=SOURCE_HARD_TIMEOUT)
+                if res:  # 空は保存しない（上と同じ理由）
+                    await asyncio.to_thread(cache.set_search, name, q, artist, [t.model_dump() for t in res])
+                return res
+            finally:
+                _inflight.pop(key, None)
+        task = asyncio.create_task(run())
+        # 誰も待っていないまま失敗したときの「Task exception was never retrieved」を出さない
+        task.add_done_callback(lambda t: t.cancelled() or t.exception())
+        _inflight[key] = task
+    # shield: 時間切れで打ち切るのは「この応答が待つこと」だけで、取得そのものは続ける
+    return await asyncio.wait_for(asyncio.shield(task), timeout=limit)
 
 
 class BandcampBody(BaseModel):
