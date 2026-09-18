@@ -637,10 +637,12 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .listed { display: flex; align-items: center; flex: 1 1 12rem; min-width: 0; }
 /* 「みんなのグリッド」は**ほかのリンクと同じ色**（既定の a: 組の青、開いたことがあれば組の紫）。黒にしていたときは
    ただの文字に見え、押せると気付かれにくかった（利用者の指摘、2026-09-18） */
-/* 箱と文を別々の部品にした行。文は押しても何も起きないので、指の形のカーソルも押した色も出さない */
-.check-sep { cursor: default; -webkit-tap-highlight-color: transparent; }
+/* 箱と文を別々の部品にした行。「に載せる」は押しても何も起きないので、指の形のカーソルを出さず、長押しでも選ばせない。
+   **リンクはほかのリンクと同じ動きに戻す**（選べる・押した色はブラウザ既定）。行ごと選べなくしていたときは、
+   長押ししてもリンクに水色が付かず、下の「サーバー代のおねがい」のリンクと動きが違った（利用者の指摘） */
+.check-sep { cursor: default; }
 .check-sep > span { user-select: none; -webkit-user-select: none; }
-.check-sep a { cursor: pointer; -webkit-tap-highlight-color: rgba(0, 0, 0, .15); }
+.check-sep a { cursor: pointer; user-select: auto; -webkit-user-select: auto; }
 /* 確認の窓（「マスを全部外す」）。幅は文だけなので狭くし、ボタンは右に寄せる */
 .modal-narrow { width: min(100%, 26rem); }
 .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
