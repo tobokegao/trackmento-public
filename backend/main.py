@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, housekeeping, imgtools, netguard, render, share, shareindex, storage, uploads
+from backend import grids, housekeeping, imgtools, netguard, pages, render, share, shareindex, storage, uploads
 from backend.cache import R2_IMAGE_TTL, cache
 from backend.logutil import brief
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, migrate_to, public_base_url, public_mode,
@@ -548,7 +548,7 @@ async def request_stats(request: Request, call_next):
 
 # 移転先へ 301 で送る経路。**画面（`/`）と API は送らない**。
 # API を送ると、開いたままの古いタブが別オリジンへ投げることになり CORS で落ちる
-_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt")
+_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/privacy", "/about")
 
 
 def _migrate_host(request: Request) -> str:
@@ -770,7 +770,9 @@ async def robots(request: Request) -> Response:
 async def sitemap(request: Request) -> Response:
     base = base_url_for(request)
     body = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-            f"<url><loc>{base}/</loc><changefreq>weekly</changefreq></url></urlset>\n")
+            f"<url><loc>{base}/</loc><changefreq>weekly</changefreq></url>"
+            + "".join(f"<url><loc>{base}/{k}</loc><changefreq>monthly</changefreq></url>" for k in pages.BODIES)
+            + "</urlset>\n")
     return Response(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=86400"})
 
 
@@ -1616,6 +1618,16 @@ async def share_upload(request: Request) -> dict:
 
 # 「みんなの並びを探す」。**印を付けた共有だけ**が対象（backend/shareindex.py）。
 # `/shares/{fname}` と経路がぶつからないよう、JSON は `/find.json` にしてある
+# 文章のページ（使い方・プライバシーポリシー・運営者）。backend/pages.py。言語は共有ページと同じ決め方
+@app.get("/guide", response_class=HTMLResponse)
+@app.get("/privacy", response_class=HTMLResponse)
+@app.get("/about", response_class=HTMLResponse)
+async def text_page(request: Request) -> HTMLResponse:
+    kind = request.url.path.strip("/")
+    return HTMLResponse(pages.page_html(kind, base_url_for(request), app_url_for(request), _lang_for(request)),
+                        headers={"Cache-Control": "public, max-age=3600"})
+
+
 @app.get("/find", response_class=HTMLResponse)
 async def find_page(request: Request, q: str = "") -> HTMLResponse:
     _note_src(request)

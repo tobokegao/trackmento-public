@@ -1405,6 +1405,13 @@ claude --remote-control TRACKMENTO                                             #
     ボカロは VocaDB が既にカバーしているので、増えるのは「それ以外のニコニコ動画」（実況・演奏してみた等）
   - iTunes は Apple Music の URL 入力に対応済みなので、すでに両方できる
   - **必要になってから足す**。ソース欄が長くなるほど選ぶのが面倒になる副作用もある
+- **AdSense は 2026-09-18 に一度不承認**（理由は示されない。アカウントの審査の段階で、管理画面は「ホーム」しか開けない）。
+  道具の画面だけでは文章がほとんど無く、プライバシーポリシーも同じドメインに無かったので、**文章のページを足した**
+  （`backend/pages.py`。`/guide` 使い方・`/privacy` プライバシーポリシー・`/about` 運営者。日本語と英語、`?lang=` と
+  Accept-Language で切り替え。sitemap に載せ、画面の下の欄からリンク）。日本語の文面は利用者が手直ししたもの。
+  保持日数は `config.share_retention_days()` から差し込む（文章に焼き付けない）。日本語の字と字のあいだの改行は
+  `body_of` が詰める（ソースの折り返しが表示で空白になるため）。共有ページはもともと `noindex`。
+  **再送信は利用者が管理画面で行う**（ポリシーを読んだチェック → 再送信）
 - **AdSense の審査待ち**（「準備中」）。ads.txt と meta タグは本番で配信済み・ID も一致、設定側の問題は無い
   - **承認後、自動広告をオンにするだけでは広告は出ない**。TRACKMENTO は nonce ベースの CSP で固めているので、
     `script-src` に `pagead2.googlesyndication.com`、`frame-src` に `googleads.g.doubleclick.net`、
