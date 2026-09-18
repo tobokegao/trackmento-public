@@ -5,8 +5,8 @@ import {
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
 import {
-  FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, CODA, SHOWCASE_STILLS, SHOWCASE_SWITCH, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
-  INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, CODA_BEAT, BANDWIDTH_BEAT, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
+  FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, SHOWCASE_STILLS, SHOWCASE_SWITCH, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
+  INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, NEWURL_BEAT, BANDWIDTH_BEAT, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
 } from "./timeline";
 
 // ---- フォント（アプリと同じ OFL 同梱フォント） ----
@@ -292,7 +292,7 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
 // ---- タイムラプス（1 小節に 16 コマ） ----
 const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
   const times = timelapseTimes(L.kind, L.lang);
-  const total = beatFrame(TIMELAPSE_BEAT + BAR * 2) - beatFrame(TIMELAPSE_BEAT);   // 2 小節ぶん
+  const total = beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT);   // できあがりまで（v4 は 4.5 拍）
   const per = total / TIMELAPSE_STEPS;
   return (
     <>
@@ -314,17 +314,17 @@ const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
   const { fps } = useVideoConfig();
   const { pulse, beat } = useBeatPulse(0.7);
   const s = spring({ frame, fps, config: { damping: 13, stiffness: 90 } });
-  const drift = interpolate(frame, [0, beatFrame(CODA_BEAT) - beatFrame(SHOWCASE_BEAT)], [1.0, 1.05]);
+  const drift = interpolate(frame, [0, beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)], [1.0, 1.05]);
   const color = STRIPE[Math.max(0, beat) % 6];
   const img = L.kind === "tall"
     ? { left: 90, top: 200, width: 900, height: 1600 }
     : { left: 222, top: 215, width: 1476, height: 830 };
-  // 切り替えの拍（ショットの頭からの拍数）→ フレーム。1 枚目は録画の最後の出力、2 枚目以降は作った静止画
+  // 切り替えの拍（ショットの頭からの拍数）→ フレーム。v4 は 4 枚とも作った静止画（promo/make_stills.py）
   const at = SHOWCASE_SWITCH.map((b) => beatFrame(SHOWCASE_BEAT + b) - beatFrame(SHOWCASE_BEAT));
   let idx = 0;
   for (let i = 0; i < at.length; i++) if (frame >= at[i]) idx = i;
   const hit = spring({ frame: frame - at[idx], fps, config: { damping: 11, stiffness: 300 } });
-  const src = idx === 0 ? RECORDINGS[L.kind][L.lang].main.final : `stills/${SHOWCASE_STILLS[idx]}${L.kind === "tall" ? "" : "-pc"}.png`;
+  const src = `stills/${SHOWCASE_STILLS[idx]}${L.kind === "tall" ? "" : "-pc"}.png`;
   return (
     <AbsoluteFill style={{ background: color }}>
       <AbsoluteFill style={{ backgroundImage: `radial-gradient(${C.ink}22 1.2px, transparent 1.3px)`, backgroundSize: "14px 14px" }} />
@@ -366,8 +366,48 @@ const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
           {L.lang === "ja" && <div style={{ fontFamily: "Plex", fontWeight: 700, fontSize: tall ? 54 : 56, color: C.ink }}>あなたは何曲オススメを？</div>}
           <div style={{ fontFamily: "Dot", fontSize: L.lang === "ja" ? (tall ? 38 : 40) : (tall ? 50 : 52), color: L.lang === "ja" ? C.muted : C.ink }}>What would you pick?</div>
         </div>
-        <div style={{ marginTop: tall ? 90 : 60, background: C.ink, color: C.paper, fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 44 : 48, padding: "18px 40px", letterSpacing: "0.04em", opacity: sUrl, transform: `scale(${0.8 + sUrl * 0.2})` }}>trackmento.onrender.com</div>
+        <div style={{ marginTop: tall ? 90 : 60, background: C.ink, color: C.paper, fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 44 : 48, padding: "18px 40px", letterSpacing: "0.04em", opacity: sUrl, transform: `scale(${0.8 + sUrl * 0.2})` }}>trackmento.com</div>
         <div style={{ marginTop: 28, fontFamily: "Dot", fontSize: 32, color: C.muted, opacity: sFree, transform: `translateY(${(1 - sFree) * 20}px)` }}>{L.lang === "ja" ? "無料・登録なし / Free, no sign-up" : "Free, no sign-up"}</div>
+      </AbsoluteFill>
+    </Paper>
+  );
+};
+
+// ---- 新しい URL（2 小節。録画ではなく作った画。Playwright の録画にはアドレス欄が映らないため） ----
+// 1 小節目: 古い URL が出て 2 拍目で取り消し線、3 拍目から矢印と新しい URL
+// 2 小節目: 「並びもそのまま引っ越し」を 8 分音符で点滅させる
+const NewUrl: React.FC<{ L: Layout }> = ({ L }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const beatLen = beatFrame(1) - beatFrame(0);
+  const tall = L.kind === "tall";
+  const ja = L.lang === "ja";
+  const sOld = spring({ frame, fps, config: { damping: 13, stiffness: 160 } });
+  const strike = interpolate(frame, [beatLen, beatLen * 1.5], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const sNew = spring({ frame: frame - beatLen * 2, fps, config: { damping: 11, stiffness: 150 } });
+  const eighth = beatLen / 2;
+  const blinkFrom = beatLen * 4 + eighth;
+  const blinkOn = frame >= blinkFrom && Math.floor((frame - blinkFrom) / eighth) % 2 === 0;
+  const urlBox = (dark: boolean): React.CSSProperties => ({
+    fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 50 : 60, letterSpacing: "0.04em", padding: "14px 34px",
+    background: dark ? C.ink : "transparent", color: dark ? C.paper : C.muted, border: `4px solid ${dark ? C.ink : C.muted}`, whiteSpace: "nowrap",
+  });
+  return (
+    <Paper>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
+      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", flexDirection: "column", gap: tall ? 44 : 30 }}>
+        <div style={{ background: C.ink, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 58 : 60, padding: "12px 30px", opacity: sOld, transform: `translateY(${(1 - sOld) * -30}px)` }}>
+          {ja ? "新しい URL になりました" : "We have a new address"}
+        </div>
+        <div style={{ position: "relative", opacity: sOld }}>
+          <div style={urlBox(false)}>trackmento.onrender.com</div>
+          <div style={{ position: "absolute", left: 20, right: 20, top: "50%", height: 6, marginTop: -3, background: C.vermilion, transformOrigin: "0 50%", transform: `scaleX(${strike})` }} />
+        </div>
+        <div style={{ fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 70 : 64, color: C.ink, opacity: sNew, transform: `translateY(${(1 - sNew) * -20}px)` }}>↓</div>
+        <div style={{ ...urlBox(true), fontSize: tall ? 64 : 76, boxShadow: `10px 10px 0 ${C.mustard}`, opacity: sNew, transform: `scale(${0.8 + sNew * 0.2})` }}>trackmento.com</div>
+        <div style={{ marginTop: tall ? 20 : 8, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 40 : 40, color: C.ink, opacity: blinkOn ? 1 : 0 }}>
+          {ja ? "前の URL から開いても、並びごと引っ越し" : "Old links still work — your grids move with you"}
+        </div>
       </AbsoluteFill>
     </Paper>
   );
@@ -462,22 +502,14 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
         </Paper>
       </Sequence>
 
+      <Sequence from={beatFrame(NEWURL_BEAT)} durationInFrames={beatFrame(NEWURL_BEAT + BAR * 2) - beatFrame(NEWURL_BEAT)} name="NewUrl"><NewUrl L={L} /></Sequence>
       <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(BANDWIDTH_BEAT + BAR * 2) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth"><Bandwidth L={L} /></Sequence>
 
       <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
         <Paper><div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div><Timelapse L={L} /></Paper>
       </Sequence>
-      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(CODA_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
-      {/* 43 小節目: 全部外す → 元に戻す（録画の 1 ショット） */}
-      <Sequence from={beatFrame(CODA_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(CODA_BEAT)} name="Coda">
-        <Paper>
-          <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
-          <Caption L={L} jp={CODA.jp} en={CODA.en} />
-          <Phone L={L}>
-            <Clip kind={L.kind} lang={L.lang} session="feat" from={evTime(L.kind, L.lang, "feat", CODA.ev) + CODA.off * rate(L.kind, L.lang, "feat")} speed={CODA.speed} zoom={L.kind === "wide" ? CODA.zoomPc : CODA.zoom} />
-          </Phone>
-        </Paper>
-      </Sequence>
+      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
+      {/* v4: 「全部外す → 元に戻す」は 32 小節目の通常のショットに移した（SHOTS） */}
       <Sequence from={beatFrame(END_BEAT)} name="End"><EndCard L={L} /></Sequence>
     </AbsoluteFill>
   );

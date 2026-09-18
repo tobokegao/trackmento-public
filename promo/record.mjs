@@ -231,12 +231,12 @@ async function featScene() {
   // ⑦ みんなのグリッド: 「載せる」にチェックして共有 → 探すページで曲名を引く
   await page.locator("#opt-listed").scrollIntoViewIfNeeded();
   await wait(400);
-  await tap(page.locator("label.check:has(#opt-listed) > span"), "listed:check");
+  await tap("#opt-listed", "listed:check");   // 箱を押す（文字は押しても反応しない。2026-09-18 から）
   await wait(900);
   await tap("#share-btn", "listed:share");
   await page.waitForSelector("#output:not([hidden])", { timeout: 120000 });
   await page.waitForFunction(() => document.querySelector("#output-img")?.complete && document.querySelector("#output-img")?.naturalWidth > 0, null, { timeout: 120000 });
-  await wait(1200); await mark("listed:shared");
+  await wait(1200); await mark("listed:shared", { url: await page.locator("#share-url").inputValue().catch(() => "") });
   await wait(800);
   await page.goto(`${BASE}/find?q=${encodeURIComponent("グルメレース")}`, { waitUntil: "networkidle" });
   await mark("find:page");
@@ -322,6 +322,47 @@ async function featScene() {
   await tap("#zoom-modal-close", "zoom:close");
   await wait(500);
 
+  // v4: 32×1 の細長い並びも「大きく見る」で横に送れる
+  await openOptions("open-options-32");
+  await page.locator("#cols").scrollIntoViewIfNeeded();
+  await wait(300);
+  await type("#cols", "32");
+  await type("#rows", "1");
+  await page.locator("#rows").press("Enter");
+  await wait(900);
+  await page.locator("#zoom-btn").scrollIntoViewIfNeeded();
+  await wait(400);
+  await tap("#zoom-btn", "zoom32:open");
+  await page.waitForSelector("#zoom-modal:not([hidden])");
+  await wait(900);
+  const slot = await page.locator(".zoom-slot .grid-scroll, #zoom-slot").first().boundingBox();
+  const sy = slot.y + Math.min(slot.height / 2, 60), sx0 = slot.x + slot.width * 0.8;
+  await mark("zoom32:swipe");
+  if (PC) {
+    await page.mouse.move(sx0, sy);
+    for (let i = 0; i < 12; i++) { await page.mouse.wheel(90, 0); await wait(70); }
+  } else {
+    const cdp = await ctx.newCDPSession(page);
+    const T = (type, pts) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: pts.map(([x, y]) => ({ x, y })) });
+    for (let r = 0; r < 2; r++) {
+      await page.evaluate(([x, y]) => window.__tap(x, y), [sx0, sy]);
+      await T("touchStart", [[sx0, sy]]);
+      for (let i = 1; i <= 14; i++) { await T("touchMove", [[sx0 - i * 22, sy]]); await wait(16); }
+      await T("touchEnd", []);
+      await wait(500);
+    }
+  }
+  await wait(900); await mark("zoom32:done");
+  await tap("#zoom-modal-close", "zoom32:close");
+  await wait(500);
+  // 16×16 に戻す（外した曲はストックから戻る）。32×1 のまま「全部外す」に進むと「元に戻す」が出なかった
+  await openOptions("open-options-16");
+  await page.locator("#cols").scrollIntoViewIfNeeded();
+  await type("#cols", "16");
+  await type("#rows", "16");
+  await page.locator("#rows").press("Enter");
+  await wait(900);
+
   // ⑫ 英語の画面ならローマ字: EN に切り替えて「マリーゴールド / あいみょん」→ Marigold / Aimyon
   if (!EN) {
     await page.evaluate(() => window.scrollTo({ top: 0 }));
@@ -363,6 +404,8 @@ async function featScene() {
   await wait(900);
   await tap("#confirm-yes", "clear:yes");
   await wait(1000); await mark("clear:empty");
+  await page.waitForSelector("#grid-msg .undo", { state: "attached", timeout: 10000 })
+    .catch(async () => console.log("   （元に戻すが無い）", await page.locator("#grid-msg").innerHTML().catch(() => "?")));
   await page.locator("#grid-msg .undo").scrollIntoViewIfNeeded();
   await wait(500);
   await tap("#grid-msg .undo", "clear:undo");
@@ -409,6 +452,11 @@ async function mainScene() {
     await wait(120); await mark("open-options");
   } else await tap(".pane-options .fold", "open-options");
   await wait(600);
+  // v4: 曲名リストを「マスに重ねる」に（37 小節）。以後の共有もこの表示で進める
+  await page.locator("#list-seg").scrollIntoViewIfNeeded();
+  await wait(300);
+  await tap(`#list-seg input[value="overlay"] + span`, "list:overlay");
+  await wait(900);
   // 比率を 4 種類順にタップ。最後の比率はスマホ版 9:16、PC 版 16:9
   for (const r of (PC ? ["9:16", "16:9", "free", "16:9"] : ["16:9", "9:16", "free", "9:16"])) { await tap(`#ratio-seg input[value="${r}"] + span`, `ratio:${r}`); await wait(380); }
   await wait(400);
@@ -442,7 +490,9 @@ async function mainScene() {
   const shareUrl = await page.locator("#share-url").inputValue();
   await mark("share-url", { url: shareUrl });
   await tap("#open-share", "open-share");
-  await page.goto(shareUrl, { waitUntil: "networkidle" });
+  // URL の表示は trackmento.com（サーバーを PUBLIC_BASE_URL=https://trackmento.com で立てる）。本番には共有が無いので、
+  // 開くのは手元のサーバーの同じ ID
+  await page.goto(`${BASE}/s/${shareUrl.split("/s/")[1]}`, { waitUntil: "networkidle" });
   await mark("share-page");
   await wait(1500);
   await page.mouse.wheel(0, 600); await wait(1200);

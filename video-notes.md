@@ -242,6 +242,44 @@ v2（9/14）より後に増えたものを頭にまとめ、本編は v2 の小�
   `name` を集めて `timeline.ts` の `"x:y"` と突き合わせる（2026-09-17 は 8 本とも欠けなし）
 - `/find` は同じサーバーで載せた共有がそのまま出る（手元は `PUBLIC_MODE=1 SHARE_LIMIT_PER_DAY=0`）
 
+## v4 の構成（2026-09-19 確定）
+
+利用者が譜割りエディタ（https://claude.ai/artifact/KNEULMAUpPGXSYdrCmWC1Q、共有ストレージ `plan/main`）で決めた 49 小節（≒ 90 秒）。
+曲の区切りとキメは聴き直して 1 小節後ろへ直した（A メロ 28–43、サビ 2 は 44 から、キメは 42 小節 4.5 拍〜43 小節）。
+`promo/src/timeline.ts` の SHOTS が正本。エディタの位置表示は 1 始まりの「小節.拍.刻み」。
+
+| 小節 | 場面 | 素材 |
+| --- | --- | --- |
+| 1–3 | イントロ | なし |
+| 4–5 | 新しい URL は trackmento.com（旧 URL に取り消し線 → 矢印 → 新 URL、「並びごと引っ越し」） | 作った画（`NewUrl`）。**録画にはアドレス欄が映らないので録画にしない** |
+| 6–7 | さらに軽くなりました | 作った画 |
+| 8–9 / 10–11 / 12–13 | ローマ字 / みんなのグリッドに載せる / 曲名で探す | feat |
+| 14 / 15 / 16 | パレット / コピー / VocaDB | feat |
+| 17 | 曲名リストが賢く：**静止画 16 枚を 16 分音符ずつ** | `smart-01〜16`（`promo/make_stills.py`） |
+| 18–20 | トップ画面の説明 | main |
+| 21–31 | 入れ方〜手入力 | main / feat |
+| 32 | マスを全部外す → 確認の窓 → 元に戻す | feat |
+| 33–34 | 埋まったら / 入れ替え | main |
+| 35 | 大きく見る：前半 2 拍 16×16、後半 2 拍 32×1 を横に送る | feat（`zoom:open` / `zoom32:swipe`） |
+| 36 | 並べ終わったら（2 拍）/ ほぼ完成（2 拍） | main |
+| 37 | 曲名リストは 3 択：「マスに重ねる」を押す（以後の共有は重ねる版のまま） | main（`list:overlay`） |
+| 38–41 | 比率 / 背景色 / カスタム色 / 共有と送信の進み具合 | main |
+| 42（3.5 拍） | 画像と共有 URL（trackmento.com で映す） | main |
+| 42.4.5–43 | タイムラプス（4.5 拍、キメに乗る） | main |
+| 44–45 | できあがり：4 枚を 2 拍ずつ（1 枚目 = 1 行型、4 枚目 = マスに重ねる） | `show-1〜4`（`promo/make_stills.py`） |
+| 46–48 | エンドカード（ロゴ / trackmento.com / 無料＋Bandcamp） | なし |
+| 49 | 終わり。**音楽は 46 小節からフェード** | なし |
+
+- **早回し（speed）とズーム（zoomPc）はエディタで扱わない**（利用者が 2026-09-18 にレーンを削除）。v3 の場面ごとの値を使い、
+  新しい場面は近い場面にならった値を入れた
+- `beatTime` は拍の途中（0.25 拍など）も直線で補う（タイムラプスの頭と 17 小節の静止画のため）
+- **録画は手元のサーバーで撮る**:
+  `PUBLIC_MODE=1 DISCOGS_TOKEN= PUBLIC_BASE_URL=https://trackmento.com MIGRATE_TO= SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0`。
+  Discogs は本番に合わせて出さない。共有 URL の表示だけ trackmento.com になり、共有ページは手元の同じ ID を開く（`record.mjs`）
+- `SCAN_PY` は `.venv` の python でよい（numpy が入った）
+- **撮影で作った共有は本番の R2 に残る**（「みんなのグリッド」に載せた分は本番の探すページにも出る）。撮り終えたら消す
+- 静止画: `PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python promo/make_stills.py`（曲は `promo/stills-tracks.json` に控えた 40 曲）
+
 ## 構成案
 
 1. プレイリスト貼るだけ
