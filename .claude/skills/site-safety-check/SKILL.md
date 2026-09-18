@@ -13,7 +13,7 @@ TRACKMENTO を公開したまま安全に保つための点検手順。月 1 回
 - Python は必ず `.venv/Scripts/python`。ローカルを点検するときは uvicorn を先に起動する（CLAUDE.md の起動手順）
 - 検査は読み取り中心。書き込みは検査用グリッド 1 件・画像 1 枚・共有 1 件だけで、R2 の資格情報（.env）があれば最後に消す
 - 秘密（.env の値、R2 のキー、トークン）を出力や報告に含めない。マスクする
-- 引数が無ければ公開サイト `https://trackmento.onrender.com` を対象にする。「ローカル」と言われたら `http://127.0.0.1:8000`
+- 引数が無ければ公開サイト `https://trackmento.com` を対象にする。「ローカル」と言われたら `http://127.0.0.1:8000`
 
 ## 1. 自動チェックを走らせる
 
@@ -46,7 +46,7 @@ TRACKMENTO を公開したまま安全に保つための点検手順。月 1 回
    Docker の起動コマンドに `--no-access-log` が残っているか `Dockerfile` を見る
 4. **秘密の混入**: `git ls-files | grep -i "\.env$\|secret\|key"` が `.env.example` 以外を返さないこと。`git log -p -S"R2_SECRET_ACCESS_KEY=" --all` が空であること
 5. **利用条件の変化**: README「各サービスの利用条件」の日付が 6 か月以上前なら、iTunes / MusicBrainz / YouTube oEmbed / niconico / bilibili / Spotify / otoDB の規約ページを見直すよう提案する（変更の確認は利用者が原文を読む）
-6. **外部の採点**: 利用者に https://securityheaders.com と https://observatory.mozilla.org に `https://trackmento.onrender.com` を入れてもらい、A 未満の項目があれば理由を調べる
+6. **外部の採点**: 利用者に https://securityheaders.com と https://observatory.mozilla.org に `https://trackmento.com` を入れてもらい、A 未満の項目があれば理由を調べる
 
 ## 3. 報告のしかた
 

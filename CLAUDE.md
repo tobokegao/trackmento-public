@@ -5,7 +5,7 @@
 **好きな曲のジャケットを格子状に並べて 1 枚の画像にする道具**。「私を構成する 9 曲」のような
 画像を、音楽サブスクに入っていなくても、どのサイトの曲でも混ぜて作れるようにしたもの。
 
-本番 https://trackmento.onrender.com/ 。手元では同じコードをローカルの uvicorn で動かす。
+本番 https://trackmento.com/ 。（2026-09-18 に trackmento.onrender.com から移転。古い URL は引っ越しの受け皿として生かしてある）手元では同じコードをローカルの uvicorn で動かす。
 仕様と経緯の原本は `musicgrid-local-spec.md`。このファイルは**作業する人がまず読むもの**。
 
 ### 何が他と違うか
@@ -511,7 +511,7 @@ claude --remote-control TRACKMENTO                                             #
   - **`?lang=en` / `?lang=ja` を付けると言語を指定できる**（2026-09-15）。画面（`frontend/index.html`）は
     localStorage にも覚え、共有ページ・案内ページ（`main.py` の `_lang_for`）は Accept-Language より優先する。
     **日本語環境の人に英語の画面を見せるリンクが作れる**（海外向けの案内、動画や SNS からの誘導）。
-    例: `https://trackmento.onrender.com/?lang=en`
+    例: `https://trackmento.com/?lang=en`
 - **柱・帯（塊を枠の辺にぴったり付ける組み方）**（`render.py` の `_slab_plan` と frontend の `slabPlan`、2026-09-15）。
   塊の縦横比と枠の縦横比が `SLAB_ASPECT`（4 倍）以上食い違うときだけ使う
   - **柱** … 1×y のように枠のほうがずっと横長のとき。塊を左端に立て、上下も枠いっぱいに伸ばし、

@@ -23,7 +23,7 @@ import httpx
 from backend.models import Track
 
 API = "https://vocadb.net/api/songs"
-UA = "trackmento/0.1 (+https://trackmento.onrender.com)"
+UA = "trackmento/0.1 (+https://trackmento.com)"
 PAGE = 30            # 1 回に取る件数の上限（VocaDB 側は 50 まで受けるが、候補パネルに合わせる）
 TIMEOUT = 20         # 実測で 1.6〜2.8 秒。iTunes より遅いので、選んだときだけ引く
 # 元ページの URL を組み立てられる PV の種類（曲名リストのリンク先に使う）

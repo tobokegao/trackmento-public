@@ -42,6 +42,6 @@ jobs:
     steps:
       - name: GET /health（眠っていれば起こす。最大 90 秒待つ）
         run: |
-          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 90 --retry 2 --retry-delay 10 https://trackmento.onrender.com/health || true)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 90 --retry 2 --retry-delay 10 https://trackmento.com/health || true)
           echo "health: $code"
           test "$code" = "200"

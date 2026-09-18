@@ -57,7 +57,7 @@ copy .env.example .env          # 必要なら API キーを記入
 2. Render（https://render.com）に GitHub でサインアップ → "New → Blueprint" → このリポジトリを選ぶ（`render.yaml` を読んで作成される）
 3. 作成時に聞かれる環境変数（`sync: false` のもの）に R2 の 5 つの値を入れる。`PUBLIC_MODE` などは `render.yaml` に書いてある。
    `DISCOGS_TOKEN` は入れない（公開版では Discogs を使わない）
-4. デプロイが終わったら、できた URL（例 `https://trackmento.onrender.com`）を開く。`/health` で `"public": true, "storage": "r2"` なら設定完了
+4. デプロイが終わったら、できた URL（例 `https://trackmento.com`）を開く。`/health` で `"public": true, "storage": "r2"` なら設定完了
 5. 以後は GitHub に push するたびに自動で再デプロイされる
 
 Docker が動くホスト（Fly.io / Railway / Koyeb / Hugging Face Spaces など）でも `Dockerfile` でそのまま動きます。
@@ -186,7 +186,7 @@ grids/            作業中グリッド JSON（CLI と Web で共有）
 ### 検索エンジンに載せる（公開サイト）
 
 - `/robots.txt`（トップだけ許可、API・画像・共有は除外）と `/sitemap.xml` を配る。共有ページ `/s/…` は 30 日で消えるので `noindex`
-- Google に載せるには [Search Console](https://search.google.com/search-console) で URL プレフィックス型のプロパティ（`https://trackmento.onrender.com/`）を追加し、
+- Google に載せるには [Search Console](https://search.google.com/search-console) で URL プレフィックス型のプロパティ（`https://trackmento.com/`）を追加し、
   所有権の確認方法に「HTML タグ」を選ぶ。表示される `content="…"` の値を環境変数 `GOOGLE_SITE_VERIFICATION` に入れて再デプロイすると、
   トップページに確認タグが出る。確認後、「URL 検査」→「インデックス登録をリクエスト」でクロールを頼める（反映は数日〜数週間）
 - 新しいサイトは、外部からリンクされるまで検索結果に出にくい。自分のサイト（tobokegao.github.io）や SNS のプロフィールからリンクを張ると早い

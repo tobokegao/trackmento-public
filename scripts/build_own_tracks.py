@@ -116,7 +116,7 @@ def _tracks(client: httpx.Client, url: str) -> list[tuple[str, str]]:
 
 def main() -> int:
     dry = "--dry" in sys.argv
-    head = {"User-Agent": "trackmento own-tracks builder (https://trackmento.onrender.com/)"}
+    head = {"User-Agent": "trackmento own-tracks builder (https://trackmento.com/)"}
     rows: list[tuple[str, str]] = []
     seen: set[str] = set()
     with httpx.Client(headers=head) as c:
