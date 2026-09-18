@@ -951,8 +951,13 @@ async def _fetch_source(name: str, q: str, artist: str, client: httpx.AsyncClien
         # 誰も待っていないまま失敗したときの「Task exception was never retrieved」を出さない
         task.add_done_callback(lambda t: t.cancelled() or t.exception())
         _inflight[key] = task
-    # shield: 時間切れで打ち切るのは「この応答が待つこと」だけで、取得そのものは続ける
-    return await asyncio.wait_for(asyncio.shield(task), timeout=limit)
+    # 時間切れで打ち切るのは「この応答が待つこと」だけで、取得そのものは続ける。
+    # **`asyncio.shield` は使わない**。待つ側が先に諦めたあとで取得が失敗すると、shield が
+    # 「exception in shielded future」と Traceback をログに出し、点検のエラー行に数えられていた（2026-09-19）
+    done, _ = await asyncio.wait({task}, timeout=limit)
+    if not done:
+        raise asyncio.TimeoutError
+    return task.result()
 
 
 class BandcampBody(BaseModel):

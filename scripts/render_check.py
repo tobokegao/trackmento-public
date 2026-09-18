@@ -196,7 +196,9 @@ def fetch_tracebacks(key: str, owner: str, sid: str, at: list[str], most: int = 
             out.append((ts, [f"（取れなかった: {ex}）"]))
         else:
             body = [(it.get("message") or "")[:200] for it in page.get("logs", [])]
-            out.append((ts, [b for b in body if not b.startswith(("[stats]", "[ua]", "[health]", "[src]", "[ref]"))][:30]))
+            body = [b for b in body if not b.startswith(("[stats]", "[ua]", "[health]", "[src]", "[ref]"))]
+            # 頭（何の例外か）と尻（例外の名前と中身）だけ残す。間の `File …` の行はライブラリの奥が大半
+            out.append((ts, body if len(body) <= 12 else body[:3] + ["…"] + body[-8:]))
         if len(out) >= most:
             break
     return out
