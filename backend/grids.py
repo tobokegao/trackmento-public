@@ -36,6 +36,9 @@ class GridOptions(BaseModel):
     ratio: Ratio = "16:9"
     showTitle: bool = True
     sidebar: bool = True
+    # 曲名リストをマスの上に重ねる（ジャケットの下に帯を敷いて曲名とアーティスト名を載せる）。
+    # **重ねるときは sidebar を切って保存する**。この項目を知らない古いタブで開いても「曲名リストなし」になるだけで壊れない
+    overlay: bool = False
     numbers: bool = False
     bg: str = "paper"
     bgCustom: Optional[str] = None
@@ -68,6 +71,8 @@ class GridOptions(BaseModel):
         if self.bg == "custom" and not (self.bgCustom and _HEX_RE.match(self.bgCustom)):
             self.bg = "paper"
             self.bgCustom = None
+        if self.overlay:
+            self.sidebar = False   # 重ねるときは横の曲名リストを切って保存する（古いタブで開いても壊れない）
         return self
 
 

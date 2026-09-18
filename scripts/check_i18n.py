@@ -102,6 +102,7 @@ def _js(html: str) -> str:
     js = re.sub(r"const OWN_TRACKS = \[[\s\S]*?\n  \];", "", js)
     # 折る位置の表（中黒や括弧の並び）は画面の文言ではない
     js = re.sub(r'const BREAK_AFTER = "[^"]*", BREAK_BEFORE = "[^"]*";', "", js)
+    js = re.sub(r'const NO_HEAD = "[^"]*"', "", js)   # 行頭に来てはいけない字の表（禁則。文言ではない）
     return re.sub(r"(?m)^\s*//.*$", "", js)
 
 

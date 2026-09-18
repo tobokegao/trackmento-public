@@ -293,11 +293,13 @@ def cmd_render(a: argparse.Namespace) -> int:
         changed = True
     opts = doc.options.model_dump()
     updates = {
-        "ratio": a.ratio, "sidebar": a.sidebar, "showTitle": a.show_title, "numbers": a.numbers,
+        "ratio": a.ratio, "sidebar": a.sidebar, "overlay": a.overlay, "showTitle": a.show_title, "numbers": a.numbers,
         "bg": a.bg, "bgCustom": a.bg_custom, "margin": a.margin, "gap": a.gap,
     }
     if a.bg_custom and a.bg is None:
         updates["bg"] = "custom"
+    if a.sidebar and a.overlay is None:
+        updates["overlay"] = False   # 横に並べると言われたら、重ねるのはやめる
     for k, v in updates.items():
         if v is not None and v != opts.get(k):
             opts[k] = v
@@ -404,6 +406,8 @@ def _render_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--ratio", choices=["1:1", "4:5", "16:9", "9:16", "free"])
     sp.add_argument("--sidebar", dest="sidebar", action="store_true", default=None, help="曲名リストを付ける")
     sp.add_argument("--no-sidebar", dest="sidebar", action="store_false")
+    sp.add_argument("--overlay", dest="overlay", action="store_true", default=None, help="曲名をマスに重ねる（横の曲名リストは出さない）")
+    sp.add_argument("--no-overlay", dest="overlay", action="store_false")
     sp.add_argument("--title", help="タイトル文字列（空文字で消す）")
     sp.add_argument("--no-title", dest="show_title", action="store_false", default=None, help="タイトルを描かない")
     sp.add_argument("--show-title", dest="show_title", action="store_true")

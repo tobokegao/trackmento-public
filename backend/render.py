@@ -401,6 +401,25 @@ FLOW_FINE_STEPS = 16      # 右に置く流し込みで、入った段から字�
 _FEAT_RE = re.compile(r"\s*[（(\[]\s*(?:feat|ft|featuring)[.\s][^）)\]]*[）)\]]\s*$", re.IGNORECASE)
 
 
+# **曲名をマスに重ねる**（2026-09-18、利用者の要望）。マスの下に「下から上へ薄くなる黒い帯」を敷き、
+# 白い字で曲名 → その下にアーティスト名を載せる。大きさはマスに対する割合で決まる（割り付けは変えない）。
+# 入らなければ TITLE_SHRINK の順に縮め、それでも入らなければ「…」。frontend の OVERLAY_* と同じ値
+OVERLAY_SHADE = 0.52      # 帯の高さ（マスに対する割合）
+OVERLAY_ALPHA = 0.82      # 帯のいちばん下の濃さ
+OVERLAY_TITLE = 0.085     # 曲名の字の大きさ（マスに対する割合。600px のマスで 51px）
+OVERLAY_ARTIST = 0.066    # アーティスト名の字の大きさ
+OVERLAY_PAD = 0.055       # 字とマスの縁のあいだ（左右と下）
+OVERLAY_LEAD = 1.3        # 曲名のベースラインから、アーティスト名のベースラインまで（アーティスト名の字に対する倍率）
+OVERLAY_MIN_PX = 12       # 出力での曲名の字がこれを割る並びでは重ねない（読めない）
+OVERLAY_TEXT = (255, 255, 255)
+OVERLAY_SUB = (214, 218, 224)
+
+
+def overlay_ok(scale: float) -> bool:
+    """この縮尺で曲名を重ねて読めるか（frontend の overlayOk と同じ）"""
+    return rnd(CELL_PX * OVERLAY_TITLE * scale) >= OVERLAY_MIN_PX
+
+
 def _split_feat(title: str) -> tuple[str, str]:
     """曲名を「本体」と「(feat. …)」に分ける。無ければ (曲名, "")。"""
     m = _FEAT_RE.search(title)
@@ -1396,7 +1415,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     # 正方形で右に置くと内容が横長になり、上下の余白ばかり広がるため。
     # **比率なしのときは「マスの塊が縦長なら右・横長なら下」**。枠は内容に合わせて伸びるので、
     # 長いほうの辺にさらに足すと極端な形になる（32x1 を右に足すと出力 2400x39 だった）
-    side = ("none" if not o.sidebar
+    side = ("none" if not o.sidebar or o.overlay
             else ("right" if gh >= gw else "bottom") if ratio is None
             else "right" if ratio > 1 else "bottom")
     # 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）に置く。グリッドの上に置くと内容が縦長になり、
@@ -1794,6 +1813,18 @@ def render(doc: GridDoc) -> Image.Image:
     from backend.config import public_mode
     with ThreadPoolExecutor(max_workers=2 if public_mode() else 6, initializer=lower_thread_priority) as ex:   # 公開時は控えめに（0.1 vCPU）
         covers = list(ex.map(lambda t: load_cover(t, cell) if t else None, doc.cells))
+    ov = o.overlay and overlay_ok(S)
+    if ov:
+        # 帯は全マス共通なので 1 回だけ作る。濃さは上端 0 → 下端 OVERLAY_ALPHA の直線（Canvas の線形グラデーションと同じ）
+        sh = max(1, rnd(cell * OVERLAY_SHADE))
+        shade_mask = Image.new("L", (1, sh))
+        shade_mask.putdata([rnd(255 * OVERLAY_ALPHA * (j + 0.5) / sh) for j in range(sh)])
+        shade_mask = shade_mask.resize((cell, sh))
+        shade = Image.new("RGB", (cell, sh), (0, 0, 0))
+        ov_ts = max(8, rnd(cell * OVERLAY_TITLE))
+        ov_as = max(8, rnd(cell * OVERLAY_ARTIST))
+        f_ov_t, f_ov_a = font("bold", ov_ts), font("regular", ov_as)
+        ov_pad = rnd(cell * OVERLAY_PAD)
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
         x, y = sc(L.ox + c * (CELL_PX + o.gap)), sc(y0 + r * (CELL_PX + o.gap))
@@ -1803,6 +1834,17 @@ def render(doc: GridDoc) -> Image.Image:
             if cover:
                 im.paste(cover, (x, y))
                 covers[i] = None
+            if ov:
+                im.paste(shade, (x, y + cell - sh), shade_mask)
+                max_w = cell - ov_pad * 2
+                title, artist = _one_line(t.title), _one_line(t.artist)
+                ab = y + cell - ov_pad                                    # アーティスト名のベースライン
+                tb = ab - rnd(ov_as * OVERLAY_LEAD) if artist else ab     # 曲名のベースライン
+                ft = _shrink_font(d, title, f_ov_t, ov_ts, max_w)
+                d.text((x + ov_pad, tb), _ellipsize(d, title, ft, max_w), font=ft, fill=OVERLAY_TEXT, anchor="ls")
+                if artist:
+                    fa = _shrink_font(d, artist, f_ov_a, ov_as, max_w, kind="regular")
+                    d.text((x + ov_pad, ab), _ellipsize(d, artist, fa, max_w), font=fa, fill=OVERLAY_SUB, anchor="ls")
         if o.numbers:
             label = f"{i + 1:02d}"
             # **枠は字面（インク）に四辺の余白を足して作る**。ピクセルフォントは em ボックスの中で

@@ -1411,6 +1411,7 @@ class RenderBody(BaseModel):
     size: str | None = None          # "3x3"
     ratio: str | None = None
     sidebar: bool | None = None
+    overlay: bool | None = None
     title: str | None = None
     showTitle: bool | None = None
     numbers: bool | None = None
@@ -1443,13 +1444,16 @@ def apply_render_options(doc: GridDoc, body: RenderBody) -> bool:
         doc.title = body.title[:60]
         changed = True
     opts = doc.options.model_dump()
-    for k in ("ratio", "sidebar", "showTitle", "numbers", "bg", "bgCustom", "margin", "gap"):
+    for k in ("ratio", "sidebar", "overlay", "showTitle", "numbers", "bg", "bgCustom", "margin", "gap"):
         v = getattr(body, k)
         if v is not None and v != opts.get(k):
             opts[k] = v
             changed = True
     if body.bgCustom and body.bg is None:
         opts["bg"] = "custom"
+    if body.sidebar and body.overlay is None and opts.get("overlay"):
+        opts["overlay"] = False   # 横に並べると言われたら、重ねるのはやめる
+        changed = True
     if changed:
         try:
             doc.options = GridOptions.model_validate(opts)
