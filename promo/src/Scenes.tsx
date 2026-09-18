@@ -5,7 +5,7 @@ import {
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
 import {
-  FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, SHOWCASE_STILLS, SHOWCASE_SWITCH, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
+  FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, TIMELAPSE_KIME, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
   INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, NEWURL_BEAT, BANDWIDTH_BEAT, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
 } from "./timeline";
 
@@ -237,7 +237,10 @@ const Highlight: React.FC<{ L: Layout; hl: NonNullable<Shot["hl"]>; clipScale?: 
   // （そのままだと右端や下端が画面の外に出て、枠線が切れたり端の飾りと重なって見える）
   const at = (v: number) => 0.5 + (v - 0.5) * clipScale;
   const x0 = Math.max(0.008, at(hl.x - padX)), x1 = Math.min(0.992, at(hl.x + hl.w + padX));
-  const y0 = Math.max(0.008, at(hl.y - padY)), y1 = Math.min(0.992, at(hl.y + hl.h + padY));
+  // 上下は hl.pt / hl.pb（録画の縦 1920px での px）で個別に決められる。枠線（8px）が文字やボタンに
+  // かからないよう、上下のすきまに収まる値を測って入れる
+  const pt = hl.pt !== undefined ? hl.pt / 1920 : padY, pb = hl.pb !== undefined ? hl.pb / 1920 : padY;
+  const y0 = Math.max(0.008, at(hl.y - pt)), y1 = Math.min(0.992, at(hl.y + hl.h + pb));
   return (
     <div style={{ position: "absolute",
       // 録画は Clip が中心を軸に clipScale 倍している。枠も同じだけ動かさないと対象からずれる。
@@ -292,23 +295,35 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
 // ---- タイムラプス（1 小節に 16 コマ） ----
 const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
   const times = timelapseTimes(L.kind, L.lang);
-  const total = beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT);   // できあがりまで（v4 は 4.5 拍）
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const total = beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT);   // できあがりまで（2 小節）
   const per = total / TIMELAPSE_STEPS;
+  // キメ（エディタの「キメ」のレーン）ごとに一段ずつ寄る。最後の 1 つは横へも振る
+  const hits = TIMELAPSE_KIME.map((b) => beatFrame(TIMELAPSE_BEAT + b) - beatFrame(TIMELAPSE_BEAT));
+  let zoom = 1, shift = 0;
+  hits.forEach((at, i) => {
+    const k = spring({ frame: frame - at, fps, config: { damping: 12, stiffness: 260 } });
+    zoom += k * 0.09;
+    if (i === hits.length - 1) shift += k * (L.kind === "tall" ? 90 : 140);
+  });
   return (
     <>
       <Caption L={L} jp="画像完成まで" en="Start to finish" />
       <Phone L={L}>
+        <div style={{ width: "100%", height: "100%", transform: `translateX(${-shift}px) scale(${zoom})`, transformOrigin: "50% 45%" }}>
         {times.map((t, i) => (
           <Sequence key={i} from={Math.round(i * per)} durationInFrames={Math.ceil(per) + 1} layout="none">
             <OffthreadVideo src={staticFile(RECORDINGS[L.kind][L.lang].main.src)} startFrom={sec(t)} playbackRate={rate(L.kind, L.lang, "main")} muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.03)" }} />
           </Sequence>
         ))}
+        </div>
       </Phone>
     </>
   );
 };
 
-// ---- できあがり（2 小節）。**4 枚の出力を曲のキメで切り替える**（timeline.ts の SHOWCASE_SWITCH） ----
+// ---- できあがり（2 小節）。本編の録画で作った 1 枚をそのまま見せる（v4、エディタで 4 枚の切り替えをやめた） ----
 const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -319,12 +334,8 @@ const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
   const img = L.kind === "tall"
     ? { left: 90, top: 200, width: 900, height: 1600 }
     : { left: 222, top: 215, width: 1476, height: 830 };
-  // 切り替えの拍（ショットの頭からの拍数）→ フレーム。v4 は 4 枚とも作った静止画（promo/make_stills.py）
-  const at = SHOWCASE_SWITCH.map((b) => beatFrame(SHOWCASE_BEAT + b) - beatFrame(SHOWCASE_BEAT));
-  let idx = 0;
-  for (let i = 0; i < at.length; i++) if (frame >= at[i]) idx = i;
-  const hit = spring({ frame: frame - at[idx], fps, config: { damping: 11, stiffness: 300 } });
-  const src = `stills/${SHOWCASE_STILLS[idx]}${L.kind === "tall" ? "" : "-pc"}.png`;
+  const hit = 1;
+  const src = RECORDINGS[L.kind][L.lang].main.final;
   return (
     <AbsoluteFill style={{ background: color }}>
       <AbsoluteFill style={{ backgroundImage: `radial-gradient(${C.ink}22 1.2px, transparent 1.3px)`, backgroundSize: "14px 14px" }} />

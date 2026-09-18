@@ -112,9 +112,9 @@ ${got.slice(0, 500)}`);
 async function searchAdd(title, artist, label, source, opts = {}) {   // opts.match: 選ぶ候補のテキスト
   if (opts.viaCell) { await tap(cell(opts.viaCell), "cell-tap"); if (!PC) await page.waitForSelector("#sheet:not([hidden])"); await wait(700); }
   else await openSheet();
-  if (opts.tour) {   // 検索ソースの切り替えを見せる（オン→オン→オフ→オフで元に戻す）
-    for (const k of ["musicbrainz", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await wait(350); }
-    for (const k of ["musicbrainz", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src-off:${k}`); await wait(300); }
+  if (opts.tour) {   // 検索ソースの切り替えを見せる（iTunes のほかの 3 つをオン → オフで元に戻す。4 種類ぜんぶ押された状態を見せる）
+    for (const k of ["musicbrainz", "otodb", "vocadb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await wait(350); }
+    for (const k of ["musicbrainz", "otodb", "vocadb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src-off:${k}`); await wait(300); }
     await wait(300);
   }
   if (source) {
