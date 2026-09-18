@@ -20,6 +20,12 @@ services:
         value: "1"
       - key: PUBLIC_BASE_URL
         value: https://trackmento.onrender.com   # OG タグ・共有 URL の基準。リクエストの Host ヘッダに頼らない
+      # **ドメインを引っ越すときだけ設定する**（例 https://trackmento.com）。入れると、これと違うホストで
+      # 来た要求のうち共有ページ・/find・robots・sitemap は 301 で移転先へ送り、画面（/）はそのまま返す。
+      # 画面は自分でブラウザの保存（並び・パレット・言語）を持って移転先へ移動する。
+      # 切り替えの手順は CLAUDE.md の「ドメインの引っ越し」を参照。空なら何もしない
+      - key: MIGRATE_TO
+        value: ""
       - key: MB_USER_AGENT
         value: trackmento/0.1 (https://github.com/tobokegao/trackmento-public)   # MusicBrainz の要件（連絡先入り）
       - key: RATE_LIMIT

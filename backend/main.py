@@ -33,7 +33,7 @@ from fastapi.staticfiles import StaticFiles
 from backend import grids, housekeeping, imgtools, netguard, render, share, shareindex, storage, uploads
 from backend.cache import R2_IMAGE_TTL, cache
 from backend.logutil import brief
-from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, public_base_url, public_mode,
+from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, migrate_to, public_base_url, public_mode,
                             rate_limit_per_minute, share_budget_bytes, share_limits, share_retention_days, trust_proxy)
 from backend.grids import GridDoc, GridOptions
 from backend.merge import merge
@@ -546,8 +546,40 @@ async def request_stats(request: Request, call_next):
         _ua_stats[(key, ua)] = _ua_stats.get((key, ua), 0) + 1
 
 
+# 移転先へ 301 で送る経路。**画面（`/`）と API は送らない**。
+# API を送ると、開いたままの古いタブが別オリジンへ投げることになり CORS で落ちる
+_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt")
+
+
+def _migrate_host(request: Request) -> str:
+    """移転先が設定されていて、今の要求がそれと違うホストで来ていれば、移転先のベース URL を返す。"""
+    target = migrate_to()
+    if not target:
+        return ""
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip().lower()
+    return "" if not host or host == urllib.parse.urlsplit(target).netloc.lower() else target
+
+
+def _migrate_redirect(request: Request) -> Response | None:
+    """引っ越し中の古いドメインで、移すべき経路なら 301 を返す。それ以外は None。"""
+    if request.method not in ("GET", "HEAD"):
+        return None
+    path = request.url.path
+    if not path.startswith(_MIGRATE_PATHS):
+        return None
+    if not (target := _migrate_host(request)):
+        return None
+    q = f"?{request.url.query}" if request.url.query else ""
+    return RedirectResponse(f"{target}{path}{q}", status_code=301)
+
+
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
+    # **引っ越し中の古いドメインは、共有ページなどを移転先へ 301 で送る**（MIGRATE_TO、2026-09-18）。
+    # 画面（`/`）だけは送らずにそのまま返す。ブラウザに保存されている並びを引き継いでから、
+    # 画面自身が移転先へ移動するため（サーバーの 301 では localStorage を持っていけない）
+    if (moved := _migrate_redirect(request)) is not None:
+        return moved
     # 大きすぎるボディは読む前に断る（メモリ・ディスク消費を抑える）。ブラウザの fetch は必ず Content-Length を付ける
     if request.method in ("POST", "PUT"):
         cap = _BODY_LIMIT_UPLOAD if request.url.path in ("/upload", "/share/upload") else _BODY_LIMIT_JSON
@@ -693,6 +725,7 @@ async def index(request: Request) -> HTMLResponse:
     _note_src(request)
     html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
     html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
+    html = html.replace("__MIGRATE__", _migrate_host(request))   # 引っ越し中なら移転先。画面が並びを持って移動する
     html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
     html = html.replace("<!--__FONT_LINK__-->", _font_head(), 1)   # 分割フォントの @font-face（<link>）
     # ピクセルフォント（Silkscreen）も R2 から配る。分割していないので <link> ではなく HTML 内の

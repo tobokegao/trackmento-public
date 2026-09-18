@@ -184,6 +184,36 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 `ROXY_CONCURRENCY`（otoDB の roxy への同時接続。既定 3）、
 `CHECK_*`（点検の判定しきい値の上書き）。
 
+## ドメインの引っ越し（`trackmento.onrender.com` → `trackmento.com`）
+
+**並びはブラウザの localStorage が主**なので、サーバーの 301 だけでは引っ越せない（localStorage はドメインごとに
+別で、新しいドメインは空から始まる）。そのため**画面自身が保存を持って移動する**仕組みを入れてある（2026-09-18）。
+
+- **環境変数 `MIGRATE_TO`**（例 `https://trackmento.com`）を入れると引っ越しが始まる。空なら何もしない
+- **画面（`/`）は 301 しない**。旧ドメインの画面が「`trackmento` で始まる localStorage」をまとめて gzip し、
+  base64url にして URL の `#` の後ろ（**フラグメント。サーバーには送られない**）に付けて移転先へ移動する。
+  移転先はそれを自分の localStorage に書き、`#` を外して読み込み直す（`handoffOut` / `handoffIn`）
+- **共有ページ・`/find`・`robots.txt`・`sitemap.xml` は 301**（`_MIGRATE_PATHS`）。検索エンジンの評価もそちらへ移る
+- **API（`/search`・`/grids/*`・`/image-proxy`・`/share/upload` など）は 301 しない**。開いたままの古いタブが
+  別オリジンへ投げることになり、CORS で落ちるため
+- **移転先に既にある保存は上書きしない**。古いブックマークから後日また開くと引っ越しがもう一度起きるので、
+  上書きすると新しいドメインで育てた並びが古い控えに戻ってしまう
+- 引っ越し中は `save()` を止める（`MIGRATING`）。空の状態でサーバーの控えを上書きしないため
+- 実測: 36 曲でフラグメント 1,558 文字、**256 曲でも URL 全体 6,188 文字**（gzip がよく効く）。
+  上限は `HANDOFF_MAX`（120 万文字）で、超えるなら引き継がずに移動だけする
+- 確かめ方: `MIGRATE_TO=http://127.0.0.1:8000` でサーバーを立て、**`localhost:8000`（旧）から
+  `127.0.0.1:8000`（新）へ**引っ越させる。この 2 つは別オリジンなので localStorage も別になり、
+  R2 の CORS はどちらも許可済み。Playwright の `addInitScript` で旧オリジンにだけ保存を仕込む
+
+**切り替えの手順**（コードは入っているので、あとは設定）
+1. Render にカスタムドメイン `trackmento.com` を足し、Cloudflare の DNS を向ける（証明書が出るまで待つ）
+2. R2 のバケットの CORS に `https://trackmento.com` を足す（Cloudflare のダッシュボード。API トークンでは変えられない）
+3. Render の環境変数を 2 つ変える: `PUBLIC_BASE_URL=https://trackmento.com`、`MIGRATE_TO=https://trackmento.com`。
+   **`render.yaml` にも同じ値を書く**（Blueprint が巻き戻すため）
+4. Search Console と AdSense に `trackmento.com` を登録し直す（AdSense の審査は URL ごと。承認前に移すのが得）
+5. 案内ページ・X のプロフィール・`vocadb.py` の UA・`keepalive.yml` の URL を新しいドメインに直す
+6. **`MIGRATE_TO` は数か月そのままにする**。古いリンクを開く人が居る限り、引っ越しの窓口として働く
+
 ## 本番はどう動いているか（デプロイ）
 
 - **Render**（`render.yaml` の Blueprint ＋ `Dockerfile`）。`master` に push すると自動でデプロイ。

@@ -1442,6 +1442,70 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
+
+  /* ---------- ドメインの引っ越し（旧ドメイン → 新ドメイン） ----------
+     **並びはブラウザの localStorage が主**なので、サーバーの 301 では持っていけない
+     （localStorage はドメインごとに別で、新しいドメインは空から始まる）。そこで、
+     旧ドメインの画面が自分で「trackmento」で始まる保存を全部まとめ、gzip して URL の
+     `#` の後ろ（フラグメント。**サーバーには送られない**）に付けて新ドメインへ移動する。
+     新ドメイン側はそれを自分の localStorage に書いてから、`#` を外して読み込み直す。
+     MIGRATE_TO はサーバーが埋める（移転中の古いホストで開いたときだけ中身が入る）。 */
+  const MIGRATE_TO = "__MIGRATE__";
+  const HANDOFF = "#tm=";
+  const HANDOFF_MAX = 1200000;   // フラグメントの上限（これを超えるなら引き継がずに移動する）
+  let MIGRATING = false;         // 引っ越し中は保存しない（空の状態で上書きしないため）
+
+  function b64url(bytes) {
+    let bin = "";   // **一度に渡さない**（256 マスだと 10 万文字を超え、引数の数でスタックがあふれる）
+    for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  const unb64url = (t) => Uint8Array.from(atob(t.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+  async function squeeze(bytes, mode) {
+    const S = mode === "gzip" ? CompressionStream : DecompressionStream;
+    const buf = await new Response(new Blob([bytes]).stream().pipeThrough(new S("gzip"))).arrayBuffer();
+    return new Uint8Array(buf);
+  }
+  /* 「trackmento」で始まる保存をまとめる（ほかのサイトの保存は触らない） */
+  function localData() {
+    const out = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("trackmento")) out[k] = localStorage.getItem(k);
+    }
+    return out;
+  }
+  function migrateVeil(text) {
+    const v = document.createElement("div");
+    v.style.cssText = "position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:var(--color-paper,#f5f3ee);color:var(--color-ink,#1c2430);font-size:14px";
+    v.textContent = text;
+    document.body.append(v);
+  }
+  async function handoffOut(target) {
+    MIGRATING = true;
+    migrateVeil(tr("新しいアドレスへ移っています…"));
+    const url = new URL(location.pathname + location.search, target);
+    try {
+      const packed = b64url(await squeeze(new TextEncoder().encode(JSON.stringify(localData())), "gzip"));
+      if (packed.length <= HANDOFF_MAX) url.hash = "tm=" + packed;
+    } catch { /* 引き継げなくても移動はする（並びは「共有データを出力」で移せる） */ }
+    location.replace(url.toString());
+  }
+  async function handoffIn(packed) {
+    MIGRATING = true;
+    migrateVeil(tr("前のアドレスから引き継いでいます…"));
+    try {
+      const data = JSON.parse(new TextDecoder().decode(await squeeze(unb64url(packed), "gunzip")));
+      for (const [k, v] of Object.entries(data)) {
+        if (!k.startsWith("trackmento") || typeof v !== "string") continue;
+        // **こちらに既にあるものは上書きしない**。古いアドレスのブックマークを後日開くと引っ越しが
+        // もう一度起きるので、上書きすると新しいアドレスで育てた並びが古い控えに戻ってしまう
+        if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
+      }
+    } catch { /* 壊れていたら何もしない（空のまま始まる） */ }
+    location.replace(location.pathname + location.search);   // `#` を外して読み込み直す
+  }
+
   /* バックエンドの URL。同一オリジンなら空。GitHub Pages に置くときは build_pages.py が <meta name="trackmento-api"> を埋め込む */
   const API = (((document.querySelector('meta[name="trackmento-api"]') || {}).content || window.TRACKMENTO_API || "") + "").replace(/\/+$/, "");
   const api = (path) => API + path;
@@ -1456,6 +1520,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const EN = {
         "アプリ内ブラウザでは共有が遅くなったり失敗したりします。右上のメニューから「ブラウザで開く」（Safari / Chrome）で開くのがおすすめです。": "Sharing is slow and often fails in in-app browsers. Use the menu at the top right to open this page in Safari or Chrome.",
         "URL をコピー": "Copy URL",
+        "新しいアドレスへ移っています…": "Moving to the new address…",
+        "前のアドレスから引き継いでいます…": "Bringing your grid over from the old address…",
         "閉じる": "Close",
         "検索": "Search",
         "選択中のマス": "Selected cell",
@@ -4470,7 +4536,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const signature = (d) => JSON.stringify({ ...d, savedAt: null });
   let saveTimer = null, pushTimer = null, lastPushed = null, ready = false;
   function save() {
-    if (!ready) return;   // 復元が終わる前の描画で空のグリッドを保存してしまわないように
+    if (!ready || MIGRATING) return;   // 復元が終わる前・引っ越し中の描画で、空のグリッドを保存してしまわないように
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       const d = serialize();
@@ -5118,6 +5184,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       return false;
     }
   }
+  /* **引っ越しはここで始める**（起動より先）。旧ドメインなら並びを持って移り、
+     引き継ぎ付きで開かれたなら書き戻してから読み込み直す。どちらも location.replace で去るので、
+     下の起動処理は動いても意味を持たない（MIGRATING が立っているので保存もしない） */
+  if (location.hash.startsWith(HANDOFF)) handoffIn(location.hash.slice(HANDOFF.length));
+  else if (MIGRATE_TO && MIGRATE_TO !== "__MIGRATE" + "__") handoffOut(MIGRATE_TO);
+
   showInAppNotice();
   loadHealth()
     .then(() => { if (isPublic || API) GRID_NAME = browserGridId(); })

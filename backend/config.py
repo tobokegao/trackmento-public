@@ -6,6 +6,7 @@
 - FRONTEND_URL      : 共有ページの「TRACKMENTO で開く」が指すフロントの URL（例: https://user.github.io/musicgrid-local）
 - PUBLIC_BASE_URL   : PNG や共有ページの URL のベース。auto なら LAN IP（ローカル）／リクエストのホスト（公開モード）
 - RATE_LIMIT        : API の 1 分あたりのリクエスト上限（IP ごと。既定 120）
+- MIGRATE_TO        : ドメインの引っ越し先（例 https://trackmento.com）。空なら引っ越さない
 """
 from __future__ import annotations
 
@@ -113,6 +114,15 @@ def public_base_url(port: int = 8000) -> str:
     if not v or v.lower() == "auto":
         return f"http://{lan_ip()}:{port}"
     return v
+
+
+def migrate_to() -> str:
+    """**ドメインを引っ越すときの移転先**（例 `https://trackmento.com`）。空なら引っ越しをしない。
+
+    設定すると、これと違うホストで来た要求のうち、共有ページなどは 301 で移転先へ送り、
+    画面（`/`）だけはそのまま返す（ブラウザに保存されている並びを引き継いでから自分で移動するため）。
+    """
+    return os.getenv("MIGRATE_TO", "").strip().rstrip("/")
 
 
 def base_url_for(request) -> str:
