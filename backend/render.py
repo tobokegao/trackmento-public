@@ -189,14 +189,20 @@ def _one_line(s: str | None) -> str:
 TITLE_SHRINK = (0.92, 0.86, 0.8)   # 折った最後の行が少しはみ出すときに縮める段階（frontend の TITLE_SHRINK と同じ）
 TITLE_ROWS3 = 1 + 1 / TITLE_SHRINK[-1]   # 2.25 … 1 行＋0.8 に縮めた 1 行に入る題の幅の上限（段の幅の何倍か）。超えたら 3 行
 TITLE_CLIP = 2 + 1 / TITLE_SHRINK[-1]    # 3.25 … 3 段（2 行＋0.8 に縮めた 1 行）に入る上限。超える題は「…」で切れる
+# **アーティスト名も 2 行まで折る**（2026-09-18）。iTunes は「ピノキオピー feat. 初音ミク Append (Dark),
+# 初音ミク Append (Sweet)」のように歌声の種類まで並べて返すので、2 列でも 1 行には入らない
+# （利用者の 5x5・16:9・25 曲で 3 曲が「…」になっていた）。曲名と同じ順序で「縮める → 折る → 切る」
+ARTIST_ROWS1 = 1 / TITLE_SHRINK[-1]      # 1.25 … 0.8 に縮めれば 1 行に入る上限。ここまでは行を増やさない
+ARTIST_CLIP = 1 + 1 / TITLE_SHRINK[-1]   # 2.25 … 2 行（1 行＋0.8 に縮めた 1 行）に入る上限。超える名前は「…」で切れる
 
 
-def _shrink_font(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, font_s: int, max_w: float) -> ImageFont.FreeTypeFont:
+def _shrink_font(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, font_s: int, max_w: float,
+                 kind: str = "bold") -> ImageFont.FreeTypeFont:
     """text が max_w に入るまで TITLE_SHRINK の順に字を縮める。縮めても入らなければ最後の大きさを返す（描くときは「…」で切る）。"""
     for k in TITLE_SHRINK:
         if d.textlength(text, font=f) <= max_w:
             break
-        f = font("bold", max(8, rnd(font_s * k)))
+        f = font(kind, max(8, rnd(font_s * k)))
     return f
 
 
@@ -310,7 +316,10 @@ class Layout:
     gw: int; gh: int
     title: str; title_size: int; title_h: int
     side: str; sb_w: int; sb_h: int; sb_cols: int; line_h: int; font_s: int; sb_gap: int; sb_flow: bool
-    sb_plan: tuple[int, ...] = ()   # 曲ごとの行数（1〜4）。曲名 1〜3 行＋アーティスト名の行
+    sb_plan: tuple[int, ...] = ()   # 曲ごとの行数（1〜4）。曲名 1〜3 行＋アーティスト名 1〜2 行
+    sb_arows: tuple[int, ...] = ()  # 曲ごとのアーティスト名の行数（0〜2）。**割り付けを決めた字で数えたもの**。
+                                    # 描くときに数え直すと、そのあと行の高さを取り直した分だけずれ、
+                                    # 曲名に回る行数が変わって「REALITY」が「REA / LITY」に割れた（2026-09-18）
     # 回り込み（マスの塊を中央に置き、まわりの余白に曲名を流し込む）
     wrap: bool = False
     wrap_pad: int = 0                                   # 四辺の余白
@@ -460,6 +469,20 @@ CLIP_GAIN = 0.35          # 右に置くとき、名前が消える曲が 1 つ�
                           # 6x6・36 曲は 1.39 倍しか大きくならないので両方とも増やさない）
 
 
+def _num_w(font_s: int) -> float:
+    """番号（2 桁）とその後ろの空きの幅。**字ごとに 1px へ丸めて測る**（PIL と Canvas で食い違わない）"""
+    return char_w("pixel", rnd(font_s * 0.8), "0") * 2 + rnd(font_s * 0.8)
+
+
+def _artist_rows(artist: str, font_s: int, avail: float) -> int:
+    """アーティスト名に要る行数（0〜2）。**割り付け（_row_plan）と描画で必ず同じ値を使う**。
+    片方だけで数え直すと、曲名に回る行数がずれて「REALITY」が「REA / LITY」に割れた（2026-09-18）"""
+    if not artist:
+        return 0
+    aw = sum(char_w("regular", max(8, rnd(font_s * ARTIST_SCALE)), ch) for ch in artist)
+    return 1 if aw <= max(1.0, avail) * ARTIST_ROWS1 else 2
+
+
 def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, int]:
     """その列の幅で崩れる曲の数を **(折れる, 途切れる)** で返す。
 
@@ -475,8 +498,7 @@ def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, int]:
     """
     # **番号の幅も字ごとに 1px へ丸めて測る**（2026-09-18）。まとめて測ると PIL と Canvas で 1px 違い、
     # 「入る・入らない」の境目の曲で数が割れて、列の選び方がサーバーとブラウザで食い違った
-    nw = char_w("pixel", rnd(font_s * 0.8), "0") * 2 + rnd(font_s * 0.8)
-    avail = max(1.0, max_w - nw)
+    avail = max(1.0, max_w - _num_w(font_s))
     fb, fa = max(12, font_s), max(8, rnd(font_s * ARTIST_SCALE))
     folded = clipped = 0
     for t in doc.cells:
@@ -489,8 +511,11 @@ def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, int]:
                 clipped += 1
             else:
                 folded += 1
-        if sum(char_w("regular", fa, ch) for ch in _one_line(t.artist)) > avail:
-            clipped += 1   # アーティスト名は折らないので、入らなければ必ず「…」になる
+        aw = sum(char_w("regular", fa, ch) for ch in _one_line(t.artist))
+        if aw > avail * ARTIST_CLIP:
+            clipped += 1        # 2 行に折っても入らない名前は「…」で切れる
+        elif aw > avail * ARTIST_ROWS1:
+            folded += 1         # 2 行に折れば読める（行が 1 つ増えるだけ）
     return folded, clipped
 
 
@@ -510,14 +535,14 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
     # **幅は字ごとに 1px へ丸めた和で見る**（2026-09-18）。題を 1 本の文字列として測ると PIL と Canvas で
     # 1px 未満だけ違い、境目の題で「1 行に入る・入らない」が割れて、行数から決まる文字の大きさがずれた
     # （利用者の 25 曲を 5x5・16:9 に入れた実測で、サーバー 55px・ブラウザ 57px）
-    nw = char_w("pixel", rnd(font_s * 0.8), "0") * 2 + rnd(font_s * 0.8)
-    avail = max(1.0, max_w - nw)
+    avail = max(1.0, max_w - _num_w(font_s))
     plan = []
     for t in doc.cells:
         if not t:
             plan.append(1)
             continue
-        rows = 2 if _one_line(t.artist) else 1
+        # **アーティスト名も 2 行まで折る**。0.8 に縮めれば入るぶんは 1 行のまま（行を増やさない）
+        rows = 1 + _artist_rows(_one_line(t.artist), font_s, avail)
         title = _one_line(t.title)
         tw = sum(char_w("bold", max(12, font_s), ch) for ch in title)
         if tw > avail:
@@ -1474,9 +1499,12 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     # 曲名が 1 行に入らなければ 2 行に折るので、その曲だけ行が増える。増えたぶん高さを取り直す。
     # **割り付けは 1 度しか計算しない**（小さくした字で計算し直すと、折る・折らないを行き来するため）
     sb_plan: tuple[int, ...] = ()
+    sb_arows: tuple[int, ...] = ()
     if side != "none":
         col_w0 = (sb_w - LIST_COL_GAP * (sb_cols - 1)) // sb_cols
         sb_plan = _row_plan(doc, font_s, col_w0)
+        avail0 = max(1.0, col_w0 - _num_w(font_s))
+        sb_arows = tuple(_artist_rows(_one_line(t.artist) if t else "", font_s, avail0) for t in doc.cells)
         rows_per_col = _plan_rows(sb_plan, sb_cols)
         # **1 曲が列をまたがないので、折らなくても 1 列の行数が見込みより増えることがある**（2026-09-17）。
         # 曲名＋アーティストの 2 行ひと組を 25 曲、2 列に分けると 13 曲 ＝ 26 行で、「50 行 ÷ 2 列 ＝ 25 行」の
@@ -1567,7 +1595,7 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
         # 流し込みに落ちる並びは、今の組み方の字が読めない大きさなので無条件で置き換える
         if rp and (ratio is None or sb_flow or rp.scale >= scale):
             return Layout(rp.W, rp.H, rp.scale, rp.gx, rp.gy, gw, gh, title, rp.title_size, rp.title_h,
-                          side, 0, 0, 1, rp.line_h, rp.font_s, sb_gap, True, (),
+                          side, 0, 0, 1, rp.line_h, rp.font_s, sb_gap, True, (), (),
                           True, rp.pad, rp.top, rp.segs, True)
     if sb_flow and ratio is not None:
         from backend.config import max_side
@@ -1592,7 +1620,7 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
                    or (wp.font_s * wp.scale >= font_s * scale * WRAP_SWITCH_GAIN
                        and wp.scale >= scale * WRAP_CELL_KEEP)):
             return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
-                          side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (),
+                          side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (), (),
                           True, wp.pad, wp.top, wp.segs, wp.rows_mode)
     # **流し込みに落ちるくらいなら、1 曲 1 行を残す**（2026-09-17）。回り込みや柱・帯のほうがマスを大きく
     # 取れる並びは上で返っている。ここに来るのは「流し込みの右サイドバー」で、字は 24〜34px と大きいが
@@ -1605,7 +1633,7 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
                title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap, sb_flow,
-               () if sb_flow else sb_plan)
+               () if sb_flow else sb_plan, () if sb_flow else sb_arows)
     # **タイトルは曲名リストより十分大きくする**。ふだんの規則（マスの幅の 4.5%・上限 96）は
     # マスの数だけで決まるので、曲が少なくて曲名が大きくなると**タイトルのほうが小さくなる**
     # （1x6・16:9 で本文 46.6px にタイトル 16.9px ＝ 0.36 倍だった）。
@@ -1876,7 +1904,10 @@ def render(doc: GridDoc) -> Image.Image:
             max_w = col_w * S - nw
             title, artist = _one_line(t.title), _one_line(t.artist)
             # 曲名の行（入らなければ 2 行に折る）。**アーティスト名は必ず次の行**
-            title_rows = plan[i] - (1 if artist else 0)
+            # 割り付けで取った行数のうち、アーティストに割り当てた行（1 行か、折るなら 2 行）。
+            # **`_row_plan` と同じ物差し（論理 px）で数える**
+            a_rows = L.sb_arows[i] if i < len(L.sb_arows) else (1 if artist else 0)
+            title_rows = plan[i] - a_rows
             if title_rows >= 2:
                 l1, l2 = _split_title(d, title, f_title, max_w)
                 if not l2:   # 割り付けでは 2 行取ったが実際は 1 行で収まった（測る字の大きさが少し違うため）
@@ -1906,9 +1937,21 @@ def render(doc: GridDoc) -> Image.Image:
             if artist:
                 # アーティスト名は曲名のすぐ下に寄せる（行の中心のままだと均等に散らばって、
                 # どの曲名の下なのかが読み取りにくい）
+                a_size = max(8, rnd(font_s * ARTIST_SCALE))
                 ay = row_y(row + title_rows) - sc(L.line_h * 0.14)
-                d.text((x + nw, ay), _ellipsize(d, artist, f_artist, max_w), font=f_artist, fill=muted, anchor="lm")
-            shift[col] = shift.get(col, 0) + max(0, plan[i] - (title_rows + (1 if artist else 0)))
+                a1, a2 = (_split_title(d, artist, f_artist, max_w) if a_rows >= 2 else (artist, ""))
+                if a_rows >= 2 and not a2:
+                    a_rows = 1   # 割り付けでは 2 行取ったが実際は 1 行で収まった（測る字の大きさが少し違うため）
+                if a_rows >= 2:
+                    d.text((x + nw, ay), a1, font=f_artist, fill=muted, anchor="lm")
+                    fa2 = _shrink_font(d, a2, f_artist, a_size, max_w, kind="regular")
+                    d.text((x + nw, row_y(row + title_rows + 1) - sc(L.line_h * 0.14)), _ellipsize(d, a2, fa2, max_w),
+                           font=fa2, fill=muted, anchor="lm")
+                else:
+                    # 1 行のとき、はみ出しがわずかなら**縮めて収める**（曲名の最後の行と同じ考え方）
+                    fa1 = _shrink_font(d, artist, f_artist, a_size, max_w, kind="regular")
+                    d.text((x + nw, ay), _ellipsize(d, artist, fa1, max_w), font=fa1, fill=muted, anchor="lm")
+            shift[col] = shift.get(col, 0) + max(0, plan[i] - (title_rows + a_rows))
 
     _release_memory()
     return im
