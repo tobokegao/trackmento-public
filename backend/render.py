@@ -188,6 +188,7 @@ def _one_line(s: str | None) -> str:
 
 TITLE_SHRINK = (0.92, 0.86, 0.8)   # 折った最後の行が少しはみ出すときに縮める段階（frontend の TITLE_SHRINK と同じ）
 TITLE_ROWS3 = 1 + 1 / TITLE_SHRINK[-1]   # 2.25 … 1 行＋0.8 に縮めた 1 行に入る題の幅の上限（段の幅の何倍か）。超えたら 3 行
+TITLE_CLIP = 2 + 1 / TITLE_SHRINK[-1]    # 3.25 … 3 段（2 行＋0.8 に縮めた 1 行）に入る上限。超える題は「…」で切れる
 
 
 def _shrink_font(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, font_s: int, max_w: float) -> ImageFont.FreeTypeFont:
@@ -452,28 +453,41 @@ LIST_COL_GAP = GAP_PX * 5   # 列と列のあいだ。マスの間隔と同じ�
 LIST_COL_GAIN = 1.02        # 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
 ARTIST_SCALE = 0.78       # アーティスト名は曲名より小さく、薄い色で
 LIST_COL_TIDY_GAIN = 1.15   # 右に置くとき、列を増やして「崩れる曲」が増えるなら、文字がこの倍率以上大きくならない限り増やさない
+CLIP_MAX_RATIO = 0.15     # 列を増やして「…」で名前が消える曲がこの割合を超えて増えるなら、**どれだけ字が大きくなっても増やさない**
+                          # （2026-09-18。利用者の 6x6・16:9・36 曲で、字が 1.39 倍になるのと引き換えに 8 曲＝22% の
+                          # アーティスト名が消えていた。逆に禁止を一律にすると、下に置く並びでマスが 22% 小さくなった）
 
 
-def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> int:
-    """その列の幅で**崩れる曲の数**（曲名が 1 行に入らない数 ＋ アーティスト名が途切れる数）。
+def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, int]:
+    """その列の幅で崩れる曲の数を **(折れる, 途切れる)** で返す。
 
     列を増やすかどうかを文字の大きさだけで決めていたとき、利用者の 5x5・16:9・25 曲（ボカロ曲で
     「作者 feat. 歌声」の長いアーティスト名）が 3 列になり、**曲名 14 曲が 2 段に折れ、アーティスト名
     13 曲が「…」で途切れた**（2026-09-17）。2 列なら文字は 7% 小さくなるだけで、折れも途切れも 0。
     幅は `_row_plan` の 3 行判定と同じく**字ごとに 1px に丸めた和**で見る（PIL と Canvas で食い違わない）
+
+    **2 つを分けて数える**（2026-09-18）。「折れる」は行が増えるだけで**読める**が、「途切れる」は
+    「…」で**文字が消える**。同じ 1 件として足していたため、利用者の 6x6・16:9・36 曲（KAITO の曲で
+    「作者 feat. カイトV3 (Straight)」の長い名前）が、字が 1.39 倍になるのと引き換えに 3 列になり、
+    アーティスト名 8 曲が消えていた。消えるほうは字の大きさと釣り合わない
     """
     nw = font("pixel", rnd(font_s * 0.8)).getlength("00") + rnd(font_s * 0.8)
     avail = max(1.0, max_w - nw)
     fb, fa = max(12, font_s), max(8, rnd(font_s * ARTIST_SCALE))
-    n = 0
+    folded = clipped = 0
     for t in doc.cells:
         if not t:
             continue
-        if sum(char_w("bold", fb, ch) for ch in _one_line(t.title)) > avail:
-            n += 1
+        tw = sum(char_w("bold", fb, ch) for ch in _one_line(t.title))
+        if tw > avail:
+            # 曲名は 3 段まで折れる（最後の段は TITLE_SHRINK まで縮める）。それでも入らなければ「…」
+            if tw > avail * TITLE_CLIP:
+                clipped += 1
+            else:
+                folded += 1
         if sum(char_w("regular", fa, ch) for ch in _one_line(t.artist)) > avail:
-            n += 1
-    return n
+            clipped += 1   # アーティスト名は折らないので、入らなければ必ず「…」になる
+    return folded, clipped
 
 
 def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
@@ -1308,6 +1322,7 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
 def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
     o = doc.options
     cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
+    n_tracks = max(1, sum(1 for t in doc.cells if t))   # 入っている曲の数（「消える曲」の割合を測る母数）
     title = _one_line(doc.title) if o.showTitle else ""
     gw = cols * CELL_PX + (cols - 1) * g
     gh = rows * CELL_PX + (rows - 1) * g
@@ -1382,8 +1397,8 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
 
     W, H, scale = _frame(sb_w, sb_h)
 
-    def _right_final(cols: int) -> tuple[int, int]:
-        """右に置いて cols 列にしたときの、曲名を折ったあとの (文字の大きさ, 崩れる曲の数)。
+    def _right_final(cols: int) -> tuple[int, tuple[int, int]]:
+        """右に置いて cols 列にしたときの、曲名を折ったあとの (文字の大きさ, (折れる, 途切れる))。
         下の「折ったぶん高さを取り直す」と同じ式で出す"""
         _, fs, w = _sidebar(cols, base_rows)
         col_w = (w - LIST_COL_GAP * (cols - 1)) // cols
@@ -1423,17 +1438,25 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
             if side == "right":
                 # **列が狭くなって崩れる曲が増えるなら、文字がはっきり大きくならない限り増やさない**。
                 # 比べるのは曲名を折ったあとの大きさ（折ると行が増えて、見込みより小さくなる）
-                fs_now, dmg_now = _right_final(sb_cols)
-                fs_new, dmg_new = _right_final(sb_cols + 1)
-                if dmg_new > dmg_now and fs_new * scale2 < fs_now * scale * LIST_COL_TIDY_GAIN:
+                fs_now, (fold_now, clip_now) = _right_final(sb_cols)
+                fs_new, (fold_new, clip_new) = _right_final(sb_cols + 1)
+                # **名前が「…」で消える曲がどっと増える列数は選ばない**（2026-09-18）。折れるのは
+                # 行が増えるだけで読めるが、途切れるのは文字そのものが消える。字が 1.39 倍になるのと
+                # 引き換えに、アーティスト名 8 曲＝22% が消えていた（利用者の 6x6・16:9・36 曲）。
+                # ただし**一律に禁止すると、下に置く並びでマスが 22% 小さくなる**ので割合で見る
+                if clip_new - clip_now > CLIP_MAX_RATIO * n_tracks:
+                    break
+                if (fold_new + clip_new) > (fold_now + clip_now) and fs_new * scale2 < fs_now * scale * LIST_COL_TIDY_GAIN:
                     break
             else:
                 # **下に置くときも同じ**（2026-09-17）。マスが少し大きくなるだけで 3 列にすると、
                 # 4x4・1:1・16 曲でアーティスト名が「…」になり、曲名が変な所で折れていた（利用者の画像で指摘）。
                 # 崩れる曲が増えるなら、マスが LIST_COL_TIDY_GAIN 倍以上大きくならない限り増やさない
-                dmg_now = _list_damage(doc, font_s, (sb_w - LIST_COL_GAP * (sb_cols - 1)) // sb_cols)
-                dmg_new = _list_damage(doc, fs, (w - LIST_COL_GAP * sb_cols) // (sb_cols + 1))
-                if dmg_new > dmg_now and scale2 < scale * LIST_COL_TIDY_GAIN:
+                fold_now, clip_now = _list_damage(doc, font_s, (sb_w - LIST_COL_GAP * (sb_cols - 1)) // sb_cols)
+                fold_new, clip_new = _list_damage(doc, fs, (w - LIST_COL_GAP * sb_cols) // (sb_cols + 1))
+                if clip_new - clip_now > CLIP_MAX_RATIO * n_tracks:
+                    break
+                if (fold_new + clip_new) > (fold_now + clip_now) and scale2 < scale * LIST_COL_TIDY_GAIN:
                     break
             sb_cols, line_h, font_s, sb_w, sb_h = sb_cols + 1, lh, fs, w, sb_h2
             W, H, scale = _frame(sb_w, sb_h)

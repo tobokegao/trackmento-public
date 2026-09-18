@@ -3632,6 +3632,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const fontPx = (f) => parseFloat(/(\d+(?:\.\d+)?)px/.exec(f)[1]);   // font 文字列から大きさだけ取る
   const TITLE_SHRINK = [0.92, 0.86, 0.8];   // 折った最後の行が少しはみ出すときに縮める段階（backend/render.py と同じ）
   const TITLE_ROWS3 = 1 + 1 / TITLE_SHRINK[TITLE_SHRINK.length - 1];   // 2.25 … これを超える幅の題は 3 行
+  const TITLE_CLIP = 2 + 1 / TITLE_SHRINK[TITLE_SHRINK.length - 1];    // 3.25 … 3 段にも入らない題は「…」で切れる
   /* text が maxW に入るまで TITLE_SHRINK の順に字を縮める。縮めても入らなければ最後の大きさを返す（描くときは「…」で切る） */
   function shrinkFont(ctx, text, f, fontS, maxW) {
     for (const k of TITLE_SHRINK) {
@@ -3670,26 +3671,30 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   // 右に置くとき、列を増やして「崩れる曲」が増えるなら、文字がこの倍率以上大きくならない限り増やさない
   const LIST_COL_TIDY_GAIN = 1.15;
-  /* その列の幅で**崩れる曲の数**（曲名が 1 行に入らない数 ＋ アーティスト名が途切れる数）。
-     backend/render.py の _list_damage と同じ。**字ごとに丸めた幅の和**で見る（サーバーと食い違わない）。
+  // 列を増やして「…」で名前が消える曲がこの割合を超えて増えるなら、どれだけ字が大きくなっても増やさない
+  // （2026-09-18。backend/render.py の CLIP_MAX_RATIO と同じ）
+  const CLIP_MAX_RATIO = 0.15;
+  /* その列の幅で崩れる曲の数を **[折れる, 途切れる]** で返す。backend/render.py の _list_damage と同じ。
+     **字ごとに丸めた幅の和**で見る（サーバーと食い違わない）。
      文字の大きさだけで列を増やしていたとき、5x5・16:9・25 曲で 3 列になり、曲名 14 曲が折れ、
-     アーティスト名 13 曲が「…」で途切れた（2 列なら文字が 7% 小さくなるだけで 0） */
+     アーティスト名 13 曲が「…」で途切れた（2 列なら文字が 7% 小さくなるだけで 0）。
+     **2 つを分けて数える**（2026-09-18）。折れるのは行が増えるだけで読めるが、途切れるのは文字が消える */
   function listDamage(fontS, maxW) {
     const ctx = probe;
     ctx.font = fontPixel(Math.round(fontS * 0.8));
     const avail = Math.max(1, maxW - (ctx.measureText("00").width + Math.round(fontS * 0.8)));
     const fb = fontBold(Math.max(12, fontS)), fa = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
-    let n = 0;
+    let folded = 0, clipped = 0;
     for (const t of state.cells) {
       if (!t) continue;
       let w = 0;
       for (const ch of oneLine(t.title)) w += charW1(fb, ch);
-      if (w > avail) n++;
+      if (w > avail) { if (w > avail * TITLE_CLIP) clipped++; else folded++; }
       w = 0;
       for (const ch of oneLine(t.artist)) w += charW1(fa, ch);
-      if (w > avail) n++;
+      if (w > avail) clipped++;   // アーティスト名は折らないので、入らなければ必ず「…」になる
     }
-    return n;
+    return [folded, clipped];
   }
   /* 1 列あたりの行数。**1 曲が列をまたがないように**詰めたうえで、必ず cols 列に収まる値を返す */
   function planRows(plan, cols) {
@@ -3806,6 +3811,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const m = state.margin;
     const title = state.showTitle ? state.title.trim() : "";
     const n = state.cells.length;
+    const nTracks = Math.max(1, state.cells.filter(Boolean).length);   // 入っている曲の数（「消える曲」の割合の母数）
     const g = state.gap;
     const gw = cols * CELL_PX + (cols - 1) * g, gh = rows * CELL_PX + (rows - 1) * g;
     const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
@@ -3903,15 +3909,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         if (side === "right") {
           // **列が狭くなって崩れる曲が増えるなら、文字がはっきり大きくならない限り増やさない**
           // （backend/render.py と同じ。比べるのは曲名を折ったあとの大きさ）
-          const [fsNow, dmgNow] = rightFinal(sbCols);
-          const [fsNew, dmgNew] = rightFinal(sbCols + 1);
-          if (dmgNew > dmgNow && fsNew * scale2 < fsNow * scale * LIST_COL_TIDY_GAIN) break;
+          const [fsNow, [foldNow, clipNow]] = rightFinal(sbCols);
+          const [fsNew, [foldNew, clipNew]] = rightFinal(sbCols + 1);
+          // 名前が「…」で消える曲がどっと増える列数は選ばない（2026-09-18。backend/render.py と同じ規則）
+          if (clipNew - clipNow > CLIP_MAX_RATIO * nTracks) break;
+          if (foldNew + clipNew > foldNow + clipNow && fsNew * scale2 < fsNow * scale * LIST_COL_TIDY_GAIN) break;
         } else {
           // 下に置くときも同じ（backend/render.py と同じ規則）。崩れる曲が増えるなら、マスが LIST_COL_TIDY_GAIN 倍以上
           // 大きくならない限り増やさない（4x4・1:1・16 曲で 3 列になり、アーティスト名が「…」になっていた）
-          const dmgNow = listDamage(fontS, Math.floor((sbW - LIST_COL_GAP * (sbCols - 1)) / sbCols));
-          const dmgNew = listDamage(fs, Math.floor((w - LIST_COL_GAP * sbCols) / (sbCols + 1)));
-          if (dmgNew > dmgNow && scale2 < scale * LIST_COL_TIDY_GAIN) break;
+          const [foldNow, clipNow] = listDamage(fontS, Math.floor((sbW - LIST_COL_GAP * (sbCols - 1)) / sbCols));
+          const [foldNew, clipNew] = listDamage(fs, Math.floor((w - LIST_COL_GAP * sbCols) / (sbCols + 1)));
+          if (clipNew - clipNow > CLIP_MAX_RATIO * nTracks) break;
+          if (foldNew + clipNew > foldNow + clipNow && scale2 < scale * LIST_COL_TIDY_GAIN) break;
         }
         sbCols += 1; lineH = lh; fontS = fs; sbW = w; sbH = sbH2;
         [W, H, scale] = frame(sbW, sbH);
