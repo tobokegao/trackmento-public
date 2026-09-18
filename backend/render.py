@@ -453,9 +453,11 @@ LIST_COL_GAP = GAP_PX * 5   # 列と列のあいだ。マスの間隔と同じ�
 LIST_COL_GAIN = 1.02        # 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
 ARTIST_SCALE = 0.78       # アーティスト名は曲名より小さく、薄い色で
 LIST_COL_TIDY_GAIN = 1.15   # 右に置くとき、列を増やして「崩れる曲」が増えるなら、文字がこの倍率以上大きくならない限り増やさない
-CLIP_MAX_RATIO = 0.15     # 列を増やして「…」で名前が消える曲がこの割合を超えて増えるなら、**どれだけ字が大きくなっても増やさない**
-                          # （2026-09-18。利用者の 6x6・16:9・36 曲で、字が 1.39 倍になるのと引き換えに 8 曲＝22% の
-                          # アーティスト名が消えていた。逆に禁止を一律にすると、下に置く並びでマスが 22% 小さくなった）
+CLIP_MAX_RATIO = 0.15     # 下に置くとき、「…」で名前が消える曲がこの割合を超えて増えるなら、マスが大きくなっても列を増やさない
+                          # （2026-09-18。一律に禁止すると、下に置く並びでマスが 22% 小さくなった＝3x3・1:1 で 496 → 388px）
+CLIP_GAIN = 0.35          # 右に置くとき、名前が消える曲が 1 つ増えるごとに、列を増やすのに要る「字の大きさの倍率」をこれだけ厳しくする
+                          # （1 曲なら 1.50 倍、2 曲なら 1.85 倍、8 曲なら 3.95 倍。実測で、利用者の 5x5・25 曲は 1.16 倍・
+                          # 6x6・36 曲は 1.39 倍しか大きくならないので両方とも増やさない）
 
 
 def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, int]:
@@ -471,7 +473,9 @@ def _list_damage(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, int]:
     「作者 feat. カイトV3 (Straight)」の長い名前）が、字が 1.39 倍になるのと引き換えに 3 列になり、
     アーティスト名 8 曲が消えていた。消えるほうは字の大きさと釣り合わない
     """
-    nw = font("pixel", rnd(font_s * 0.8)).getlength("00") + rnd(font_s * 0.8)
+    # **番号の幅も字ごとに 1px へ丸めて測る**（2026-09-18）。まとめて測ると PIL と Canvas で 1px 違い、
+    # 「入る・入らない」の境目の曲で数が割れて、列の選び方がサーバーとブラウザで食い違った
+    nw = char_w("pixel", rnd(font_s * 0.8), "0") * 2 + rnd(font_s * 0.8)
     avail = max(1.0, max_w - nw)
     fb, fa = max(12, font_s), max(8, rnd(font_s * ARTIST_SCALE))
     folded = clipped = 0
@@ -503,8 +507,10 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
       判定にすると、折る位置の 1 字の差で PIL と Canvas が食い違う（200 通りで 27 件ずれた）。
       2.0〜2.25 倍の題は折り方しだいで入らないことがあり、そのときは今までどおり「…」で切る
     """
-    ft = font("bold", max(12, font_s))
-    nw = font("pixel", rnd(font_s * 0.8)).getlength("00") + rnd(font_s * 0.8)
+    # **幅は字ごとに 1px へ丸めた和で見る**（2026-09-18）。題を 1 本の文字列として測ると PIL と Canvas で
+    # 1px 未満だけ違い、境目の題で「1 行に入る・入らない」が割れて、行数から決まる文字の大きさがずれた
+    # （利用者の 25 曲を 5x5・16:9 に入れた実測で、サーバー 55px・ブラウザ 57px）
+    nw = char_w("pixel", rnd(font_s * 0.8), "0") * 2 + rnd(font_s * 0.8)
     avail = max(1.0, max_w - nw)
     plan = []
     for t in doc.cells:
@@ -513,9 +519,10 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
             continue
         rows = 2 if _one_line(t.artist) else 1
         title = _one_line(t.title)
-        if ft.getlength(title) > avail:
+        tw = sum(char_w("bold", max(12, font_s), ch) for ch in title)
+        if tw > avail:
             rows += 1
-            if sum(char_w("bold", max(12, font_s), ch) for ch in title) > avail * TITLE_ROWS3:
+            if tw > avail * TITLE_ROWS3:
                 rows += 1
         plan.append(rows)
     return tuple(plan)
@@ -1440,13 +1447,17 @@ def layout(doc: GridDoc, _title_px: int | None = None) -> Layout:
                 # 比べるのは曲名を折ったあとの大きさ（折ると行が増えて、見込みより小さくなる）
                 fs_now, (fold_now, clip_now) = _right_final(sb_cols)
                 fs_new, (fold_new, clip_new) = _right_final(sb_cols + 1)
-                # **名前が「…」で消える曲がどっと増える列数は選ばない**（2026-09-18）。折れるのは
-                # 行が増えるだけで読めるが、途切れるのは文字そのものが消える。字が 1.39 倍になるのと
-                # 引き換えに、アーティスト名 8 曲＝22% が消えていた（利用者の 6x6・16:9・36 曲）。
-                # ただし**一律に禁止すると、下に置く並びでマスが 22% 小さくなる**ので割合で見る
-                if clip_new - clip_now > CLIP_MAX_RATIO * n_tracks:
-                    break
-                if (fold_new + clip_new) > (fold_now + clip_now) and fs_new * scale2 < fs_now * scale * LIST_COL_TIDY_GAIN:
+                # **名前が「…」で消えるぶんだけ、列を増やす条件を厳しくする**（2026-09-18）。折れるのは
+                # 行が増えるだけで読めるが、途切れるのは文字そのものが消える。右に置くときは列を増やしても
+                # マスは変わらず、得るのは字の大きさだけなので、消える名前と釣り合わない
+                # （利用者の 6x6・36 曲で 8 曲、5x5・25 曲で 2 曲が消えていた）。消える曲 1 つにつき
+                # CLIP_GAIN だけ必要な倍率を上げる（1 曲を消してよいのは字が 1.5 倍になるときだけ）
+                # **今の列のままでは字が小さすぎて流し込みに落ちるなら、この番人は通す**。流し込みは
+                # 曲の区切りが見えなくなるので、名前が 1 つ消えるより読みにくい
+                need = LIST_COL_TIDY_GAIN + CLIP_GAIN * max(0, clip_new - clip_now)
+                if fs_now * scale < FLOW_KEEP_FONT:
+                    need = LIST_COL_TIDY_GAIN
+                if (fold_new + clip_new) > (fold_now + clip_now) and fs_new * scale2 < fs_now * scale * need:
                     break
             else:
                 # **下に置くときも同じ**（2026-09-17）。マスが少し大きくなるだけで 3 列にすると、

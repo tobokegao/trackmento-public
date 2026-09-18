@@ -3650,20 +3650,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      **字ごとに丸めた幅が段の TITLE_ROWS3 倍を超えれば 3 行**（backend/render.py の _row_plan と同じ規則。
      折って縮めて測る判定は折る位置の 1 字の差でサーバーと食い違うので、幅だけで決める） */
   function rowPlan(fontS, maxW) {
-    const ctx = probe;
-    ctx.font = fontPixel(Math.round(fontS * 0.8));
-    const nw = ctx.measureText("00").width + Math.round(fontS * 0.8);
+    // 幅は字ごとに 1px へ丸めた和で見る（2026-09-18。まるごと測るとサーバーと 1px 未満だけ違い、
+    // 境目の題で「1 行に入る・入らない」が割れて、行数から決まる文字の大きさがずれる）
+    const nw = charW1(fontPixel(Math.round(fontS * 0.8)), "0") * 2 + Math.round(fontS * 0.8);
     const avail = Math.max(1, maxW - nw);
     const f = fontBold(Math.max(12, fontS));
     return state.cells.map((t) => {
       if (!t) return 1;
       let rows = oneLine(t.artist) ? 2 : 1;
       const title = oneLine(t.title);
-      ctx.font = f;
-      if (ctx.measureText(title).width > avail) {
+      let w = 0;
+      for (const ch of title) w += charW1(f, ch);
+      if (w > avail) {
         rows += 1;
-        let w = 0;
-        for (const ch of title) w += charW1(f, ch);
         if (w > avail * TITLE_ROWS3) rows += 1;
       }
       return rows;
@@ -3671,18 +3670,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   // 右に置くとき、列を増やして「崩れる曲」が増えるなら、文字がこの倍率以上大きくならない限り増やさない
   const LIST_COL_TIDY_GAIN = 1.15;
-  // 列を増やして「…」で名前が消える曲がこの割合を超えて増えるなら、どれだけ字が大きくなっても増やさない
-  // （2026-09-18。backend/render.py の CLIP_MAX_RATIO と同じ）
+  // 下に置くとき、「…」で名前が消える曲がこの割合を超えて増えるなら、マスが大きくなっても列を増やさない
+  // （2026-09-18。backend/render.py の CLIP_MAX_RATIO / CLIP_GAIN と同じ）
   const CLIP_MAX_RATIO = 0.15;
+  // 右に置くとき、名前が消える曲が 1 つ増えるごとに、列を増やすのに要る「字の大きさの倍率」をこれだけ厳しくする
+  const CLIP_GAIN = 0.35;
   /* その列の幅で崩れる曲の数を **[折れる, 途切れる]** で返す。backend/render.py の _list_damage と同じ。
      **字ごとに丸めた幅の和**で見る（サーバーと食い違わない）。
      文字の大きさだけで列を増やしていたとき、5x5・16:9・25 曲で 3 列になり、曲名 14 曲が折れ、
      アーティスト名 13 曲が「…」で途切れた（2 列なら文字が 7% 小さくなるだけで 0）。
      **2 つを分けて数える**（2026-09-18）。折れるのは行が増えるだけで読めるが、途切れるのは文字が消える */
   function listDamage(fontS, maxW) {
-    const ctx = probe;
-    ctx.font = fontPixel(Math.round(fontS * 0.8));
-    const avail = Math.max(1, maxW - (ctx.measureText("00").width + Math.round(fontS * 0.8)));
+    // 番号の幅も字ごとに 1px へ丸めて測る（2026-09-18。まとめて測るとサーバーと 1px 違い、境目の曲で数が割れる）
+    const nw = charW1(fontPixel(Math.round(fontS * 0.8)), "0") * 2 + Math.round(fontS * 0.8);
+    const avail = Math.max(1, maxW - nw);
     const fb = fontBold(Math.max(12, fontS)), fa = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
     let folded = 0, clipped = 0;
     for (const t of state.cells) {
@@ -3911,9 +3912,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           // （backend/render.py と同じ。比べるのは曲名を折ったあとの大きさ）
           const [fsNow, [foldNow, clipNow]] = rightFinal(sbCols);
           const [fsNew, [foldNew, clipNew]] = rightFinal(sbCols + 1);
-          // 名前が「…」で消える曲がどっと増える列数は選ばない（2026-09-18。backend/render.py と同じ規則）
-          if (clipNew - clipNow > CLIP_MAX_RATIO * nTracks) break;
-          if (foldNew + clipNew > foldNow + clipNow && fsNew * scale2 < fsNow * scale * LIST_COL_TIDY_GAIN) break;
+          // 名前が「…」で消えるぶんだけ、列を増やす条件を厳しくする（2026-09-18。backend/render.py と同じ規則）。
+          // ただし今の列のままでは字が小さすぎて流し込みに落ちるなら、この番人は通す
+          let need = LIST_COL_TIDY_GAIN + CLIP_GAIN * Math.max(0, clipNew - clipNow);
+          if (fsNow * scale < FLOW_KEEP_FONT) need = LIST_COL_TIDY_GAIN;
+          if (foldNew + clipNew > foldNow + clipNow && fsNew * scale2 < fsNow * scale * need) break;
         } else {
           // 下に置くときも同じ（backend/render.py と同じ規則）。崩れる曲が増えるなら、マスが LIST_COL_TIDY_GAIN 倍以上
           // 大きくならない限り増やさない（4x4・1:1・16 曲で 3 列になり、アーティスト名が「…」になっていた）
