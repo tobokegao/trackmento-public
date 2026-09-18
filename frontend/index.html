@@ -1276,8 +1276,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
       <fieldset class="field">
         <legend>表示</legend>
-        <label class="check"><input type="checkbox" id="opt-title" checked><span>タイトル</span></label>
-        <label class="check"><input type="checkbox" id="opt-numbers"><span>番号バッジ</span></label>
+        <!-- label で包まない（「みんなのグリッドに載せる」と同じ）。包むと行のどこを押しても箱が切り替わり、行全体が光る -->
+        <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
+        <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
       </fieldset>
 
       <fieldset class="field">
