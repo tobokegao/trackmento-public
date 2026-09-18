@@ -232,6 +232,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     lags: list[float] = []
     budget_lines: list[str] = []
     search_fail = 0
+    search_fail_by: dict[str, int] = defaultdict(int)   # "ソース 理由" → 件数（省略分を含む）
     restored: list[tuple[str, int]] = []
     uptime_resets = 0        # 入れ替え単位にまとめた回数（判定に使う）
     uptime_reset_lines = 0   # 生の「戻り」行数（並走で膨らむ）
@@ -288,7 +289,12 @@ def analyze_logs(logs: list[dict]) -> dict:
         elif "[share] budget" in m or "[share] quota" in m:
             budget_lines.append(f"{_jst(ts)} {m[:160]}")
         elif "[search]" in m and "failed" in m:
-            search_fail += 1
+            # 「[search] vocadb failed: TimeoutError（ほか 3 件を省略）」。どのソースが何で落ちたかを数える
+            sm = re.search(r"\[search\] (\S+) failed: (.*?)(?:（ほか (\d+) 件を省略）)?$", m)
+            n = 1 + int(sm.group(3) or 0) if sm else 1
+            search_fail += n
+            if sm:
+                search_fail_by[f"{sm.group(1)} {sm.group(2)[:80]}"] += n
         elif (rm := RESTORE_RE.search(m)):
             restored.append((ts, int(rm.group(1))))
     return {
@@ -303,6 +309,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "lags": lags,
         "budget_lines": budget_lines,
         "search_fail": search_fail,
+        "search_fail_by": dict(search_fail_by),
         "restored": restored,
         "uptime_resets": uptime_resets,
         "uptime_reset_lines": uptime_reset_lines,
@@ -426,6 +433,8 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     lines.append(f"- エラー行: {len(la['errors'])}、[loop] lag: {len(la['lags'])} 行（最大 {max(la['lags']) if la['lags'] else 0:.1f} 秒）、検索失敗: {la['search_fail']}")
     for e in la["errors"][:5]:
         lines.append(f"  - {e}")
+    for k, n in sorted((la.get("search_fail_by") or {}).items(), key=lambda kv: -kv[1])[:8]:
+        lines.append(f"  - 検索失敗 {n} 件 `{k}`")
     if len(la["errors"]) > T["errors"]:
         problems.append(f"エラー行 {len(la['errors'])} が閾値 {T['errors']} を超過")
     slow = [l for l in la["lags"] if l >= 2.0]
