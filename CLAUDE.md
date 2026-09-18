@@ -1438,7 +1438,12 @@ claude --remote-control TRACKMENTO                                             #
   - **VocaDB と otoDB は時間切れでも取得を止めない**（`KEEP_ON_TIMEOUT` / `_fetch_source`）。裏で最大 45 秒まで待って
     結果を覚え、同じ検索が来たら走っている取得に合流する。以前は時間切れを 60 秒「失敗」として覚えていたので、
     画面の「少し待って再検索」に従うと即座にまた失敗が返っていた。MusicBrainz は順番待ちの枠を握り続けるので入れない
-  - 点検の要約に**検索失敗の内訳**（ソースと理由）が出る（`render_check.py` の `search_fail_by`）
+  - 点検の要約に**検索失敗の内訳**（ソースと理由）と **Traceback の本文**（最初の 3 件、頭と尻だけ）が出る
+    （`render_check.py` の `search_fail_by` / `fetch_tracebacks`）。ふだんのログは印付きの行だけ絞って読むので、本文は時刻を指定して取り直している
+  - **裏の取得は `asyncio.shield` で待たない**（`asyncio.wait` で待つ）。shield は待つ側が諦めたあとの失敗を
+    「exception in shielded future」と Traceback つきでログに出す（入れた直後に VocaDB の 30 秒超えで 5 件出た）
+  - **点検の `--hours` を長くすると [stats] が 2,500 行で打ち切られる**（`fetch_logs` の `max_pages` 25 × 100 行）。
+    10 時間だと窓の前半しか集計されない。長い窓を見るときは件数を当てにしない
 - **作者の曲名の日本語表記**（`scripts/build_own_tracks.py` の `JA`）: 「Yomi To Yomi」は日本語併記なしでよい
   （2026-09-16、利用者の判断）
 - **消えた共有（期限切れ）は 404 ではなく 410（Gone）を返す**（2026-09-17）。Search Console の「他の 4xx」は
