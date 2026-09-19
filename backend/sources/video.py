@@ -23,7 +23,7 @@ from backend import netguard
 from backend.models import Track
 from backend.sources import vocadb
 
-UA = "trackmento/0.1 (+https://github.com/local/musicgrid-local)"
+UA = "trackmento/0.1 (+https://trackmento.com)"
 YT_OEMBED = "https://www.youtube.com/oembed"
 NICO_THUMBINFO = "https://ext.nicovideo.jp/api/getthumbinfo/"
 _YT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")

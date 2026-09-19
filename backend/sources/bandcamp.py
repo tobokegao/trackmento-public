@@ -14,7 +14,7 @@ from backend import netguard
 from backend.models import Track
 
 _IMG_SIZE_RE = re.compile(r"_(\d+)\.(jpg|png)$")
-UA = "Mozilla/5.0 (compatible; musicgrid-local/0.1)"
+UA = "Mozilla/5.0 (compatible; trackmento/0.1; +https://trackmento.com)"
 
 
 def _canonical(url: str) -> str:

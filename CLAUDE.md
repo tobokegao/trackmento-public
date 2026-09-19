@@ -1,4 +1,4 @@
-# TRACKMENTO (musicgrid-local) — Claude Code 向けメモ
+# TRACKMENTO — Claude Code 向けメモ
 
 ## これは何か
 
@@ -6,7 +6,7 @@
 画像を、音楽サブスクに入っていなくても、どのサイトの曲でも混ぜて作れるようにしたもの。
 
 本番 https://trackmento.com/ 。（2026-09-18 に trackmento.onrender.com から移転。古い URL は引っ越しの受け皿として生かしてある）手元では同じコードをローカルの uvicorn で動かす。
-仕様と経緯の原本は `musicgrid-local-spec.md`。このファイルは**作業する人がまず読むもの**。
+仕様と経緯の原本は `trackmento-spec.md`。このファイルは**作業する人がまず読むもの**。
 
 ### 何が他と違うか
 
@@ -256,7 +256,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 ## 起動（PC 側、毎回）
 
 ```bash
-cd musicgrid-local
+cd trackmento-public   # 手元のフォルダ（名前は環境による）
 .venv/Scripts/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000   # API + 画像配信
 claude --remote-control TRACKMENTO                                             # スマホの Claude アプリから接続
 ```

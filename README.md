@@ -1,10 +1,10 @@
-# TRACKMENTO (musicgrid-local)
+# TRACKMENTO
 
 「私を構成する9枚」「好きな曲9選」のようなジャケットグリッド画像を、
 **曲単位・手動選択・複数ソース横断検索**で作るローカルツール。
 
 iTunes に無い音源（Bandcamp 限定リリース等）も MusicBrainz / Discogs / Bandcamp・SoundCloud・Spotify・YouTube・ニコニコ動画・bilibili の URL から拾えます。
-仕様の詳細は `musicgrid-local-spec.md` を参照。
+仕様の詳細は `trackmento-spec.md` を参照。
 
 ## セットアップ
 

@@ -16,7 +16,7 @@ from backend import netguard
 from backend.models import Track
 
 OEMBED = "https://soundcloud.com/oembed"
-UA = "trackmento/0.1 (+https://github.com/local/musicgrid-local)"
+UA = "trackmento/0.1 (+https://trackmento.com)"
 
 # 画像 URL の末尾（…-t500x500.jpg）で大きさが決まる。実測: t500x500 89KB / t300x300 37KB / t200x200 18KB
 _SC_SIZE_RE = re.compile(r"-(original|t\d+x\d+|large|small|badge|tiny|mini|t\d+)\.(jpg|png)$", re.IGNORECASE)

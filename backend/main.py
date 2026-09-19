@@ -149,7 +149,7 @@ async def lifespan(app: FastAPI):
     app.state.http = httpx.AsyncClient(
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
-        headers={"User-Agent": os.getenv("MB_USER_AGENT", "musicgrid-local/0.1")},
+        headers={"User-Agent": os.getenv("MB_USER_AGENT", "trackmento/0.1 (+https://trackmento.com)")},
     )
     try:
         yield
@@ -169,7 +169,7 @@ async def lifespan(app: FastAPI):
         cache.close()
 
 
-app = FastAPI(title="MusicGrid Local", lifespan=lifespan)
+app = FastAPI(title="TRACKMENTO", lifespan=lifespan)
 
 
 @functools.lru_cache(maxsize=1)

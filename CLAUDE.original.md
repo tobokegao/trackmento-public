@@ -1,12 +1,12 @@
-# TRACKMENTO (musicgrid-local) — Claude Code 向けメモ
+# TRACKMENTO — Claude Code 向けメモ
 
-曲単位のジャケットグリッド画像を作るローカルツール。仕様と経緯は `musicgrid-local-spec.md`。
+曲単位のジャケットグリッド画像を作るローカルツール。仕様と経緯は `trackmento-spec.md`。
 このファイルは主に **Remote Control（スマホから）で曲を追加して画像 URL を受け取る** ときの手順を書く。
 
 ## 起動（PC 側、毎回）
 
 ```bash
-cd musicgrid-local
+cd trackmento-public   # 手元のフォルダ（名前は環境による）
 .venv/Scripts/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000   # API + 画像配信
 claude --remote-control TRACKMENTO                                             # スマホの Claude アプリから接続
 ```

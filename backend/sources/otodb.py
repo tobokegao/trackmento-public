@@ -22,7 +22,7 @@ from backend.models import Track
 SEARCH = "https://otodb.net/api/work/search"
 WORK = "https://otodb.net/api/work/work"
 ROXY = "https://roxy.otodb.net/xml"
-UA = "trackmento/0.1 (+https://github.com/local/musicgrid-local)"
+UA = "trackmento/0.1 (+https://trackmento.com)"
 CREATOR = 4  # WorkTagCategory.Creator
 PAGE = 30       # otoDB の 1 ページの上限（31 以上を渡すと 422）
 MAX_PAGES = 8   # ページングの頭打ち。240 件あればマスの上限（256）にほぼ届く

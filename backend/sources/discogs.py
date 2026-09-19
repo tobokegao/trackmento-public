@@ -15,7 +15,7 @@ import httpx
 from backend.models import Track
 
 ENDPOINT = "https://api.discogs.com/database/search"
-UA = "trackmento/0.1 +https://github.com/local/musicgrid-local"
+UA = "trackmento/0.1 (+https://trackmento.com)"
 _DISAMBIG_RE = re.compile(r"(\s*\(\d+\)|\*)+$")  # "Artist (2)" / "Artist*" の重複回避サフィックス
 
 

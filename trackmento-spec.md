@@ -1,4 +1,4 @@
-# MusicGrid Local — 曲単位ジャケットグリッド作成ツール 仕様書
+# TRACKMENTO — 曲単位ジャケットグリッド作成ツール 仕様書
 
 Claude Code で開発を再開するための引き継ぎドキュメント。
 まずこのファイルを読み、「実装タスク」の順に進めてください。
@@ -59,7 +59,7 @@ iTunes 未配信が多いので Last.fm / MusicBrainz / Bandcamp からの取得
 ## 3. 構成
 
 ```
-musicgrid-local/
+trackmento-public/
 ├── backend/
 │   ├── main.py          # FastAPI: /search, /bandcamp, /image-proxy
 │   ├── sources/
@@ -117,7 +117,7 @@ musicgrid-local/
 ```
 LASTFM_API_KEY=
 DISCOGS_TOKEN=
-MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
+MB_USER_AGENT=trackmento/0.1 (your-email@example.com)
 ```
 
 ---
@@ -209,7 +209,7 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 - ツール系 UI なので macrostructure は Workbench 系を第一候補にする（ランディングページ用の hero/footer 類型は使わない）
 
 #### デザインブリーフ（2026-09-09 決定・Hallmark 3質問ゲートの回答）
-- **サイト名（画面表示）**: 「TRACKMENTO」（track + memento）。リポジトリ名は musicgrid-local のまま
+- **サイト名（画面表示）**: 「TRACKMENTO」（track + memento）。リポジトリは trackmento-public
 - **Audience**: 自分用。日本の J-POP リスナー
 - **Use case**: 曲を検索してマスに置き、PNG を書き出す。1画面で完結するツール
 - **Tone**: utilitarian。リソグラフ風フラット、レトロ GUI／ドット絵を意識。角丸なし（`border-radius: 0`）
@@ -241,11 +241,11 @@ MB_USER_AGENT=musicgrid-local/0.1 (your-email@example.com)
 
 ### 起動手順（PC側、毎回）
 ```bash
-cd musicgrid-local
+cd trackmento-public   # 手元のフォルダ（名前は環境による）
 .venv/Scripts/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 &   # API + 画像配信
 claude --remote-control TRACKMENTO                                               # QR をスマホで読む
 ```
-スマホの Claude アプリで QR を読むか、Code タブから "MusicGrid" を選ぶ。
+スマホの Claude アプリで QR を読むか、Code タブから "TRACKMENTO" を選ぶ。
 
 ### スマホからの流れ
 1. スマホで「○○（アーティスト）の『△△』を追加して」と送る

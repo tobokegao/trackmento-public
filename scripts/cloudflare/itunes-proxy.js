@@ -41,7 +41,7 @@ export default {
       return new Response('{"resultCount":0,"results":[]}', { headers: { "content-type": "application/json" } });
     }
     const res = await fetch(upstream.toString(), {
-      headers: { "User-Agent": "trackmento/0.1 (+https://trackmento.onrender.com)", "Accept": "application/json" },
+      headers: { "User-Agent": "trackmento/0.1 (+https://trackmento.com)", "Accept": "application/json" },
       cf: { cacheTtl: 600, cacheEverything: true },   // 同じ検索は 10 分間 Cloudflare のキャッシュから返す
     });
     const out = new Response(res.body, res);

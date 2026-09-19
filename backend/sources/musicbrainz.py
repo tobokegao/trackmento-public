@@ -51,7 +51,7 @@ _caa_sem = asyncio.Semaphore(8)
 
 
 def _user_agent() -> str:
-    return os.getenv("MB_USER_AGENT", "musicgrid-local/0.1 (https://github.com/local/musicgrid-local)")
+    return os.getenv("MB_USER_AGENT", "trackmento/0.1 (+https://trackmento.com)")
 
 
 def _lucene_escape(s: str) -> str:

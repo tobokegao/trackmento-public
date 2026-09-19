@@ -3,7 +3,7 @@
 公開運用（GitHub Pages のフロント + 別ホストのバックエンド）に関わる設定:
 - PUBLIC_MODE=1     : 公開モード。CORS を開き、グリッドはブラウザごとの ID で分け、ディスクを自動で掃除する
 - CORS_ORIGINS      : フロントのオリジン（カンマ区切り）。未設定で公開モードなら * を許可
-- FRONTEND_URL      : 共有ページの「TRACKMENTO で開く」が指すフロントの URL（例: https://user.github.io/musicgrid-local）
+- FRONTEND_URL      : 共有ページの「TRACKMENTO で開く」が指すフロントの URL（例: https://user.github.io/trackmento）
 - PUBLIC_BASE_URL   : PNG や共有ページの URL のベース。auto なら LAN IP（ローカル）／リクエストのホスト（公開モード）
 - RATE_LIMIT        : API の 1 分あたりのリクエスト上限（IP ごと。既定 120）
 - MIGRATE_TO        : ドメインの引っ越し先（例 https://trackmento.com）。空なら引っ越さない
