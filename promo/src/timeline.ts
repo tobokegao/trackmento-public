@@ -86,7 +86,7 @@ export const NEWURL_BEAT = bar(4);          // 新しい URL（作った画、2 
 export const BANDWIDTH_BEAT = bar(6);       // さらに軽くなりました（作った画、2 小節）
 export const FASTER_BEAT = bar(8);          // 共有がさらに速く（作った画、2 小節）
 export const FLOW_BEAT = bar(10);           // 録画のショットはここから
-export const TIMELAPSE_BEAT = bar(42);         // 42〜43 小節目の 2 小節。キメ（42 小節 4.5 拍〜43 小節 3.5 拍）で拡大する
+export const TIMELAPSE_BEAT = bar(42) + 3.5;   // v6: 42 小節 4.5 拍から 4.5 拍（キメの頭から）。キメごとに拡大する
 export const SHOWCASE_BEAT = bar(44);       // できあがり（2 小節。本編で作った 1 枚をそのまま見せる）
 export const END_BEAT = bar(46);            // エンドカード（ロゴ 1 小節 → URL 1 小節 → 無料 1 小節）
 export const URL_BEAT = bar(47);
@@ -108,6 +108,8 @@ export type Shot = {
   stills?: string[];                                                                              // 録画ではなく静止画（public/stills/<名前>.png、横は -pc）を順に出す
   stillBeats?: number[];                                                                          // stills を切り替える拍（ショットの頭からの拍数）
   labels?: { jp: string; en: string }[];                                                          // stills ごとの添え書き
+  scrap?: boolean;                                                                                // stills をスクラップブックのように角度・位置をばらして重ねていく（v6）
+  explorer?: { ev: string };                                                                      // その操作の時刻に「ファイルが保存された」窓を重ねる（v6、パレットの保存）
 };
 
 /** 17 小節目の静止画 16 枚（promo/make_stills.py が作る）。16 分音符（0.25 拍）ずつ */
@@ -118,12 +120,18 @@ const SMART = Array.from({ length: 16 }, (_, i) => `smart-${String(i + 1).padSta
 // 早回し（speed）とズーム（zoomPc）は v3 の場面ごとの値をそのまま使う（エディタでは扱わないと決めた。2026-09-18）
 export const SHOTS: Shot[] = [
   // ---- 8〜17 小節目: 新しくなったところ ----
-  { beat: bar(10), len: 8, ev: "listed:check", off: -0.8, rec: "feat", speed: 1.4, jp: "「みんなのグリッド」に載せて共有", en: "List it on Everyone's grids", zoom: { x: 0.2, y: 0.6, s: 1.3 }, zoomPc: { x: 0.6, y: 0.9, s: 1.5 } },
-  { beat: bar(12), len: 8, ev: "find:page", off: -0.2, rec: "feat", speed: 1.1, jp: "曲名で、みんなの並びを探せる", en: "Search everyone's grids by track" },
-  { beat: bar(14), len: 4, ev: "pal:pop", off: -0.5, rec: "feat", speed: 1.2, jp: "パレットで配色ごと切り替え", en: "Palettes swap the whole colour scheme" },
-  { beat: bar(15), len: 4, ev: "pal:copy", off: -0.3, rec: "feat", speed: 1.5, jp: "自作パレットは共有可能", en: "Copy your own palette to share it" },
-  { beat: bar(16), len: 4, ev: "vocadb:search", off: -1.4, rec: "feat", speed: 1.6, jp: "VocaDB でサブスクに無い曲も", en: "VocaDB finds what streaming doesn't", zoomPc: { x: 0, y: 0.4, s: 1.6 } },
-  { beat: bar(17), len: 4, ev: "start", off: 0, rec: "feat", jp: "曲名リストが賢くなりました", en: "Smarter track lists",
+  { beat: bar(10), len: 4, ev: "listed:check", off: -0.8, rec: "feat", speed: 1.4, jp: "「みんなのグリッド」に載せて共有", en: "List it on Everyone's grids", zoom: { x: 0.2, y: 0.6, s: 1.3 }, zoomPc: { x: 0.6, y: 0.9, s: 1.5 } },
+  // v6: 見つかった並びの共有ページの中まで開く
+  { beat: bar(11), len: 4, ev: "find:open", off: -1.2, rec: "feat", speed: 1.6, jp: "曲名で、みんなの並びを探せる", en: "Search everyone's grids by track" },
+  // v6: 並びを保存 → 全部外す → 読み込みで戻る（v3 の頃の GIF「並びを保存／読み込み」と同じ流れ）
+  { beat: bar(12), len: 4, ev: "io:save", off: -0.2, rec: "feat", speed: 4, jp: "並びを保存して、\n読み込みで復活", en: "Save your layout, load it back any time" },
+  { beat: bar(13), len: 4, ev: "pal:pop", off: -0.5, rec: "feat", speed: 1.2, jp: "パレットで配色ごと切り替え", en: "Palettes swap the whole colour scheme" },
+  // v6: 自作の組をファイルに保存するまで（2 小節）。保存先の窓を重ねて見せる
+  { beat: bar(14), len: 8, ev: "pal:copy", off: -0.3, rec: "feat", speed: 2.3, jp: "自作パレットは共有可能", en: "Share your own palette as a file",
+    explorer: { ev: "pal:saved" } },
+  // v6: 見つかった曲をマスに入れるところまで
+  { beat: bar(16), len: 4, ev: "add:vocadb", off: -2.0, rec: "feat", speed: 2, jp: "VocaDB でサブスクに無い曲も", en: "VocaDB finds what streaming doesn't", zoomPc: { x: 0, y: 0.4, s: 1.6 } },
+  { beat: bar(17), len: 4, ev: "start", off: 0, rec: "feat", jp: "曲名リストが賢くなりました", en: "Smarter track lists", scrap: true,
     stills: SMART, stillBeats: SMART.map((_, i) => i * 0.25) },
 
   // ---- 18〜20 小節目: トップ画面の説明 ----
@@ -136,15 +144,15 @@ export const SHOTS: Shot[] = [
   { beat: bar(22), len: 4, ev: "cell-tap", off: -0.5, jp: "枠をタップ", en: "Tap a cell", zoomPc: { x: 0.52, y: 0.36, s: 1.8 } },
   { beat: bar(23), len: 4, ev: "src:musicbrainz", off: -0.4, speed: 1.5, jp: "検索ソースは 4 種類", en: "Four search sources", zoomPc: { x: 0, y: 0.43, s: 1.9 } },
   { beat: bar(24), len: 4, ev: "search:chikamichi", off: -1.6, speed: 2, jp: "曲を探す", en: "Find tracks", zoomPc: { x: 0, y: 0.3, s: 1.7 } },
-  { beat: bar(25), len: 4, ev: "url:talk", off: -1.6, speed: 1.4, jp: "URL 検索も対応", en: "Or paste a URL", zoomPc: { x: 0, y: 0.74, s: 1.7 } },
-  { beat: bar(26), len: 4, ev: "multi:got", off: -1.8, rec: "feat", speed: 1.6, jp: "改行で区切って丸ごと挿入", en: "One per line, all at once" },
-  { beat: bar(27), len: 4, ev: "pl:paste", off: -1.8, rec: "feat", speed: 1.6, jp: "Playlist の URL で一気に追加", en: "A whole playlist in one paste" },
-  { beat: bar(28), len: 4, ev: "pl:fill", off: -1.2, rec: "feat", jp: "最大 500 曲がまとめて入る", en: "Up to 500 tracks at once" },
+  { beat: bar(25), len: 4, ev: "add:talk", off: -2.2, speed: 1.8, jp: "URL 検索も対応", en: "Or paste a URL", zoomPc: { x: 0, y: 0.74, s: 1.7 } },
+  { beat: bar(26), len: 4, ev: "add:multi", off: -2.0, rec: "feat", speed: 1.8, jp: "改行で区切って丸ごと挿入", en: "One per line, all at once" },
+  { beat: bar(27), len: 4, ev: "pl:fill", off: -0.5, rec: "feat", speed: 8.8, jp: "Playlist の URL で一気に追加", en: "A whole playlist in one paste" },
+  { beat: bar(28), len: 4, ev: "pl:rest", off: -0.3, rec: "feat", speed: 1.3, jp: "最大 500 曲がまとめて入る", en: "Up to 500 tracks at once" },
   { beat: bar(29), len: 4, ev: "revive:paste", off: -1.6, rec: "feat", speed: 1.5, jp: "消えた動画も", en: "Even deleted videos" },
   { beat: bar(30), len: 4, ev: "revive:done", off: -0.6, rec: "feat", jp: "otoDB からよみがえる", en: "come back from otoDB" },
-  { beat: bar(31), len: 4, ev: "manual:mitsuami", off: -0.6, speed: 1.2, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
+  { beat: bar(31), len: 4, ev: "add:mitsuami", off: -1.6, speed: 1.6, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
   // ---- 32 小節目: 投稿者名が取れないニコニコ動画も、VocaDB から作者名が入る（Tell Your World） ----
-  { beat: bar(32), len: 4, ev: "author:got", off: -0.8, rec: "feat", jp: "ボカロの作者名も\nVocaDB から", en: "Vocaloid producers filled in from VocaDB" },
+  { beat: bar(32), len: 4, ev: "add:author", off: -1.6, rec: "feat", speed: 1.5, jp: "ボカロの作者名も\nVocaDB から", en: "Vocaloid producers filled in from VocaDB" },
   // ---- 33 小節目: 大きく見る（32×1 を指で送る。16×16 の場面はエディタで外した） ----
   { beat: bar(33), len: 4, ev: "zoom32:open", off: -0.3, rec: "feat", speed: 1.8, jp: "「大きく見る」で細長い並びも見やすく", en: "Enlarge to scroll through long rows" },
   // ---- 34〜35 小節目: 埋めて並べる ----
@@ -155,8 +163,8 @@ export const SHOTS: Shot[] = [
   { beat: bar(37), len: 4, ev: "ratio:16:9", off: -0.3, speed: 1.1, jp: "解像度は 5 種類", en: "Five aspect ratios", zoomPc: { x: 1, y: 0.3, s: 1.9 } },
   { beat: bar(38), len: 4, ev: "bg:cerulean", off: -0.3, jp: "背景色は 8 色", en: "Eight background colours", zoomPc: { x: 1, y: 0.62, s: 1.9 } },
   { beat: bar(39), len: 4, ev: "bg:custom", off: -0.4, jp: "カスタム色はつまみで", en: "Or dial in any colour", zoomPc: { x: 1, y: 0.67, s: 2.0 } },
-  { beat: bar(40), len: 4.5, ev: "share", off: -0.2, jp: "共有すると、送信の進み具合が見える", en: "Share — with an upload progress bar", zoomPc: { x: 0.55, y: 0.7, s: 1.6 } },
-  { beat: bar(41) + 0.5, len: 3.5, ev: "share-ready", off: -0.2, jp: "画像と共有 URL", en: "An image and a link", zoomPc: { x: 0.6, y: 0.5, s: 1.3 } },
+  { beat: bar(40), len: 8, ev: "share", off: -0.2, speed: 1.3, jp: "共有すると、送信の進み具合が見える", en: "Share — with an upload progress bar", zoomPc: { x: 0.55, y: 0.7, s: 1.6 } },
+  { beat: bar(42), len: 3.5, ev: "share-ready", off: -0.2, jp: "画像と共有 URL", en: "An image and a link", zoomPc: { x: 0.6, y: 0.5, s: 1.3 } },
 ];
 
 /** エンドカードのあとの録画（49–50 小節）。音楽はフェードの途中 */
@@ -172,7 +180,7 @@ export const FASTER_ROWS: { jp: string; en: string; from: string; to: string }[]
 ];
 
 /** タイムラプスの中のキメ（ショットの頭からの拍数）。1 つごとに寄り、最後の 1 つは横へも振る */
-export const TIMELAPSE_KIME = [3.5, 4.5, 5.5, 6.5];   // 最後の 1 つで横に引き伸ばす
+export const TIMELAPSE_KIME = [0, 1, 2, 3];   // タイムラプスの頭からの拍（42.4.5 / 43.1.5 / 43.2.5 / 43.3.5）。最後の 1 つで横に引き伸ばす
 
 /** URL 検索の対応サイト（8 分音符 3 連で 1 つずつ出す） */
 export const SITES = ["YouTube", "ニコニコ", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];

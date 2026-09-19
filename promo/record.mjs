@@ -208,6 +208,9 @@ async function featScene() {
   await tap("#bc-btn", "multi:paste");
   await page.waitForSelector("#results .result", { timeout: 120000 });
   await wait(2000); await mark("multi:got");
+  await wait(700);
+  await tap("#results .result", "add:multi");   // v6: マスに入るところまで見せる
+  await page.waitForSelector("#sheet[hidden]", { state: "attached" }).catch(() => {});
   await wait(1200);
   await closeSheet("multi-close");
 
@@ -261,9 +264,42 @@ async function featScene() {
   await page.mouse.wheel(0, 300); await wait(900);
   await mark("find:results");
   await wait(800);
+  // v6: 見つかった並びを開く（共有ページの中まで）
+  {
+    const link = page.locator('a[href*="/s/"]').first();
+    await link.scrollIntoViewIfNeeded(); await wait(300);
+    const href = await link.getAttribute("href");
+    const b = await link.boundingBox();
+    if (b) await page.evaluate(([x, y]) => window.__tap(x, y), [b.x + b.width / 2, b.y + b.height / 2]);
+    await wait(150); await mark("find:open");
+    await page.goto(new URL(href, BASE).href, { waitUntil: "networkidle" });
+    await wait(300); await mark("find:share");
+    await wait(1800); await page.mouse.wheel(0, 500); await wait(1200);
+  }
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}" });
   await wait(800);
+
+  // v6: 並びを保存 → 全部外す → 並びを読み込みで戻す（「並びを保存／読み込みで復活」）
+  {
+    const tmp = path.join(OUT, "_grid.json");
+    await page.locator("#json-export").scrollIntoViewIfNeeded(); await wait(500);
+    const dlP = page.waitForEvent("download", { timeout: 15000 });
+    await tap("#json-export", "io:save");
+    await (await dlP).saveAs(tmp);
+    await wait(1300);
+    await tap("#clear-btn", "io:clear");
+    await page.waitForSelector("#confirm-modal:not([hidden])"); await wait(700);
+    await tap("#confirm-yes", "io:yes");
+    await wait(1000); await mark("io:empty");
+    await page.locator("#json-import").scrollIntoViewIfNeeded(); await wait(300);
+    const fcP = page.waitForEvent("filechooser", { timeout: 15000 });
+    await tap("#json-import", "io:load");
+    await (await fcP).setFiles(tmp);
+    await wait(1600); await mark("io:back");
+    await wait(900);
+    fs.rmSync(tmp, { force: true });
+  }
 
   // ⑧ パレット: 組を切り替え（ポップ → ナイト）→ ナイトの 8 色をコピー → 貼って読み込む（自作の組ができる）
   await openOptions("open-options-pal");
@@ -292,9 +328,40 @@ async function featScene() {
   await wait(1400);
   await page.locator("#pal-lanes").scrollIntoViewIfNeeded();
   await wait(600); await mark("pal:made");
+  // v6: できた組をファイルに保存（動画では、保存先の窓を重ねて見せる）
+  {
+    const lanes = await page.locator("#pal-lanes .pal-lane").count();
+    const save = page.locator(`#pal-lanes .pal-lane:nth-child(${lanes}) .pal-btns .btn`).nth(2);
+    const dlP = page.waitForEvent("download", { timeout: 15000 });
+    await tap(save, "pal:save");
+    const d = await dlP; await mark("pal:saved", { file: d.suggestedFilename() });
+    await d.saveAs(path.join(OUT, "_palette.json")); fs.rmSync(path.join(OUT, "_palette.json"), { force: true });
+    await wait(1400);
+  }
   await tap(laneUse(1), "pal:riso"); await wait(700);   // 元の組に戻す
   await tap("#pal-modal-close", "pal:close");
   await wait(500);
+
+  // v6: VocaDB は空きマスがあるうちに撮る（プレイリストで埋めたあとだと、見つけた曲を入れる場所が無い）
+  // ⑪ VocaDB: iTunes には無い「恐怖ガーデン」を VocaDB で
+  await openSheet();
+  await type("#q", "恐怖ガーデン");
+  await page.locator("#artist").fill("");
+  await tap("#search-btn", "vocadb:itunes");
+  await wait(4000); await mark("vocadb:none");
+  await tap(page.locator('#sources input[value="vocadb"] + span'), "source:vocadb");
+  await wait(500);
+  await tap("#search-btn", "vocadb:search");
+  await page.waitForSelector('#results .result:has(.badge[data-source="vocadb"])', { timeout: 60000 }).catch(() => console.log("   （VocaDB の候補が出なかった）"));
+  await wait(1800); await mark("vocadb:got");
+  await wait(600);
+  await tap(page.locator('#sources input[value="vocadb"] + span'), "source-off:vocadb");
+  await wait(300);
+  // v6: マスに入るところまで見せる
+  await tap('#results .result:has(.badge[data-source="vocadb"])', "add:vocadb");
+  await page.waitForSelector("#sheet[hidden]", { state: "attached" }).catch(() => {});
+  await wait(1500); await mark("vocadb:added");
+  await closeSheet("vocadb-close");
 
   // ③ マスを 16×16（256 マス）に広げる → ① プレイリストで埋める
   await openOptions("open-options");
@@ -325,6 +392,13 @@ async function featScene() {
   await page.locator(".pane-grid").scrollIntoViewIfNeeded();
   await wait(1600); await mark("pl:filled");
   await wait(1000);
+  // v6: マスに入りきらなかった曲は候補の窓に入っている（候補を開いて送る）
+  await openSheet();
+  await page.locator("#results").scrollIntoViewIfNeeded(); await wait(300);
+  await mark("pl:rest");
+  await page.mouse.wheel(0, 900); await wait(700); await page.mouse.wheel(0, 900); await wait(900);
+  await closeSheet("pl-rest-close");
+  await wait(500);
 
   // ⑩ 大きく見る: 256 マスを画面いっぱいに開いて、掴んで入れ替える
   await page.locator("#zoom-btn").scrollIntoViewIfNeeded();
@@ -339,12 +413,12 @@ async function featScene() {
   await tap("#zoom-modal-close", "zoom:close");
   await wait(500);
 
-  // v4: 32×1 の細長い並びも「大きく見る」で横に送れる
+  // v6: 8×32 の縦に長い並びも「大きく見る」で縦に送れる（v4 は 32×1 を横に送っていた）
   await openOptions("open-options-32");
   await page.locator("#cols").scrollIntoViewIfNeeded();
   await wait(300);
-  await type("#cols", "32");
-  await type("#rows", "1");
+  await type("#cols", "8");
+  await type("#rows", "32");
   await page.locator("#rows").press("Enter");
   await wait(900);
   await page.locator("#zoom-btn").scrollIntoViewIfNeeded();
@@ -353,18 +427,18 @@ async function featScene() {
   await page.waitForSelector("#zoom-modal:not([hidden])");
   await wait(900);
   const slot = await page.locator(".zoom-slot .grid-scroll, #zoom-slot").first().boundingBox();
-  const sy = slot.y + Math.min(slot.height / 2, 60), sx0 = slot.x + slot.width * 0.8;
+  const sx = slot.x + slot.width / 2, sy0 = slot.y + slot.height * 0.8;
   await mark("zoom32:swipe");
   if (PC) {
-    await page.mouse.move(sx0, sy);
-    for (let i = 0; i < 12; i++) { await page.mouse.wheel(90, 0); await wait(70); }
+    await page.mouse.move(sx, sy0);
+    for (let i = 0; i < 12; i++) { await page.mouse.wheel(0, 90); await wait(70); }
   } else {
     const cdp = await ctx.newCDPSession(page);
     const T = (type, pts) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: pts.map(([x, y]) => ({ x, y })) });
     for (let r = 0; r < 2; r++) {
-      await page.evaluate(([x, y]) => window.__tap(x, y), [sx0, sy]);
-      await T("touchStart", [[sx0, sy]]);
-      for (let i = 1; i <= 14; i++) { await T("touchMove", [[sx0 - i * 22, sy]]); await wait(16); }
+      await page.evaluate(([x, y]) => window.__tap(x, y), [sx, sy0]);
+      await T("touchStart", [[sx, sy0]]);
+      for (let i = 1; i <= 14; i++) { await T("touchMove", [[sx, sy0 - i * 26]]); await wait(16); }
       await T("touchEnd", []);
       await wait(500);
     }
@@ -381,20 +455,6 @@ async function featScene() {
   await wait(900);
 
   // v5: ローマ字の場面は外した
-  // ⑪ VocaDB: iTunes には無い「恐怖ガーデン」を VocaDB で
-  await openSheet();
-  await type("#q", "恐怖ガーデン");
-  await page.locator("#artist").fill("");
-  await tap("#search-btn", "vocadb:itunes");
-  await wait(4000); await mark("vocadb:none");
-  await tap(page.locator('#sources input[value="vocadb"] + span'), "source:vocadb");
-  await wait(500);
-  await tap("#search-btn", "vocadb:search");
-  await page.waitForSelector('#results .result:has(.badge[data-source="vocadb"])', { timeout: 60000 }).catch(() => console.log("   （VocaDB の候補が出なかった）"));
-  await wait(1800); await mark("vocadb:got");
-  await wait(600);
-  await tap(page.locator('#sources input[value="vocadb"] + span'), "source-off:vocadb");
-  await closeSheet("vocadb-close");
 
   // v5: 「全部外す → 元に戻す」は外し、最後に「更新情報」と「使い方」のページを撮る（49–50 小節）
   await page.goto(`${BASE}/updates`, { waitUntil: "networkidle" });
@@ -473,10 +533,15 @@ async function mainScene() {
   // 共有
   await page.locator("#share-btn").scrollIntoViewIfNeeded();
   await wait(400);
+  // v6: 送信の進み具合が一瞬で終わって見えないので、上りを細くして撮る（約 80KB/秒）
+  const net = await ctx.newCDPSession(page);
+  await net.send("Network.enable");
+  await net.send("Network.emulateNetworkConditions", { offline: false, latency: 40, downloadThroughput: -1, uploadThroughput: 80 * 1024 });
   await tap("#share-btn", "share");
   await page.waitForSelector("#output:not([hidden])", { timeout: 120000 });
   await page.waitForFunction(() => document.querySelector("#output-img")?.complete && document.querySelector("#output-img")?.naturalWidth > 0, null, { timeout: 120000 });
   await mark("share-ready");
+  await net.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   await page.locator("#output-img").scrollIntoViewIfNeeded();
   await wait(1800);
   const shareUrl = await page.locator("#share-url").inputValue();

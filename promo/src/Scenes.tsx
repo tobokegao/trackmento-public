@@ -267,6 +267,36 @@ const Clip: React.FC<{ kind: Kind; lang: Lang; session: "main" | "feat"; from: n
   );
 };
 
+/** ファイルが保存された窓。frame 0 = 保存した瞬間。名前は録画の events.json（pal:saved の file）から */
+const SavedWindow: React.FC<{ L: Layout; file: string }> = ({ L, file }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  if (frame < 0) return null;
+  const s = spring({ frame, fps, config: { damping: 13, stiffness: 200 } });
+  const row = spring({ frame: frame - 8, fps, config: { damping: 14, stiffness: 220 } });
+  const tall = L.kind === "tall", ja = L.lang === "ja";
+  const fs = tall ? 30 : 24;
+  const rows = [["trackmento-私を構成する9選.json", "4 KB"], ["trackmento.jpg", "327 KB"]];
+  return (
+    <div style={{ position: "absolute", left: "7%", right: "7%", top: tall ? "30%" : "22%", border: `4px solid ${C.ink}`, background: C.paper, boxShadow: `10px 10px 0 ${C.ink}`, transform: `translateY(${(1 - s) * 60}px) scale(${0.9 + s * 0.1})`, opacity: s }}>
+      <div style={{ height: tall ? 46 : 38, borderBottom: `3px solid ${C.ink}`, display: "flex", alignItems: "center", justifyContent: "center", background: `repeating-linear-gradient(${C.paper} 0 3px, #b9bec6 3px 6px)`, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: fs * 0.9, color: C.ink }}>
+        <span style={{ background: C.paper, padding: "0 16px" }}>{ja ? "ダウンロード" : "Downloads"}</span>
+      </div>
+      <div style={{ padding: tall ? "10px 0" : "8px 0", fontFamily: "Plex", fontSize: fs, color: C.ink }}>
+        {[[file, "1 KB"], ...rows].map(([name, size], i) => (
+          <div key={name} style={{ display: "flex", alignItems: "center", gap: 16, padding: tall ? "10px 22px" : "7px 18px",
+            background: i === 0 ? C.cerulean : "transparent", color: i === 0 ? C.paper : C.ink,
+            transform: i === 0 ? `translateX(${(1 - row) * -40}px)` : undefined, opacity: i === 0 ? row : 1 }}>
+            <span style={{ width: fs * 0.9, height: fs * 1.1, border: `3px solid ${i === 0 ? C.paper : C.ink}`, flex: "none" }} />
+            <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: i === 0 ? 700 : 400 }}>{name}</span>
+            <span style={{ fontFamily: "Silk", fontSize: fs * 0.7 }}>{size}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 /** 静止画を拍で切り替えて見せる（曲名リストの組み方など、録画より作った絵のほうが伝わるもの）。
     public/stills/<名前>.png（横は -pc）。切り替えごとに少し弾ませ、添え書きを枠の下に出す */
 const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
@@ -279,6 +309,25 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
   const s = spring({ frame: frame - at[idx], fps, config: { damping: 12, stiffness: 240 } });
   const tall = L.kind === "tall";
   const label = shot.labels?.[idx];
+  if (shot.scrap) {
+    // 決まった乱数（毎回同じ絵になるように）。角度 ±14°、位置は枠の中で ±22%・±26%
+    const rnd = (i: number, k: number) => { const x = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+    return (
+      <div style={{ position: "absolute", inset: 0, background: C.paper, backgroundImage: `radial-gradient(${C.ink}18 1.2px, transparent 1.3px)`, backgroundSize: "14px 14px", overflow: "hidden" }}>
+        {names.slice(0, idx + 1).map((n, i) => {
+          const k = spring({ frame: frame - at[i], fps, config: { damping: 11, stiffness: 320 } });
+          const rot = (rnd(i, 1) - 0.5) * 28, dx = (rnd(i, 2) - 0.5) * 44, dy = (rnd(i, 3) - 0.5) * 52;
+          return (
+            <div key={n} style={{ position: "absolute", left: "50%", top: "50%", width: "74%", transform: `translate(-50%, -50%) translate(${dx}%, ${dy}%) rotate(${rot}deg) scale(${1.25 - k * 0.25})`, opacity: Math.min(1, k * 1.6) }}>
+              <div style={{ background: "#fff", padding: tall ? 10 : 8, boxShadow: `6px 6px 0 ${C.ink}`, border: `3px solid ${C.ink}` }}>
+                <Img src={staticFile(`stills/${n}${tall ? "" : "-pc"}.png`)} style={{ width: "100%", display: "block" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <>
       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: C.paper, transform: `scale(${0.94 + s * 0.06})` }}>
@@ -469,7 +518,7 @@ const Bandwidth: React.FC<{ L: Layout; title?: [string, string]; rows?: NumRow[]
           })}
         </div>
         <div style={{ position: "absolute", left: 0, right: 0, bottom: tall ? 150 : 90, textAlign: "center",
-          fontFamily: "Dot", fontSize: tall ? 38 : 40, color: C.muted, letterSpacing: "0.04em",
+          fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: 40, color: C.ink,
           opacity: blinkOn ? 1 : 0 }}>
           {ja ? blink[0] : blink[1]}
         </div>
@@ -539,6 +588,14 @@ function shotSeq(L: Layout, s: Shot, next: number, base: number) {
                   {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
                 </Phone>
                 {s.fx === "flashIn" && <FlashIn />}
+                {s.explorer && (() => {
+                  // 録画の中で保存した時刻 → このショットの何コマ目か（Clip の再生速度で割る）
+                  const sess = s.rec ?? "main", r = rate(L.kind, L.lang, sess) * (s.speed ?? 1);
+                  const from = evTime(L.kind, L.lang, sess, s.ev) + s.off * rate(L.kind, L.lang, sess);
+                  const at = Math.round(((evTime(L.kind, L.lang, sess, s.explorer.ev) - from) / r) * FPS);
+                  const ev = RECORDINGS[L.kind][L.lang][sess].events.find((e) => e.name === s.explorer!.ev) as { file?: string } | undefined;
+                  return <Sequence from={at} layout="none"><SavedWindow L={L} file={ev?.file ?? "trackmento-palette.json"} /></Sequence>;
+                })()}
               </Sequence>
   );
 }
