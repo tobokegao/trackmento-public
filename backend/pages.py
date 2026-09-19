@@ -246,6 +246,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-20", "画面のいちばん下の「ソース」の名前から、それぞれの取得元（Apple Music・MusicBrainz・otoDB・VocaDB）のサイトへ飛べるようにしました。",
+     "The source names at the bottom of the page now link to each source's site (Apple Music, MusicBrainz, otoDB, VocaDB)."),
     ("2026-09-20", "「URL から」の欄が、貼った URL の本数に合わせて縦に伸びるようにしました（8 行ぶんまで）。まとめて貼ったときに全部入ったか見えます。",
      "The “From a URL” box now grows with the URLs you paste (up to eight lines), so you can see them all."),
     ("2026-09-20", "曲名リストを文章のように流し込むとき、名前の最後の 1〜2 字だけが次の行へこぼれないようにしました（「アイリッシ／ュ」のような折れ方）。",

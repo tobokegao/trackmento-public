@@ -1932,6 +1932,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", vocadb: "VocaDB", manual: "手入力" };
   // 画面のソース欄に並べる順。**otoDB と VocaDB は選んだときだけ引く**（どちらも iTunes より遅い）
   const ALL_SOURCES = ["itunes", "musicbrainz", "discogs", "otodb", "vocadb"];
+  // フッターの「ソース」から、それぞれの取得元へリンクする（2026-09-20）。VocaDB のデータは CC BY で、
+  // 取り込んだら VocaDB へのリンクを付けることを求めている。ほかの取得元も同じ形でそろえる
+  const SOURCE_HOME = { itunes: "https://www.apple.com/apple-music/", musicbrainz: "https://musicbrainz.org/",
+    discogs: "https://www.discogs.com/", otodb: "https://otodb.net/", vocadb: "https://vocadb.net/" };
   const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
   // ---- パレット（背景色に並ぶ 8 色 ＝ 画面の配色）----
@@ -2121,7 +2125,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.status.textContent = lastHealth.ok
       ? (isPublic ? (lastHealth.blocked ? tr("iTunes: サーバー経由は制限中（ブラウザから直接検索）") : "") : tr("接続OK"))
       : (isPublic ? tr("サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）") : tr("サーバーに接続できません"));
-    els.footSources.textContent = tr`ソース: ${available.map(s => tr(SOURCE_LABEL[s] || s)).join(" / ")}`;
+    // 文面は EN 表の「ソース: {}」のまま引き、差し込む位置に取得元のリンクを並べる
+    const MARK = "\u0000", [pre, post = ""] = tr`ソース: ${MARK}`.split(MARK);
+    els.footSources.replaceChildren(pre);
+    available.forEach((s, i) => {
+      if (i) els.footSources.append(" / ");
+      const name = tr(SOURCE_LABEL[s] || s);
+      if (!SOURCE_HOME[s]) { els.footSources.append(name); return; }
+      const a = document.createElement("a");
+      a.href = SOURCE_HOME[s]; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = name;
+      els.footSources.append(a);
+    });
+    els.footSources.append(post);
   }
   async function loadHealth(attempt = 0) {
     try {
