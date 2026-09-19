@@ -848,6 +848,7 @@ async def index(request: Request) -> HTMLResponse:
     html = html.replace("__MIGRATE__", _migrate_host(request))   # 引っ越し中なら移転先。画面が並びを持って移動する
     html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
     html = html.replace("<!--__FONT_LINK__-->", _font_head(), 1)   # 分割フォントの @font-face（<link>）
+    html = html.replace("__LOGO_FONT__", share.logo_font_url(), 1)   # ロゴ専用フォント（中身のハッシュ付き）
     # ピクセルフォント（Silkscreen）も R2 から配る。分割していないので <link> ではなく HTML 内の
     # @font-face を直接書き換える。**ttf の控えはサーバーのまま**（woff2 を読めない古い環境用で、まず使われない）
     if (fbase := _fonts_r2_base()):

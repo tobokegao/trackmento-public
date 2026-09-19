@@ -52,20 +52,23 @@ def main() -> int:
 
     # 分割フォント（断片）＋ ピクセルフォント（Silkscreen）。Silkscreen は分割していないので
     # fonts/ 直下にあり、本体と共有ページの両方が読む。R2 に置かないとサーバーから出続ける
-    files = sorted((ROOT / "fonts" / "split").glob("*.woff2")) + sorted((ROOT / "fonts").glob("Silkscreen-*.woff2"))
+    files = (sorted((ROOT / "fonts" / "split").glob("*.woff2")) + sorted((ROOT / "fonts").glob("Silkscreen-*.woff2"))
+             + sorted((ROOT / "fonts").glob("TrackmentoMark-*.woff2")))
     if not files:
         print("fonts/split/*.woff2 がありません（python scripts/build_fonts.py で生成）", file=sys.stderr)
         return 1
 
     have: set[str] = set()
     if not args.force:
-        have = {k for k, _, _ in st.list_objects() if k.startswith(PREFIX)}
+        # **fonts/ だけ一覧する**（バケット全体は 20 万件あり、一覧に 2 分かかる。2026-09-19）
+        have = {k for k, _, _ in st.list_objects(PREFIX)}
 
     up = skip = 0
     total = 0
     for f in files:
         key = PREFIX + f.name
-        if key in have:
+        # ロゴのフォントは名前を変えずに作り直すので、毎回上げ直す（数 KB）
+        if key in have and not f.name.startswith("TrackmentoMark-"):
             skip += 1
             continue
         data = f.read_bytes()

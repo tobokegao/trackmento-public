@@ -23,6 +23,8 @@
    @font-face は <head> の <!--__FONT_LINK__--> にサーバーが <link> で入れる */
 @font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Regular.woff2") format("woff2"), url("fonts/Silkscreen-Regular.ttf") format("truetype"); }
 @font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Bold.woff2") format("woff2"), url("fonts/Silkscreen-Bold.ttf") format("truetype"); }
+/* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
+@font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(97% 0.003 95) · accent: oklch(60% 0.14 235)
  * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
@@ -196,6 +198,7 @@ img { max-width: 100%; display: block; }
    インクは箱の 2px 下から始まるので、margin-top で吸収し、インク下端→線まで 3px（1ドット）空ける
    （padding 10px = 隙間 5px 相当 + 線 5px。線は背景グラデーションのハードストップで描く） */
 .wordmark .mark {
+  font-family: "TrackmentoMark", var(--font-outlier);   /* M が H に見えないよう描き替えたロゴ用（2026-09-19） */
   display: inline-block; line-height: 16px; margin-top: -2px;
   padding-bottom: 10px;
   background: linear-gradient(to right,

@@ -326,20 +326,40 @@ def _silkscreen_url() -> str:
         return "/fonts/Silkscreen-Bold.woff2"
 
 
+def logo_font_url() -> str:
+    """ロゴ専用フォント（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py）の場所。
+    **ファイル名は変えずに中身を作り直すことがある**ので、中身のハッシュを `?v=` に付けて古いキャッシュを踏まない
+    （フォントは 1 年キャッシュする）。R2 が使えるならそちら、無ければこのサーバー"""
+    import hashlib
+    import pathlib
+    f = pathlib.Path(__file__).resolve().parent.parent / "fonts" / "TrackmentoMark-Bold.woff2"
+    try:
+        v = hashlib.sha256(f.read_bytes()).hexdigest()[:8]
+    except OSError:
+        v = "0"
+    try:
+        url = storage.get_storage().public_url("fonts/TrackmentoMark-Bold.woff2") or "/fonts/TrackmentoMark-Bold.woff2"
+    except Exception:
+        url = "/fonts/TrackmentoMark-Bold.woff2"
+    return f"{url}?v={v}"
+
+
 def _page_css(base: str) -> str:
     # フォントはこのサーバー（共有ページを配っているのと同じオリジン）から相対パスで読む。base（LAN IP や公開 URL）と
     # ページのオリジンが違うとフォントは CORS で読めず、ワードマークが代替フォントになる
     silk = _silkscreen_url()
+    logo = logo_font_url()
     return f"""
 /* 日本語フォントは読まない（IBM Plex Sans JP 1.1MB ＋ DotGothic16 0.5MB が 1 閲覧ごとに転送されていた。共有ページは X からの
    閲覧が多く、帯域の主因になっていた）。ワードマークと番号の Silkscreen（9KB）だけ読み、本文は端末のフォント */
 @font-face {{ font-family: "Silkscreen"; font-weight: 700; font-display: swap; src: url("{silk}") format("woff2"), url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
+@font-face {{ font-family: "TrackmentoMark"; font-weight: 700; font-display: swap; src: url("{logo}") format("woff2"), url("/fonts/TrackmentoMark-Bold.ttf") format("truetype"); }}
 * {{ box-sizing: border-box; border-radius: 0; }}
 body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.55; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
 /* ワードマークは本体（frontend/index.html の .wordmark .mark）と同じ規則: Silkscreen 25px、行送り 16px（大文字のインク高）、
    インクの 3px 下にリソ 6 色の太線（5px）。色も本体の oklch トークンと同値 */
-.mark {{ font-family: "Silkscreen", "DotGothic16", monospace; font-weight: 700; font-size: 1.5625rem; letter-spacing: .04em; white-space: nowrap;
+.mark {{ font-family: "TrackmentoMark", "Silkscreen", "DotGothic16", monospace; font-weight: 700; font-size: 1.5625rem; letter-spacing: .04em; white-space: nowrap;
   display: inline-block; line-height: 16px; margin-top: -2px; padding-bottom: 10px;
   background: linear-gradient(to right,
     oklch(80% 0.150 88)  0 calc(100% / 6),
