@@ -109,7 +109,7 @@ export type Shot = {
   stillBeats?: number[];                                                                          // stills を切り替える拍（ショットの頭からの拍数）
   labels?: { jp: string; en: string }[];                                                          // stills ごとの添え書き
   scrap?: boolean;                                                                                // stills をスクラップブックのように角度・位置をばらして重ねていく（v6）
-  explorer?: { ev: string };                                                                      // その操作の時刻に「ファイルが保存された」窓を重ねる（v6、パレットの保存）
+  explorer?: { ev: string; beats?: [number, number, number] };                                     // beats = ショットの頭からの拍（窓が出る・ファイルが入る・選択の青が点滅し始める）                                                                      // その操作の時刻に「ファイルが保存された」窓を重ねる（v6、パレットの保存）
 };
 
 /** 17 小節目の静止画 16 枚（promo/make_stills.py が作る）。16 分音符（0.25 拍）ずつ */
@@ -127,8 +127,9 @@ export const SHOTS: Shot[] = [
   { beat: bar(12), len: 4, ev: "io:save", off: -0.2, rec: "feat", speed: 4, jp: "並びを保存して、\n読み込みで復活", en: "Save your layout, load it back any time" },
   { beat: bar(13), len: 4, ev: "pal:pop", off: -0.5, rec: "feat", speed: 1.2, jp: "パレットで配色ごと切り替え", en: "Palettes swap the whole colour scheme" },
   // v6: 自作の組をファイルに保存するまで（2 小節）。保存先の窓を重ねて見せる
-  { beat: bar(14), len: 8, ev: "pal:copy", off: -0.3, rec: "feat", speed: 2.3, jp: "自作パレットは共有可能", en: "Share your own palette as a file",
-    explorer: { ev: "pal:saved" } },
+  // 保存を押す時刻を 15.2（窓が出る合図）にそろえる速さ。窓 15.2 → ファイル 15.3 → 選択の青が 16 分で点滅 15.4（キメのレーン）
+  { beat: bar(14), len: 8, ev: "pal:copy", off: -0.3, rec: "feat", speed: 2.75, jp: "自作パレットは共有可能", en: "Share your own palette as a file",
+    explorer: { ev: "pal:saved", beats: [5, 6, 7] } },
   // v6: 見つかった曲をマスに入れるところまで
   { beat: bar(16), len: 4, ev: "add:vocadb", off: -2.0, rec: "feat", speed: 2, jp: "VocaDB でサブスクに無い曲も", en: "VocaDB finds what streaming doesn't", zoomPc: { x: 0, y: 0.4, s: 1.6 } },
   { beat: bar(17), len: 4, ev: "start", off: 0, rec: "feat", jp: "曲名リストが賢くなりました", en: "Smarter track lists", scrap: true,

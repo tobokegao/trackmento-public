@@ -268,12 +268,15 @@ const Clip: React.FC<{ kind: Kind; lang: Lang; session: "main" | "feat"; from: n
 };
 
 /** ファイルが保存された窓。frame 0 = 保存した瞬間。名前は録画の events.json（pal:saved の file）から */
-const SavedWindow: React.FC<{ L: Layout; file: string }> = ({ L, file }) => {
+const SavedWindow: React.FC<{ L: Layout; file: string; rowAt?: number; blinkAt?: number }> = ({ L, file, rowAt = 8, blinkAt }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   if (frame < 0) return null;
   const s = spring({ frame, fps, config: { damping: 13, stiffness: 200 } });
-  const row = spring({ frame: frame - 8, fps, config: { damping: 14, stiffness: 220 } });
+  const row = spring({ frame: frame - rowAt, fps, config: { damping: 14, stiffness: 220 } });
+  // 選択中の青を 16 分音符で点滅（v7）
+  const sixteenth = (beatFrame(1) - beatFrame(0)) / 4;
+  const selOn = blinkAt === undefined || frame < blinkAt || Math.floor((frame - blinkAt) / sixteenth) % 2 === 0;
   const tall = L.kind === "tall", ja = L.lang === "ja";
   const fs = tall ? 30 : 24;
   const rows = [["trackmento-私を構成する9選.json", "4 KB"], ["trackmento.jpg", "327 KB"]];
@@ -285,9 +288,9 @@ const SavedWindow: React.FC<{ L: Layout; file: string }> = ({ L, file }) => {
       <div style={{ padding: tall ? "10px 0" : "8px 0", fontFamily: "Plex", fontSize: fs, color: C.ink }}>
         {[[file, "1 KB"], ...rows].map(([name, size], i) => (
           <div key={name} style={{ display: "flex", alignItems: "center", gap: 16, padding: tall ? "10px 22px" : "7px 18px",
-            background: i === 0 ? C.cerulean : "transparent", color: i === 0 ? C.paper : C.ink,
+            background: i === 0 && selOn ? C.cerulean : "transparent", color: i === 0 && selOn ? C.paper : C.ink,
             transform: i === 0 ? `translateX(${(1 - row) * -40}px)` : undefined, opacity: i === 0 ? row : 1 }}>
-            <span style={{ width: fs * 0.9, height: fs * 1.1, border: `3px solid ${i === 0 ? C.paper : C.ink}`, flex: "none" }} />
+            <span style={{ width: fs * 0.9, height: fs * 1.1, border: `3px solid ${i === 0 && selOn ? C.paper : C.ink}`, flex: "none" }} />
             <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: i === 0 ? 700 : 400 }}>{name}</span>
             <span style={{ fontFamily: "Silk", fontSize: fs * 0.7 }}>{size}</span>
           </div>
@@ -316,9 +319,10 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
       <div style={{ position: "absolute", inset: 0, background: C.paper, backgroundImage: `radial-gradient(${C.ink}18 1.2px, transparent 1.3px)`, backgroundSize: "14px 14px", overflow: "hidden" }}>
         {names.slice(0, idx + 1).map((n, i) => {
           const k = spring({ frame: frame - at[i], fps, config: { damping: 11, stiffness: 320 } });
-          const rot = (rnd(i, 1) - 0.5) * 28, dx = (rnd(i, 2) - 0.5) * 44, dy = (rnd(i, 3) - 0.5) * 52;
+          // 枠は無し。画面全体（字幕の帯の下から下端まで）に散らばらせる（v7、利用者の指定）
+          const rot = (rnd(i, 1) - 0.5) * 30, dx = (rnd(i, 2) - 0.5) * (tall ? 70 : 150), dy = (rnd(i, 3) - 0.5) * (tall ? 150 : 90) + (tall ? 10 : 6);
           return (
-            <div key={n} style={{ position: "absolute", left: "50%", top: "50%", width: "74%", transform: `translate(-50%, -50%) translate(${dx}%, ${dy}%) rotate(${rot}deg) scale(${1.25 - k * 0.25})`, opacity: Math.min(1, k * 1.6) }}>
+            <div key={n} style={{ position: "absolute", left: "50%", top: "50%", width: tall ? "62%" : "34%", transform: `translate(-50%, -50%) translate(${dx}%, ${dy}%) rotate(${rot}deg) scale(${1.25 - k * 0.25})`, opacity: Math.min(1, k * 1.6) }}>
               <div style={{ background: "#fff", padding: tall ? 10 : 8, boxShadow: `6px 6px 0 ${C.ink}`, border: `3px solid ${C.ink}` }}>
                 <Img src={staticFile(`stills/${n}${tall ? "" : "-pc"}.png`)} style={{ width: "100%", display: "block" }} />
               </div>
@@ -357,8 +361,11 @@ const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
   hits.forEach((at, i) => {
     const k = spring({ frame: frame - at, fps, config: { damping: 12, stiffness: 260 } });
     zoom += k * 0.09;
-    if (i === hits.length - 1) stretch += k * 1.0;
+    // 最後のキメからシーンの終わりまで、最初が速い曲線で横に 3 倍まで伸ばし続ける（v7、利用者の指定）
+    if (i === hits.length - 1) stretch = interpolate(frame, [at, total], [0, 2], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
   });
+  // 終わり際（最後の 1 拍）に白で覆っていく（透けないところまで）
+  const white = interpolate(frame, [total - (beatFrame(1) - beatFrame(0)), total], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <>
       <Caption L={L} jp="画像完成まで" en="Start to finish" />
@@ -373,6 +380,7 @@ const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
         </div>
       </Phone>
       </AbsoluteFill>
+      <AbsoluteFill style={{ background: "#ffffff", opacity: white }} />
     </>
   );
 };
@@ -516,11 +524,12 @@ const Bandwidth: React.FC<{ L: Layout; title?: [string, string]; rows?: NumRow[]
               </div>
             );
           })}
-        </div>
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: tall ? 150 : 90, textAlign: "center",
-          fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: 40, color: C.ink,
-          opacity: blinkOn ? 1 : 0 }}>
-          {ja ? blink[0] : blink[1]}
+          {/* 点滅する一言は数字の塊のすぐ下（4–5「新しい URL」の URL と一言の間と同じくらい。v7、利用者の指定） */}
+          <div style={{ marginTop: tall ? 46 : 26, textAlign: "center",
+            fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: 40, color: C.ink,
+            opacity: blinkOn ? 1 : 0 }}>
+            {ja ? blink[0] : blink[1]}
+          </div>
         </div>
       </AbsoluteFill>
     </Paper>
@@ -572,10 +581,12 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
 function shotSeq(L: Layout, s: Shot, next: number, base: number) {
   return (
               <Sequence key={s.beat} from={beatFrame(s.beat) - beatFrame(base)} durationInFrames={beatFrame(next) - beatFrame(s.beat)} name={s.jp || "countdown"}>
+                {s.scrap && <Stills L={L} shot={s} />}
                 {/* 札はタイトルの裏に回す（先に描くと字幕が上に来る） */}
                 {s.ab && <AbBadge L={L} />}
-                <Caption L={L} jp={s.jp} en={s.en} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>
-                <Phone L={L} fx={s.fx}>
+                {s.scrap && <div style={{ position: "absolute", inset: 0, zIndex: 2 }}><Caption L={L} jp={s.jp} en={s.en} /></div>}
+                {!s.scrap && <Caption L={L} jp={s.jp} en={s.en} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>}
+                {!s.scrap && <Phone L={L} fx={s.fx}>
                   {s.stills ? (
                     <Stills L={L} shot={s} />
                   ) : s.ab ? (
@@ -586,15 +597,18 @@ function shotSeq(L: Layout, s: Shot, next: number, base: number) {
                     <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
                   )}
                   {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
-                </Phone>
+                </Phone>}
                 {s.fx === "flashIn" && <FlashIn />}
                 {s.explorer && (() => {
                   // 録画の中で保存した時刻 → このショットの何コマ目か（Clip の再生速度で割る）
                   const sess = s.rec ?? "main", r = rate(L.kind, L.lang, sess) * (s.speed ?? 1);
                   const from = evTime(L.kind, L.lang, sess, s.ev) + s.off * rate(L.kind, L.lang, sess);
-                  const at = Math.round(((evTime(L.kind, L.lang, sess, s.explorer.ev) - from) / r) * FPS);
-                  const ev = RECORDINGS[L.kind][L.lang][sess].events.find((e) => e.name === s.explorer!.ev) as { file?: string } | undefined;
-                  return <Sequence from={at} layout="none"><SavedWindow L={L} file={ev?.file ?? "trackmento-palette.json"} /></Sequence>;
+                  const ex = s.explorer!, rel = (b: number) => beatFrame(s.beat + b) - beatFrame(s.beat);
+                  // 拍が決めてあればそれに乗せる（キメのレーン）。無ければ録画で保存した時刻
+                  const at = ex.beats ? rel(ex.beats[0]) : Math.round(((evTime(L.kind, L.lang, sess, ex.ev) - from) / r) * FPS);
+                  const ev = RECORDINGS[L.kind][L.lang][sess].events.find((e) => e.name === ex.ev) as { file?: string } | undefined;
+                  return <Sequence from={at} layout="none"><SavedWindow L={L} file={ev?.file ?? "trackmento-palette.json"}
+                    rowAt={ex.beats ? rel(ex.beats[1]) - at : undefined} blinkAt={ex.beats ? rel(ex.beats[2]) - at : undefined} /></Sequence>;
                 })()}
               </Sequence>
   );
