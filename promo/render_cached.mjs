@@ -8,6 +8,9 @@
 // 使い方: node render_cached.mjs <Composition の id> <出力ファイル> [--force] [--dry]
 //   例: node render_cached.mjs Promo out/v9-tall-ja.mp4
 //   --dry は描かずに、描き直す区切りだけ示す
+//   --only 17-18 は、その小節にかかる区切りだけ描き直し、ほかは前の控えをそのまま使う。
+//     Scenes.tsx のように全体にかかるファイルを直すと、どの区切りに効くかは機械では分からないので全部描き直しになる。
+//     直したのが一部の場面だけだと分かっているときに使う（外れていると、ほかの区切りが古い絵のまま残る）
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -16,9 +19,10 @@ import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { buildSync } from "esbuild";
 
-const [COMP, OUTFILE] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+const [COMP, OUTFILE] = process.argv.slice(2).filter((a, i, all) => !a.startsWith("--") && all[i - 1] !== "--only");
 if (!COMP || !OUTFILE) { console.log("使い方: node render_cached.mjs <Promo|PromoWide|PromoEn|PromoWideEn> <出力.mp4> [--force] [--dry]"); process.exit(1); }
 const FORCE = process.argv.includes("--force"), DRY = process.argv.includes("--dry");
+const ONLY = (() => { const i = process.argv.indexOf("--only"); if (i < 0) return null; const [a, b] = process.argv[i + 1].split("-").map(Number); return [a, b ?? a]; })();
 const ROOT = path.resolve(".");
 const FF = path.resolve("node_modules/@remotion/compositor-win32-x64-msvc/ffmpeg.exe");
 const KIND = COMP.includes("Wide") ? "wide" : "tall", LANG = COMP.endsWith("En") ? "en" : "ja";
@@ -87,7 +91,16 @@ for (let b = 0; ; b += BAR * BARS_PER_CHUNK) {
   if (f1 >= DURATION_FRAMES - 1) break;
 }
 const fileOf = (c) => path.join(CACHE, `${String(c.i).padStart(3, "0")}-${c.key}.mp4`);
-const dirty = chunks.filter((c) => FORCE || !fs.existsSync(fileOf(c)));
+const prevOf = (c) => fs.readdirSync(CACHE).find((f) => f.startsWith(`${String(c.i).padStart(3, "0")}-`));
+let dirty = chunks.filter((c) => FORCE || !fs.existsSync(fileOf(c)));
+if (ONLY) {
+  // 指定の小節にかかる区切りだけ描く。ほかは前の控えを今の指紋の名前に付け替えて使う
+  const inRange = (c) => c.beat / BAR + 1 <= ONLY[1] && c.beat / BAR + BARS_PER_CHUNK >= ONLY[0];
+  const keep = dirty.filter((c) => !inRange(c) && prevOf(c));
+  if (!DRY) for (const c of keep) fs.renameSync(path.join(CACHE, prevOf(c)), fileOf(c));
+  dirty = chunks.filter((c) => inRange(c) || (!fs.existsSync(fileOf(c)) && !keep.includes(c)));
+  console.log(`--only ${ONLY[0]}-${ONLY[1]}: 前の控えを使う区切り ${keep.length} 個`);
+}
 console.log(`${COMP}: 区切り ${chunks.length} 個（${BARS_PER_CHUNK} 小節ずつ）、描き直すのは ${dirty.length} 個${oldStyle ? "（録画は古い形式: 録画が変わると全部描き直し）" : ""}`);
 for (const c of dirty) console.log(`  ${String(c.i).padStart(2)}: ${c.beat / BAR + 1} 小節〜  フレーム ${c.f0}〜${c.f1}`);
 if (DRY) process.exit(0);
