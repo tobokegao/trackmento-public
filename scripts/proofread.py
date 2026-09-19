@@ -60,6 +60,22 @@ STYLE_DOC = """あなたは日本語の技術文書を整える編集者です�
 """
 
 
+# 外部の運営への英語の問い合わせ（2026-09-20、VocaDB への許可の依頼で足した）
+STYLE_LETTER = """You are an editor for a short English message that a solo Japanese developer will post to the maintainers of an
+open music database (on their Discord or GitHub). Please proofread it.
+
+Keep:
+- A polite, concise, friendly tone suitable for a volunteer-run community. Not overly formal, not salesy
+- All facts, numbers, URLs, API paths and names exactly as they are. Do not add claims or promises, and do not remove content
+- The structure (paragraphs, numbered lists)
+Fix grammar, unnatural phrasing, ambiguity, and anything that could read as demanding or rude.
+
+Output in two parts:
+1. A heading "## Revised" followed by the full revised text
+2. A heading "## Changes" followed by one line per change: "original → revised (reason, in Japanese)". Do not list unchanged parts
+"""
+
+
 def ask(text: str, model: str, key: str, style: str = STYLE) -> str:
     body = json.dumps({
         "contents": [{"role": "user", "parts": [{"text": style + "\n---\n" + text}]}],
@@ -93,12 +109,14 @@ def main() -> int:
     ap.add_argument("--out", help="添削結果を書き出すファイル（無ければ標準出力）")
     ap.add_argument("--model", default=os.getenv("GEMINI_MODEL", DEFAULT_MODEL))
     ap.add_argument("--doc", action="store_true", help="作業する人向けの文書（README など）として添削する（文体は常体のまま）")
+    ap.add_argument("--letter", action="store_true", help="外部の運営への英語の問い合わせとして添削する")
     a = ap.parse_args()
     key = os.getenv("GEMINI_API_KEY", "").strip()
     if not key:
         print("GEMINI_API_KEY が .env にありません", file=sys.stderr)
         return 1
-    out = ask(pathlib.Path(a.src).read_text(encoding="utf-8"), a.model, key, STYLE_DOC if a.doc else STYLE)
+    style = STYLE_LETTER if a.letter else STYLE_DOC if a.doc else STYLE
+    out = ask(pathlib.Path(a.src).read_text(encoding="utf-8"), a.model, key, style)
     if a.out:
         pathlib.Path(a.out).write_text(out + "\n", encoding="utf-8")
         print(f"書き出し: {a.out}（{a.model}）")
