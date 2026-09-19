@@ -624,7 +624,7 @@ async def request_stats(request: Request, call_next):
 
 # 移転先へ 301 で送る経路。**画面（`/`）と API は送らない**。
 # API を送ると、開いたままの古いタブが別オリジンへ投げることになり CORS で落ちる
-_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/privacy", "/about")
+_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/privacy", "/about", "/updates")
 
 
 def _migrate_host(request: Request) -> str:
@@ -1781,6 +1781,7 @@ async def share_upload(request: Request) -> dict:
 @app.get("/guide", response_class=HTMLResponse)
 @app.get("/privacy", response_class=HTMLResponse)
 @app.get("/about", response_class=HTMLResponse)
+@app.get("/updates", response_class=HTMLResponse)
 async def text_page(request: Request) -> HTMLResponse:
     kind = request.url.path.strip("/")
     return HTMLResponse(pages.page_html(kind, base_url_for(request), app_url_for(request), _lang_for(request)),

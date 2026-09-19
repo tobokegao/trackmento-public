@@ -1,4 +1,4 @@
-"""サイトの文章のページ（使い方・プライバシーポリシー・運営者）。
+"""サイトの文章のページ（使い方・プライバシーポリシー・運営者・更新情報）。
 
 2026-09-18 に AdSense の審査に通らなかった（理由は示されない）ため足した。道具の画面だけでは
 「完全な文章や段落」と言える文章がほとんど無く、プライバシーポリシーも同じドメインに無かった。
@@ -19,9 +19,10 @@ TITLES = {
     "guide": {"ja": "使い方", "en": "How to use"},
     "privacy": {"ja": "プライバシーポリシー", "en": "Privacy policy"},
     "about": {"ja": "運営者・お問い合わせ", "en": "About & contact"},
+    "updates": {"ja": "更新情報", "en": "Updates"},
 }
-NAV = {"ja": ("画面へ戻る", "使い方", "プライバシーポリシー", "運営者"),
-       "en": ("Back to the app", "How to use", "Privacy policy", "About")}
+NAV = {"ja": ("画面へ戻る", "使い方", "プライバシーポリシー", "運営者", "更新情報"),
+       "en": ("Back to the app", "How to use", "Privacy policy", "About", "Updates")}
 UPDATED = {"ja": "最終更新: 2026年9月18日", "en": "Last updated: September 18, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 
@@ -239,9 +240,104 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 """
 
 
-BODIES = {"guide": _guide, "privacy": _privacy, "about": _about}
+# ---- 更新情報（2026-09-19）----
+# **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
+# 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
+CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-19", "スマホで作る共有画像を少し小さくし、送信にかかる時間を約3割短くしました。X での見た目はほとんど変わりません。",
+     "Share images made on phones are now a little smaller, so uploading takes about 30% less time. They look almost the same on X."),
+    ("2026-09-19", "ニコニコ動画で投稿者名が取れない曲（投稿者の退会・非公開、転載の動画）に、VocaDB から作者名を補うようにしました。",
+     "For Niconico videos whose uploader name is unavailable (deleted or private accounts, re-uploads), the producer name is now filled in from VocaDB."),
+    ("2026-09-19", "VocaDB の作者名から発行元（レーベルやチャンネル）を外し、「kz feat. 初音ミク」のような形で出すようにしました。",
+     "VocaDB artist names no longer include publishers such as labels or channels, e.g. \u201ckz feat. Hatsune Miku\u201d."),
+    ("2026-09-19", "曲名リストで曲名とアーティスト名を 1 行に並べるとき、アーティスト名だけが次の行に落ちないようにしました。",
+     "When the track list puts the title and artist on one line, the artist no longer drops to the next line on its own."),
+    ("2026-09-19", "VocaDB の検索が混み合うときに途中で止まりにくくしました。一度検索された曲は、次から速く出ます。",
+     "VocaDB searches are less likely to time out when it is busy, and songs someone has searched for before now come up faster."),
+    ("2026-09-18", "新しいアドレス trackmento.com に移りました。前のアドレスから開くと、作った並びを引き継いで移動します。",
+     "TRACKMENTO moved to trackmento.com. Opening the old address brings your grid over to the new one."),
+    ("2026-09-18", "曲名リストの出し方に「マスに重ねる」を足しました（ジャケットの下に曲名とアーティスト名を載せます）。",
+     "Added \u201cOverlay on cells\u201d to the track list options (the title and artist are shown over the bottom of each cover)."),
+    ("2026-09-18", "使い方・プライバシーポリシー・運営者のページを足しました。",
+     "Added the How to use, Privacy policy and About pages."),
+    ("2026-09-17", "英語の画面では、iTunes の曲名とアーティスト名を英語の表記で出すようにしました。",
+     "In the English interface, iTunes titles and artists are shown in their English names."),
+    ("2026-09-16", "「みんなのグリッド」を足しました。共有するときにチェックを入れた並びだけが、曲名やアーティスト名で探せます。",
+     "Added \u201cEveryone\u2019s grids\u201d. Only grids you choose to list when sharing can be found by track or artist."),
+    ("2026-09-16", "ボカロ曲のデータベース VocaDB から曲を探せるようにしました。Bandcamp のアルバムの URL は収録曲ごとに入るようになりました。",
+     "You can now search the Vocaloid database VocaDB. Bandcamp album URLs are now split into their individual tracks."),
+]
+_MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+           "November", "December")
+
+
+def _date_label(date: str, lang: str) -> str:
+    y, m, d = (int(x) for x in date.split("-"))
+    return f"{_MONTHS[m - 1]} {d}, {y}" if lang == "en" else f"{y}年{m}月{d}日"
+
+
+def _updates(lang: str, days: int) -> str:
+    en = lang == "en"
+    rows: list[str] = []
+    last = None
+    for date, ja, e in CHANGES:
+        if date != last:
+            if last is not None:
+                rows.append("</ul>")
+            rows.append(f"<h3>{_date_label(date, lang)}</h3><ul>")
+            last = date
+        rows.append(f"<li>{html.escape(e if en else ja)}</li>")
+    if last is not None:
+        rows.append("</ul>")
+    changes = "\n".join(rows)
+    if en:
+        return f"""
+<p>Recent changes you can see in TRACKMENTO, and known problems. Fixes are added here as they go live.</p>
+<h2>Recent changes</h2>
+{changes}
+<h2>Known problems</h2>
+<ul>
+<li>Covers from old Niconico videos look blurry. The site only provides small thumbnails for them.</li>
+<li>Deleted videos show no cover unless the work is registered on otoDB.</li>
+<li>Titles with some unusual symbols (such as \u25c8) may be placed slightly differently in images made on different devices.</li>
+<li>In in-app browsers (X, LINE and so on), sharing can be slow or fail. Opening the page in Safari or Chrome is more reliable.</li>
+</ul>
+<h2>If something doesn\u2019t work</h2>
+<ul>
+<li><b>The page won\u2019t open:</b> switch between Wi-Fi and mobile data, or try another browser. Content filters on school or work networks may block new domains.</li>
+<li><b>Sharing takes a long time:</b> uploading depends on your connection, so try somewhere with better reception.</li>
+<li><b>Still stuck:</b> please contact us through the details on the <a href="/about?lang=en">About</a> page, with the time and what you were doing.</li>
+</ul>
+"""
+    return f"""
+<p>TRACKMENTO で利用者の方から見える変更と、分かっている不具合をまとめています。直したものは公開したときにここに足していきます。</p>
+<h2>最近の変更</h2>
+{changes}
+<h2>分かっている不具合</h2>
+<ul>
+<li>古いニコニコ動画はジャケット（サムネイル）が粗くなります。配信元に小さい画像しか無いためです。</li>
+<li>削除された動画は、otoDB に登録が無いとジャケットが出ません。</li>
+<li>一部の特殊な記号（\u25c8 など）を含む曲名は、端末によって画像の中の文字の位置がわずかにずれることがあります。</li>
+<li>アプリ内ブラウザ（X や LINE の中で開いた画面）では、共有が遅くなったり失敗したりすることがあります。Safari や Chrome で開くと安定します。</li>
+</ul>
+<h2>うまくいかないとき</h2>
+<ul>
+<li><b>ページが開けない：</b>Wi-Fi とスマホの回線を切り替えるか、別のブラウザで試してください。学校や職場の回線では、新しいアドレスがフィルタで止められていることがあります。</li>
+<li><b>共有に時間がかかる：</b>画像の送信は回線の速さに左右されます。電波のよい場所で試してください。</li>
+<li><b>それでも解決しない：</b><a href="/about">運営者</a>のページの連絡先から、時刻と操作の内容を添えてお知らせください。</li>
+</ul>
+"""
+
+
+BODIES = {"guide": _guide, "privacy": _privacy, "about": _about, "updates": _updates}
 
 _JA_BREAK = re.compile(r"(?<=[^\x00-\x7f>])\n(?=[^\x00-\x7f<])")
+
+
+def _updated_of(lang: str) -> str:
+    """更新情報のページの「最終更新」は、いちばん新しい変更の日付"""
+    label = _date_label(CHANGES[0][0], lang)
+    return f"Last updated: {label}" if lang == "en" else f"最終更新: {label}"
 
 
 def body_of(kind: str, lang: str) -> str:
@@ -256,7 +352,7 @@ def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja"
     title = TITLES[kind][lang]
     other = "en" if lang == "ja" else "ja"
     q = "?lang=en" if lang == "en" else ""
-    back, n_guide, n_privacy, n_about = NAV[lang]
+    back, n_guide, n_privacy, n_about, n_updates = NAV[lang]
     body = body_of(kind, lang)
     return f"""<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -267,6 +363,7 @@ def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja"
 <link rel="alternate" hreflang="ja" href="{base.rstrip('/')}/{kind}"><link rel="alternate" hreflang="en" href="{base.rstrip('/')}/{kind}?lang=en">
 <style>{share._page_css(base)}
 main {{ max-width: 44rem; }}
+h3 {{ font-size: .95rem; margin: 12px 0 4px; }}
 h2 {{ font-size: 1.05rem; margin: 20px 0 4px; padding-bottom: 2px; border-bottom: 2px solid #12171b; }}
 p, dd {{ margin: 0; }}
 main a {{ color: #12171b; }}
@@ -283,7 +380,7 @@ nav.pages a {{ color: #12171b; }}
 <main>
   <h1>{html.escape(title)}</h1>
   {body}
-  <p class="meta">{UPDATED[lang]} ・ <a href="/{kind}{'?lang=' + other if other == 'en' else ''}">{'English' if other == 'en' else '日本語'}</a></p>
-  <nav class="pages"><a href="{app_url}/{q}">{back}</a><a href="/guide{q}">{n_guide}</a><a href="/privacy{q}">{n_privacy}</a><a href="/about{q}">{n_about}</a></nav>
+  <p class="meta">{_updated_of(lang) if kind == "updates" else UPDATED[lang]} ・ <a href="/{kind}{'?lang=' + other if other == 'en' else ''}">{'English' if other == 'en' else '日本語'}</a></p>
+  <nav class="pages"><a href="{app_url}/{q}">{back}</a><a href="/guide{q}">{n_guide}</a><a href="/privacy{q}">{n_privacy}</a><a href="/about{q}">{n_about}</a><a href="/updates{q}">{n_updates}</a></nav>
 </main>
 </body></html>"""
