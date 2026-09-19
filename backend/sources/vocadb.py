@@ -16,7 +16,9 @@
 """
 from __future__ import annotations
 
+import asyncio
 import re
+import time
 
 import httpx
 
@@ -108,3 +110,44 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE,
         hit = [t for t in out if key and key in _n(t.artist)]
         out = hit or out
     return out
+
+
+# ---- 投稿者名が取れない動画のアーティスト名を補う ----
+# ニコニコの API は、投稿者が退会したか情報を非公開にした動画だと投稿者名を返さない（`getthumbinfo` に
+# user_nickname も ch_name も無い）。VocaDB は動画 ID から曲を引けるので、登録があれば作者名で埋める
+# （2026-09-19。利用者の共有「私を構成するボカロ曲25選」で 25 曲中 2 曲のアーティスト名が空だった）。
+# VocaDB は有志の運営なので、同時に 3 本まで・結果は見つからなかった分も 1 日覚える
+BY_PV = "https://vocadb.net/api/songs/byPv"
+PV_TIMEOUT = 8
+PV_TTL = 86400
+PV_CACHE_MAX = 5000
+_PV_SEM = asyncio.Semaphore(3)
+_pv_cache: dict[tuple[str, str], tuple[float, str]] = {}   # (サービス, 動画 ID) → (時刻, アーティスト名。無ければ "")
+
+
+async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
+                       client: httpx.AsyncClient | None = None) -> str:
+    """動画 ID から VocaDB の `artistString`（「マチゲリータ feat. 初音ミク」の形）。無い・失敗なら空文字"""
+    key = (service, pv_id)
+    now = time.monotonic()
+    hit = _pv_cache.get(key)
+    if hit and now - hit[0] < PV_TTL:
+        return hit[1]
+    own = client is None
+    client = client or httpx.AsyncClient(timeout=PV_TIMEOUT)
+    name = ""
+    try:
+        async with _PV_SEM:
+            r = await client.get(BY_PV, params={"pvService": service, "pvId": pv_id, "lang": "Japanese"},
+                                 headers={"User-Agent": UA}, timeout=PV_TIMEOUT)
+        if r.status_code == 200 and r.content.strip() not in (b"", b"null"):
+            name = ((r.json() or {}).get("artistString") or "").strip()
+    except (httpx.HTTPError, ValueError):
+        return ""   # 失敗は覚えない（一時的な不調で空が 1 日固定されないように）
+    finally:
+        if own:
+            await client.aclose()
+    if len(_pv_cache) >= PV_CACHE_MAX:
+        _pv_cache.clear()
+    _pv_cache[key] = (now, name)
+    return name

@@ -21,6 +21,7 @@ import httpx
 from backend import netguard
 
 from backend.models import Track
+from backend.sources import vocadb
 
 UA = "trackmento/0.1 (+https://github.com/local/musicgrid-local)"
 YT_OEMBED = "https://www.youtube.com/oembed"
@@ -229,13 +230,17 @@ async def fetch_nicovideo(url: str, *, client: httpx.AsyncClient | None = None) 
         image = thumb
         if await _head_ok(client, thumb + ".L"):
             image = thumb + ".L"
+        artist = (root.findtext(".//user_nickname") or root.findtext(".//ch_name") or "").strip()
+        if not artist:
+            # 投稿者が退会・非公開だと名前が返らない。VocaDB に登録があれば作者名で埋める
+            artist = await vocadb.artist_by_pv(vid, client=client)
     finally:
         if own:
             await client.aclose()
     return Track(
         source="nicovideo",
         title=(root.findtext(".//title") or "").strip() or vid,
-        artist=(root.findtext(".//user_nickname") or root.findtext(".//ch_name") or "").strip(),
+        artist=artist,
         album=None,
         image=image,
         thumb=thumb,

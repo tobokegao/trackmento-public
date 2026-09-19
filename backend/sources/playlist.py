@@ -30,7 +30,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 
 from backend.models import NO_COVER, Track
-from backend.sources import applemusic, bandcamp, otodb, video
+from backend.sources import applemusic, bandcamp, otodb, video, vocadb
 
 # マスの上限（256）より多く取る。入りきらない分は候補に置かれ、そこから選んで絞り込めるため
 # （500 は実機で候補パネルの描画が 500 件 52ms／1000 件 132ms だったので、その手前で切った値。
@@ -112,7 +112,29 @@ async def _nicovideo(url: str, client: httpx.AsyncClient) -> list[Track]:
             continue
         out.append(Track(source="nicovideo", title=title, artist=((v.get("owner") or {}).get("name") or "").strip(),
                          image=image, thumb=image, external_url=f"https://www.nicovideo.jp/watch/{vid}"))
+    await _fill_artist_from_vocadb(out, client)
     return out
+
+
+_PV_FILL_MAX = 24        # 1 つのマイリストで VocaDB に聞く上限
+_PV_FILL_BUDGET = 10     # 全体で待つ秒数（間に合った分だけ反映する）
+
+
+async def _fill_artist_from_vocadb(out: list[Track], client: httpx.AsyncClient) -> None:
+    """投稿者名が空の動画（退会・非公開）を VocaDB で埋める。消えた動画（`is_gone`）は otoDB 側で埋めるので除く"""
+    holes = [i for i, t in enumerate(out) if not t.artist and not is_gone(t.title) and t.external_url]
+    if not holes:
+        return
+
+    async def one(i: int) -> None:
+        name = await vocadb.artist_by_pv(out[i].external_url.rsplit("/", 1)[-1], client=client)
+        if name:
+            out[i] = out[i].model_copy(update={"artist": name})
+
+    try:
+        await asyncio.wait_for(asyncio.gather(*(one(i) for i in holes[:_PV_FILL_MAX])), timeout=_PV_FILL_BUDGET)
+    except asyncio.TimeoutError:
+        pass
 
 
 # ---- SoundCloud のセット ----
