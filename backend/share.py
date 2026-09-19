@@ -358,16 +358,19 @@ def _page_css(base: str) -> str:
 body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.55; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
 /* ワードマークは本体（frontend/index.html の .wordmark .mark）と同じ規則: Silkscreen 25px、行送り 16px（大文字のインク高）、
-   インクの 3px 下にリソ 6 色の太線（5px）。色も本体の oklch トークンと同値 */
+   インクの 3px 下にリソ 6 色の太線（5px）、線の頭に離して 5px 角の四角。色も本体の oklch トークンと同値 */
 .mark {{ font-family: "TrackmentoMark", "Silkscreen", "DotGothic16", monospace; font-weight: 700; font-size: 1.5625rem; letter-spacing: .04em; white-space: nowrap;
   display: inline-block; line-height: 16px; margin-top: -2px; padding-bottom: 10px;
-  background: linear-gradient(to right,
+  margin-left: -10px; padding-left: 10px; margin-right: -3px; padding-right: 3px;
+  background:
+    linear-gradient(oklch(80% 0.150 88), oklch(80% 0.150 88)) left bottom / 5px 5px no-repeat,
+    linear-gradient(to right,
     oklch(80% 0.150 88)  0 calc(100% / 6),
     oklch(60% 0.140 235) 0 calc(200% / 6),
     oklch(62% 0.200 32)  0 50%,
     oklch(74% 0.100 295) 0 calc(400% / 6),
     oklch(84% 0.110 165) 0 calc(500% / 6),
-    oklch(78% 0.130 350) 0) bottom / 100% 5px no-repeat; }}
+    oklch(78% 0.130 350) 0) right bottom / calc(100% - 7px) 5px no-repeat; }}
 small {{ color: #53595f; }}
 main {{ max-width: 56rem; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }}
 h1 {{ font-weight: 700; font-size: 1.25rem; margin: 0; }}

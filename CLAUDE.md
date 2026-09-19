@@ -1244,6 +1244,15 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
   - 画面（`frontend/index.html`）: 選んだソースで 0 件かつ失敗も無いときだけ MusicBrainz を直接引き、
     「iTunes に無かったので MusicBrainz でも探しました。」と添える
   - 画面のソース選択の既定は前から iTunes だけだったので、**遅かったのは `source` を省く呼び出し**（CLI・API）
+- **ロゴ（ワードマーク）**（2026-09-19）。Silkscreen Bold の M は中の段が詰まっていて H に見えたので、**M だけ描き替えた
+  ロゴ専用フォント `TrackmentoMark`** を使う（`scripts/build_logo_font.py`、案 C = 上に横線＋脚 3 本、右上の角を 1 ドット欠く）。
+  使うのはロゴだけ（画面・共有ページ・文章ページ・リンクカード・紹介動画）。ほかの Silkscreen の文字と URL 表示は元のまま
+  - **下線は「リソ 6 色の帯＋頭に離して置いた小さな四角（マスタード）」**。帯は字面から左右に少しはみ出し、四角はその左の外
+    （四角は帯の太さの約 0.9 倍、すき間 0.35 倍）。リンクカードを作り直したときに偶然できた形を利用者が気に入り、全部そろえた。
+    画面は `.wordmark .mark`、共有ページは `share.py` の `.mark`（どちらも箱を負のマージンで広げて四角を外に出す）、
+    リンクカードは `scripts/build_og.py`、動画は `Stripe` の `lead`
+  - M を変えたら: `build_logo_font.py` → `upload_fonts_r2.py`（名前が同じなので毎回上げ直す）→ `build_og.py` →
+    `promo/public/fonts/` へ ttf を写す。URL の `?v=` に中身のハッシュが付くので、ブラウザの古いキャッシュは踏まない
 - 動作確認は各ステップごとブラウザで（`claude-in-chrome` または手動）。サーバー `--reload` なし起動時、コード変更後再起動必要
 
 ## 調べ直さないための覚え書き（一度引っかかったもの）

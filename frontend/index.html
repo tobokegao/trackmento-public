@@ -201,13 +201,19 @@ img { max-width: 100%; display: block; }
   font-family: "TrackmentoMark", var(--font-outlier);   /* M が H に見えないよう描き替えたロゴ用（2026-09-19） */
   display: inline-block; line-height: 16px; margin-top: -2px;
   padding-bottom: 10px;
-  background: linear-gradient(to right,
+  /* 線の頭に小さな四角（マスタード）を離して置く（2026-09-19、リンクカード・動画と同じ形）。
+     線は字面から左右に 3px はみ出し、四角（5px 角）はすき間 2px を空けてさらに左の外に出す。
+     箱を左に 10px・右に 3px 広げ、そのぶん負のマージンで打ち消す（ロゴの字の位置は変わらない） */
+  margin-left: -10px; padding-left: 10px; margin-right: -3px; padding-right: 3px;
+  background:
+    linear-gradient(var(--color-mustard), var(--color-mustard)) left bottom / 5px 5px no-repeat,
+    linear-gradient(to right,
     var(--color-mustard)   0 calc(100% / 6),
     var(--color-cerulean)  0 calc(200% / 6),
     var(--color-vermilion) 0 50%,
     var(--color-lavender)  0 calc(400% / 6),
     var(--color-mint)      0 calc(500% / 6),
-    var(--color-pink)      0) bottom / 100% 5px no-repeat;
+    var(--color-pink)      0) right bottom / calc(100% - 7px) 5px no-repeat;
 }
 /* ロゴを押すとトップへ戻る（2026-09-19）。見た目はリンクにしない（色・下線は親のまま） */
 .wordmark a.mark { color: inherit; text-decoration: none; }

@@ -13,6 +13,7 @@ import {
 loadFont({ family: "Plex", url: staticFile("fonts/IBMPlexSansJP-Bold.ttf"), weight: "700" });
 loadFont({ family: "Plex", url: staticFile("fonts/IBMPlexSansJP-Regular.ttf"), weight: "400" });
 loadFont({ family: "Silk", url: staticFile("fonts/Silkscreen-Bold.ttf"), weight: "700" });
+loadFont({ family: "Mark", url: staticFile("fonts/TrackmentoMark-Bold.ttf"), weight: "700" });   // ロゴ専用（M だけ描き替えた Silkscreen。scripts/build_logo_font.py）
 loadFont({ family: "Dot", url: staticFile("fonts/DotGothic16-Regular.ttf"), weight: "400" });
 
 // ---- 色（frontend/index.html のトークンと同じ系統） ----
@@ -32,7 +33,7 @@ type Layout = {
   mark: number; tag: number; sub: number;                     // ワードマーク・見出し・小さめ文字
 };
 const LAYOUTS: Record<LayoutKind, Omit<Layout, "lang">> = {
-  tall: { kind: "tall", W: 1080, H: 1920, phone: { x: 108, y: 330, w: 864, h: 1536 }, jp: 62, en: 36, mark: 112, tag: 64, sub: 40 },
+  tall: { kind: "tall", W: 1080, H: 1920, phone: { x: 108, y: 330, w: 864, h: 1536 }, jp: 62, en: 36, mark: 102, tag: 64, sub: 40 },
   wide: { kind: "wide", W: 1920, H: 1080, phone: { x: 222, y: 215, w: 1476, h: 830 }, jp: 60, en: 34, mark: 140, tag: 60, sub: 38 },
 };
 
@@ -56,17 +57,19 @@ const Paper: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
 );
 
 /** 6 色の帯。拍ごとに 1 色ずつ跳ねる */
-const Stripe: React.FC<{ h?: number; width?: number | string }> = ({ h = 14, width = "100%" }) => {
+// lead … ロゴの下線だけ、頭に離して小さな四角を置く（画面・リンクカードと同じ形。四角は線の太さの 0.88 倍、すき間 0.35 倍）
+const Stripe: React.FC<{ h?: number; width?: number | string; lead?: boolean }> = ({ h = 14, width = "100%", lead = false }) => {
   const { beat, pulse } = useBeatPulse();
   return (
-    <div style={{ width, height: h, display: "flex" }}>
+    <div style={{ width, height: h, display: "flex", position: "relative" }}>
+      {lead && <div style={{ position: "absolute", top: 0, bottom: 0, width: Math.round(h * 0.88), right: `calc(100% + ${Math.round(h * 0.35)}px)`, background: STRIPE[0] }} />}
       {STRIPE.map((c, i) => <div key={c} style={{ flex: 1, background: c, transform: `scaleY(${beat >= 0 && beat % 6 === i ? 1 + pulse * 1.6 : 1})`, transformOrigin: "bottom" }} />)}
     </div>
   );
 };
 
 const Wordmark: React.FC<{ size: number }> = ({ size }) => (
-  <div style={{ fontFamily: "Silk", fontWeight: 700, fontSize: size, letterSpacing: "0.06em", color: C.ink, lineHeight: 1 }}>TRACKMENTO</div>
+  <div style={{ fontFamily: "Mark", fontWeight: 700, fontSize: size, letterSpacing: "0.06em", color: C.ink, lineHeight: 1 }}>TRACKMENTO</div>
 );
 
 // ---- イントロ（2 小節で完了） ----
@@ -85,10 +88,10 @@ const Intro: React.FC<{ L: Layout }> = ({ L }) => {
       <div style={{ display: "flex", gap: L.kind === "tall" ? 6 : 8 }}>
         {letters.map((ch, i) => {
           const s = spring({ frame: frame - beat0 - Math.round((i / letters.length) * beatLen * 0.35), fps, config: { damping: 14, stiffness: 420 } });   // 全文字が 1 拍以内に出る
-          return <span key={i} style={{ fontFamily: "Silk", fontWeight: 700, fontSize: L.kind === "tall" ? 118 : 150, color: C.ink, lineHeight: 1, display: "inline-block", transform: `translateY(${(1 - s) * 60}px)`, opacity: s }}>{ch}</span>;
+          return <span key={i} style={{ fontFamily: "Mark", fontWeight: 700, fontSize: L.kind === "tall" ? 106 : 150, color: C.ink, lineHeight: 1, display: "inline-block", transform: `translateY(${(1 - s) * 60}px)`, opacity: s }}>{ch}</span>;
         })}
       </div>
-      <div style={{ marginTop: 24, opacity: logoIn, transform: `scaleX(${logoIn})` }}><Stripe h={18} width={stripeW} /></div>
+      <div style={{ marginTop: 24, opacity: logoIn, transform: `scaleX(${logoIn})` }}><Stripe h={18} lead width={stripeW} /></div>
       <div style={{ marginTop: L.kind === "tall" ? 80 : 56, textAlign: "center", transform: `translateY(${(1 - taglineIn) * 40}px)`, opacity: taglineIn }}>
         {L.lang === "ja" ? (
           <>
@@ -372,7 +375,7 @@ const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
     <Paper>
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: fade }}>
         <div style={{ transform: `scale(${s * (1 + pulse * 0.03)})` }}><Wordmark size={L.mark} /></div>
-        <div style={{ marginTop: 24 }}><Stripe h={18} width={tall ? 1000 : 1400} /></div>
+        <div style={{ marginTop: 24 }}><Stripe h={18} lead width={tall ? 1000 : 1400} /></div>
         <div style={{ marginTop: tall ? 80 : 56, display: "flex", flexDirection: tall ? "column" : "row", gap: tall ? 12 : 40, alignItems: tall ? "center" : "baseline", opacity: s2, transform: `translateY(${(1 - s2) * 30}px)` }}>
           {L.lang === "ja" && <div style={{ fontFamily: "Plex", fontWeight: 700, fontSize: tall ? 54 : 56, color: C.ink }}>あなたは何曲オススメを？</div>}
           <div style={{ fontFamily: "Dot", fontSize: L.lang === "ja" ? (tall ? 38 : 40) : (tall ? 50 : 52), color: L.lang === "ja" ? C.muted : C.ink }}>What would you pick?</div>
