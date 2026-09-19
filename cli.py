@@ -2,7 +2,7 @@
 
   python cli.py add    --artist A --title T [--grid NAME] [--source itunes|mb|discogs|otodb] [--first]
   python cli.py add    --url URL [--grid NAME]                            # Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify の URL
-  python cli.py add    --image URL --artist A --title T [--grid NAME]     # 手入力
+  python cli.py add    --image URL --artist A --title T [--link URL] [--grid NAME]   # 手入力
   python cli.py pick   --index N [--grid NAME]                            # 直前の候補から選択
   python cli.py search --artist A --title T [--source ...]               # 候補を見るだけ
   python cli.py list   [--grid NAME]                                      # 現在の並びを表示
@@ -157,7 +157,10 @@ def cmd_add(a: argparse.Namespace) -> int:
 
             image = uploads.import_file(image)
             print(f"画像を取り込みました: {image}")
-        t = Track(source="manual", title=a.title, artist=a.artist or "", image=image, thumb=image)
+        # リンク先（--link）は曲のページ。共有ページの曲名リストからそこへ飛べる。
+        # http(s) だけ通すのは Track の検証（backend/models.py の _opt_url）に任せる
+        t = Track(source="manual", title=a.title, artist=a.artist or "", image=image, thumb=image,
+                  external_url=(a.link or None))
     else:
         if not (a.title or a.artist):
             raise CliError("--title か --artist を指定してください")
@@ -350,9 +353,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--artist", "-a", help="アーティスト名")
     sp.add_argument("--source", "-s", help="itunes | mb | discogs | otodb。カンマ区切りで複数可（省略時は iTunes → MusicBrainz → Discogs の順。otodb は音MAD 用で明示指定のみ）")
     sp.add_argument("--first", action="store_true", help="候補が複数でも先頭を採用する")
-    sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify のページ URL")
+    sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify のページ URL")
     sp.add_argument("--bandcamp", metavar="URL", help=argparse.SUPPRESS)  # 旧名
     sp.add_argument("--image", metavar="URL|PATH", help="手入力: ジャケット画像の URL か PC 上のファイルパス（--title --artist と併用）")
+    sp.add_argument("--link", metavar="URL", help="手入力: 曲のページの URL（省略可。共有ページの曲名からここへ飛べる）")
     sp.set_defaults(fn=cmd_add)
 
     sp = sub.add_parser("pick", help="直前の候補から番号で選んで置く")

@@ -109,7 +109,7 @@ def _meta(html: str, attr: str, name: str) -> str | None:
 
 
 async def fetch_bilibili(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
-    raise ValueError("bilibili には対応していません。曲名・アーティスト名と画像の URL を手で入れてください")
+    raise ValueError("bilibili には対応していません。手入力で、曲名・アーティスト名・画像の URL と、リンク先に動画の URL を入れてください")
 
 
 def youtube_id(url: str) -> str | None:

@@ -1200,6 +1200,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <label for="m-artist">アーティスト名</label>
         <input class="input" id="m-artist" name="artist" type="text" autocomplete="off">
       </div>
+      <div class="field">
+        <label for="m-link">リンク先の URL（省略可）</label>
+        <input class="input" id="m-link" name="link" type="text" inputmode="url" autocomplete="off" placeholder="https://…（曲のページ）">
+        <p class="msg">共有ページの曲名から、このページへ飛べるようになります。</p>
+      </div>
       <div class="search-actions">
         <button class="btn btn-primary" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
         <p class="msg" id="m-msg" role="status" aria-live="polite"></p>
@@ -1600,6 +1605,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "選択中のマス": "Selected cell",
         "曲名": "Track",
         "アーティスト名": "Artist",
+        "リンク先の URL（省略可）": "Link URL (optional)",
+        "共有ページの曲名から、このページへ飛べるようになります。": "The track name on the shared page will link to it.",
+        "https://…（曲のページ）": "https://… (the page for the track)",
+        "リンク先は https:// から始まる URL にしてください。": "The link has to be a URL starting with https://.",
         "このマスを外す": "Remove this cell",
         "選択解除": "Deselect",
         "ソース": "Sources",
@@ -2057,7 +2066,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     status: $("#bar-status"), form: $("#search-form"), q: $("#q"), artist: $("#artist"),
     sources: $("#sources"), searchBtn: $("#search-btn"), searchMsg: $("#search-msg"),
     bcForm: $("#bandcamp-form"), bcUrl: $("#bc-url"), bcBtn: $("#bc-btn"), bcMsg: $("#bc-msg"),
-    mForm: $("#manual-form"), mImage: $("#m-image"), mTitle: $("#m-title"), mArtist: $("#m-artist"), mBtn: $("#m-btn"), mMsg: $("#m-msg"),
+    mForm: $("#manual-form"), mImage: $("#m-image"), mTitle: $("#m-title"), mArtist: $("#m-artist"), mLink: $("#m-link"), mBtn: $("#m-btn"), mMsg: $("#m-msg"),
     mFileBtn: $("#m-file-btn"), mFile: $("#m-file"), mFileMsg: $("#m-file-msg"),
     shareBtn: $("#share-btn"), shareUrl: $("#share-url"), copyBtn: $("#copy-btn"), nativeShareBtn: $("#native-share-btn"), openShare: $("#open-share"),
     results: $("#results"), resultsCount: $("#results-count"),
@@ -2552,13 +2561,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.mForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const image = els.mImage.value.trim(), title = els.mTitle.value.trim(), artist = els.mArtist.value.trim();
-    for (const el of [els.mImage, els.mTitle]) el.removeAttribute("aria-invalid");
+    const link = els.mLink.value.trim();
+    for (const el of [els.mImage, els.mTitle, els.mLink]) el.removeAttribute("aria-invalid");
+    // リンク先は http(s) だけ通す（共有を開いた他人のブラウザで開かれるので、javascript: などは入れさせない）。
+    // サーバー側（backend/models.py の _opt_url）にも同じ番人がある
+    if (link && !/^https?:\/\//i.test(link)) {
+      els.mLink.setAttribute("aria-invalid", "true");
+      say(els.mMsg, tr("リンク先は https:// から始まる URL にしてください。"), "error");
+      els.mLink.focus({ preventScroll: true });
+      return;
+    }
     if (!isImageRef(image)) { els.mImage.setAttribute("aria-invalid", "true"); say(els.mMsg, tr("画像は https:// の URL か、「画像を選ぶ」で取り込んだ /uploads/ の URL にしてください。"), "error"); els.mImage.focus({ preventScroll: true }); return; }
     if (!title) { els.mTitle.setAttribute("aria-invalid", "true"); say(els.mMsg, tr("曲名を入れてください。"), "error"); els.mTitle.focus({ preventScroll: true }); return; }
-    const t = { source: "manual", title, artist, album: null, image, thumb: image, external_url: null };
+    const t = { source: "manual", title, artist, album: null, image, thumb: image, external_url: link || null };
     currentResults = [t, ...currentResults.filter(x => x.image !== image)];
     renderResults(currentResults);
-    els.mImage.value = ""; els.mTitle.value = ""; els.mArtist.value = "";
+    els.mImage.value = ""; els.mTitle.value = ""; els.mArtist.value = ""; els.mLink.value = "";
     say(els.mMsg, tr`候補の先頭に「${title}」を入れました。クリックで配置します。`);
   });
 
