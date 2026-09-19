@@ -1,7 +1,7 @@
 """VocaDB（ボーカロイド楽曲のデータベース）。
 
-- 検索: https://vocadb.net/api/songs?query=…&fields=ThumbUrl,PVs&lang=Japanese
-  `artistString` が「ハチ feat. 初音ミク」の形で返るので、作者と歌声合成ソフトがまとめて手に入る。
+- 検索: https://vocadb.net/api/songs?query=…&fields=ThumbUrl,PVs,Artists&lang=Japanese
+  作曲者と歌声を「ハチ feat. 初音ミク」の形に組むので（`artist_name`）、作者と歌声合成ソフトがまとめて手に入る。
   iTunes に配信の無いボカロ曲でも引ける
 - **並べ替えを指定しないと原曲が上に来ない**。`sort=RatingScore` と `preferAccurateMatches=true` を
   付けると「メルト」で ryo の原曲が 1 位になる（付けないと歌ってみた・REMIX が先に並ぶ。実測）
@@ -64,6 +64,31 @@ def _links(item: dict) -> str | None:
     return f"https://vocadb.net/S/{item.get('id')}" if item.get("id") else None
 
 
+# 役割がこれだけの参加者は、アーティスト名から外す（曲を作った人ではなく、出した会社・チャンネル）
+_PUBLISHER_ROLES = {"Publisher", "Distributor"}
+
+
+def artist_name(item: dict) -> str:
+    """曲のアーティスト名。VocaDB の `artistString`（「ハチ feat. 初音ミク」）から**発行元だけの名前を外したもの**。
+    `artistString` は発行元のサークルも並べるので、「Tell Your World」が「kz, Google feat. 初音ミク」、
+    「崩壊歌姫」が「マチゲリータ, ProjectDIVAチャンネル feat. 初音ミク」になっていた（2026-09-19、利用者の指摘）。
+    作曲者だけで組み直すと、「Omoi」のような作り手のユニット（サークル扱い）まで消えるので、外すのは
+    役割が発行元・販売元だけのもの。`fields=Artists` が無いときは `artistString` のまま"""
+    text = (item.get("artistString") or "").strip()
+    drop = set()
+    for a in item.get("artists") or []:
+        roles = {r.strip() for r in (a.get("roles") or "").split(",") if r.strip()}
+        if roles and roles <= _PUBLISHER_ROLES and "Producer" not in (a.get("categories") or ""):
+            drop.add((a.get("name") or "").strip())
+    if not drop:
+        return text
+    bits = re.split(r"(\s+feat\.?\s+)", text, maxsplit=1)
+    makers = [m for m in (x.strip() for x in bits[0].split(",")) if m and m not in drop]
+    if not makers:
+        return text   # 全部外れるなら元のまま（名前が空になるよりよい）
+    return ", ".join(makers) + "".join(bits[1:])
+
+
 async def search(q: str, artist: str = "", *, limit: int = PAGE,
                  client: httpx.AsyncClient | None = None) -> list[Track]:
     """VocaDB を検索する。原曲が上に来るように評価の高い順で引く。"""
@@ -79,7 +104,7 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE,
         r = await client.get(API, params={
             "query": query, "maxResults": max(1, min(limit, PAGE)),
             "nameMatchMode": "Auto", "sort": "RatingScore", "preferAccurateMatches": "true",
-            "fields": "ThumbUrl,PVs", "lang": "Japanese",
+            "fields": "ThumbUrl,PVs,Artists", "lang": "Japanese",
         }, headers={"User-Agent": UA})
         r.raise_for_status()
         items = (r.json() or {}).get("items") or []
@@ -97,7 +122,7 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE,
             source="vocadb",
             title=title,
             # 「ハチ feat. 初音ミク」。feat. の前が作者なので、そのまま出すと曲の並びで読みやすい
-            artist=(it.get("artistString") or "").strip(),
+            artist=artist_name(it),
             album=None,
             image=image,
             thumb=image,
@@ -127,7 +152,7 @@ _pv_cache: dict[tuple[str, str], tuple[float, str]] = {}   # (サービス, 動�
 
 async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
                        client: httpx.AsyncClient | None = None) -> str:
-    """動画 ID から VocaDB の `artistString`（「マチゲリータ feat. 初音ミク」の形）。無い・失敗なら空文字"""
+    """動画 ID から VocaDB の作者と歌声（「マチゲリータ feat. 初音ミク」の形、`artist_name`）。無い・失敗なら空文字"""
     key = (service, pv_id)
     now = time.monotonic()
     hit = _pv_cache.get(key)
@@ -138,10 +163,10 @@ async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
     name = ""
     try:
         async with _PV_SEM:
-            r = await client.get(BY_PV, params={"pvService": service, "pvId": pv_id, "lang": "Japanese"},
+            r = await client.get(BY_PV, params={"pvService": service, "pvId": pv_id, "fields": "Artists", "lang": "Japanese"},
                                  headers={"User-Agent": UA}, timeout=PV_TIMEOUT)
         if r.status_code == 200 and r.content.strip() not in (b"", b"null"):
-            name = ((r.json() or {}).get("artistString") or "").strip()
+            name = artist_name(r.json() or {})
     except (httpx.HTTPError, ValueError):
         return ""   # 失敗は覚えない（一時的な不調で空が 1 日固定されないように）
     finally:
@@ -206,7 +231,7 @@ def _parts(artist_string: str) -> tuple[list[str], list[str]]:
 
 
 async def artist_by_title(title: str, *, client: httpx.AsyncClient | None = None) -> str:
-    """動画の題から VocaDB の曲を探し、確かなときだけ `artistString` を返す。無い・失敗なら空文字"""
+    """動画の題から VocaDB の曲を探し、確かなときだけ作者と歌声（`artist_name`）を返す。無い・失敗なら空文字"""
     from backend.merge import _n
     now = time.monotonic()
     hit = _title_cache.get(title)
@@ -222,18 +247,18 @@ async def artist_by_title(title: str, *, client: httpx.AsyncClient | None = None
             async with _PV_SEM:
                 r = await client.get(API, params={
                     "query": q, "maxResults": 10, "nameMatchMode": "Auto", "sort": "RatingScore",
-                    "preferAccurateMatches": "true", "fields": "Names", "lang": "Japanese",
+                    "preferAccurateMatches": "true", "fields": "Names,Artists", "lang": "Japanese",
                 }, headers={"User-Agent": UA}, timeout=PV_TIMEOUT)
             r.raise_for_status()
             strong = ""
-            weak: dict[str, float] = {}   # artistString → 評価（同じ作者の別名義の曲は大きいほう）
+            weak: dict[str, float] = {}   # アーティスト名 → 評価（同じ作者の別名義の曲は大きいほう）
             for it in (r.json() or {}).get("items") or []:
                 if it.get("songType") != "Original":
                     continue
                 names = [it.get("name") or ""] + [n.get("value") or "" for n in it.get("names") or []]
                 if not any(len(_n(n)) >= 2 and _n(n) in nt for n in names):
                     continue
-                artist = (it.get("artistString") or "").strip()
+                artist = artist_name(it)
                 makers, voices = _parts(artist)
                 if voiced and not any(len(_n(v)) >= 2 and _n(v) in nt for v in voices):
                     continue

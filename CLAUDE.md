@@ -460,6 +460,11 @@ claude --remote-control TRACKMENTO                                             #
     あればその歌声の曲」で、さらに「題に作者名が入っている」か「当てはまる原曲が 1 つ、または評価が 2 番目の
     `WEAK_LEAD`（5）倍以上」のときだけ。利用者の 25 曲で 24 曲が正しい作者、1 曲が空欄、誤り 0。
     絞る前は「歌ってみた」「MAD」という語そのものや、同名の別の原曲（「ハロー」「ロキ」の GUMI 版）の作者を拾っていた
+  - **アーティスト名から発行元だけの名前を外す**（`vocadb.artist_name`、2026-09-19、利用者の指摘）。`artistString` は
+    発行元のサークルも並べるので「kz, Google feat. 初音ミク」（Tell Your World は Google Chrome の CM 曲）や
+    「マチゲリータ, ProjectDIVAチャンネル feat. 初音ミク」になっていた。`fields=Artists` の役割（roles）が
+    Publisher / Distributor だけの名前を抜く。**作曲者だけで組み直してはいけない**（「Omoi」のような作り手のユニットは
+    サークル扱いなので消える）。検索・動画 ID・題からの補完の 3 つとも同じ関数を通す
   - **キーは要らない**。データは CC ライセンスなので、画面のフッターに出典が出る（`#foot-sources` が自動）
   - ソースを足すときに触る所: `backend/sources/<名前>.py`、`backend/models.py` の `Source`、
     `backend/main.py` の import と `SOURCES`、frontend の `SOURCE_LABEL` / `ALL_SOURCES` / `SOURCE_ORDER`、
