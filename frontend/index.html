@@ -4760,10 +4760,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   const fontBold = (px) => `700 ${px}px "IBM Plex Sans JP"`, fontRegular = (px) => `400 ${px}px "IBM Plex Sans JP"`, fontPixel = (px) => `700 ${px}px "Silkscreen"`;
   /* 出力の最大辺。既定 2400（X のタイムライン表示は最大 約1200px 幅なので十分。保存容量は 3200 の約 0.56 倍）。
-     メモリの少ない端末は 2000。Safari は deviceMemory を出さないので 2400 */
+     メモリの少ない端末は 2000。Safari は deviceMemory を出さないので 2400。
+     **指で触る端末（スマホ・タブレット）も 2000**（2026-09-19）。点検で共有画像の送信が 5% 以上 20 秒を超え、
+     最長 155 秒・「やめる」3 件だった。サーバーは空いていて、遅いのは端末の上り。2000px・品質 0.78 で
+     送るバイトが約 3 割減る（実測 465KB → 327KB）。X の表示は最大 約1200px 幅なので見た目は変わらない */
   function shareMaxSide() {
     const mem = navigator.deviceMemory;
-    return mem !== undefined && mem <= 2 ? 2000 : 2400;
+    if (mem !== undefined && mem <= 2) return 2000;
+    return window.matchMedia("(pointer: coarse)").matches ? 2000 : 2400;
   }
   const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent) || location.hash === "#inapp";
   /* アプリ内ブラウザなら外部ブラウザを勧める帯を出す（「閉じる」でそのタブの間は出さない） */
@@ -5188,7 +5192,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 501KB → 413KB（-17%）で、見分けはつきにくい（X は投稿時に再圧縮するのでなおさら）。
     // 上り回線の細い端末で送信に 81 秒かかっていたのを短くするため
     const LIMIT = 4900000;   // X の画像添付は 5 MB まで（サーバー描画と同じ判定）
-    const Q = 0.82;
+    const Q = 0.78;   // backend/share.py の JPEG_QUALITY と同じ。0.82 から下げた（2026-09-19、送信の時間を縮めるため）
     let c = canvas, png = await canvasToBlob(c, "image/jpeg", Q);
     for (let i = 0; i < 3 && png.size > LIMIT; i++) { c = scaledCanvas(c, Math.max(0.6, Math.sqrt(LIMIT / png.size) * 0.97)); png = await canvasToBlob(c, "image/jpeg", Q); }
     // **カード用（1200×630）はもう作らない**（2026-09-16）。サーバーが本体から作る（実測 57ms）。

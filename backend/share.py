@@ -40,7 +40,7 @@ OG_W, OG_H = 1200, 630            # リンクカード（X の summary_large_ima
 MAX_IMAGE_BYTES = 4_900_000       # X の画像添付は 5 MB まで。公開モードではこれに収まるまで縮小する
 MAX_PNG_BYTES = MAX_IMAGE_BYTES   # 旧名
 IMAGE_EXT = "jpg"                 # 本体は JPEG（品質 90、色差は間引かない）。PNG の 1/6 程度で、X は投稿時に再圧縮するので見た目は変わらない
-JPEG_QUALITY = 82   # ブラウザ側の encodeShare と同じ。90 から下げた（-17%。見分けはつきにくい）
+JPEG_QUALITY = 78   # ブラウザ側の encodeShare と同じ。90 → 82（-17%）→ 78（2026-09-19、送信の時間を縮めるため）
 
 
 def _encode_image(im: Image.Image, limit: int) -> tuple[bytes, Image.Image]:
