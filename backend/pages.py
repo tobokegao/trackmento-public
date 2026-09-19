@@ -25,6 +25,7 @@ NAV = {"ja": ("画面へ戻る", "使い方", "プライバシーポリシー", 
        "en": ("Back to the app", "How to use", "Privacy policy", "About", "Updates")}
 UPDATED = {"ja": "最終更新: 2026年9月18日", "en": "Last updated: September 18, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
+CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
 
 
 def _guide(lang: str, days: int) -> str:
@@ -213,8 +214,9 @@ among other work.</p>
 services, such as Vocaloid songs, otomad and doujin music, and was later released to the public as a web service.</p>
 
 <h2>Contact</h2>
-<p>For questions, bug reports or requests to delete shared data, please use the contact details listed on the
-<a href="{en_url}" rel="noopener">official site</a>. When asking about shared data, please be sure to include the share URL.</p>
+<p>For questions, bug reports, requests or deletion of shared data, please use the
+<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">contact form</a>. When asking about shared data, please be sure to include the share URL.
+You can also reach us through the contact details on the <a href="{en_url}" rel="noopener">official site</a>.</p>
 
 <h2>Supporting development and operation</h2>
 <p>Anyone can use TRACKMENTO for free. If you would like to support the server costs and continued development, buying or listening to
@@ -230,7 +232,7 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 <p>ボカロ曲や音MAD、同人音楽など、サブスクリプションサービスでは配信されていない作品も含めて「私を構成する曲」の画像を作りたい、という自分用のツール開発からスタートし、Webサービスとして一般公開しました。</p>
 
 <h2>お問い合わせ</h2>
-<p>ご質問、不具合のご報告、共有データの削除依頼などは、<a href="{ja_url}" rel="noopener">公式サイト</a>に記載の連絡先よりお願いいたします。共有データに関するお問い合わせの際は、必ず対象の共有URLを添えてご連絡ください。</p>
+<p>ご質問、不具合のご報告、ご要望、共有データの削除依頼などは、<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>よりお願いいたします。共有データに関するお問い合わせの際は、必ず対象の共有URLを添えてご連絡ください。<a href="{ja_url}" rel="noopener">公式サイト</a>に記載の連絡先からもご連絡いただけます。</p>
 
 <h2>開発・運営のサポートについて</h2>
 <p>TRACKMENTO はどなたでも無料でご利用いただけます。サーバー代や開発の継続をご支援いただける方は、<a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" rel="noopener noreferrer">Bandcamp</a>にて楽曲をご購入・ご試聴いただけますと大きな励みになります。</p>
@@ -378,7 +380,7 @@ def _updates(lang: str, days: int) -> str:
 <ul>
 <li><b>The page won’t open:</b> switch between Wi-Fi and mobile data, or try another browser. School or work networks may temporarily block newly registered domains with security filters.</li>
 <li><b>Sharing takes a long time:</b> upload speed depends on your connection. Please try somewhere with good reception.</li>
-<li><b>Still not solved:</b> please contact us using the details on the <a href="/about?lang=en">About</a> page, with the date and time, your device and browser, and what you were doing.</li>
+<li><b>Still not solved:</b> please tell us through the <a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">contact form</a>, with the date and time, your device and browser, and what you were doing.</li>
 </ul>
 """
     return f"""
@@ -396,7 +398,7 @@ def _updates(lang: str, days: int) -> str:
 <ul>
 <li><b>ページが開けない場合：</b>Wi-Fiとモバイル回線を切り替えるか、別のブラウザでお試しください。学校や職場のネットワークでは、新設ドメインがセキュリティフィルターによって一時的に制限されている場合があります。</li>
 <li><b>共有に時間がかかる場合：</b>画像の送信速度はお使いの通信回線に左右されます。電波状況の良い場所でお試しください。</li>
-<li><b>それでも解決しない場合：</b><a href="/about">運営者ページ</a>記載の連絡先より、発生した日時・ご利用環境・具体的な操作内容を添えてお問い合わせください。</li>
+<li><b>それでも解決しない場合：</b><a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>より、発生した日時・ご利用環境・具体的な操作内容を添えてお知らせください。</li>
 </ul>
 """
 

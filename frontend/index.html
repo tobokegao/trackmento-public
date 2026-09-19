@@ -1481,6 +1481,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      新ドメイン側はそれを自分の localStorage に書いてから、`#` を外して読み込み直す。
      MIGRATE_TO はサーバーが埋める（移転中の古いホストで開いたときだけ中身が入る）。 */
   const MIGRATE_TO = "__MIGRATE__";
+  const CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8";   // お問い合わせフォーム（backend/pages.py の CONTACT_FORM と同じ）
   const HANDOFF = "#tm=";
   const HANDOFF_MAX = 1200000;   // フラグメントの上限（これを超えるなら引き継がずに移動する）
   let MIGRATING = false;         // 引っ越し中は保存しない（空の状態で上書きしないため）
@@ -1823,6 +1824,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "アップロード中…（{} MB）": "Uploading… ({0} MB)",
         "{} × {} px の画像と共有 URL ができました。": "Made a {0} × {1} px image and a share URL.",
         "共有できませんでした（{}）。": "Sharing failed ({0}).",
+        "何度も失敗する場合はこちらからお知らせください": "If it keeps failing, please let us know here",
         "トラック共有サイト #TRACKMENTO からシェア:「{}」": "Shared from #TRACKMENTO, the track-grid maker: \"{0}\"",
         "共有 {} の並びを読み込みました（{} 曲）。この画面での変更は自分のグリッドとして保存されます。": "Loaded the layout from share {0} ({1} tracks). Changes you make here are saved as your own grid.",
         "共有 {} を読み込めませんでした（{}）。": "Could not load share {0} ({1})."
@@ -5331,6 +5333,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       hiccup("share_fail");
       setBtnState(els.shareBtn, "error");
       say(els.gridMsg, tr`共有できませんでした（${err.message}）。`, "error");
+      // 何度も失敗する人が行き止まりにならないよう、お問い合わせフォームへの道を添える（2026-09-19）
+      const ask = document.createElement("a");
+      ask.href = CONTACT_FORM; ask.target = "_blank"; ask.rel = "noopener noreferrer"; ask.textContent = tr("何度も失敗する場合はこちらからお知らせください");
+      els.gridMsg.append(" ", ask);
       setTimeout(() => setBtnState(els.shareBtn, null), 2500);
     }
   });
