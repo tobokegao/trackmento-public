@@ -110,10 +110,10 @@ const Intro: React.FC<{ L: Layout }> = ({ L }) => {
 };
 
 // ---- 字幕（上段 日本語・下段 英語） ----
-const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.ReactNode; delay?: number }> = ({ L, jp, en, children, delay = 0 }) => {
+const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.ReactNode; delay?: number; still?: boolean }> = ({ L, jp, en, children, delay = 0, still }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - delay, fps, config: { damping: 12, stiffness: 170 } });
+  const s = still ? 1 : spring({ frame: frame - delay, fps, config: { damping: 12, stiffness: 170 } });
   if (frame < delay) return null;
   // 日本語版は日本語を主役に英語を添える。英語版は英語だけ（添えるものが無い）
   const head = L.lang === "ja" ? jp : en;
@@ -321,7 +321,12 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
         {names.slice(0, idx + 1).map((n, i) => {
           const k = spring({ frame: frame - at[i], fps, config: { damping: 11, stiffness: 320 } });
           // 枠は無し。画面全体（字幕の帯の下から下端まで）に散らばらせる（v7、利用者の指定）
-          const rot = (rnd(i, 1) - 0.5) * 30, dx = (rnd(i, 2) - 0.5) * (tall ? 70 : 150), dy = (rnd(i, 3) - 0.5) * (tall ? 150 : 90) + (tall ? 10 : 6);
+          // 升目 4×4 に決まった順（真ん中と端が交互）で 1 枚ずつ置き、その中で揺らす（v9、利用者の指定: 終盤が真ん中に寄っていた）
+          const SLOTS = [0, 15, 5, 10, 3, 12, 6, 9, 1, 14, 7, 8, 2, 13, 4, 11];
+          const slot = SLOTS[i % 16], gx = (slot % 4) / 3 - 0.5, gy = Math.floor(slot / 4) / 3 - 0.5;
+          const rot = (rnd(i, 1) - 0.5) * 30;
+          const dx = gx * (tall ? 80 : 150) + (rnd(i, 2) - 0.5) * (tall ? 18 : 30);
+          const dy = gy * (tall ? 170 : 100) + (rnd(i, 3) - 0.5) * (tall ? 20 : 16) + (tall ? 10 : 6);
           return (
             <div key={n} style={{ position: "absolute", left: "50%", top: "50%", width: tall ? "62%" : "34%", transform: `translate(-50%, -50%) translate(${dx}%, ${dy}%) rotate(${rot}deg) scale(${1.25 - k * 0.25})`, opacity: Math.min(1, k * 1.6) }}>
               <div style={{ background: "#fff", padding: tall ? 10 : 8, boxShadow: `6px 6px 0 ${C.ink}`, border: `3px solid ${C.ink}` }}>
@@ -476,7 +481,7 @@ const NewUrl: React.FC<{ L: Layout }> = ({ L }) => {
           {ja ? "新しい URL になりました" : "We have a new address"}
         </div>
         <div style={{ position: "relative", opacity: sOld }}>
-          <div style={urlBox(false)}>trackmento.onrender.com</div>
+          <div style={{ ...urlBox(false), fontSize: tall ? 40 : 56, padding: tall ? "12px 26px" : "14px 34px" }}>trackmento.onrender.com</div>
           <div style={{ position: "absolute", left: 20, right: 20, top: "50%", height: 6, marginTop: -3, background: C.vermilion, transformOrigin: "0 50%", transform: `scaleX(${strike})` }} />
         </div>
         <div style={{ fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 70 : 64, color: C.ink, opacity: sNew, transform: `translateY(${(1 - sNew) * -20}px)` }}>↓</div>
@@ -493,20 +498,27 @@ const NewUrl: React.FC<{ L: Layout }> = ({ L }) => {
 // 1 小節目: 画面いっぱいの見出しを 2 拍で中央まで縮め、残り 2 拍で見出しが上がりつつ 4 行が出る
 // 2 小節目: 「画質はそのまま」を 8 分音符で点滅させ続ける
 type NumRow = { jp: string; en: string; from: string; to: string };
-const Bandwidth: React.FC<{ L: Layout; title?: [string, string]; rows?: NumRow[]; blink?: [string, string] }> = ({ L, title = ["さらに軽くなりました", "Even lighter now"], rows = BANDWIDTH_ROWS, blink = ["画質はそのまま", "Same image quality"] }) => {
+/** 場面の切り替えで横へ流す長さ（v9。6–7 → 8–9 の切り替え）。半拍 */
+const PAN_BEATS = 0.5;
+const Bandwidth: React.FC<{ L: Layout; title?: [string, string]; rows?: NumRow[]; blink?: [string, string]; slideIn?: boolean; slideOutAt?: number }> = ({ L, title = ["さらに軽くなりました", "Even lighter now"], rows = BANDWIDTH_ROWS, blink = ["画質はそのまま", "Same image quality"], slideIn, slideOutAt }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const beatLen = beatFrame(1) - beatFrame(0);
   const tall = L.kind === "tall";
   const ja = L.lang === "ja";
 
-  const shrink = interpolate(frame, [0, Math.round(beatLen * 1.1)], [3, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.exp) });
+  // 右から入るときは、画面いっぱいの見出しから縮める演出はしない（横に流れてくる）
+  const shrink = slideIn ? 1 : interpolate(frame, [0, Math.round(beatLen * 1.1)], [3, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.exp) });
+  const panLen = Math.round(beatLen * PAN_BEATS);
+  const panIn = slideIn ? interpolate(frame, [0, panLen], [L.W, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }) : 0;
+  const panOut = slideOutAt !== undefined ? interpolate(frame, [slideOutAt, slideOutAt + panLen], [0, -L.W], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }) : 0;
   const rise = spring({ frame: frame - beatLen * 2, fps, config: { damping: 14, stiffness: 110 } });
   const eighth = beatLen / 2;
   const blinkFrom = beatLen * 4 + eighth;                          // 2 小節目の裏拍から
   const blinkOn = frame >= blinkFrom && Math.floor((frame - blinkFrom) / eighth) % 2 === 0;
 
   return (
+    <div style={{ position: "absolute", inset: 0, transform: `translateX(${panIn + panOut}px)` }}>
     <Paper>
       <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: tall ? "0 60px" : "0 200px" }}>
@@ -536,6 +548,7 @@ const Bandwidth: React.FC<{ L: Layout; title?: [string, string]; rows?: NumRow[]
         </div>
       </AbsoluteFill>
     </Paper>
+    </div>
   );
 };
 
@@ -559,9 +572,12 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
       </Sequence>
 
       <Sequence from={beatFrame(NEWURL_BEAT)} durationInFrames={beatFrame(NEWURL_BEAT + BAR * 2) - beatFrame(NEWURL_BEAT)} name="NewUrl"><NewUrl L={L} /></Sequence>
-      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(BANDWIDTH_BEAT + BAR * 2) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth"><Bandwidth L={L} /></Sequence>
+      {/* 6–7 は 8 小節の頭で左へ流れて見切れる（そのぶん半拍だけ長く出す）。8–9 は同時に右から入る（v9） */}
+      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(FASTER_BEAT + PAN_BEATS) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth">
+        <Bandwidth L={L} slideOutAt={beatFrame(FASTER_BEAT) - beatFrame(BANDWIDTH_BEAT)} />
+      </Sequence>
       <Sequence from={beatFrame(FASTER_BEAT)} durationInFrames={beatFrame(FASTER_BEAT + BAR * 2) - beatFrame(FASTER_BEAT)} name="Faster">
-        <Bandwidth L={L} title={["共有がさらに速く", "Sharing is faster"]} rows={FASTER_ROWS} blink={["X での見た目はほぼそのまま", "Looks the same on X"]} />
+        <Bandwidth L={L} slideIn title={["共有がさらに速く", "Sharing is faster"]} rows={FASTER_ROWS} blink={["X での見た目はほぼそのまま", "Looks the same on X"]} />
       </Sequence>
 
       <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
@@ -588,7 +604,7 @@ function shotSeq(L: Layout, s: Shot, next: number, base: number) {
                 {/* 札はタイトルの裏に回す（先に描くと字幕が上に来る） */}
                 {s.ab && <AbBadge L={L} />}
                 {s.scrap && <div style={{ position: "absolute", inset: 0, zIndex: 2 }}><Caption L={L} jp={s.jp} en={s.en} /></div>}
-                {!s.scrap && <Caption L={L} jp={s.jp} en={s.en} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>}
+                {!s.scrap && <Caption L={L} jp={s.jp} en={s.en} still={s.capStill} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>}
                 {!s.scrap && <Phone L={L} fx={s.fx}>
                   {s.stills ? (
                     <Stills L={L} shot={s} />

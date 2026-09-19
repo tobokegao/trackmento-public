@@ -108,6 +108,7 @@ export type Shot = {
   stills?: string[];                                                                              // 録画ではなく静止画（public/stills/<名前>.png、横は -pc）を順に出す
   stillBeats?: number[];                                                                          // stills を切り替える拍（ショットの頭からの拍数）
   labels?: { jp: string; en: string }[];                                                          // stills ごとの添え書き
+  capStill?: boolean;                                                                             // 字幕を動かさずに出したまま（前のショットから続けて見せる）
   scrap?: boolean;                                                                                // stills をスクラップブックのように角度・位置をばらして重ねていく（v6）
   explorer?: { ev: string; beats?: [number, number, number]; hide?: number; file?: string };  // hide = 窓を引っ込める拍、file = 出すファイル名（録画に名前が無いとき）                                     // beats = ショットの頭からの拍（窓が出る・ファイルが入る・選択の青が点滅し始める）                                                                      // その操作の時刻に「ファイルが保存された」窓を重ねる（v6、パレットの保存）
 };
@@ -124,13 +125,13 @@ export const SHOTS: Shot[] = [
   // v6: 見つかった並びの共有ページの中まで開く
   { beat: bar(11), len: 4, ev: "find:open", off: -1.2, rec: "feat", speed: 1.6, jp: "曲名で、みんなの並びを探せる", en: "Search everyone's grids by track" },
   // v6: 並びを保存 → 全部外す → 読み込みで戻る（v3 の頃の GIF「並びを保存／読み込み」と同じ流れ）
-  { beat: bar(12), len: 4, ev: "io:save", off: -0.2, rec: "feat", speed: 4, jp: "並びを保存して、\n読み込みで復活", en: "Save your layout, load it back any time",
-    explorer: { ev: "io:save", beats: [0.25, 0.5, 1], hide: 2, file: "trackmento-grid-2026-09-19.json" } },
-  { beat: bar(13), len: 4, ev: "pal:pop", off: -0.5, rec: "feat", speed: 1.2, jp: "パレットで配色ごと切り替え", en: "Palettes swap the whole colour scheme" },
+  { beat: bar(12), len: 8, ev: "io:save", off: -0.2, rec: "feat", speed: 2, jp: "並びを保存して、\n読み込みで復活", en: "Save your layout, load it back any time",
+    explorer: { ev: "io:save", beats: [0.5, 1, 2], hide: 4, file: "trackmento-grid-2026-09-19.json" } },
+  { beat: bar(14), len: 4, ev: "pal:pop", off: -0.5, rec: "feat", speed: 1.2, jp: "パレットで配色ごと切り替え", en: "Palettes swap the whole colour scheme" },
   // v6: 自作の組をファイルに保存するまで（2 小節）。保存先の窓を重ねて見せる
-  // 保存を押す時刻を 15.2（窓が出る合図）にそろえる速さ。窓 15.2 → ファイル 15.3 → 選択の青が 16 分で点滅 15.4（キメのレーン）
-  { beat: bar(14), len: 8, ev: "pal:copy", off: -0.3, rec: "feat", speed: 2.75, jp: "自作パレットは共有可能", en: "Share your own palette as a file",
-    explorer: { ev: "pal:saved", beats: [5, 6, 7] } },
+  // v9: 1 小節。組ができたところから。保存を押す時刻を 15.2（窓が出る合図）にそろえる。窓 15.2 → ファイル 15.3 → 青の点滅 15.4
+  { beat: bar(15), len: 4, ev: "pal:saved", off: -0.55, rec: "feat", speed: 1.2, jp: "自作パレットは共有可能", en: "Share your own palette as a file",
+    explorer: { ev: "pal:saved", beats: [1, 2, 3] } },
   // v6: 見つかった曲をマスに入れるところまで
   { beat: bar(16), len: 4, ev: "add:vocadb", off: -2.0, rec: "feat", speed: 2, jp: "VocaDB でサブスクに無い曲も", en: "VocaDB finds what streaming doesn't", zoomPc: { x: 0, y: 0.4, s: 1.6 } },
   { beat: bar(17), len: 4, ev: "start", off: 0, rec: "feat", jp: "曲名リストが賢くなりました", en: "Smarter track lists", scrap: true,
@@ -171,8 +172,9 @@ export const SHOTS: Shot[] = [
 
 /** エンドカードのあとの録画（49–50 小節）。音楽はフェードの途中 */
 export const TAIL_SHOTS: Shot[] = [
-  // 1 ショットにまとめる（v5 で 2 ショットに分けたら字幕が 2 回出た）。更新情報のページを開いて下へ送るまで
-  { beat: bar(49), len: 8, ev: "updates:page", off: -0.2, rec: "feat", jp: "困ったら\n「更新情報」と「使い方」", en: "Stuck? See Updates and the Guide" },
+  // v9: 更新情報 1 小節・使い方 1 小節（どちらもスクロールしない）。字幕は 1 回だけ出し、2 つ目は出したまま（capStill）
+  { beat: bar(49), len: 4, ev: "updates:page", off: -0.1, speed: 0.8, rec: "feat", jp: "困ったら\n「更新情報」と「使い方」", en: "Stuck? See Updates and the Guide" },
+  { beat: bar(50), len: 4, ev: "guide:page", off: -0.1, speed: 0.8, rec: "feat", capStill: true, jp: "困ったら\n「更新情報」と「使い方」", en: "Stuck? See Updates and the Guide" },
 ];
 
 /** 8–9 小節「共有がさらに速く」（作った画）。2026-09-19 にスマホの共有画像を小さくした（最大辺 2000px・JPEG 0.78） */
