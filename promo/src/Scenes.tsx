@@ -582,7 +582,7 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
         <Bandwidth L={L} slideOutAt={beatFrame(FASTER_BEAT) - beatFrame(BANDWIDTH_BEAT)} />
       </Sequence>
       <Sequence from={beatFrame(FASTER_BEAT)} durationInFrames={beatFrame(FASTER_BEAT + BAR * 2) - beatFrame(FASTER_BEAT)} name="Faster">
-        <Bandwidth L={L} slideIn title={["共有がさらに速く", "Sharing is faster"]} rows={FASTER_ROWS} blink={["X での見た目はほぼそのまま", "Looks the same on X"]} />
+        <Bandwidth L={L} slideIn title={["共有がさらに速く", "Sharing is faster"]} rows={FASTER_ROWS} blink={["SNS上での画質はほぼそのまま", "Image quality holds up on social media"]} />
       </Sequence>
 
       <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
