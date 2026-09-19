@@ -351,6 +351,7 @@ class Layout:
     wrap_segs: tuple[tuple[int, int, int], ...] = ()    # 行ごとの (x, y, 幅)。左段 → 右段の順
     wrap_rows: bool = False                             # 段が 1 曲ずつ（マスの横に並べる）
     sb_inline: bool = False                             # 1 行型（曲名の右端にアーティスト名を右寄せ。`_inline_one_line`）
+    wrap_tx: int = 0                                    # タイトルの左端（0 なら wrap_pad）。比率なしの「マスごと」は右の列の上
 
 
 # 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
@@ -865,6 +866,7 @@ class WrapPlan(NamedTuple):
     use: float = 1.0      # 文字の置き場所のうち実際に使った割合（帯・柱でだけ 1 未満になる）
     rows_mode: bool = False   # 段を 1 曲ずつマスの横に並べる（柱・1 列の並びだけ）
     pct: int = 0          # 枠が塊の何 % か（回り込みで、枠を変えずに字を詰め直すときに使う）
+    tx: int = 0           # タイトルの左端（0 なら pad）。比率なしの「マスごと」は右の列の上に置く
 
 
 # ---- 帯・柱: マスの塊を枠の辺にぴったり付ける組み方 ----
@@ -1055,6 +1057,14 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
     x0 = gx + gw + wgap
     if seg_w < LIST_MIN_COL:
         return None
+    # **比率なしは、タイトルを右の列（曲名リスト）の上に置く**（2026-09-19、利用者の指定）。
+    # 帯の高さはそのまま（マスと曲名の段のそろいを崩さない）で、置く場所と幅だけ右の列に合わせる。
+    # 右の列の幅に入る大きさが本文の SLAB_TITLE_MIN 倍を割るなら、今までどおり枠の上端いっぱい
+    tx = 0
+    if title_h and ratio is None:
+        fit = _title_fit(_one_line(doc.title), t_size, seg_w)
+        if fit >= math.ceil(font_s * SLAB_TITLE_MIN):
+            t_size, tx = min(t_size, fit), x0
     if side_by_side:
         # 段のマスと同じ並びで横に置く（マスと同じ「左から右へ、次の段へ」の順）
         col_w = (seg_w - wgap * (cols - 1)) // cols
@@ -1067,7 +1077,7 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
         off = rnd((pitch - per * cols) / 2)
         segs = tuple((x0, gy + (i // cols) * pitch + off + (i % cols) * per, seg_w)
                      for i in range(len(doc.cells)))
-    return WrapPlan(W, H, scale, font_s, per, t_size, t_h, pad, pad, gx, gy, segs, [], 1.0, True)
+    return WrapPlan(W, H, scale, font_s, per, t_size, t_h, pad, pad, gx, gy, segs, [], 1.0, True, tx=tx)
 
 
 def _slab_stack(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
@@ -1699,7 +1709,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         if rp and (ratio is None or sb_flow or rp.scale >= scale):
             return Layout(rp.W, rp.H, rp.scale, rp.gx, rp.gy, gw, gh, title, rp.title_size, rp.title_h,
                           side, 0, 0, 1, rp.line_h, rp.font_s, sb_gap, True, (), (),
-                          True, rp.pad, rp.top, rp.segs, True)
+                          True, rp.pad, rp.top, rp.segs, True, wrap_tx=rp.tx)
     if sb_flow and ratio is not None:
         from backend.config import max_side
         wp = _wrap_plan(doc, gw, gh, title_h, ratio, m, max_side())
@@ -1832,8 +1842,9 @@ def render(doc: GridDoc) -> Image.Image:
             # **字面（インク）の中心を帯の中心に置く**。PIL の anchor="lm"（上下の伸びの中心）と
             # Canvas の textBaseline="middle"（em ボックスの中心）は基準がずれていて、
             # 回り込みではタイトルが大きいぶん出力で 15px ほど食い違った
-            t = _ellipsize(d, L.title, f_title, (L.W - L.wrap_pad * 2) * S)
-            d.text((sc(L.wrap_pad), sc(L.wrap_top + L.title_h / 2) + rnd(max(8, sc(L.title_size)) * BASELINE)),
+            tx = L.wrap_tx or L.wrap_pad
+            t = _ellipsize(d, L.title, f_title, (L.W - L.wrap_pad - tx) * S)
+            d.text((sc(tx), sc(L.wrap_top + L.title_h / 2) + rnd(max(8, sc(L.title_size)) * BASELINE)),
                    t, font=f_title, fill=ink, anchor="ls")
     elif L.title and L.side != "right":
         d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f_title, L.gw * S), font=f_title, fill=ink, anchor="lm")

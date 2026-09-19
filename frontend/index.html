@@ -3460,6 +3460,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     const gx = pad, gy = pad + topH, x0 = gx + gw + wgap;
     if (segW < LIST_MIN_COL) return null;
+    // 比率なしは、タイトルを右の列（曲名リスト）の上に置く（backend/render.py の _slab_rows と同じ）。
+    // 帯の高さはそのまま。右の列に入る大きさが本文の SLAB_TITLE_MIN 倍を割るなら枠の上端いっぱい
+    let tx = 0;
+    if (titleH && ratio === null) {
+      const fit = titleFit(oneLine(state.title), tSize, segW);
+      if (fit >= Math.ceil(fontS * SLAB_TITLE_MIN)) { tSize = Math.min(tSize, fit); tx = x0; }
+    }
     let segs;
     if (beside) {
       // 段のマスと同じ並びで横に置く（マスと同じ「左から右へ、次の段へ」の順）
@@ -3474,7 +3481,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         [x0, gy + Math.floor(i / cols) * pitch + off + (i % cols) * per, segW]);
     }
     return { W, H, scale, fontS, lineH: per, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
-             segs, rows: [], use: 1, rowsMode: true };
+             segs, rows: [], use: 1, rowsMode: true, tx };
   }
   const SLAB_TARGET_PX = [96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14];
   // 文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る
@@ -4232,7 +4239,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         return { W: rp.W, H: rp.H, scale: rp.scale, ox: rp.gx, oy: rp.gy, gw, gh, title,
                  titleSize: rp.titleSize, titleH: rp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
                  lineH: rp.lineH, fontS: rp.fontS, sbGap, sbFlow: true, sbPlan: [],
-                 wrap: true, wrapPad: rp.pad, wrapTop: rp.top, wrapSegs: rp.segs, wrapRows: true };
+                 wrap: true, wrapPad: rp.pad, wrapTop: rp.top, wrapSegs: rp.segs, wrapRows: true, wrapTx: rp.tx };
       }
     }
     if (sbFlow && ratio !== null) {
@@ -4946,7 +4953,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         // **字面（インク）の中心を帯の中心に置く**（backend/render.py と同じ。基準線の取り方が
         // PIL と Canvas で違い、タイトルが大きいと出力で 15px ほど食い違う）
         ctx.font = titleFont; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(ink);
-        ctx.fillText(ellipsizeText(ctx, oneLine(L.title), (L.W - L.wrapPad * 2) * S), sc(L.wrapPad),
+        const tx = L.wrapTx || L.wrapPad;
+        ctx.fillText(ellipsizeText(ctx, oneLine(L.title), (L.W - L.wrapPad - tx) * S), sc(tx),
                      sc(L.wrapTop + L.titleH / 2) + Math.round(Math.max(8, sc(L.titleSize)) * BASELINE));
       }
     } else if (L.title && L.side !== "right") {

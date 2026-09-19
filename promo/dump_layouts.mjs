@@ -26,7 +26,7 @@ const res = await page.evaluate(async ({ combos, tracks }) => {
     const L = window.__layoutFor(q, 2400);
     got.push([c, r, q, L.W, L.H, Math.round(L.scale * 1e9), L.fontS, L.lineH, L.ox, L.oy,
               L.titleSize, L.titleH, L.wrap ? 1 : 0, L.wrapPad, L.wrapTop, L.wrapSegs.length,
-              L.sbCols, L.side, L.sbFlow ? 1 : 0, L.sbInline ? 1 : 0]);
+              L.sbCols, L.side, L.sbFlow ? 1 : 0, L.sbInline ? 1 : 0, L.wrapTx || 0]);
   }
   return got;
 }, { combos, tracks });
