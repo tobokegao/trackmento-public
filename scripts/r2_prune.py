@@ -14,6 +14,7 @@ SHORT_PREFIXES のものは共有より短い期限で消す:
   - imgcache/ … 画像キャッシュ。SQLite 側の索引が 6 日（cache.R2_IMAGE_TTL）で無効になるので、
                 それより長く置いても二度と使われない。共有の期限を延ばしたときに道連れで
                 太らせないため、ここだけ分けてある
+  - searchcache/ … 検索結果の控え（backend/searchcache.py）。索引が 6 日で無効になるので、imgcache/ と同じく 7 日で消す
 
 削除後に使用量を取り直して表示する。
 """
@@ -36,7 +37,7 @@ from backend import storage  # noqa: E402
 # 古くても消さないもの（前方一致）。共有の期限とは無関係に置いておく必要があるファイル
 KEEP_PREFIXES = ("fonts/",)
 # 共有より短い期限で消すもの（前方一致 → 時間数）。既定は --image-cache-hours で上書きできる
-SHORT_PREFIXES = ("imgcache/",)
+SHORT_PREFIXES = ("imgcache/", "searchcache/")   # searchcache/ は検索結果の控え（backend/searchcache.py、索引は 6 日）
 
 
 def main() -> int:

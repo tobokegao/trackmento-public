@@ -30,8 +30,8 @@ from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, housekeeping, imgtools, netguard, pages, render, share, shareindex, storage, uploads
-from backend.cache import R2_IMAGE_TTL, cache
+from backend import grids, housekeeping, imgtools, netguard, pages, render, searchcache, share, shareindex, storage, uploads
+from backend.cache import R2_IMAGE_TTL, _search_ttl, cache
 from backend.logutil import brief
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, migrate_to, public_base_url, public_mode,
                             rate_limit_per_minute, share_budget_bytes, share_limits, share_retention_days, trust_proxy)
@@ -144,6 +144,7 @@ async def lifespan(app: FastAPI):
     seed = asyncio.create_task(_seed_share_count()) if public_mode() and st.is_remote else None
     imgidx = asyncio.create_task(_seed_image_index()) if st.is_remote else None
     listed = asyncio.create_task(_seed_listed_index())
+    srchidx = asyncio.create_task(_seed_search_index()) if st.is_remote else None
     app.state.http = httpx.AsyncClient(
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
@@ -158,6 +159,8 @@ async def lifespan(app: FastAPI):
             seed.cancel()
         if imgidx:
             imgidx.cancel()
+        if srchidx:
+            srchidx.cancel()
         listed.cancel()
         await app.state.http.aclose()
         cache.close()
@@ -897,6 +900,11 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
     if not nocache:
         for i, name in enumerate(names):
             hit = await asyncio.to_thread(cache.get_search, name, q, artist)
+            if hit is None:
+                # SQLite はデプロイのたびに消えるので、R2 の控えも見る（索引に無ければ R2 へは行かない）
+                hit = await asyncio.to_thread(searchcache.get, name, q, artist, _search_ttl(name))
+                if hit is not None:
+                    await asyncio.to_thread(cache.set_search, name, q, artist, hit)
             if hit is not None:
                 results[i] = [Track.model_validate(t) for t in hit]
                 continue
@@ -926,7 +934,9 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
                 continue
             results[i] = res
             if res and names[i] not in KEEP_ON_TIMEOUT:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）
-                await asyncio.to_thread(cache.set_search, names[i], q, artist, [t.model_dump() for t in res])
+                dumped = [t.model_dump() for t in res]
+                await asyncio.to_thread(cache.set_search, names[i], q, artist, dumped)
+                searchcache.put_bg(names[i], q, artist, dumped)
     return [r or [] for r in results], failed
 
 
@@ -943,7 +953,9 @@ async def _fetch_source(name: str, q: str, artist: str, client: httpx.AsyncClien
             try:
                 res = await asyncio.wait_for(SOURCES[name](q, artist, client=client), timeout=SOURCE_HARD_TIMEOUT)
                 if res:  # 空は保存しない（上と同じ理由）
-                    await asyncio.to_thread(cache.set_search, name, q, artist, [t.model_dump() for t in res])
+                    dumped = [t.model_dump() for t in res]
+                    await asyncio.to_thread(cache.set_search, name, q, artist, dumped)
+                    searchcache.put_bg(name, q, artist, dumped)
                 return res
             finally:
                 _inflight.pop(key, None)
@@ -1082,6 +1094,17 @@ async def _seed_image_index() -> None:
         return
     _IMG_INDEX.update(got)
     print(f"[storage] imgcache の索引: {len(_IMG_INDEX)} 件（デプロイ後の取り直しを防ぐ）")
+
+
+async def _seed_search_index() -> None:
+    """起動後に R2 の searchcache/ を一覧して索引を作る（検索結果の控え。backend/searchcache.py）。
+    失敗しても外部に引き直すだけなので握りつぶす"""
+    try:
+        n = await asyncio.to_thread(searchcache.seed)
+    except Exception as e:
+        print(f"[error] 検索結果の控えの索引を作れませんでした: {type(e).__name__}: {e}")
+        return
+    print(f"[storage] searchcache の索引: {n} 件（デプロイ後も検索結果を使い回す）")
 
 
 async def _seed_listed_index() -> None:
