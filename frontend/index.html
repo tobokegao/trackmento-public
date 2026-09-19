@@ -972,6 +972,7 @@ body.sheet-open { overflow: hidden; }
 .pal-io { margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
 .pal-io-row { display: flex; gap: var(--space-2); }
 .pal-io-row .input { flex: 1 1 auto; min-width: 0; }
+#pal-file-btn { align-self: flex-start; }
 .swatches input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .swatches span { display: block; width: 100%; height: 100%; border: var(--line) solid var(--color-ink); background: var(--sw); }
 .swatches input:checked + span { outline: 3px solid var(--color-ink); outline-offset: 2px; }
@@ -1440,6 +1441,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（8 つ）" spellcheck="false" autocomplete="off">
           <button class="btn" type="button" id="pal-import-btn">読み込む</button>
         </div>
+        <!-- パレットをファイルで渡す（2026-09-19、利用者の要望）。各組の「保存」で書き出したファイルをここで読む -->
+        <button class="btn" type="button" id="pal-file-btn">ファイルから読み込む</button>
+        <input type="file" id="pal-file" accept=".json,.txt,application/json,text/plain" hidden>
         <p class="msg" id="pal-msg"></p>
       </div>
     </div>
@@ -1748,6 +1752,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "いまの色から作る": "Make one from these colours", "じぶんの色": "My colour",
     "使う": "Use", "消す": "Delete", "リソ": "Riso", "ポップ": "Pop",
     "コピー": "Copy", "読み込む": "Load", "色コードを貼って読み込む": "Paste colour codes to load",
+    "保存": "Save", "ファイルから読み込む": "Load from a file", "ファイルに保存しました。": "Saved to a file.",
+    "パレットのファイルではないようです。": "That doesn't look like a palette file.",
     "コピーしました。": "Copied.", "コピーできなかったので、欄に入れました。": "Could not copy, so we put it in the box.",
     "読み込みました。": "Loaded.", "色コードを 8 つ入れてください。": "Eight colour codes are needed.",
     "#f2418f, #4878da, …（8 つ）": "#f2418f, #4878da, … (eight)",
@@ -3027,7 +3033,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         try { await navigator.clipboard.writeText(text); say($("#pal-msg"), tr("コピーしました。")); }
         catch { els.palImport.value = text; els.palImport.select(); say($("#pal-msg"), tr("コピーできなかったので、欄に入れました。")); }
       });
-      const btns = document.createElement("div"); btns.className = "pal-btns"; btns.append(use, copy);
+      // ファイルに保存する（人に渡したり、端末を替えたりするとき用。「ファイルから読み込む」で戻せる）
+      const save = document.createElement("button"); save.type = "button"; save.className = "btn"; save.textContent = tr("保存");
+      save.addEventListener("click", () => {
+        const body = JSON.stringify({ trackmento: "palette", v: 1, name: tr(p.name), colors: paletteColors(p).map(c => rgbToHex(toRGB(c))) }, null, 1);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([body], { type: "application/json" }));
+        a.download = `trackmento-palette-${tr(p.name).replace(/[\\/:*?"<>|\s]+/g, "_")}.json`;
+        document.body.append(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        say($("#pal-msg"), tr("ファイルに保存しました。"));
+      });
+      const btns = document.createElement("div"); btns.className = "pal-btns"; btns.append(use, copy, save);
       lane.append(name, chips, btns);
       // **地と文字が近すぎる組は画面には使わない**ので、そのことを見える所に書く（黙って無視しない）
       if (!palReadable(p)) {
@@ -3053,12 +3070,33 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const found = (text || "").match(/#?[0-9a-f]{6}/gi) || [];
     return found.slice(0, 9).map(h => "#" + h.replace("#", "").toLowerCase());
   }
+  /** 8 色を自作の組として足して使う（貼り付け・ファイルの両方から） */
+  function addPalette(hexes, name) {
+    const p = { id: `u${Date.now().toString(36)}`, name: name || (tr("じぶんの色") + " " + (userPalettes.length + 1)), hexes };
+    userPalettes.push(p);
+    usePalette(p.id); say($("#pal-msg"), tr("読み込みました。"));
+  }
   $("#pal-import-btn").addEventListener("click", () => {
     const hexes = parseHexes(els.palImport.value);
     if (hexes.length !== 8) { say($("#pal-msg"), tr("色コードを 8 つ入れてください。"), "error"); return; }
-    const p = { id: `u${Date.now().toString(36)}`, name: tr("じぶんの色") + " " + (userPalettes.length + 1), hexes };
-    userPalettes.push(p); els.palImport.value = "";
-    usePalette(p.id); say($("#pal-msg"), tr("読み込みました。"));
+    els.palImport.value = "";
+    addPalette(hexes);
+  });
+  // 「保存」で書き出したファイル（JSON）を読む。**中身が色コードを並べただけの文字でも読める**（手で作ったものも通す）
+  $("#pal-file-btn").addEventListener("click", () => $("#pal-file").click());
+  $("#pal-file").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    if (f.size > 20000) { say($("#pal-msg"), tr("パレットのファイルではないようです。"), "error"); return; }
+    const text = await f.text();
+    let hexes = null, name = "";
+    try {
+      const d = JSON.parse(text);
+      if (d && Array.isArray(d.colors)) { hexes = parseHexes(d.colors.join(" ")); name = String(d.name || "").slice(0, 40); }
+    } catch { /* JSON でなければ色コードの文字として読む */ }
+    if (!hexes) hexes = parseHexes(text);
+    if (hexes.length !== 8) { say($("#pal-msg"), tr("パレットのファイルではないようです。"), "error"); return; }
+    addPalette(hexes, name);
   });
   $("#pal-new").addEventListener("click", () => {
     const base = paletteColors(activePalette()).map(c => rgbToHex(toRGB(c)));

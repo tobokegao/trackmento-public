@@ -246,6 +246,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-19", "パレットをファイルに保存し、ファイルから読み込めるようにしました（パレットの窓の「保存」と「ファイルから読み込む」）。",
+     "Palettes can now be saved to a file and loaded from one (“Save” and “Load from a file” in the palette window)."),
     ("2026-09-19", "比率を「なし」にして曲名をマスの横に並べたとき、タイトルを画像の左上ではなく曲名リストの上に置くようにしました。",
      "With the ratio set to “none” and track names beside each row, the title now sits above the track list instead of at the top left."),
     ("2026-09-19", "ロゴの「M」が「H」に見えやすかったため、字の形を変えました。あわせてロゴの下線のデザインを少し変えています。",
