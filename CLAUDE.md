@@ -319,6 +319,13 @@ claude --remote-control TRACKMENTO                                             #
 ### 「全部消して」
 `cli.py clear` 実行前に一度確認（取消不可）。
 
+## お問い合わせ（Google フォーム）
+
+https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao@gmail.com にメールで届く設定）。
+リンクは運営者ページ・更新情報の「うまくいかないとき」・共有に失敗したときのメッセージの 3 か所
+（`backend/pages.py` の `CONTACT_FORM` と frontend の `CONTACT_FORM`。**URL を変えるときは両方**）。
+自前のフォームにしなかったのは、メール配信の仕組み・迷惑投稿の対策・なりすまし対策（`v=spf1 -all`）の見直しが要るため
+
 ## 更新情報のページ（`/updates`）
 
 `backend/pages.py` の `CHANGES` に、**利用者に見える変化だけ**を日付と 1〜2 行（日本語・英語）で先頭に足す（2026-09-19 に作った）。
