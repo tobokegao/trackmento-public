@@ -1263,6 +1263,13 @@ claude --remote-control TRACKMENTO                                             #
     設定は `render.yaml` を直すのが正しいやり方。`sync: false` の鍵だけがダッシュボード専用
   - 過去に何が設定されていたかは**ログから逆算できる**。起動時の
     `[share] 本日の共有数を復元: N 件（上限 …）` や `[public] … RATE_LIMIT=…/min` に出ている
+- **Cloudflare（trackmento.com のゾーン）の設定**（2026-09-19 に点検して直した）。本体 `trackmento.com` / `www` は **DNS only**
+  （Render に直接。Cloudflare のルールは効かない）、`img.trackmento.com` だけが Proxied（R2）。なので**ゾーンのルールは img にしか効かない**
+  - Redirect Rule「img top to main site」: `https://img.trackmento.com/`（完全一致、`*` なし）→ `https://trackmento.com/` の 301。
+    トップを開いたときの R2 の 404 をやめ、フィルタ各社の審査で中身のあるサイトに見せるため。**`*` を付けると画像・フォントまで転送される**
+  - Always Use HTTPS オン（img の http を https へ）、最低 TLS 1.2
+  - メールのなりすまし対策: `MX 0 .`（null MX）、`TXT v=spf1 -all`、`_dmarc` に `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s`。
+    **trackmento.com からメールを送る仕組みを入れるときは、この 3 つを先に直す**（全部はじかれる）
 - **Render の「プラン」は 2 つある**。課金アカウントの種別（Billing の Current Plan。Pro など）と、サービスのインスタンスタイプ（サービス画面のバッジ。Free / Standard など）は別物。**ワークスペースが Pro でもインスタンスが Free ならスリープするし 512MB 上限**。混同すると「スリープしないから keepalive は不要」のような誤った判断をする。インスタンスの実体は点検の「インスタンス: `1c_2g`」行か、`unbilled-charges.csv` の Services 行（`charge` が Free なら Free インスタンス）で確認する
 - **`Content-Type` を付けずに画像を返す配信元がある**。otoDB の CDN が実際にそうで、200 で中身も画像、
   `Content-Length` も `ETag` もあるのに型だけ無い。ヘッダだけ見て弾いていたため、
