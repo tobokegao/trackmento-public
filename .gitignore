@@ -27,3 +27,5 @@ promo/public/
 # .env の控え（.env.bak-* など）も鍵を含むので入れない。.env.example だけ例外
 .env.*
 !.env.example
+# 譜割りエディタの中身の控え（メモ書きが入るので公開リポジトリに入れない。src/plan.gen.ts は入れる）
+promo/plan.json

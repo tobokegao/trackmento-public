@@ -242,6 +242,59 @@ v2（9/14）より後に増えたものを頭にまとめ、本編は v2 の小�
   `name` を集めて `timeline.ts` の `"x:y"` と突き合わせる（2026-09-17 は 8 本とも欠けなし）
 - `/find` は同じサーバーで載せた共有がそのまま出る（手元は `PUBLIC_MODE=1 SHARE_LIMIT_PER_DAY=0`）
 
+## 撮り方と書き出し方（2026-09-20 から。xxxbaaa さんの助言を反映）
+
+X で xxxbaaa（@xxxbaaa07gk）さんから「音と画を合わせるのに足りないのは、フレーム単位の時計」
+「本当の費用は、素材を 1 か所直したときに何回作り直すか」「AI に推測させず、決まった下書きから作る」と助言をもらった。
+それに合わせて 3 つを作り直した。**古い record.mjs・record_all.sh・scan_markers.py・render_split.sh は消した**。
+
+### 1. 1 コマずつ撮る（`promo/capture.mjs`）
+
+- 以前は Playwright の録画（実時間・約 25fps・コマ落ちあり）を撮り、右下の色マーカーで操作の時刻を後から探して、
+  ずれを 1 本の直線で補正していた。撮るたびに時刻が少しずつ変わる
+- 今は**ページの時計を止めて**（Playwright の `page.clock`）、1/30 秒進めては 1 枚撮る。CSS のアニメーションも
+  `document.getAnimations()` で同じ時刻に合わせる。操作の時刻は「何コマ目か」で記録するので、マーカー探しも速度の補正も要らない
+  （`events.json` の `t` と `v` は同じ値になり、`timeline.ts` の `rate()` は 1 になる）
+- 待ち（検索の結果など）は撮らずに待つ（`until`）。待つ様子を見せたいところ（ジャケットが読み込まれて埋まっていく・
+  共有の送信の進み具合）だけ撮りながら待つ（`live`）
+- 1 コマ 30ms ほどで撮れる。2 回撮って比べると、画素の値が 1 違うだけの同じ絵になる
+- タップの波紋・PC のカーソルは前と同じ（`window.__tap`）。ホイールの代わりに自分でなめらかに送る（`scrollBy`。
+  ブラウザのなめらかスクロールは実時間で動くため）。指で送るときは離す前に止める（はじいた勢いが実時間で動くため）
+
+### 2. 場面ごとに撮り分ける
+
+- 台本は場面（take）の並び。本編は `title` → `add-*`（9 曲）→ `reorder` → `options` → `share`、
+  新機能は `multi` → `revive` → `author` → `listed` → `io` → `palette` → `vocadb` → `playlist` → `zoom` → `zoom32` → `pages`
+- 各場面は**前の場面の終わりの localStorage** から始まる（`public/takes/<種類>/<場面>/end.json`）。
+  入れるのはアプリの動いていないページ（`/health`）で行う（画面で入れると、読み込み直す前にページが自分の状態を保存し直して上書きする）。
+  ブラウザの ID だけ新しくする（同じ ID だとサーバーの控えのほうが新しいと見なされる）
+- **台本と頭の状態が前回と同じ場面は撮り直さない**（指紋は `meta.json`）。直した場面から後ろだけ撮り直す。
+  撮り方そのものを変えたら `CAPTURE_VERSION` を上げる（全部撮り直し）
+- 撮った場面をつないで `public/recordings*/session.mp4` と `events.json` を作る（Remotion はそのまま読む）。
+  印には場面の名前（`take`）と指紋（`takeKey`）が付く
+- **サーバーは本番と同じ見た目で立てる**: `PUBLIC_MODE=1 DISCOGS_TOKEN= PUBLIC_BASE_URL=https://trackmento.com
+  SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0`、ポート 8000。Discogs が出ていると撮影を止める
+- **撮影で作った共有は本番の R2 に残る**（手元のサーバーも .env の R2 を使うため）。撮ったあと、`events.json` の
+  `share-url` と `listed:shared` の ID を `scripts/compare_render.py clean <ID>…` で消し、`listed/<ID>.json` も消す
+  （載せた共有は本番の「みんなのグリッドを探す」に出てしまう）
+- 使い方: `node capture.mjs`（本編）、`SCENE=feat node capture.mjs`、`MODE=pc`・`LANG_UI=en` で横・英語。
+  `--list` で撮り直しが要る場面を見る、`--only 名前,名前` で指定した場面だけ、`--force` で全部
+
+### 3. 変わった区切りだけ書き出す（`promo/render_cached.mjs`）
+
+- 2 小節ずつの区切りに分け、区切りごとの指紋（その区切りにかかるショットの設定・使う録画の場面の指紋・静止画・
+  全体にかかるもの）が前回と同じなら `out/chunks/<Composition>/` の控えを使う。最後につないで音を付ける
+- `node render_cached.mjs Promo out/v9-tall-ja.mp4`（`--dry` で描き直す区切りだけ見る、`--force` で全部）
+- 束ね（bundle）は 1 回だけ作り、区切りごとに `remotion render` を呼ぶ（1 回ごとにプロセスが終わるのでメモリが溜まらない）
+
+### 4. 台本はエディタから作る（`promo/plan_gen.mjs`）
+
+- 場面の開始・長さ・字幕（日本語・英語）・録画の印・ずらし・速さは、**譜割りエディタの「場面」レーンの「動画の台本」欄にだけ置く**
+  （種類: 録画 / エンドカードのあとの録画 / 作った画の各場面）。`timeline.ts` に数字を手で書き写さない
+- Claude がエディタの DB（`plan/main`）を読んで `promo/plan.json` に保存 → `node plan_gen.mjs` で `src/plan.gen.ts` を作る
+  （`--check` で食い違いだけ見る）。ズーム・枠・静止画などの見せ方の細かい値は `timeline.ts` の `SHOT_EXTRAS`（エディタの場面の ID ごと）
+- エディタの「録画の印」欄は、撮った印の名前から選べる（DB の `evNames`。撮り直したら Claude が書き直す）
+
 ## v6 の構成（2026-09-19 深夜、利用者が譜割りエディタで組み直したもの）
 
 v5 との違い（エディタの各場面のメモから）。
