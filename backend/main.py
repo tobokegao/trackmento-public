@@ -204,7 +204,55 @@ async def run_render(fn, *args):
 
 
 # ---------- 負荷の診断ログ（公開モード）。IP・検索語・生の User-Agent は含めない ----------
-_stats: dict[str, list] = {}   # パス種別 → [件数, 合計秒, 最大秒, 5xx 件数]
+_stats: dict[str, list] = {}   # パス種別 → [件数, 合計秒, 最大秒, 5xx 件数, 待ち時間の区切りごとの件数]
+# 待ち時間の区切り（秒）。**平均と最大だけでは、25 秒が 1 回だけの外れ値か、よくあることかが分からない**（2026-09-19）。
+# 区切りごとの件数なら、点検が窓全体で足し合わせて「95% がこれ以内」を出せる（1 分ごとの p95 は足せない）
+LAT_BUCKETS = (0.25, 0.5, 1, 2, 5, 10, 20)
+_STATS_TOP = 10   # 1 行に出す経路の数。残りは「ほか」にまとめて数だけ残す（以前は黙って落としていた）
+
+
+def _lat_bucket(dt: float) -> int:
+    for i, edge in enumerate(LAT_BUCKETS):
+        if dt < edge:
+            return i
+    return len(LAT_BUCKETS)
+
+
+def _stats_field(k: str, v: list) -> str:
+    return (f"{k}:{v[0]}件/{v[1]:.1f}s/max{v[2]:.1f}s" + (f"/5xx{v[3]}" if v[3] else "")
+            + "/h" + ".".join(str(n) for n in v[4]))
+
+
+# ---------- ソースごとの検索（2026-09-19）----------
+# `/search` はソースをまとめて数えるので、VocaDB が遅いのか MusicBrainz が遅いのかが分からなかった。
+# ソースごとに「覚えていた（SQLite / R2）・外へ聞いた・失敗」の件数と、外へ聞いた時間の分布を出す
+_srch_stats: dict[str, list] = {}   # ソース → [SQLite, R2, 外へ, 失敗, 外へ聞いた合計秒, 最大秒, 区切りごとの件数]
+
+
+def _note_srch(source: str, kind: int, dt: float = 0.0) -> None:
+    """kind: 0 = SQLite に覚えていた / 1 = R2 の控え / 2 = 外へ聞いた / 3 = 失敗（時間切れ・覚えていた失敗を含む）"""
+    s = _srch_stats.setdefault(source, [0, 0, 0, 0, 0.0, 0.0, [0] * (len(LAT_BUCKETS) + 1)])
+    s[kind] += 1
+    if kind in (2, 3) and dt:
+        s[4] += dt
+        s[5] = max(s[5], dt)
+        s[6][_lat_bucket(dt)] += 1
+
+
+# ---------- ブラウザ側で起きた失敗（2026-09-19）----------
+# 共有画像の送信の途中停止・ブラウザでの描画の失敗・iTunes への直接検索の失敗などはブラウザの中で起きるので、
+# サーバーのログに何も残らなかった（「サーバーが重くて上手くいかなかった」という声の中身が分からなかった）。
+# 画面が `/hiccup` に**種類と回数だけ**を送る。検索語・URL・曲名・端末の情報は受け取らない
+CLIENT_KINDS = frozenset({
+    "up_stall", "up_wait", "up_timeout", "up_net", "up_abort", "up_4xx", "up_5xx",   # 共有画像の送信
+    "canvas_unsupported", "canvas_fail",          # ブラウザで描けずサーバー描画へ
+    "server_render_fail", "share_fail",           # サーバー描画も失敗 / 共有そのものが失敗
+    "font_fail",                                  # 共有画像用のフォントが読めない
+    "cover_fail",                                 # ジャケットが取れず、そのマスが空のまま描かれた
+    "itunes_fail", "itunes_busy", "mb_fail", "mb_busy",   # ブラウザからの直接検索
+    "search_fail",                                # 検索そのものが失敗（サーバーに届かないなど）
+})
+_client_stats: dict[str, int] = {}
 
 
 def _stat_key(path: str) -> str:
@@ -306,8 +354,21 @@ async def _load_monitor():
             await asyncio.to_thread(render._release_memory)
         if tick % 60 == 0 and _stats:
             items = sorted(_stats.items(), key=lambda kv: -kv[1][1])
-            print("[stats] " + " ".join(f"{k}:{v[0]}件/{v[1]:.1f}s/max{v[2]:.1f}s" + (f"/5xx{v[3]}" if v[3] else "") for k, v in items[:10]))
+            fields = [_stats_field(k, v) for k, v in items[:_STATS_TOP]]
+            if rest := items[_STATS_TOP:]:
+                agg = [sum(v[0] for _, v in rest), sum(v[1] for _, v in rest), max(v[2] for _, v in rest),
+                       sum(v[3] for _, v in rest), [sum(col) for col in zip(*(v[4] for _, v in rest))]]
+                fields.append(_stats_field("ほか", agg))
+            print("[stats] " + " ".join(fields))
             _stats.clear()
+        if tick % 60 == 0 and _srch_stats:
+            print("[srch] " + " ".join(
+                f"{k}:db{v[0]}/r2{v[1]}/net{v[2]}/fail{v[3]}/max{v[5]:.1f}s/h" + ".".join(str(n) for n in v[6])
+                for k, v in sorted(_srch_stats.items())))
+            _srch_stats.clear()
+        if tick % 60 == 0 and _client_stats:
+            print("[client] " + " ".join(f"{k}={n}" for k, n in sorted(_client_stats.items(), key=lambda kv: -kv[1])))
+            _client_stats.clear()
         if tick % 60 == 0 and _5xx_stats:
             # 5xx の内訳。[stats] の 5xx は件数しか分からないので、理由（HTTPException の detail）を添える。
             # 理由が _5XX_TOP を超えたぶんは「ほか」にまとめて数だけ残す（取りこぼさない）
@@ -468,7 +529,7 @@ if cors_origins():
 app.add_middleware(GZipText)
 
 # ---------- 簡易レートリミット（IP ごと・1 分間の回数。公開時の連打・スクレイピング対策） ----------
-_RATE_PATHS = ("/search", "/from-url", "/from-playlist", "/bandcamp", "/upload", "/share", "/share/upload", "/render", "/grids")
+_RATE_PATHS = ("/search", "/from-url", "/from-playlist", "/bandcamp", "/upload", "/share", "/share/upload", "/render", "/grids", "/hiccup")
 _hits: dict[str, deque] = defaultdict(deque)
 # 共有の 1 日あたり回数（IP ごと／全体）。プロセス内カウンタ。日付が変わるとリセット
 _share_day = {"date": "", "per_ip": defaultdict(int), "total": 0}
@@ -550,10 +611,11 @@ async def request_stats(request: Request, call_next):
     finally:
         dt = time.monotonic() - t0
         key = _stat_key(request.url.path)
-        s = _stats.setdefault(key, [0, 0.0, 0.0, 0])
+        s = _stats.setdefault(key, [0, 0.0, 0.0, 0, [0] * (len(LAT_BUCKETS) + 1)])
         s[0] += 1
         s[1] += dt
         s[2] = max(s[2], dt)
+        s[4][_lat_bucket(dt)] += 1
         if status >= 500:
             s[3] += 1
         ua = _ua_kind(request.headers.get("user-agent", ""))
@@ -900,26 +962,41 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
     if not nocache:
         for i, name in enumerate(names):
             hit = await asyncio.to_thread(cache.get_search, name, q, artist)
+            from_r2 = False
             if hit is None:
                 # SQLite はデプロイのたびに消えるので、R2 の控えも見る（索引に無ければ R2 へは行かない）
                 hit = await asyncio.to_thread(searchcache.get, name, q, artist, _search_ttl(name))
                 if hit is not None:
+                    from_r2 = True
                     await asyncio.to_thread(cache.set_search, name, q, artist, hit)
             if hit is not None:
                 results[i] = [Track.model_validate(t) for t in hit]
+                _note_srch(name, 1 if from_r2 else 0)
                 continue
             # 直前に失敗した同じ検索は外部に聞き直さない（同じ検索の連打で iTunes / MusicBrainz を叩き続けないため）
             recent = _recent_fail.get((name, q, artist))
             if recent and now - recent[0] < FAIL_TTL:
                 results[i] = []
                 failed[name] = recent[1]
+                _note_srch(name, 3)
     misses = [i for i, r in enumerate(results) if r is None]
     if misses:
         client = app.state.http
-        fetched = await asyncio.gather(
-            *(_fetch_source(names[i], q, artist, client) for i in misses), return_exceptions=True
-        )
+        async def timed(name: str) -> tuple[float, list[Track]]:
+            t0 = time.monotonic()
+            try:
+                got = await _fetch_source(name, q, artist, client)
+                return time.monotonic() - t0, got
+            except Exception as e:
+                e.elapsed = time.monotonic() - t0   # 失敗までの時間も分布に入れる（時間切れはここで 25 秒などになる）
+                raise
+        fetched = await asyncio.gather(*(timed(names[i]) for i in misses), return_exceptions=True)
         for i, res in zip(misses, fetched):
+            if isinstance(res, BaseException):
+                _note_srch(names[i], 3, getattr(res, "elapsed", 0.0))
+            else:
+                dt, res = res
+                _note_srch(names[i], 2, dt)
             if isinstance(res, BaseException):
                 # 1ソースの失敗で全体を落とさない。失敗は永続キャッシュには入れず、FAIL_TTL 秒だけ覚える
                 _log_search_failure(names[i], brief(res))
@@ -970,6 +1047,22 @@ async def _fetch_source(name: str, q: str, artist: str, client: httpx.AsyncClien
     if not done:
         raise asyncio.TimeoutError
     return task.result()
+
+
+@app.post("/hiccup", status_code=204)
+async def hiccup(request: Request) -> Response:
+    """画面から届く「ブラウザ側で起きた失敗」の件数（`CLIENT_KINDS`）。**種類と回数だけ**を受け取り、
+    60 秒ごとに `[client]` 行で出す。本文は `{"kind": 回数, …}`。知らない種類・多すぎる回数は捨てる。
+    `navigator.sendBeacon` で送られてくるので、内容の型は text/plain のこともある（JSON として読む）"""
+    try:
+        body = json.loads((await request.body())[:2048] or b"{}")
+    except ValueError:
+        return Response(status_code=204)
+    if isinstance(body, dict):
+        for k, n in list(body.items())[:20]:
+            if k in CLIENT_KINDS and isinstance(n, int) and 0 < n <= 50:
+                _client_stats[k] = _client_stats.get(k, 0) + n
+    return Response(status_code=204)
 
 
 class BandcampBody(BaseModel):

@@ -140,7 +140,7 @@ information (Exif).</li>
 </ul>
 
 <h2>2. Access logs</h2>
-<p>For stable operation and maintenance, the server records the number of requests and response times for each type of request.
+<p>For stable operation and maintenance, the server records the number of requests and response times for each type of request. Your browser also reports the kind and number of problems it runs into, such as a failed image upload or render, so we can count them (no track names, search terms, or URLs are included).
 To prevent abuse, limit rapid repeated requests and manage the daily share limit, IP addresses are converted into an irreversible
 (hashed) form and used only temporarily. Search keywords, the full text of URLs you enter and raw browser User-Agent strings are not
 kept. Only broad categories (for example, whether an access is by a person or by a URL preview bot) and statistics on referring
@@ -182,7 +182,7 @@ The latest version is always published on this page.</p>
 </ul>
 
 <h2>2. アクセスログの収集について</h2>
-<p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。不正アクセス防止や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは不可逆な形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザのUser-Agentそのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
+<p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（曲名・検索語・URL などの内容は含みません）。不正アクセス防止や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは不可逆な形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザのUser-Agentそのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
 
 <h2>3. 外部サービスとの通信</h2>
 <p>楽曲やジャケットの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、bilibili、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>

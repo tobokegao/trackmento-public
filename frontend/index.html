@@ -2295,6 +2295,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       for (let i = 0; i < direct.length; i++) {
         const res = directRes[i];
         if (!res.error) { ordered.push(...res.tracks); continue; }
+        const tag = direct[i] === "itunes" ? "itunes" : "mb";
+        hiccup(res.error.busy ? `${tag}_busy` : `${tag}_fail`);
         if (res.error.busy) { failed = failed.concat([[direct[i], "busy"]]); continue; }
         // サーバー経由の iTunes が遮断中と分かっているときは呼んでも同じ結果なので省く（無駄な往復とサーバーのログを減らす）
         if (direct[i] === "itunes" && itunesServerBlocked()) { failed = failed.concat([["itunes", "busy"]]); continue; }
@@ -2325,6 +2327,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const mbNote = mbFallback ? " " + tr("iTunes に無かったので MusicBrainz でも探しました。") : "";
       say(els.searchMsg, (tracks.length ? tr`${tracks.length} 件` : tr("見つかりませんでした。表記を変えるか、別のソースを試してください。")) + mbNote + failNote, failed.length ? "error" : null);
     } catch (err) {
+      hiccup("search_fail");
       setBtnState(els.searchBtn, "error");
       say(els.searchMsg, tr`検索に失敗しました（${err.message}）。サーバーが起動しているか確認して、もう一度押してください。`, "error");
       setTimeout(() => setBtnState(els.searchBtn, null), 2500);
@@ -4490,6 +4493,30 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   $("#up-cancel").addEventListener("click", () => { if (upXhr) upXhr.abort(); closeUpload(); });
   /* 進み具合の取れる送信。**fetch では上りの進みが取れない**ので XMLHttpRequest を使う */
+  /* **ブラウザ側で起きた失敗の件数をサーバーに知らせる**（2026-09-19。backend/main.py の `/hiccup` と `CLIENT_KINDS`）。
+     送信の途中停止・描画の失敗・直接検索の失敗はブラウザの中で起きるので、サーバーのログに何も残らなかった。
+     **種類と回数だけ**を送る（検索語・URL・曲名は送らない）。まとめて 20 秒ごと、閉じるときは sendBeacon で */
+  const hiccups = {};
+  let hiccupTimer = 0;
+  function flushHiccups() {
+    clearTimeout(hiccupTimer); hiccupTimer = 0;
+    const keys = Object.keys(hiccups);
+    if (!keys.length) return;
+    const body = JSON.stringify(hiccups);
+    for (const k of keys) delete hiccups[k];
+    try {
+      const blob = new Blob([body], { type: "text/plain" });
+      if (!(navigator.sendBeacon && navigator.sendBeacon(api("/hiccup"), blob))) {
+        fetch(api("/hiccup"), { method: "POST", body, keepalive: true }).catch(() => {});
+      }
+    } catch { /* 知らせられなくても画面の動きには関係ない */ }
+  }
+  function hiccup(kind) {
+    hiccups[kind] = Math.min(50, (hiccups[kind] || 0) + 1);
+    if (!hiccupTimer) hiccupTimer = setTimeout(flushHiccups, 20000);
+  }
+  addEventListener("pagehide", flushHiccups);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushHiccups(); });
   function postUpload(path, fd, onProgress) {
     return new Promise((resolve, reject) => {
       const x = new XMLHttpRequest();
@@ -4513,17 +4540,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         let d = {};
         try { d = JSON.parse(x.responseText || "{}"); } catch { /* 本文が JSON でないこともある */ }
         if (x.status >= 200 && x.status < 300) return resolve(d);
+        hiccup(x.status >= 500 ? "up_5xx" : "up_4xx");
         const e = new Error(d.detail || `HTTP ${x.status}`); e.status = x.status; reject(e);
       });
       /* **どれで終わったのかを印に残す**。呼び出し元は
           「やめた（何もしない）」と「送れなかった（サーバーで作り直す）」を分けて扱う */
       const fail = done((msg, kind) => { const e = new Error(msg); e[kind] = true; reject(e); });
-      x.onerror = () => fail(tr("送れませんでした（通信が切れたようです）"), "sendFailed");
-      x.ontimeout = () => fail(tr("時間切れです（回線が遅いか、途切れています）"), "sendFailed");
+      x.onerror = () => { hiccup("up_net"); fail(tr("送れませんでした（通信が切れたようです）"), "sendFailed"); };
+      x.ontimeout = () => { hiccup("up_timeout"); fail(tr("時間切れです（回線が遅いか、途切れています）"), "sendFailed"); };
       // **自分で切ったのか、利用者が「やめる」を押したのか**で、そのあとの動きが変わる
-      x.onabort = () => (stalled
+      // （送っている途中で止まったのか、送り終えて返事を待つあいだに止まったのかも分けて数える）
+      x.onabort = () => { hiccup(stalled ? (sent ? "up_wait" : "up_stall") : "up_abort"); return stalled
         ? fail(tr("送れませんでした（通信が止まりました）"), "sendFailed")
-        : fail(tr("送信をやめました"), "aborted"));
+        : fail(tr("送信をやめました"), "aborted"); };
       x.send(fd);
     });
   }
@@ -4826,6 +4855,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     for (const url of [t.image, t.thumb].filter((u, i, a) => u && a.indexOf(u) === i)) {
       try { return await fetchBitmap(url, wantPx); } catch (err) { console.warn("cover failed", err.message); }
     }
+    hiccup("cover_fail");   // ジャケットが取れず、そのマスが空のまま描かれる
     return null;
   }
   function drawCover(ctx, bmp, x, y, cell) {
@@ -5213,12 +5243,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
            やめた意味が無い（しかもサーバーの CPU を使う） */
         if (err.aborted) { setBtnState(els.shareBtn, null); say(els.gridMsg, tr("送信をやめました。")); return; }
         console.warn("browser render failed → server render:", err);
+        // 送信の失敗は postUpload で数えてある。ここで数えるのは「ブラウザで描けなかった」ほう
+        if (!err.sendFailed && !err.status) hiccup(err.message === "unsupported" ? "canvas_unsupported" : err.message === "fonts not ready" ? "font_fail" : "canvas_fail");
         /* **描けなかったのか、送れなかったのかで文面を変える**。時間切れで落ちてきたのに
            「この端末では画像を作れなかった」と出ると、原因を取り違える（利用者から報告） */
         say(els.gridMsg, err.sendFailed
           ? tr("画像を送れなかったので、サーバーで作り直しています…")
           : tr("この端末では画像を作れなかったので、サーバーで作成します…"));
-        d = await shareViaServer(snap);
+        try { d = await shareViaServer(snap); } catch (e2) { hiccup("server_render_fail"); throw e2; }
       }
       lastPushed = signature(snap);
       const imgSrc = d.image || d.png, ext = d.ext || "png";
@@ -5250,6 +5282,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (isMobile()) els.output.scrollIntoView({ behavior: "smooth", block: "start" });
       else { els.shareUrl.focus({ preventScroll: true }); els.shareUrl.select(); }
     } catch (err) {
+      hiccup("share_fail");
       setBtnState(els.shareBtn, "error");
       say(els.gridMsg, tr`共有できませんでした（${err.message}）。`, "error");
       setTimeout(() => setBtnState(els.shareBtn, null), 2500);

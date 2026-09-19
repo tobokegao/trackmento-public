@@ -162,7 +162,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[client]*", "Traceback*", "ERROR:*"]
 
 
 # 1 時間あたりに読むページ数の見込み（1 ページ 100 行）。印付きの行は実測で 1 時間 600〜800 行ほど
@@ -251,7 +251,29 @@ def _to_gb(value: float, unit: str) -> float:
 
 # ---- ログの読み取り ----
 
-STATS_RE = re.compile(r"(\S+?):(\d+)件/([\d.]+)s/max([\d.]+)s(?:/5xx(\d+))?")
+STATS_RE = re.compile(r"(\S+?):(\d+)件/([\d.]+)s/max([\d.]+)s(?:/5xx(\d+))?(?:/h([\d.]+))?")
+# 待ち時間の区切り（秒）。backend/main.py の LAT_BUCKETS と同じ。[stats] と [srch] の `/h` は区切りごとの件数
+LAT_BUCKETS = (0.25, 0.5, 1, 2, 5, 10, 20)
+# [srch] vocadb:db3/r2/net5/fail1/max8.0s/h… の 1 ソースぶん（ソースごとの検索。backend/main.py の _srch_stats）
+SRCH_RE = re.compile(r"(\S+?):db(\d+)/r2(\d+)/net(\d+)/fail(\d+)/max([\d.]+)s/h([\d.]+)")
+
+
+def _add_hist(acc: list[int], h: str) -> None:
+    for i, n in enumerate(h.split(".")[: len(acc)]):
+        acc[i] += int(n or 0)
+
+
+def _pct(hist: list[int], q: float) -> str:
+    """区切りごとの件数から「q の割合がこれ以内」を出す（区切りの上端で答える。「≤ 2 秒」の形）"""
+    total = sum(hist)
+    if not total:
+        return "—"
+    run = 0
+    for i, n in enumerate(hist):
+        run += n
+        if run >= total * q:
+            return f"≤ {LAT_BUCKETS[i]:g} 秒" if i < len(LAT_BUCKETS) else f"> {LAT_BUCKETS[-1]:g} 秒"
+    return "—"
 # [ua] /s/*:人=60,プレビュー=80 /image-proxy:人=300 … の 1 経路ぶん
 UA_RE = re.compile(r"(\S+?):((?:[^\s=,]+=\d+)(?:,[^\s=,]+=\d+)*)")
 HEALTH_RE = re.compile(r"\[health\] rss=(\d+)MB uptime=(\d+)s")
@@ -263,7 +285,11 @@ FIVEXX_RE = re.compile(r"^\[5xx\] (\d+) (\d{3}) (\S+) (.*)$")
 
 
 def analyze_logs(logs: list[dict]) -> dict:
-    per_path: dict[str, dict] = defaultdict(lambda: {"count": 0, "5xx": 0, "max_s": 0.0, "peak_per_min": 0})
+    per_path: dict[str, dict] = defaultdict(lambda: {"count": 0, "5xx": 0, "max_s": 0.0, "peak_per_min": 0,
+                                                     "hist": [0] * (len(LAT_BUCKETS) + 1)})
+    per_src: dict[str, dict] = defaultdict(lambda: {"db": 0, "r2": 0, "net": 0, "fail": 0, "max_s": 0.0,
+                                                    "hist": [0] * (len(LAT_BUCKETS) + 1)})
+    client: Counter[str] = Counter()   # [client] ブラウザ側で起きた失敗の種類 → 件数
     ua_by_path: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     rss: list[tuple[str, int]] = []
     errors: list[str] = []
@@ -284,12 +310,26 @@ def analyze_logs(logs: list[dict]) -> dict:
     for lg in logs:
         m, ts = lg.get("message", ""), lg.get("timestamp", "")
         if m.startswith("[stats]"):
-            for path, cnt, total, mx, e5 in STATS_RE.findall(m):
+            for path, cnt, total, mx, e5, h in STATS_RE.findall(m):
                 p = per_path[path]
                 p["count"] += int(cnt)
                 p["5xx"] += int(e5 or 0)
                 p["max_s"] = max(p["max_s"], float(mx))
                 p["peak_per_min"] = max(p["peak_per_min"], int(cnt))
+                if h:
+                    _add_hist(p["hist"], h)
+        elif m.startswith("[srch]"):
+            for src, db, r2, net, fail, mx, h in SRCH_RE.findall(m):
+                p = per_src[src]
+                for k, v in (("db", db), ("r2", r2), ("net", net), ("fail", fail)):
+                    p[k] += int(v)
+                p["max_s"] = max(p["max_s"], float(mx))
+                _add_hist(p["hist"], h)
+        elif m.startswith("[client]"):
+            for pair in m[len("[client]"):].split():
+                k, _, n = pair.rpartition("=")
+                if k and n.isdigit():
+                    client[k] += int(n)
         elif m.startswith("[ref]"):
             for pair in m[len("[ref]"):].split():
                 k, _, n = pair.rpartition("=")
@@ -342,6 +382,8 @@ def analyze_logs(logs: list[dict]) -> dict:
     return {
         "lines": len(logs),
         "per_path": dict(per_path),
+        "per_src": dict(per_src),
+        "client": dict(client),
         "ua_by_path": {k: dict(v) for k, v in ua_by_path.items()},
         "src_counts": dict(src_counts),
         "ref_counts": dict(ref_counts),
@@ -434,7 +476,9 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
                  + (f"、`/image-proxy` の 5xx {proxy['5xx']}／{proxy['count']} 件"
                     f"（{proxy['5xx'] / proxy['count'] * 100:.1f}%）" if proxy["count"] else ""))
     for k, p in top:
-        lines.append(f"  - `{k}` {p['count']} 件、最大 {p['max_s']:.1f} 秒、ピーク {p['peak_per_min']} 件/分" + (f"、5xx {p['5xx']}" if p["5xx"] else ""))
+        # p50 / p95 は区切りごとの件数から出す（入れる前のログには無いので、その窓では「—」）
+        lat = f"、半分が {_pct(p['hist'], 0.5)}・95% が {_pct(p['hist'], 0.95)}" if sum(p["hist"]) else ""
+        lines.append(f"  - `{k}` {p['count']} 件、最大 {p['max_s']:.1f} 秒{lat}、ピーク {p['peak_per_min']} 件/分" + (f"、5xx {p['5xx']}" if p["5xx"] else ""))
     fx = la.get("fivexx") or {}
     if fx:
         lines.append("  - 5xx の内訳（[5xx] 行。HTTPException で返したもの）:")
@@ -482,6 +526,17 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         lines.append(f"  - {e}")
     for k, n in sorted((la.get("search_fail_by") or {}).items(), key=lambda kv: -kv[1])[:8]:
         lines.append(f"  - 検索失敗 {n} 件 `{k}`")
+    # ソースごとの検索（覚えていた / 外へ聞いた / 失敗 と、外へ聞いた時間）
+    for src, p in sorted((la.get("per_src") or {}).items(), key=lambda kv: -(kv[1]["db"] + kv[1]["r2"] + kv[1]["net"] + kv[1]["fail"])):
+        n = p["db"] + p["r2"] + p["net"] + p["fail"]
+        hit = (p["db"] + p["r2"]) / n * 100 if n else 0
+        lines.append(f"  - 検索 `{src}` {n} 回: 覚えていた {p['db'] + p['r2']}（うち R2 の控え {p['r2']}、{hit:.0f}%）、"
+                     f"外へ {p['net']}、失敗 {p['fail']}。外へ聞いた時間は半分が {_pct(p['hist'], 0.5)}・"
+                     f"95% が {_pct(p['hist'], 0.95)}・最大 {p['max_s']:.1f} 秒")
+    cl = la.get("client") or {}
+    if cl:
+        # ブラウザ側で起きた失敗（画面が /hiccup に送る種類と回数）。サーバーのログには他に何も残らない
+        lines.append("- ブラウザ側の失敗: " + "、".join(f"`{k}` {n}" for k, n in sorted(cl.items(), key=lambda kv: -kv[1])))
     for at, body in (la.get("tb_body") or [])[:3]:
         lines.append(f"  - Traceback の本文（{_jst(at)}）:")
         lines.append("    ```")
