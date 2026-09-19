@@ -6,7 +6,7 @@ import {
 import { loadFont } from "@remotion/fonts";
 import {
   FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, TIMELAPSE_KIME, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
-  INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, NEWURL_BEAT, BANDWIDTH_BEAT, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
+  INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, NEWURL_BEAT, BANDWIDTH_BEAT, FASTER_BEAT, FASTER_ROWS, TAIL_BEAT, TAIL_SHOTS, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
 } from "./timeline";
 
 // ---- フォント（アプリと同じ OFL 同梱フォント） ----
@@ -369,7 +369,7 @@ const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
   const s2 = spring({ frame: frame - 10, fps, config: { damping: 12, stiffness: 120 } });
   const sUrl = spring({ frame: frame - (beatFrame(URL_BEAT) - beatFrame(END_BEAT)), fps, config: { damping: 12, stiffness: 140 } });
   const sFree = spring({ frame: frame - (beatFrame(FREE_BEAT) - beatFrame(END_BEAT)), fps, config: { damping: 12, stiffness: 140 } });
-  const fade = interpolate(frame, [beatFrame(LAST_BEAT) - beatFrame(END_BEAT) - 6, beatFrame(LAST_BEAT) - beatFrame(END_BEAT) + 10], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const fade = interpolate(frame, [beatFrame(TAIL_BEAT) - beatFrame(END_BEAT) - 6, beatFrame(TAIL_BEAT) - beatFrame(END_BEAT)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const tall = L.kind === "tall";
   return (
     <Paper>
@@ -430,7 +430,8 @@ const NewUrl: React.FC<{ L: Layout }> = ({ L }) => {
 // ---- ⑥「動作が軽くなりました」（2 小節。録画ではなく数字を出す） ----
 // 1 小節目: 画面いっぱいの見出しを 2 拍で中央まで縮め、残り 2 拍で見出しが上がりつつ 4 行が出る
 // 2 小節目: 「画質はそのまま」を 8 分音符で点滅させ続ける
-const Bandwidth: React.FC<{ L: Layout }> = ({ L }) => {
+type NumRow = { jp: string; en: string; from: string; to: string };
+const Bandwidth: React.FC<{ L: Layout; title?: [string, string]; rows?: NumRow[]; blink?: [string, string] }> = ({ L, title = ["さらに軽くなりました", "Even lighter now"], rows = BANDWIDTH_ROWS, blink = ["画質はそのまま", "Same image quality"] }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const beatLen = beatFrame(1) - beatFrame(0);
@@ -450,11 +451,11 @@ const Bandwidth: React.FC<{ L: Layout }> = ({ L }) => {
         <div style={{ background: C.ink, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700,
           fontSize: tall ? 58 : 60, padding: "12px 30px", whiteSpace: "nowrap",
           transform: `translateY(${-rise * (tall ? 300 : 190)}px) scale(${shrink})` }}>
-          {ja ? "さらに軽くなりました" : "Even lighter now"}
+          {ja ? title[0] : title[1]}
         </div>
         <div style={{ position: "absolute", left: tall ? 60 : 200, right: tall ? 60 : 200, top: "46%",
           display: "flex", flexDirection: "column", gap: tall ? 18 : 14, opacity: rise }}>
-          {BANDWIDTH_ROWS.map((r, i) => {
+          {rows.map((r, i) => {
             const k = spring({ frame: frame - beatLen * 2 - Math.round(eighth * i), fps, config: { damping: 12, stiffness: 220 } });
             return (
               <div key={r.jp} style={{ display: "flex", alignItems: "baseline", gap: tall ? 16 : 24, transform: `translateX(${(1 - k) * -30}px)`, opacity: k }}>
@@ -468,7 +469,7 @@ const Bandwidth: React.FC<{ L: Layout }> = ({ L }) => {
         <div style={{ position: "absolute", left: 0, right: 0, bottom: tall ? 150 : 90, textAlign: "center",
           fontFamily: "Dot", fontSize: tall ? 38 : 40, color: C.muted, letterSpacing: "0.04em",
           opacity: blinkOn ? 1 : 0 }}>
-          {ja ? "画質はそのまま" : "Same image quality"}
+          {ja ? blink[0] : blink[1]}
         </div>
       </AbsoluteFill>
     </Paper>
@@ -490,10 +491,36 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
       <Sequence from={beatFrame(INTRO_END)} durationInFrames={flowEnd - beatFrame(INTRO_END)} name="Walkthrough">
         <Paper>
           <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
-          {SHOTS.map((s, i) => {
-            const next = SHOTS[i + 1]?.beat ?? TIMELAPSE_BEAT;
-            return (
-              <Sequence key={s.beat} from={beatFrame(s.beat) - beatFrame(INTRO_END)} durationInFrames={beatFrame(next) - beatFrame(s.beat)} name={s.jp || "countdown"}>
+          {SHOTS.map((s, i) => shotSeq(L, s, SHOTS[i + 1]?.beat ?? TIMELAPSE_BEAT, INTRO_END))}
+        </Paper>
+      </Sequence>
+
+      <Sequence from={beatFrame(NEWURL_BEAT)} durationInFrames={beatFrame(NEWURL_BEAT + BAR * 2) - beatFrame(NEWURL_BEAT)} name="NewUrl"><NewUrl L={L} /></Sequence>
+      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(BANDWIDTH_BEAT + BAR * 2) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth"><Bandwidth L={L} /></Sequence>
+      <Sequence from={beatFrame(FASTER_BEAT)} durationInFrames={beatFrame(FASTER_BEAT + BAR * 2) - beatFrame(FASTER_BEAT)} name="Faster">
+        <Bandwidth L={L} title={["共有がさらに速く", "Sharing is faster"]} rows={FASTER_ROWS} blink={["X での見た目はほぼそのまま", "Looks the same on X"]} />
+      </Sequence>
+
+      <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
+        <Paper><div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div><Timelapse L={L} /></Paper>
+      </Sequence>
+      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
+      <Sequence from={beatFrame(END_BEAT)} durationInFrames={beatFrame(TAIL_BEAT) - beatFrame(END_BEAT)} name="End"><EndCard L={L} /></Sequence>
+      {/* v5: エンドカードのあとに「困ったら更新情報と使い方」（録画） */}
+      <Sequence from={beatFrame(TAIL_BEAT)} name="Tail">
+        <Paper>
+          <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
+          {TAIL_SHOTS.map((s, i) => shotSeq(L, s, TAIL_SHOTS[i + 1]?.beat ?? LAST_BEAT, TAIL_BEAT))}
+        </Paper>
+      </Sequence>
+    </AbsoluteFill>
+  );
+};
+
+/** 録画（または静止画）のショット 1 つ。base = 親の Sequence の頭の拍 */
+function shotSeq(L: Layout, s: Shot, next: number, base: number) {
+  return (
+              <Sequence key={s.beat} from={beatFrame(s.beat) - beatFrame(base)} durationInFrames={beatFrame(next) - beatFrame(s.beat)} name={s.jp || "countdown"}>
                 {/* 札はタイトルの裏に回す（先に描くと字幕が上に来る） */}
                 {s.ab && <AbBadge L={L} />}
                 <Caption L={L} jp={s.jp} en={s.en} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>
@@ -511,20 +538,5 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
                 </Phone>
                 {s.fx === "flashIn" && <FlashIn />}
               </Sequence>
-            );
-          })}
-        </Paper>
-      </Sequence>
-
-      <Sequence from={beatFrame(NEWURL_BEAT)} durationInFrames={beatFrame(NEWURL_BEAT + BAR * 2) - beatFrame(NEWURL_BEAT)} name="NewUrl"><NewUrl L={L} /></Sequence>
-      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(BANDWIDTH_BEAT + BAR * 2) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth"><Bandwidth L={L} /></Sequence>
-
-      <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
-        <Paper><div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div><Timelapse L={L} /></Paper>
-      </Sequence>
-      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
-      {/* v4: 「全部外す → 元に戻す」は 32 小節目の通常のショットに移した（SHOTS） */}
-      <Sequence from={beatFrame(END_BEAT)} name="End"><EndCard L={L} /></Sequence>
-    </AbsoluteFill>
   );
-};
+}

@@ -17,6 +17,8 @@ const OUT = path.resolve(`public/recordings${PC ? "-pc" : ""}${FEAT ? "-feat" : 
 // feat で使う素材。復活は sm7889666（作品ごと消えていて otoDB がタイトル・作者・サムネを持っている。選定の経緯は video-notes.md）
 const MYLIST = "https://www.nicovideo.jp/mylist/79113711";
 const REVIVE = "https://www.nicovideo.jp/watch/sm7889666";
+// 投稿者名が取れない動画（getthumbinfo に user_nickname も ch_name も無い）。VocaDB から「kz feat. 初音ミク」が入る（v5）
+const AUTHOR = "https://www.nicovideo.jp/watch/sm17315575";
 // 複数の URL を改行で区切ってまとめて貼る例。ちがうサイトを混ぜられることを見せたいので 3 つとも別のサイト
 const MULTI_URLS = [
   "https://www.youtube.com/watch?v=x2Uj_ILuNw0",
@@ -228,6 +230,21 @@ async function featScene() {
   await mark("revive:done");
   await wait(1500);
 
+  // v5: 投稿者名が取れないニコニコ動画も、VocaDB から作者名が入る（Tell Your World → kz feat. 初音ミク）
+  await openSheet();
+  await expandSub("sub-bandcamp", "url-author");
+  await page.locator("#bc-url").scrollIntoViewIfNeeded();
+  await wait(300);
+  await setUrl(AUTHOR);
+  await tap("#bc-btn", "author:paste");
+  await page.waitForSelector('#results .result:has-text("kz")', { timeout: 60000 }).catch(() => console.log("   （作者名の入った候補が出なかった）"));
+  await wait(1800); await mark("author:got");
+  await wait(600);
+  await tap("#results .result", "add:author");
+  await page.waitForSelector("#sheet[hidden]", { state: "attached" }).catch(() => {});
+  await wait(1200);
+  await closeSheet("author-close");
+
   // ⑦ みんなのグリッド: 「載せる」にチェックして共有 → 探すページで曲名を引く
   await page.locator("#opt-listed").scrollIntoViewIfNeeded();
   await wait(400);
@@ -363,24 +380,7 @@ async function featScene() {
   await page.locator("#rows").press("Enter");
   await wait(900);
 
-  // ⑫ 英語の画面ならローマ字: EN に切り替えて「マリーゴールド / あいみょん」→ Marigold / Aimyon
-  if (!EN) {
-    await page.evaluate(() => window.scrollTo({ top: 0 }));
-    await page.locator("#lang-switch").scrollIntoViewIfNeeded();
-    await wait(1200);
-    await tap("#lang-switch", "lang:tap");
-    await wait(1500); await mark("lang:switched");
-  }
-  await openSheet();
-  await type("#q", "マリーゴールド");
-  await type("#artist", "あいみょん");
-  await tap("#search-btn", "romaji:search");
-  await page.waitForSelector('#results .result:has-text("Marigold")', { timeout: 60000 }).catch(() => console.log("   （Marigold が出なかった）"));
-  await wait(1800); await mark("romaji:got");
-  await wait(600);
-  await closeSheet("romaji-close");
-  if (!EN) { await page.locator("#lang-switch").scrollIntoViewIfNeeded(); await tap("#lang-switch", "lang:back"); await wait(900); }
-
+  // v5: ローマ字の場面は外した
   // ⑪ VocaDB: iTunes には無い「恐怖ガーデン」を VocaDB で
   await openSheet();
   await type("#q", "恐怖ガーデン");
@@ -396,21 +396,13 @@ async function featScene() {
   await tap(page.locator('#sources input[value="vocadb"] + span'), "source-off:vocadb");
   await closeSheet("vocadb-close");
 
-  // ⑬ 全部外す → 元に戻す
-  await page.locator("#clear-btn").scrollIntoViewIfNeeded();
-  await wait(600);
-  await tap("#clear-btn", "clear:tap");
-  await page.waitForSelector("#confirm-modal:not([hidden])");
-  await wait(900);
-  await tap("#confirm-yes", "clear:yes");
-  await wait(1000); await mark("clear:empty");
-  await page.waitForSelector("#grid-msg .undo", { state: "attached", timeout: 10000 })
-    .catch(async () => console.log("   （元に戻すが無い）", await page.locator("#grid-msg").innerHTML().catch(() => "?")));
-  await page.locator("#grid-msg .undo").scrollIntoViewIfNeeded();
-  await wait(500);
-  await tap("#grid-msg .undo", "clear:undo");
-  await wait(1400); await mark("clear:back");
-  await wait(800);
+  // v5: 「全部外す → 元に戻す」は外し、最後に「更新情報」と「使い方」のページを撮る（49–50 小節）
+  await page.goto(`${BASE}/updates`, { waitUntil: "networkidle" });
+  await wait(300); await mark("updates:page");
+  await wait(1600); await page.mouse.wheel(0, 500); await wait(1400);
+  await page.goto(`${BASE}/guide`, { waitUntil: "networkidle" });
+  await wait(300); await mark("guide:page");
+  await wait(1600); await page.mouse.wheel(0, 500); await wait(1400);
   await mark("end");
 }
 

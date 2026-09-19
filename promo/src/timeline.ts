@@ -6,7 +6,7 @@
 // 録画は本編（9 マスを埋めて共有まで）と feat（新機能だけ）の 2 本立て。
 // ① で 500 曲入れると並びが壊れるので、同じセッションでは撮れないため。
 //
-// v4（2026-09-19）。構成は譜割りエディタ（https://claude.ai/artifact/KNEULMAUpPGXSYdrCmWC1Q）で利用者が決めたもの。
+// v5（2026-09-19 夜）。構成は譜割りエディタ（https://claude.ai/artifact/KNEULMAUpPGXSYdrCmWC1Q）で利用者が決めたもの。
 import beatsJson from "./beats.json";
 import evTallJaMain from "../public/recordings/events.json";
 import evTallJaFeat from "../public/recordings-feat/events.json";
@@ -70,26 +70,29 @@ export const evTime = (kind: Kind, lang: Lang, session: Session, name: string) =
   return e.v ?? e.t;   // v = 動画内の時刻（scan_markers.py がマーカーから付ける）。無ければ実時間
 };
 
-// ---- 構成（拍番号は 0 始まり。小節 n の頭 = bar(n)）。v4（2026-09-19）: 譜割りエディタで確定した 49 小節 ----
+// ---- 構成（拍番号は 0 始まり。小節 n の頭 = bar(n)）。v5（2026-09-19 夜）: 譜割りエディタで組み直した 50 小節 ----
 // 1–3   イントロ
 // 4–5   新しい URL は trackmento.com（作った画。録画にはアドレス欄が映らないので）
-// 6–7   さらに軽くなりました（作った画）
-// 8–17  新しくなったところ: ローマ字 2 / みんなのグリッド 2 / 探す 2 / パレット 2 / VocaDB / 曲名リスト（静止画 16 枚を 16 分ずつ）
+// 6–7   さらに軽くなりました（作った画）/ 8–9 共有がさらに速く（作った画）
+// 10–17 新しくなったところ: みんなのグリッド 2 / 探す 2 / パレット 2 / VocaDB / 曲名リスト（静止画 16 枚を 16 分ずつ）
 // 18–20 トップ画面の説明
-// 21–31 入れ方 / 32 全部外す → 元に戻す / 33–36 埋めて並べる（36 は 2 拍ずつ）
-// 37–42 出力と共有（37 = 曲名リストは 3 択。42 は 3.5 拍）
-// 42.4.5–43 タイムラプス（4.5 拍。キメに乗る）/ 44–45 できあがり（2 拍ずつ 4 枚）/ 46–48 エンドカード / 49 終わり
+// 21–31 入れ方 / 32 ニコニコの作者名も VocaDB から / 33–35 大きく見る・埋めて並べる
+// 36–41 出力と共有（36 = 曲名リストは 3 択。41 は 3.5 拍）
+// 42–43 タイムラプス（キメに乗る）/ 44–45 できあがり / 46–48 エンドカード / 49–50 困ったら更新情報と使い方（録画）
+// v4 から外したもの: ローマ字（8–9）、全部外す → 元に戻す（32）
 // 曲の区切りとキメは 2026-09-18 に聴き直して 1 小節後ろへ直した（A メロ 28–43、サビ 2 は 44 から、キメは 42 小節 4.5 拍〜43 小節）
 export const INTRO_END = bar(4);            // イントロは 3 小節
 export const NEWURL_BEAT = bar(4);          // 新しい URL（作った画、2 小節）
 export const BANDWIDTH_BEAT = bar(6);       // さらに軽くなりました（作った画、2 小節）
-export const FLOW_BEAT = bar(8);            // 録画のショットはここから
+export const FASTER_BEAT = bar(8);          // 共有がさらに速く（作った画、2 小節）
+export const FLOW_BEAT = bar(10);           // 録画のショットはここから
 export const TIMELAPSE_BEAT = bar(42);         // 42〜43 小節目の 2 小節。キメ（42 小節 4.5 拍〜43 小節 3.5 拍）で拡大する
 export const SHOWCASE_BEAT = bar(44);       // できあがり（2 小節。本編で作った 1 枚をそのまま見せる）
 export const END_BEAT = bar(46);            // エンドカード（ロゴ 1 小節 → URL 1 小節 → 無料 1 小節）
 export const URL_BEAT = bar(47);
 export const FREE_BEAT = bar(48);
-export const LAST_BEAT = bar(50);           // 49 小節目（終わり）まで
+export const TAIL_BEAT = bar(49);           // 困ったら「更新情報」と「使い方」（録画、2 小節。エンドカードはここで終わる）
+export const LAST_BEAT = bar(51);           // 50 小節目まで
 export const FADE_FROM = END_BEAT;          // 音楽のフェードアウト開始（46 小節）
 export const DURATION_FRAMES = beatFrame(LAST_BEAT) + 12;
 
@@ -115,7 +118,6 @@ const SMART = Array.from({ length: 16 }, (_, i) => `smart-${String(i + 1).padSta
 // 早回し（speed）とズーム（zoomPc）は v3 の場面ごとの値をそのまま使う（エディタでは扱わないと決めた。2026-09-18）
 export const SHOTS: Shot[] = [
   // ---- 8〜17 小節目: 新しくなったところ ----
-  { beat: bar(8), len: 8, ev: "romaji:search", off: -0.6, rec: "feat", speed: 1.4, jp: "英語画面なら曲名もローマ字に", en: "In English, titles come romanized", zoomPc: { x: 0, y: 0.4, s: 1.6 } },
   { beat: bar(10), len: 8, ev: "listed:check", off: -0.8, rec: "feat", speed: 1.4, jp: "「みんなのグリッド」に載せて共有", en: "List it on Everyone's grids", zoom: { x: 0.2, y: 0.6, s: 1.3 }, zoomPc: { x: 0.6, y: 0.9, s: 1.5 } },
   { beat: bar(12), len: 8, ev: "find:page", off: -0.2, rec: "feat", speed: 1.1, jp: "曲名で、みんなの並びを探せる", en: "Search everyone's grids by track" },
   { beat: bar(14), len: 4, ev: "pal:pop", off: -0.5, rec: "feat", speed: 1.2, jp: "パレットで配色ごと切り替え", en: "Palettes swap the whole colour scheme" },
@@ -141,8 +143,8 @@ export const SHOTS: Shot[] = [
   { beat: bar(29), len: 4, ev: "revive:paste", off: -1.6, rec: "feat", speed: 1.5, jp: "消えた動画も", en: "Even deleted videos" },
   { beat: bar(30), len: 4, ev: "revive:done", off: -0.6, rec: "feat", jp: "otoDB からよみがえる", en: "come back from otoDB" },
   { beat: bar(31), len: 4, ev: "manual:mitsuami", off: -0.6, speed: 1.2, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
-  // ---- 32 小節目: 全部外す → 確認の窓 → 元に戻す（v3 では最後の場面だった） ----
-  { beat: bar(32), len: 4, ev: "clear:tap", off: -0.4, rec: "feat", speed: 1.3, jp: "作り直すときは「マスを全部外す」", en: "Clear all to start over — and undo if you slip" },
+  // ---- 32 小節目: 投稿者名が取れないニコニコ動画も、VocaDB から作者名が入る（Tell Your World） ----
+  { beat: bar(32), len: 4, ev: "author:got", off: -0.8, rec: "feat", jp: "ニコニコの作者名も\nVocaDB から", en: "Missing Niconico artists filled in from VocaDB" },
   // ---- 33 小節目: 大きく見る（32×1 を指で送る。16×16 の場面はエディタで外した） ----
   { beat: bar(33), len: 4, ev: "zoom32:open", off: -0.3, rec: "feat", speed: 1.8, jp: "「大きく見る」で細長い並びも見やすく", en: "Enlarge to scroll through long rows" },
   // ---- 34〜35 小節目: 埋めて並べる ----
@@ -155,6 +157,18 @@ export const SHOTS: Shot[] = [
   { beat: bar(39), len: 4, ev: "bg:custom", off: -0.4, jp: "カスタム色はつまみで", en: "Or dial in any colour", zoomPc: { x: 1, y: 0.67, s: 2.0 } },
   { beat: bar(40), len: 4.5, ev: "share", off: -0.2, jp: "共有すると、送信の進み具合が見える", en: "Share — with an upload progress bar", zoomPc: { x: 0.55, y: 0.7, s: 1.6 } },
   { beat: bar(41) + 0.5, len: 3.5, ev: "share-ready", off: -0.2, jp: "画像と共有 URL", en: "An image and a link", zoomPc: { x: 0.6, y: 0.5, s: 1.3 } },
+];
+
+/** エンドカードのあとの録画（49–50 小節）。音楽はフェードの途中 */
+export const TAIL_SHOTS: Shot[] = [
+  { beat: bar(49), len: 4, ev: "updates:page", off: -0.2, rec: "feat", jp: "困ったら\n「更新情報」と「使い方」", en: "Stuck? See Updates and the Guide" },
+  { beat: bar(50), len: 4, ev: "guide:page", off: -0.2, rec: "feat", jp: "困ったら\n「更新情報」と「使い方」", en: "Stuck? See Updates and the Guide" },
+];
+
+/** 8–9 小節「共有がさらに速く」（作った画）。2026-09-19 にスマホの共有画像を小さくした（最大辺 2000px・JPEG 0.78） */
+export const FASTER_ROWS: { jp: string; en: string; from: string; to: string }[] = [
+  { jp: "スマホの共有画像", en: "Share image on phones", from: "465KB", to: "327KB" },
+  { jp: "送信にかかる時間", en: "Upload time", from: "100%", to: "約 70%" },
 ];
 
 /** タイムラプスの中のキメ（ショットの頭からの拍数）。1 つごとに寄り、最後の 1 つは横へも振る */
