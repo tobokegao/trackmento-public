@@ -145,6 +145,7 @@ async def lifespan(app: FastAPI):
     imgidx = asyncio.create_task(_seed_image_index()) if st.is_remote else None
     listed = asyncio.create_task(_seed_listed_index())
     srchidx = asyncio.create_task(_seed_search_index()) if st.is_remote else None
+    usage = asyncio.create_task(_usage_loop()) if (public_mode() or st.is_remote) else None
     app.state.http = httpx.AsyncClient(
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
@@ -161,6 +162,8 @@ async def lifespan(app: FastAPI):
             imgidx.cancel()
         if srchidx:
             srchidx.cancel()
+        if usage:
+            usage.cancel()
         listed.cancel()
         await app.state.http.aclose()
         cache.close()
@@ -1228,6 +1231,19 @@ async def _seed_image_index() -> None:
         return
     _IMG_INDEX.update(got)
     print(f"[storage] imgcache の索引: {len(_IMG_INDEX)} 件（デプロイ後の取り直しを防ぐ）")
+
+
+async def _usage_loop() -> None:
+    """R2 の使用量を裏で数え直す（共有の容量の上限に使う。`storage.usage_cached`）。起動直後に 1 回、以後 10 分ごと。
+    全件の一覧に 2 分ほどかかるので、共有の保存の途中では数えない（2026-09-19）"""
+    while True:
+        try:
+            t0 = time.monotonic()
+            n = await asyncio.to_thread(storage.usage_bytes, True)
+            print(f"[storage] 使用量 {n / 1024**3:.1f} GB（数えるのに {time.monotonic() - t0:.0f} 秒）")
+        except Exception as e:
+            print(f"[error] R2 の使用量を数えられませんでした: {type(e).__name__}: {e}")
+        await asyncio.sleep(storage.USAGE_CACHE_SEC)
 
 
 async def _seed_search_index() -> None:

@@ -110,21 +110,15 @@ def create(doc: GridDoc, budget: int = 0) -> dict:
     return store(doc, data, og, im.width, im.height, budget, IMAGE_EXT)
 
 
-_over_budget_at = 0.0   # 上限超過を最後に確かめた時刻（monotonic）
 
 
 def _check_budget(need: int, budget: int) -> None:
-    """保存後の合計が budget を超えるなら BudgetExceeded。超過中は一覧の取り直しを 60 秒に 1 回に抑える
-    （上限到達中に共有のたび全件一覧（数秒）を回すと、保存が全部その後ろに並んでサーバーが詰まる）。"""
-    global _over_budget_at
-    used = storage.usage_bytes()
-    if used + need <= budget:
+    """保存後の合計が budget を超えるなら BudgetExceeded。**覚えている使用量だけで判断し、一覧は回さない**
+    （`storage.usage_cached`。数え直しは裏で 10 分ごと）。まだ一度も数えていない起動直後は通す
+    （上限は保存容量の歯止めで、数分の遅れは問題にならない。待たせるほうが実害が大きい）"""
+    used = storage.usage_cached()
+    if used is None or used + need <= budget:
         return
-    if time.monotonic() - _over_budget_at > 60:
-        used = storage.usage_bytes(refresh=True)   # キャッシュが古い可能性があるので取り直してから最終判断
-        if used + need <= budget:
-            return
-        _over_budget_at = time.monotonic()
     print(f"[share] budget: 使用 {used / 1024**3:.2f} GB / 上限 {budget / 1024**3:.2f} GB → 507")
     raise BudgetExceeded(used, budget, need)
 

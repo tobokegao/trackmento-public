@@ -180,6 +180,15 @@ def usage_bytes(refresh: bool = False) -> int:
     return n
 
 
+def usage_cached() -> int | None:
+    """覚えている使用量（一覧は回さない）。まだ一度も数えていなければ None。
+    **共有の保存の途中では、こちらだけを使う**（2026-09-19）。バケットが 20 万件・30GB になり、全件の一覧に
+    134 秒かかるようになった。保存の途中で数え直すと、10 分に 1 回とデプロイ直後の最初の共有がその 134 秒を
+    まるごと待たされていた（点検で「検査と保存」が最大 179 秒）。数え直しは `main.py` の監視ループが裏で行う"""
+    with _usage_lock:
+        return _usage[1] if _usage else None
+
+
 def add_usage(n: int) -> None:
     global _usage
     with _usage_lock:
