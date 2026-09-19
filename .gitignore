@@ -23,3 +23,7 @@ promo/public/
 
 # Cloudflare wrangler の作業ファイル
 .wrangler/
+
+# .env の控え（.env.bak-* など）も鍵を含むので入れない。.env.example だけ例外
+.env.*
+!.env.example
