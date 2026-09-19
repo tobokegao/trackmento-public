@@ -3620,15 +3620,28 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      段の少ない横長の並び（7x1 など）だと下に大きな空きが残るので、1 曲 1 行で縦に積んで真ん中に置く */
   function slabStack(gw, gh, titleH, ratio, m, maxSide) {
     const n = state.cells.length;
-    if (!n || state.rows > SLAB_STACK_MAX_ROWS || n > SLAB_STACK_MAX_SONGS) return null;
+    if (!n || state.rows > SLAB_STACK_MAX_ROWS) return null;
     const [W, H, pad] = slabFrame(gw, ratio, m, false, state.gap);
     if (W <= 0 || H <= 0) return null;
     const scale = Math.min(1, maxSide / Math.max(W, H));
     const segW = W - pad * 2;
+    // 1 回目: 縦一列（SLAB_STACK_MAX_SONGS 曲まで）、2 回目: 1 行型の表（backend/render.py の _slab_stack と同じ）
+    if (n <= SLAB_STACK_MAX_SONGS) {
+      const plan = slabStackTry(gh, titleH, n, W, H, pad, scale, segW, false);
+      if (plan) return plan;
+    }
+    // 表は列の少ないほうを優先（字の差が SLAB_STACK_FEW_COLS 以内なら）
+    const plans = [];
+    for (let k = 1; k <= SLAB_STACK_TABLE_COLS; k++) { const p = slabStackTry(gh, titleH, n, W, H, pad, scale, segW, true, k); if (p) plans.push(p); }
+    if (!plans.length) return null;
+    const top = Math.max(...plans.map((p) => p.fontS));
+    return plans.find((p) => p.fontS >= top * SLAB_STACK_FEW_COLS);
+  }
+  function slabStackTry(gh, titleH, n, W, H, pad, scale, segW, table, k = 1) {
     for (const target of SLAB_TARGET_PX) {
       if (target < SLAB_ROW_MIN) break;
       const fontS = Math.max(18, Math.round(target / scale));
-      if (segW < fontS * WRAP_MIN_SEG) continue;
+      if (!table && segW < fontS * WRAP_MIN_SEG) continue;
       const wgap = Math.round(fontS * WRAP_GAP_EM);
       const cap = Math.max(Math.round((H - pad * 2 - gh) * SLAB_TITLE_MAX),
                            Math.round(Math.ceil(fontS * SLAB_TITLE_MIN) * 1.9));
@@ -3638,8 +3651,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (titleH && tSize < fontS * SLAB_TITLE_MIN) continue;
       const gy = pad + tH + (tH ? wgap : 0);
       const y0 = gy + gh + wgap;
-      const per = Math.round(fontS * SLAB_STACK_LINE);
       const avail = (H - pad) - y0;
+      if (table) {
+        const lh = Math.round(fontS / TABLE_FONT), tgap = Math.round(lh * TABLE_GAP_LH);
+        const rows = Math.ceil(n / k), cw = Math.floor((segW - tgap * (k - 1)) / k);
+        if (rows * lh > avail || cw < fontS * WRAP_MIN_SEG / 2 || !inlineOneLine(fontS, cw)) continue;
+        const dy = Math.max(0, Math.floor((avail - rows * lh) / 2));
+        const segs = Array.from({ length: n }, (_, i) => [pad + Math.floor(i / rows) * (cw + tgap), y0 + dy + (i % rows) * lh, cw]);
+        return { W, H, scale, fontS, lineH: lh, titleSize: tSize, titleH: tH, pad, top: pad,
+                 gx: pad, gy, segs, rows: [], use: 1, rowsMode: true, inline: true };
+      }
+      const per = Math.round(fontS * SLAB_STACK_LINE);
       if (per * n > avail) continue;
       const dy = Math.max(0, Math.floor((avail - per * n) / 2));
       const segs = Array.from({ length: n }, (_, i) => [pad, y0 + dy + i * per, segW]);
@@ -3849,6 +3871,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const LIST_COL_GAP = GAP_PX * 5;
   // 1 行型の表（backend/render.py の TABLE_*）。細い並びを横長の比率に入れたとき、流し込みの代わりに使う
   const TABLE_FONT = 0.5, TABLE_MAX_COLS = 3, TABLE_RULE = 0.86, TABLE_GAP_LH = 1.0;
+  const SLAB_STACK_TABLE_COLS = 4, SLAB_STACK_FEW_COLS = 0.85;   // 帯の下の表の列の上限・列の少ないほうを優先する字の差（backend/render.py と同じ）
   const LIST_COL_GAIN = 1.02;   // 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
   const fontPx = (f) => parseFloat(/(\d+(?:\.\d+)?)px/.exec(f)[1]);   // font 文字列から大きさだけ取る
   const TITLE_SHRINK = [0.92, 0.86, 0.8];   // 折った最後の行が少しはみ出すときに縮める段階（backend/render.py と同じ）
@@ -4335,7 +4358,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
                  titleSize: wp.titleSize, titleH: wp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
                  lineH: wp.lineH, fontS: wp.fontS, sbGap, sbFlow: true, sbPlan: [],
                  wrap: true, wrapPad: wp.pad, wrapTop: wp.top, wrapSegs: wp.segs,
-                 wrapRows: wp.rowsMode === true };
+                 wrapRows: wp.rowsMode === true, wrapInline: !!wp.inline };
       }
     }
     // **流し込みに落ちるくらいなら、1 曲 1 行を残す**（backend/render.py と同じ）。1 曲 1 行が FLOW_KEEP_FONT 以上なら戻す
@@ -4467,6 +4490,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         // 下限は ZOOM_MIN_CELL だけ（欄の中の大きさは見ない。1x32 は欄の中で 1 マスが欄の幅いっぱいある）
         const cap = Math.max(ZOOM_MIN_CELL, Math.min(ZOOM_WIDE_MAX, innerH / 4.4));
         if (CELL_PX * gridW / (gw + state.margin * 2) > cap) gridW = Math.round(cap / CELL_PX * (gw + state.margin * 2));
+      }
+      // **2 本指（PC は Ctrl＋ホイール）で決めた大きさがあれば、それを使う**（2026-09-20、利用者の要望）。
+      // 並びの形（何列×何行）ごとに端末へ覚える。下限は ZOOM_MIN_CELL、上限は窓の幅いっぱい
+      const userCell = zoomCellFor();
+      if (userCell) {
+        const cell = Math.max(ZOOM_MIN_CELL, Math.min(userCell, innerW));
+        gridW = Math.round(cell / CELL_PX * (gw + state.margin * 2));
       }
       const gridH = Math.round(gridW / ar);
       // あふれる向きには PC のスクロールバー（16px）のぶんを足す（足りないと、もう片方にもスクロールバーが出る）
@@ -4729,6 +4759,50 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const zoomModal = $("#zoom-modal"), zoomSlot = $("#zoom-slot");
   const editorHome = els.editor.parentNode;   // 閉じるときに戻す先（検索ペイン）
   let gridZoomed = false, zoomBaseCell = 0;   // zoomBaseCell … 開く直前に欄の中で見えていたマスの大きさ
+  /* ---- 大きく見る窓の 2 本指の拡大・縮小（PC は Ctrl＋ホイール）。並びの形ごとにマスの大きさ（CSS px）を覚える ---- */
+  const ZOOM_CELL_KEY = "trackmento:zoomCell";
+  let zoomCells = {};
+  try { zoomCells = JSON.parse(localStorage.getItem(ZOOM_CELL_KEY) || "{}") || {}; } catch { zoomCells = {}; }
+  function zoomCellFor() { return zoomCells[`${state.cols}x${state.rows}`] || 0; }
+  function setZoomCell(px) {
+    zoomCells[`${state.cols}x${state.rows}`] = Math.round(px);
+    try { localStorage.setItem(ZOOM_CELL_KEY, JSON.stringify(zoomCells)); } catch { /* 覚えられなくても動く */ }
+  }
+  /** いま窓の中で見えているマスの大きさ */
+  const zoomCellNow = () => { const c = els.grid.querySelector(".cell"); return c ? c.getBoundingClientRect().width : 0; };
+  /** マスの大きさを px にして、(cx, cy)（画面の座標）の下にあるものを動かさない */
+  function zoomTo(px, cx, cy) {
+    const sc = els.gridScroll, before = zoomCellNow();
+    if (!before) return;
+    const r = sc.getBoundingClientRect(), ox = cx - r.left, oy = cy - r.top;
+    const ax = sc.scrollLeft + ox, ay = sc.scrollTop + oy;
+    setZoomCell(px); syncPreview();
+    const k = zoomCellNow() / before;
+    sc.scrollLeft = ax * k - ox; sc.scrollTop = ay * k - oy;
+  }
+  {
+    let pinch = null, frame = 0, last = null;
+    const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const mid = (t) => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
+    zoomSlot.addEventListener("touchstart", (e) => {
+      if (!gridZoomed || e.touches.length !== 2) return;
+      e.preventDefault();
+      pinch = { d0: Math.max(1, dist(e.touches)), c0: zoomCellNow() };
+    }, { passive: false });
+    zoomSlot.addEventListener("touchmove", (e) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      last = { px: pinch.c0 * dist(e.touches) / pinch.d0, m: mid(e.touches) };
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (last) zoomTo(last.px, last.m[0], last.m[1]); });
+    }, { passive: false });
+    const end = (e) => { if (e.touches.length < 2) pinch = null; };
+    zoomSlot.addEventListener("touchend", end); zoomSlot.addEventListener("touchcancel", end);
+    zoomSlot.addEventListener("wheel", (e) => {
+      if (!gridZoomed || !(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      zoomTo(zoomCellNow() * Math.exp(-e.deltaY * 0.0025), e.clientX, e.clientY);
+    }, { passive: false });
+  }
   function openZoom() {
     if (gridZoomed) return;
     const cell = els.grid.querySelector(".cell");

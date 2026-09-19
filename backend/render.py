@@ -937,6 +937,10 @@ SLAB_STACK_MAX_ROWS = 2
 # 30 曲を超えると単なる長い列になり、同じ 32xN のグループの中で 32x1 だけ見た目が変わってしまう
 # （利用者の指摘）。多いときは今までどおり流し込んで、塊の下の場所を隅々まで使う
 SLAB_STACK_MAX_SONGS = 16
+SLAB_STACK_TABLE_COLS = 4  # 帯の下の表（`_slab_stack` の 2 回目）の列の上限
+# **列の少ない表を優先する**（2026-09-20、利用者の選択）。字の差がこの割合以内なら列の少ないほう。
+# 32x1・1:1 は 2 列（28px）より 1 列（24px）のほうが高さを使い切り、帯と表のあいだが大きく空かない
+SLAB_STACK_FEW_COLS = 0.85
 SLAB_STACK_LINE = 2.4      # 1 曲ぶんの高さ（曲名の行 + アーティストの行）。文字の大きさに対する倍率
 # 段の中で横に並べるときの、1 曲ぶんの最小の幅（文字の大きさの何倍か＝だいたい何字入るか）
 SLAB_ROW_BESIDE_SEG = 12
@@ -1122,18 +1126,37 @@ def _slab_stack(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: i
     `WRAP_MIN_SEG` 字ぶんの幅を持てる中でいちばん大きいものを選ぶ。
     """
     n = len(doc.cells)
-    if not n or doc.rows > SLAB_STACK_MAX_ROWS or n > SLAB_STACK_MAX_SONGS:
+    if not n or doc.rows > SLAB_STACK_MAX_ROWS:
         return None
     W, H, pad = _slab_frame(gw, ratio, m, False, doc.options.gap)
     if W <= 0 or H <= 0:
         return None
     scale = min(1.0, max_side_v / max(W, H))
     seg_w = W - pad * 2
+    # 1 回目: 曲名の下にアーティスト名を置く縦一列（SLAB_STACK_MAX_SONGS 曲まで）。
+    # 2 回目: **1 行型の表**（2026-09-20、利用者の 32x1 の共有 5 枚）。縦一列に入らない並びは、曲名が段落のように
+    # 流れて読みにくかった。番号・曲名・右端にアーティスト名の 1 行を、帯の下に 1〜SLAB_STACK_TABLE_COLS 列で並べる。
+    # 全曲が 1 行に入る大きさだけ使う（「…」で切らない）。**1 回目で組める並び（7x1 など）の見た目は変えない**
+    if n <= SLAB_STACK_MAX_SONGS:
+        plan = _slab_stack_try(doc, gh, title_h, n, W, H, pad, scale, seg_w, False)
+        if plan is not None:
+            return plan
+    # 表: 列の数ごとにいちばん大きい字を出し、いちばん大きい字の SLAB_STACK_FEW_COLS 以上ある中で列のいちばん少ないもの
+    plans = [p for k in range(1, SLAB_STACK_TABLE_COLS + 1)
+             if (p := _slab_stack_try(doc, gh, title_h, n, W, H, pad, scale, seg_w, True, k)) is not None]
+    if not plans:
+        return None
+    top = max(p.font_s for p in plans)
+    return next(p for p in plans if p.font_s >= top * SLAB_STACK_FEW_COLS)
+
+
+def _slab_stack_try(doc: GridDoc, gh: int, title_h: int, n: int, W: int, H: int, pad: int,
+                    scale: float, seg_w: int, table: bool, k: int = 1) -> WrapPlan | None:
     for target in SLAB_TARGET_PX:
         if target < SLAB_ROW_MIN:
             break
         font_s = max(18, rnd(target / scale))
-        if seg_w < font_s * WRAP_MIN_SEG:      # 1 行が短すぎる
+        if not table and seg_w < font_s * WRAP_MIN_SEG:      # 1 行が短すぎる
             continue
         wgap = rnd(font_s * WRAP_GAP_EM)
         # 帯ではタイトルの帯が枠の高さを押し広げない（高さは比率で決まる）ので、
@@ -1146,8 +1169,19 @@ def _slab_stack(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: i
             continue
         gy = pad + t_h + (wgap if t_h else 0)
         y0 = gy + gh + wgap
-        per = rnd(font_s * SLAB_STACK_LINE)    # 1 曲ぶんの高さ（曲名の行 + アーティストの行）
         avail = (H - pad) - y0
+        if table:
+            lh = rnd(font_s / TABLE_FONT)
+            tgap = rnd(lh * TABLE_GAP_LH)
+            rows = math.ceil(n / k)
+            cw = (seg_w - tgap * (k - 1)) // k
+            if rows * lh > avail or cw < font_s * WRAP_MIN_SEG / 2 or not _inline_one_line(doc, font_s, cw):
+                continue
+            dy = max(0, (avail - rows * lh) // 2)
+            segs = tuple((pad + (i // rows) * (cw + tgap), y0 + dy + (i % rows) * lh, cw) for i in range(n))
+            return WrapPlan(W, H, scale, font_s, lh, t_size, t_h, pad, pad, pad, gy,
+                            segs, [], 1.0, True, inline=True)
+        per = rnd(font_s * SLAB_STACK_LINE)    # 1 曲ぶんの高さ（曲名の行 + アーティストの行）
         if per * n > avail:                    # 縦に入らない → 次の（小さい）大きさ
             continue
         # **中身ごと下げて上下の余白をそろえる**（曲名だけ真ん中に置くと塊から離れて見える）
@@ -1785,7 +1819,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
                        and wp.scale >= scale * WRAP_CELL_KEEP)):
             return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
                           side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (), (),
-                          True, wp.pad, wp.top, wp.segs, wp.rows_mode)
+                          True, wp.pad, wp.top, wp.segs, wp.rows_mode, wrap_inline=wp.inline)
     # **流し込みに落ちるくらいなら、1 曲 1 行を残す**（2026-09-17）。回り込みや柱・帯のほうがマスを大きく
     # 取れる並びは上で返っている。ここに来るのは「流し込みの右サイドバー」で、字は 24〜34px と大きいが
     # 高さの半分が空き、曲の区切りも見えない（利用者の 4x4・5x5・6x6 の 16:9 で「整列できそう」と指摘）。

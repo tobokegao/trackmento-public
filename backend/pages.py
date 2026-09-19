@@ -246,6 +246,10 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-20", "横一列の並び（32×1 など）で、曲名リストを並びの下に 1 曲 1 行の表で並べるようにしました。",
+     "For single-row grids (like 32×1), the track list now appears below the row as a one-line-per-track table."),
+    ("2026-09-20", "「大きく見る」で、2 本指（パソコンは Ctrl＋ホイール）でマスの大きさを変えられるようにしました。並びの形ごとに大きさを覚えます。",
+     "In “Enlarge”, you can now pinch (or Ctrl + scroll on a computer) to resize the cells. The size is remembered for each grid shape."),
     ("2026-09-20", "1 列の並び（1×32 など）で、曲名をジャケットの真横に 1 曲ずつ並べ、アーティスト名を右端にそろえるようにしました。16:9 のように横長の比率では、曲名リストを 1 曲 1 行の表にします。",
      "For single-column grids (like 1×32), track names now sit beside each cover, one per line, with artists aligned to the right. In wide ratios such as 16:9, the list becomes a one-line-per-track table."),
     ("2026-09-20", "マスの数や余白などを変えたときに画面がもたつくのを直しました。",
