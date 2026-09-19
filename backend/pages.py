@@ -246,6 +246,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-20", "曲名リストを文章のように流し込むとき、名前の最後の 1〜2 字だけが次の行へこぼれないようにしました（「アイリッシ／ュ」のような折れ方）。",
+     "When the track list flows like a paragraph, the last one or two letters of a name no longer spill onto the next line."),
     ("2026-09-20", "横一列の並び（32×1 など）で、曲名リストを並びの下に 1 曲 1 行の表で並べるようにしました。",
      "For single-row grids (like 32×1), the track list now appears below the row as a one-line-per-track table."),
     ("2026-09-20", "「大きく見る」で、2 本指（パソコンは Ctrl＋ホイール）でマスの大きさを変えられるようにしました。並びの形ごとに大きさを覚えます。",

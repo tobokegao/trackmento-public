@@ -420,6 +420,12 @@ FLOW_FONT_STEPS = (132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18
 # 右に置くときは**出力での大きさ**（px）で選ぶ。枠が先に決まるのでこちらのほうが素直
 FLOW_TARGET_PX = (56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12)
 FLOW_FINE_STEPS = 16      # 右に置く流し込みで、入った段から字を 1 論理 px ずつ大きくする回数の上限
+# **流し込みで語の尻尾だけが次の行へこぼれるなら、語ごと次の行へ送る**（2026-09-20、利用者の指摘。
+# 「ビリー・アイリッシ／ュ」「La／ur」）。こぼれるのが FLOW_TAIL 字以下で、行に置いた頭が FLOW_WORD_MAX 字以下のときだけ。
+# 語の区切りは空白と記号（FLOW_WORD_SEP）。長い漢字の並びのように語が長いものは今までどおり字の途中で折る
+FLOW_TAIL = 2
+FLOW_WORD_MAX = 12
+FLOW_WORD_SEP = frozenset(" \u3000・･/／-‐–—_,，、。.．&＆×()（）[]［］【】「」『』<>〈〉《》!！?？~〜～:：;；\"'’“”*＊+＋=|｜")
 
 
 # 曲名の末尾の「(feat. …)」。**ここだけは 2 段目に落とせる**（曲名の本体とアーティスト名を守るため）。
@@ -807,10 +813,41 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             rows.append(FlowRow(cur, x, gaps))
         cur, x, gaps = [], 0.0, 0
 
-    def put(kind: str, text: str) -> None:
+    def tail_back(kind: str, chars: list[str], j: int, j0: int) -> str:
+        """chars[j] で折るとき、語の尻尾だけがこぼれるなら、行に置いた語の頭を外して返す（FLOW_TAIL）"""
         nonlocal x
-        f = fonts[kind]
-        for ch in text:
+        if chars[j] in FLOW_WORD_SEP:
+            return ""
+        k = j
+        while k < len(chars) and chars[k] not in FLOW_WORD_SEP:
+            k += 1
+        p = j
+        while p > j0 and chars[p - 1] not in FLOW_WORD_SEP:
+            p -= 1
+        n = j - p
+        if k - j > FLOW_TAIL or n == 0 or n > FLOW_WORD_MAX or (p == j0 and j0 > 0):
+            return ""
+        # 曲名の最初の語は送らない（番号だけが行末に取り残される）
+        if kind == "title" and all(c in " 　" for c in chars[:p]):
+            return ""
+        if not cur or cur[-1][0] != kind or len(cur[-1][1]) < n or (len(cur) == 1 and len(cur[-1][1]) == n):
+            return ""
+        head = "".join(chars[p:j])
+        cur[-1] = (kind, cur[-1][1][:-n])
+        x -= sum(char_w(*sizes[kind], ch) for ch in head)
+        # 行末に残る空白も外す（見えない字のぶん右端がそろわなくなる）
+        while cur and cur[-1][1] and cur[-1][1][-1] in " \u3000":
+            x -= char_w(*sizes[cur[-1][0]], cur[-1][1][-1])
+            cur[-1] = (cur[-1][0], cur[-1][1][:-1])
+        while cur and not cur[-1][1]:
+            cur.pop()
+        return head
+
+    def put(kind: str, text: str) -> None:
+        nonlocal x, cur
+        chars = list(text)
+        j0 = 0   # この text の中で、今の行が始まった位置（行の途中から始まったなら 0）
+        for j, ch in enumerate(chars):
             if full():
                 return
             # **折り返しの判定は 1px に丸めた字幅で行う**。PIL と Canvas の字幅は 1px 未満だけ違い、
@@ -818,7 +855,16 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             # 丸めればほとんどの字で同じ値になり、両者が同じ位置で折る（描くときは実寸のまま）
             w = char_w(*sizes[kind], ch)
             if x + w > cw() and cur:
+                moved = tail_back(kind, chars, j, j0)
                 flush()
+                j0 = j
+                if moved and not full():
+                    cur = [(kind, moved)]
+                    x = float(sum(char_w(*sizes[kind], c) for c in moved))
+                    j0 = j - len(moved)
+                    if x + w > cw():   # 送った先の行が狭くて入らないなら、そこでまた折る
+                        flush()
+                        j0 = j
             if cur and cur[-1][0] == kind:
                 cur[-1] = (kind, cur[-1][1] + ch)
             else:

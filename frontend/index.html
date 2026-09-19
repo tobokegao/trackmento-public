@@ -3341,6 +3341,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 右に置くときは出力での大きさ（px）で選ぶ（枠が先に決まるので）
   const FLOW_TARGET_PX = [56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12];
   const FLOW_FINE_STEPS = 16;
+  // 流し込みで語の尻尾だけが次の行へこぼれるなら、語ごと送る（backend/render.py の FLOW_TAIL と同じ）
+  const FLOW_TAIL = 2, FLOW_WORD_MAX = 12;
+  const FLOW_WORD_SEP = new Set([..." \u3000・･/／-‐–—_,，、。.．&＆×()（）[]［］【】「」『』<>〈〉《》!！?？~〜～:：;；\"'’“”*＊+＋=|｜"]);
   // **曲名をマスに重ねる**（backend/render.py の OVERLAY_* と同じ値）。マスの下に下から上へ濃くなる黒い帯を敷き、
   // 白い字で曲名 → アーティスト名。入らなければ縮め、それでも入らなければ「…」
   const OVERLAY_SHADE = 0.52, OVERLAY_ALPHA = 0.82, OVERLAY_TITLE = 0.085, OVERLAY_ARTIST = 0.066, OVERLAY_PAD = 0.055, OVERLAY_LEAD = 1.3, OVERLAY_MIN_PX = 12;
@@ -3379,14 +3382,52 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const cw = () => (segW ? (rows.length < segW.length ? segW[rows.length] : segW[segW.length - 1]) : maxW);
     const full = () => maxRows !== null && rows.length >= maxRows;
     const flush = () => { if (cur.length) rows.push({ parts: cur, width: x, gaps }); cur = []; x = 0; gaps = 0; };
+    // chars[j] で折るとき、語の尻尾だけがこぼれるなら、行に置いた語の頭を外して返す（backend/render.py の tail_back と同じ）
+    const tailBack = (kind, chars, j, j0) => {
+      if (FLOW_WORD_SEP.has(chars[j])) return "";
+      let k = j; while (k < chars.length && !FLOW_WORD_SEP.has(chars[k])) k++;
+      let p = j; while (p > j0 && !FLOW_WORD_SEP.has(chars[p - 1])) p--;
+      const n = j - p;
+      if (k - j > FLOW_TAIL || n === 0 || n > FLOW_WORD_MAX || (p === j0 && j0 > 0)) return "";
+      // 曲名の最初の語は送らない（番号だけが行末に取り残される）
+      if (kind === "title" && chars.slice(0, p).every((c) => c === " " || c === "　")) return "";
+      const last = cur[cur.length - 1];
+      if (!last || last[0] !== kind) return "";
+      const lc = [...last[1]];
+      if (lc.length < n || (cur.length === 1 && lc.length === n)) return "";
+      const head = chars.slice(p, j).join("");
+      last[1] = lc.slice(0, lc.length - n).join("");
+      for (const ch of head) x -= cw1(fonts[kind], ch);
+      // 行末に残る空白も外す
+      while (cur.length) {
+        const e = cur[cur.length - 1], ec = [...e[1]];
+        if (!ec.length) { cur.pop(); continue; }
+        const lastCh = ec[ec.length - 1];
+        if (lastCh !== " " && lastCh !== "\u3000") break;
+        x -= cw1(fonts[e[0]], lastCh); e[1] = ec.slice(0, -1).join("");
+      }
+      return head;
+    };
     const put = (kind, text) => {
       ctx.font = fonts[kind];
-      for (const ch of text) {
+      const chars = [...text];
+      let j0 = 0;   // この text の中で、今の行が始まった位置
+      for (let j = 0; j < chars.length; j++) {
+        const ch = chars[j];
         if (full()) return;
         // **折り返しの判定は 1px に丸めた字幅で行う**（PIL と Canvas の 1px 未満の差で
         // 折る位置が入れ替わり、そこから先の行が全部ずれるため。描くときは実寸のまま）
         const w = cw1(fonts[kind], ch);
-        if (x + w > cw() && cur.length) { flush(); ctx.font = fonts[kind]; }
+        if (x + w > cw() && cur.length) {
+          const moved = tailBack(kind, chars, j, j0);
+          flush(); j0 = j;
+          if (moved && !full()) {
+            cur = [[kind, moved]]; x = 0; for (const c of moved) x += cw1(fonts[kind], c);
+            j0 = j - [...moved].length;
+            if (x + w > cw()) { flush(); j0 = j; }
+          }
+          ctx.font = fonts[kind];
+        }
         if (cur.length && cur[cur.length - 1][0] === kind) cur[cur.length - 1][1] += ch;
         else cur.push([kind, ch]);
         x += w;
