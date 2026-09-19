@@ -2316,6 +2316,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const failed = (r.headers.get("X-Search-Failed") || "").split(",").filter(Boolean).map(s => s.split("="));
     return { tracks, failed };
   }
+  /* **URL の欄は中身に合わせて伸ばす**（2026-09-20）。改行で区切って何本も貼れるのに 2 行ぶんしか見えず、
+     貼った URL が全部入ったか分からなかった。8 行ぶんまで伸ばし、それを超えたら欄の中でスクロールする */
+  function fitUrlBox() {
+    const t = els.bcUrl; t.style.height = "";
+    const cs = getComputedStyle(t), lh = parseFloat(cs.lineHeight) || 20;
+    const max = lh * 8 + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+    if (t.scrollHeight > t.clientHeight) t.style.height = Math.min(max, t.scrollHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth)) + "px";
+  }
+  els.bcUrl.addEventListener("input", fitUrlBox);
   els.form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = els.q.value.trim(), artist = els.artist.value.trim();
@@ -2495,7 +2504,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (lines.length > 1) say(els.bcMsg, tr`${i + 1}/${lines.length} 件目を取得中…`);
       try { got.push(...await fetchOneUrl(u)); } catch (err) { failed.push(`${u.slice(0, 30)}…（${err.message}）`); }
     }
-    if (got.length) els.bcUrl.value = "";
+    if (got.length) { els.bcUrl.value = ""; fitUrlBox(); }
     setBtnState(els.bcBtn, got.length ? null : "error");
     // まとめ（プレイリスト）を貼っていて、たくさん取れたときは入れ方を選んでもらう。
     // 1 曲ずつ貼ったときまで確認を挟むと煩わしいので、まとめのときだけ
