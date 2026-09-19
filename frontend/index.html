@@ -4460,6 +4460,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const want = Math.min(ZOOM_WIDE_MAX, innerW / 2.2, innerH * 0.6 / state.rows);
         if (CELL_PX * gridW / (gw + state.margin * 2) < want) gridW = Math.round(want / CELL_PX * (gw + state.margin * 2));
       }
+      // **縦に長い並び（列が少なく行が多い）は、逆に大きくなりすぎないようにする**（2026-09-20、利用者の指摘）。
+      // 窓の横幅いっぱいに合わせるので、1x32 をスマホで開くと 1 マス 330px になり、1 画面に 2 マスしか入らなかった。
+      // 縦に送る並びでは、窓の高さに 4 マス強が見える大きさ（上限 ZOOM_WIDE_MAX）までにする
+      if (gridW / ar > innerH) {
+        // 下限は ZOOM_MIN_CELL だけ（欄の中の大きさは見ない。1x32 は欄の中で 1 マスが欄の幅いっぱいある）
+        const cap = Math.max(ZOOM_MIN_CELL, Math.min(ZOOM_WIDE_MAX, innerH / 4.4));
+        if (CELL_PX * gridW / (gw + state.margin * 2) > cap) gridW = Math.round(cap / CELL_PX * (gw + state.margin * 2));
+      }
       const gridH = Math.round(gridW / ar);
       // あふれる向きには PC のスクロールバー（16px）のぶんを足す（足りないと、もう片方にもスクロールバーが出る）
       const fine = !matchMedia("(pointer: coarse)").matches;
