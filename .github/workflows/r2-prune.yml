@@ -12,8 +12,10 @@ on:
   workflow_dispatch:
     inputs:
       hours:
+        # 手で回したときの既定も、定期実行と同じ 720 時間（30 日）にする。168 のままだと、
+        # 既定のまま実行しただけで 7〜30 日前の共有（約 9GB）が消え、30 日保存の約束を破る（2026-09-19 に気付いた）
         description: "これより古いものを消す（時間）"
-        default: "168"
+        default: "720"
       apply:
         description: "実際に消す（false なら数えるだけ）"
         default: "true"
