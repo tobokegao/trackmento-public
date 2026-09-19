@@ -508,6 +508,19 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
     Publisher / Distributor だけの名前を抜く。**作曲者だけで組み直してはいけない**（「Omoi」のような作り手のユニットは
     サークル扱いなので消える）。検索・動画 ID・題からの補完の 3 つとも同じ関数を通す
   - **キーは要らない**。データは CC ライセンスなので、画面のフッターに出典が出る（`#foot-sources` が自動）
+  - **聞く回数を減らす作り**（2026-09-20）。VocaDB の決まりに「1 日数千件の問い合わせには事前の許可が要る」とあり、
+    本番は 2 時間で 118〜215 件（1 日 1,500〜2,500 件）とその線に近かった。問い合わせを送る前に次の 3 つを入れた
+    - **曲名だけで引き、アーティストでの絞り込みは手元で行う**（`query_key` / `narrow`、`main.py` の
+      `_source_key` / `_narrow`）。**控えとキャッシュの鍵もその語にする**ので、「メルト ryo」と
+      「メルト supercell」は VocaDB へ 1 回しか聞かない。ほかのソースは今までどおり（曲名とアーティストをそのまま）
+    - **表記の揺れをそろえてから送る**（NFKC ＋ casefold ＋ 続く空白をまとめる）。「ｼｬﾙﾙ」と「シャルル」、
+      「Tell Your World」と「tell  your world 」が 1 回にまとまる。**記号は落とさない**
+      （`merge._n` は落とすが、送る語が変われば VocaDB の結果も変わりかねない）
+    - **作者名の控え（動画 ID・題）を R2 にも置く**（`searchcache` の擬似ソース `vocadb-pv` / `vocadb-title`、6 日）。
+      メモリの控えは 1 日もつが**デプロイのたびに消える**ので、同じマイリストを貼り直すたびに聞き直していた。
+      **見つからなかった分（空文字）も覚える**（転載・未登録の動画のほうが多い）
+    - 回数は `[vocadb]` 行に種類ごとに出す（`CALLS` / `take_calls`。`search` / `pv` / `title` と、覚えていた
+      `*_mem` / `*_r2`）。点検の要約に「1 日に直すと約 N」として出る。**語そのものは数えない**
   - ソースを足すときに触る所: `backend/sources/<名前>.py`、`backend/models.py` の `Source`、
     `backend/main.py` の import と `SOURCES`、frontend の `SOURCE_LABEL` / `ALL_SOURCES` / `SOURCE_ORDER`、
     バッジの CSS、ソースの説明（`#src-modal`）と EN 表
