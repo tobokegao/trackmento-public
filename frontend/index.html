@@ -206,6 +206,9 @@ img { max-width: 100%; display: block; }
     var(--color-mint)      0 calc(500% / 6),
     var(--color-pink)      0) bottom / 100% 5px no-repeat;
 }
+/* ロゴを押すとトップへ戻る（2026-09-19）。見た目はリンクにしない（色・下線は親のまま） */
+.wordmark a.mark { color: inherit; text-decoration: none; }
+.wordmark a.mark:focus-visible { outline: var(--line) solid var(--color-ink); outline-offset: 2px; }
 .wordmark small { font-family: var(--font-display); font-size: var(--text-xs); color: var(--color-muted); letter-spacing: 0; }
 .lang-switch {
   order: 9;   /* 常にバーの右端。直前の .bar-status が margin-left:auto で余白を吸うので、これで右端に付く */
@@ -1102,7 +1105,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <body>
 
 <header class="bar">
-  <h1 class="wordmark"><span class="mark">TRACKMENTO</span> <small id="wordmark-tag"></small></h1>
+  <h1 class="wordmark"><a class="mark" id="home-link" href="/">TRACKMENTO</a> <small id="wordmark-tag"></small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite"></p>
   <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
@@ -1460,7 +1463,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <footer>
   <span>TRACKMENTO</span>
   <span>♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">おかねがたりないときのうた</a>（サーバー代のたすけ）</span>
-  <span>連絡先: <a id="about-link" href="https://tobokegao.github.io/ja/about/" target="_blank" rel="noopener">Tobokegao</a></span>
+  <span><a id="contact-link" href="https://forms.gle/2ktpQAXMjJrkFJFz8" target="_blank" rel="noopener noreferrer">お問い合わせフォーム</a></span>
   <!-- 文章のページ（使い方・プライバシーポリシー・運営者。backend/pages.py）。言語は ?lang= で合わせる（applyI18n） -->
   <span class="foot-pages"><a class="foot-page" data-page="guide" href="/guide">使い方</a> / <a class="foot-page" data-page="privacy" href="/privacy">プライバシーポリシー</a> / <a class="foot-page" data-page="about" href="/about">運営者</a> / <a class="foot-page" data-page="updates" href="/updates">更新情報</a></span>
   <a href="/health" id="health-link">/health</a>
@@ -1674,7 +1677,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "ほかで聴く:": "Also on:",
         "おかねがたりないときのうた": "Okane ga Tarinai Toki no Uta",
         "（サーバー代のたすけ）": " (helps with the server bills)",
-        "連絡先:": "Contact:",
+        "お問い合わせフォーム": "Contact form",
         "使い方": "How to use", "プライバシーポリシー": "Privacy policy", "運営者": "About", "更新情報": "Updates",
         "曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有": "Build a grid of cover art track by track. Search widely, then share the tracks you love.",
         "この案内を閉じる": "Dismiss this notice",
@@ -1875,10 +1878,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     document.documentElement.lang = LANG;
     const pre = $("#listed-pre");   // 「[みんなのグリッド]に載せる」の英語は語順が逆（Add to everyone's grids）
     if (pre) pre.textContent = LANG === "en" ? "Add to " : "";
-    /* 連絡先は日本語版と英語版でページが別なので、行き先も切り替える */
-    const about = $("#about-link");
-    if (about) about.href = LANG === "en" ? "https://tobokegao.github.io/about/" : "https://tobokegao.github.io/ja/about/";
     for (const a of document.querySelectorAll(".foot-page")) a.href = `/${a.dataset.page}${LANG === "en" ? "?lang=en" : ""}`;
+    const home = $("#home-link");
+    if (home) home.href = LANG === "en" ? "/?lang=en" : "/";
     const b = $("#lang-switch");
     if (b) {
       b.textContent = LANG === "ja" ? "EN" : "日本語";
