@@ -3201,7 +3201,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const h = el.clientHeight, sh = el.scrollHeight;
       const pr = parent.getBoundingClientRect(), r = el.getBoundingClientRect();
       const on = el.classList.contains("tsb-on");
-      const need = r.height >= 40 && (on ? sh > h + 1 : sh > h + 8);
+      // **大きく見る窓の中では出さない**（2026-09-20）。バーは元の場所（欄）に置いたままなので窓の中では見えず、
+      // 溝の 24px だけが並びの右に空いていた（利用者の 1x32 の画面で指摘）。窓の中は指で直接送れる
+      const need = !el.classList.contains("is-zoom") && r.height >= 40 && (on ? sh > h + 1 : sh > h + 8);
       if (need !== on) {
         if (pending !== need) { pending = need; requestAnimationFrame(layout); return; }
         pending = null;
