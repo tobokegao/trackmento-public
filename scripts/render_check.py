@@ -83,20 +83,50 @@ def _load_dotenv() -> None:
             os.environ[k] = v
 
 
+# Render の API は経路ごとにレート制限がある（`/logs` は 30 回/分。応答の Ratelimit-* に出る）。
+# **こちらから間隔を空けて出す**（2026-09-20）。長い窓（`--hours 12`）だとページ数が増えて上限に当たり、
+# 点検そのものが「異常あり」で落ちていた。上限に当たってから待つだけでは足りない（下の 429 の扱いも直した）
+_RATE_WINDOW = 60.0
+_RATE_MAX = 28          # 30 のうち 2 件は余裕として残す
+_calls: dict[str, list[float]] = {}
+
+
+def _pace(path: str) -> None:
+    """同じ経路への要求が 1 分に `_RATE_MAX` を超えないように、必要なら待つ"""
+    now = time.time()
+    hist = [t for t in _calls.get(path, []) if now - t < _RATE_WINDOW]
+    if len(hist) >= _RATE_MAX:
+        wait = _RATE_WINDOW - (now - hist[0]) + 0.5
+        if wait > 0:
+            time.sleep(wait)
+            now = time.time()
+            hist = [t for t in hist if now - t < _RATE_WINDOW]
+    hist.append(now)
+    _calls[path] = hist
+
+
 def _get(path: str, params: dict | None = None, key: str = "") -> object:
     qs = urllib.parse.urlencode({k: v for k, v in (params or {}).items() if v is not None}, doseq=True)
     url = f"{API}{path}" + (f"?{qs}" if qs else "")
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}", "Accept": "application/json"})
-    for attempt in range(6):
+    _pace(path)
+    for attempt in range(8):
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < 5:
-                # /logs は 30 回/分。Ratelimit-Reset（UTC 秒）まで待つ。無ければ指数的に待つ
+            if e.code == 429 and attempt < 7:
+                # /logs は 30 回/分。**Ratelimit-Reset は「あと何秒か」で返る**（UTC の時刻ではない。
+                # 時刻として読んでいたため `float(reset) - time.time()` が大きな負になり、毎回 1 秒しか
+                # 待たずに 6 回とも 429 で落ちていた。2026-09-19 21:14 の点検がこれで「異常あり」になった）。
+                # 大きい値なら時刻として解釈する（仕様が変わっても壊れないように）
                 reset = e.headers.get("Ratelimit-Reset") or e.headers.get("RateLimit-Reset")
-                wait = max(1.0, float(reset) - time.time() + 1) if reset and reset.isdigit() else float(e.headers.get("Retry-After") or 5 * (attempt + 1))
-                wait = min(wait, 90.0)
+                if reset and reset.isdigit():
+                    n = float(reset)
+                    wait = n - time.time() + 1 if n > 10 ** 9 else n + 1
+                else:
+                    wait = float(e.headers.get("Retry-After") or 5 * (attempt + 1))
+                wait = min(max(wait, 1.0), 90.0)
                 print(f"[warn] 429 {path}: limit={e.headers.get('Ratelimit-Limit')} remaining={e.headers.get('Ratelimit-Remaining')} → {wait:.0f} 秒待つ", file=sys.stderr)
                 time.sleep(wait)
                 continue
