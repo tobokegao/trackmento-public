@@ -3435,7 +3435,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 曲名の大きさは 1 マスの送りから決め、出力で SLAB_ROW_MIN を下回るなら流し込みに戻す
   // タイトルの大きさの天井（枠の短い辺に対する割合）。どの組み方でも共通
   const WRAP_TITLE_FRAME = 0.06;
-  const SLAB_ROW_FONT = 0.30, SLAB_ROW_MIN = 18;   // 流し込みの下限（20px）より低くてよい（1 曲 1 行は行間が広いので読める）
+  const SLAB_ROW_FONT = 0.30, SLAB_ROW_MIN = 18;
+  const SLAB_ROW_FONT1 = 0.42;   // 1 列の並び（1xN）は字を大きく取る（backend/render.py の SLAB_ROW_FONT1）
+  const SLAB_ROW_INLINE = 0.5;   // 1 列の並びの 1 行型（backend/render.py の SLAB_ROW_INLINE）   // 流し込みの下限（20px）より低くてよい（1 曲 1 行は行間が広いので読める）
   // 比率なしのときの段の幅（文字の大きさの何倍か＝だいたい何字入るか）。**文字を測って決めない**
   const SLAB_ROW_SEG = 30;
   // 段の幅は塊の高さまで。曲が少ないと段のほうが長くなり、枠が横に伸びてマスが潰れる
@@ -3451,14 +3453,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 段の中で横に並べるときの、1 曲ぶんの最小の幅（文字の大きさの何倍か）
   const SLAB_ROW_BESIDE_SEG = 12;
   /* 柱のとき、曲名をマス 1 つ 1 つの横に並べる割り付け（backend/render.py の _slab_rows） */
-  function slabRows(gw, gh, titleH, ratio, m, maxSide, beside = false) {
+  function slabRows(gw, gh, titleH, ratio, m, maxSide, beside = false, inline = null) {
     const cols = state.cols;
     if (cols > SLAB_ROW_MAX_COLS) return null;
+    // 1 列の並びは、まず 1 行型を試す（backend/render.py と同じ）。合わなければ 2 行の形
+    if (inline === null) {
+      if (cols === 1 && !beside) {
+        const rp = slabRows(gw, gh, titleH, ratio, m, maxSide, beside, true);
+        if (rp !== null) return rp;
+      }
+      inline = false;
+    }
     const pitch = CELL_PX + state.gap;   // マスの段 1 つぶんの送り
     // 段の中で縦に積むか横に並べるか。縦に積むほうが 1 行を長く取れるので既定。
     // 段が多いと 1 曲ぶんが薄くなりすぎるので（2x32 で出力 10.8px）、そのときは横に並べる
     const per = beside ? pitch : Math.round(pitch / cols);   // 曲名 1 曲ぶんの高さ
-    let fontS = Math.round(per * SLAB_ROW_FONT);
+    let fontS = Math.round(per * (inline ? SLAB_ROW_INLINE : cols === 1 && !beside ? SLAB_ROW_FONT1 : SLAB_ROW_FONT));
     let wgap, tH = 0, tSize = 0, topH = 0, W, H, pad, segW;
     // 段の幅に SLAB_ROW_FIT 字が入る大きさまで下げる。下げると帯も枠も縮むので 3 回回す
     for (let k = 0; k < 3; k++) {
@@ -3498,6 +3508,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     const gx = pad, gy = pad + topH, x0 = gx + gw + wgap;
     if (segW < LIST_MIN_COL) return null;
+    if (inline) {
+      // 全曲が 1 行に入る大きさまで下げる。2 行の形より小さくなる・読めない大きさになるなら使わない
+      while (fontS > 8 && !inlineOneLine(fontS, segW)) fontS -= 1;
+      if (fontS < Math.round(per * SLAB_ROW_FONT1) || fontS * scale < SLAB_ROW_MIN) return null;
+    }
     // 比率なしは、タイトルを右の列（曲名リスト）の上に置く（backend/render.py の _slab_rows と同じ）。
     // 帯の高さはそのまま。右の列に入る大きさが本文の SLAB_TITLE_MIN 倍を割るなら枠の上端いっぱい
     let tx = 0;
@@ -3519,7 +3534,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         [x0, gy + Math.floor(i / cols) * pitch + off + (i % cols) * per, segW]);
     }
     return { W, H, scale, fontS, lineH: per, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
-             segs, rows: [], use: 1, rowsMode: true, tx };
+             segs, rows: [], use: 1, rowsMode: true, tx, inline };
   }
   const SLAB_TARGET_PX = [96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14];
   // 文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る
@@ -3832,6 +3847,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const LIST_MIN_COL = 640, LIST_COMFY_FONT = 26, LIST_MAX_COLS = 3, ARTIST_SCALE = 0.78;
   // 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
   const LIST_COL_GAP = GAP_PX * 5;
+  // 1 行型の表（backend/render.py の TABLE_*）。細い並びを横長の比率に入れたとき、流し込みの代わりに使う
+  const TABLE_FONT = 0.5, TABLE_MAX_COLS = 3, TABLE_RULE = 0.86, TABLE_GAP_LH = 1.0;
   const LIST_COL_GAIN = 1.02;   // 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
   const fontPx = (f) => parseFloat(/(\d+(?:\.\d+)?)px/.exec(f)[1]);   // font 文字列から大きさだけ取る
   const TITLE_SHRINK = [0.92, 0.86, 0.8];   // 折った最後の行が少しはみ出すときに縮める段階（backend/render.py と同じ）
@@ -4223,6 +4240,26 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     const keep = [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH];   // 1 曲 1 行の組み方（下で戻すことがある）
     let sbFlow = side !== "none" && fontS * scale < FLOW_MIN_FONT;
+    if (sbFlow && side === "right" && ratio !== null && state.cols <= SLAB_ROW_MAX_COLS) {
+      // 1 行型の表を試す（backend/render.py と同じ）。幅は流し込みと同じく比率で余るぶん全部
+      const wT = Math.max(sbW, Math.round((titleTopH + gh + m * 2) * ratio) - m * 2 - gw - sbGap);
+      const [WT, HT, scT] = frame(wT, sbH);
+      const nT = state.cells.length;
+      let best = null;
+      for (let colsT = 2; colsT <= TABLE_MAX_COLS; colsT++) {
+        const lhT = Math.floor((gh - titleH) / Math.max(1, Math.ceil(nT / colsT)));
+        const cwT = Math.floor((wT - Math.round(lhT * TABLE_GAP_LH) * (colsT - 1)) / colsT);
+        let fsT = Math.round(lhT * TABLE_FONT);
+        while (fsT * scT >= FLOW_KEEP_FONT && !inlineOneLine(fsT, cwT)) fsT -= 1;
+        if (fsT * scT >= FLOW_KEEP_FONT && (best === null || fsT > best[2])) best = [colsT, lhT, fsT];
+      }
+      if (best) {
+        [sbCols, lineH, fontS] = best;
+        sbW = wT; W = WT; H = HT; scale = scT;
+        sbInline = true; sbFlow = false;
+        sbPlan = new Array(nT).fill(1); sbARows = [];
+      }
+    }
     if (sbFlow) {
       if (side === "right" && ratio !== null) {
         // 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す。
@@ -4277,7 +4314,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         return { W: rp.W, H: rp.H, scale: rp.scale, ox: rp.gx, oy: rp.gy, gw, gh, title,
                  titleSize: rp.titleSize, titleH: rp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
                  lineH: rp.lineH, fontS: rp.fontS, sbGap, sbFlow: true, sbPlan: [],
-                 wrap: true, wrapPad: rp.pad, wrapTop: rp.top, wrapSegs: rp.segs, wrapRows: true, wrapTx: rp.tx };
+                 wrap: true, wrapPad: rp.pad, wrapTop: rp.top, wrapSegs: rp.segs, wrapRows: true, wrapTx: rp.tx, wrapInline: !!rp.inline };
       }
     }
     if (sbFlow && ratio !== null) {
@@ -4357,7 +4394,23 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.gap.value = String(state.gap); els.gapOut.value = String(state.gap);
     renderSwatches(); renderGrid(); updateSpec(); syncPreview();
   };
+  /* **出力サイズの表示は、操作が落ち着いてから 1 回だけ計算する**（2026-09-20、利用者から「グリッドの変更がもたつく」）。
+     割り付けの計算は大きい並びで 1 回 0.1〜0.4 秒かかり（字幅を大きさごとに測り直すため）、以前はタイトルを 1 字打つたび・
+     つまみを少し動かすたびに 2 回ずつ走っていた（16x16 で 1 回の変更に 2〜4 秒）。プレビューと保存はその場で行う */
+  let specTimer = 0;
   function updateSpec() {
+    syncPreview();
+    save();
+    clearTimeout(specTimer);
+    specTimer = setTimeout(updateSpecNow, 180);
+  }
+  /** 「マスに重ねる」ときの縮尺（曲名リストを出さない組み方なので計算が軽い）。判定は共有画像を描く大きさで */
+  function overlayScale() {
+    const keep = [state.sidebar, state.overlay];
+    state.sidebar = false; state.overlay = true;
+    try { return layout(shareMaxSide()).scale; } finally { [state.sidebar, state.overlay] = keep; }
+  }
+  function updateSpecNow() {
     const L = layout();
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
     els.specCell.textContent = `${Math.round(CELL_PX * L.scale)} px`;
@@ -4366,16 +4419,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 重ねた曲名が読めない大きさになる並びでは、選べなくする（今選んでいるなら、出さないことを知らせる）
     // **判定は共有画像を描く大きさで行う**（shareMaxSide = 2000〜2400px）。上の出力サイズの表示は最大辺が大きいので、
     // それで測ると「読める」と出たのに、共有画像では字が小さすぎて曲名が出ない、ということが起きる
-    const Ls = state.overlay ? layout(shareMaxSide()) : null;
-    const ovOk = overlayOk((Ls || layout(shareMaxSide())).scale), ovRadio = els.listSeg.querySelector('input[value="overlay"]');
+    const ovOk = overlayOk(overlayScale()), ovRadio = els.listSeg.querySelector('input[value="overlay"]');
     ovRadio.disabled = !ovOk && !state.overlay;
     els.listMsg.hidden = ovOk || !state.overlay;
     if (!els.listMsg.hidden) els.listMsg.textContent = tr("この並びだとマスが小さく、重ねた曲名が読めない大きさになるので、曲名は出しません。マスを減らすか、横に並べてください。");
-    syncPreview();
-    save();
   }
   /* グリッドのプレビューを出力と同じ比率にする: 余白・マスの間隔を幅に合わせて縮尺し、背景色も反映 */
-  const ZOOM_MIN_CELL = 48;   // 拡大窓でのマスの下限（CSS px。指の当たり判定の 44〜48px）
+  const ZOOM_MIN_CELL = 48;
+  const ZOOM_WIDE_FILL = 0.35, ZOOM_WIDE_MAX = 200;   // 横に長い並びを大きく見るときの目安（syncPreview）   // 拡大窓でのマスの下限（CSS px。指の当たり判定の 44〜48px）
   function syncPreview() {
     const gw = state.cols * CELL_PX + (state.cols - 1) * state.gap;
     const gh = state.rows * CELL_PX + (state.rows - 1) * state.gap;
@@ -4402,6 +4453,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // 入らないぶんは窓の中でスクロールさせる
       const minCell = Math.max(ZOOM_MIN_CELL, zoomBaseCell);
       if (CELL_PX * gridW / (gw + state.margin * 2) < minCell) gridW = Math.round(minCell / CELL_PX * (gw + state.margin * 2));
+      // **横に長い並び（行が少なく列が多い）は、窓の下が空くぶんマスを大きくして横に送る**（2026-09-20、利用者の指摘）。
+      // 32x1 をスマホで開くと 1 マス 85px で、窓の 8 割が空いていた。並びの高さが窓の ZOOM_WIDE_FILL に満たないときだけ、
+      // 窓の横幅に 2 マス強が見える大きさ（上限 ZOOM_WIDE_MAX）まで上げる
+      if (gridW / ar < innerH * ZOOM_WIDE_FILL) {
+        const want = Math.min(ZOOM_WIDE_MAX, innerW / 2.2, innerH * 0.6 / state.rows);
+        if (CELL_PX * gridW / (gw + state.margin * 2) < want) gridW = Math.round(want / CELL_PX * (gw + state.margin * 2));
+      }
       const gridH = Math.round(gridW / ar);
       // あふれる向きには PC のスクロールバー（16px）のぶんを足す（足りないと、もう片方にもスクロールバーが出る）
       const fine = !matchMedia("(pointer: coarse)").matches;
@@ -5082,6 +5140,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         if (!t) continue;
         const maxW = sc(sw) - nw;
         const title = oneLine(t.title), artist = oneLine(t.artist);
+        if (L.wrapInline) {
+          // 1 行型: 曲名は番号の後ろ、アーティスト名は段の右端。同じベースラインに乗せる（backend/render.py と同じ）
+          const base = Math.round(fs * BASELINE);
+          ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+          ctx.font = fT; ctx.fillStyle = cssRgb(ink);
+          ctx.fillText(ellipsizeText(ctx, title, maxW), x + nw, cy + base);
+          if (artist) {
+            ctx.font = fA; ctx.fillStyle = cssRgb(muted); ctx.textAlign = "right";
+            ctx.fillText(ellipsizeText(ctx, artist, maxW), sc(sx0 + sw), cy + base);
+            ctx.textAlign = "left";
+          }
+          continue;
+        }
         // **1 行に入らない曲名は 2 行に折る**（「…」で切ると曲名が読めなくなる。backend/render.py と同じ）
         ctx.font = fT;
         let lines = [title];
@@ -5194,17 +5265,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const rowY = (r) => sc(sy + r * L.lineH + L.lineH / 2);
       if (L.sbInline) {
         // 1 行型: 曲名は番号の後ろ、アーティスト名は列の右端にそろえる。同じベースラインに乗せる（backend/render.py と同じ）
-        const base = Math.round(fontS * BASELINE), right = sc(sx + colW);
-        let row = 0;
+        const base = Math.round(fontS * BASELINE);
+        const perCol = Math.ceil(n / Math.max(1, L.sbCols));   // 表（2〜3 列）のときの 1 列の曲数
+        const tGap = L.sbCols > 1 ? Math.round(L.lineH * TABLE_GAP_LH) : LIST_COL_GAP;   // 表は列のあいだを行の高さから
+        const tColW = L.sbCols > 1 ? Math.floor((L.sbW - tGap * (L.sbCols - 1)) / L.sbCols) : colW;
+        const rule = mixRgb(ink, bg, TABLE_RULE), ruleH = Math.max(1, Math.round(fontS * 0.04));
         for (let i = 0; i < n; i++) {
-          const t = state.cells[i], x = sc(sx), yy = rowY(row);
+          const col = Math.floor(i / perCol), row = i % perCol, cx = sx + col * (tColW + tGap);
+          const t = state.cells[i], x = sc(cx), right = sc(cx + tColW), yy = rowY(row);
+          if (L.sbCols > 1 && row < perCol - 1 && i < n - 1) {
+            const ly = sc(sy + (row + 1) * L.lineH);
+            ctx.fillStyle = cssRgb(rule); ctx.fillRect(x, ly, right - x, ruleH);
+          }
           const num = String(i + 1).padStart(2, "0");
           ctx.font = numFont; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(muted);
           const mm = ctx.measureText(num), top = -mm.actualBoundingBoxAscent, bottom = mm.actualBoundingBoxDescent;
           ctx.fillText(num, x, Math.round(yy - (top + bottom) / 2));
           const nw = mm.width + sc(L.fontS * 0.8);
           if (t) {
-            const maxW = colW * S - nw, title = oneLine(t.title), artist = oneLine(t.artist);
+            const maxW = tColW * S - nw, title = oneLine(t.title), artist = oneLine(t.artist);
             ctx.font = titleFont2; ctx.fillStyle = cssRgb(ink);
             ctx.fillText(ellipsizeText(ctx, title, maxW), x + nw, yy + base);
             if (artist) {
@@ -5214,7 +5293,6 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
               ctx.textAlign = "left";
             }
           }
-          row += 1;
         }
         return { canvas, bg };
       }
