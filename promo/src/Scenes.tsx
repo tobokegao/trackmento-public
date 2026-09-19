@@ -302,19 +302,19 @@ const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
   const { fps } = useVideoConfig();
   const total = beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT);   // できあがりまで（2 小節）
   const per = total / TIMELAPSE_STEPS;
-  // キメ（エディタの「キメ」のレーン）ごとに一段ずつ寄る。最後の 1 つは横へも振る
+  // キメ（エディタの「キメ」のレーン）ごとに一段ずつ寄る。最後の 1 つは画を横に引き伸ばす（v5、利用者の指定。v4 は横へ振っていた）
   const hits = TIMELAPSE_KIME.map((b) => beatFrame(TIMELAPSE_BEAT + b) - beatFrame(TIMELAPSE_BEAT));
-  let zoom = 1, shift = 0;
+  let zoom = 1, stretch = 0;
   hits.forEach((at, i) => {
     const k = spring({ frame: frame - at, fps, config: { damping: 12, stiffness: 260 } });
     zoom += k * 0.09;
-    if (i === hits.length - 1) shift += k * (L.kind === "tall" ? 90 : 140);
+    if (i === hits.length - 1) stretch += k * 0.4;
   });
   return (
     <>
       <Caption L={L} jp="画像完成まで" en="Start to finish" />
       <Phone L={L}>
-        <div style={{ width: "100%", height: "100%", transform: `translateX(${-shift}px) scale(${zoom})`, transformOrigin: "50% 45%" }}>
+        <div style={{ width: "100%", height: "100%", transform: `scale(${zoom * (1 + stretch)}, ${zoom})`, transformOrigin: "50% 45%" }}>
         {times.map((t, i) => (
           <Sequence key={i} from={Math.round(i * per)} durationInFrames={Math.ceil(per) + 1} layout="none">
             <OffthreadVideo src={staticFile(RECORDINGS[L.kind][L.lang].main.src)} startFrom={sec(t)} playbackRate={rate(L.kind, L.lang, "main")} muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.03)" }} />

@@ -76,7 +76,7 @@ export const evTime = (kind: Kind, lang: Lang, session: Session, name: string) =
 // 6–7   さらに軽くなりました（作った画）/ 8–9 共有がさらに速く（作った画）
 // 10–17 新しくなったところ: みんなのグリッド 2 / 探す 2 / パレット 2 / VocaDB / 曲名リスト（静止画 16 枚を 16 分ずつ）
 // 18–20 トップ画面の説明
-// 21–31 入れ方 / 32 ニコニコの作者名も VocaDB から / 33–35 大きく見る・埋めて並べる
+// 21–31 入れ方 / 32 ボカロの作者名も VocaDB から / 33–35 大きく見る・埋めて並べる
 // 36–41 出力と共有（36 = 曲名リストは 3 択。41 は 3.5 拍）
 // 42–43 タイムラプス（キメに乗る）/ 44–45 できあがり / 46–48 エンドカード / 49–50 困ったら更新情報と使い方（録画）
 // v4 から外したもの: ローマ字（8–9）、全部外す → 元に戻す（32）
@@ -144,7 +144,7 @@ export const SHOTS: Shot[] = [
   { beat: bar(30), len: 4, ev: "revive:done", off: -0.6, rec: "feat", jp: "otoDB からよみがえる", en: "come back from otoDB" },
   { beat: bar(31), len: 4, ev: "manual:mitsuami", off: -0.6, speed: 1.2, jp: "手入力も可能", en: "Or add your own", zoomPc: { x: 0, y: 1, s: 1.7 } },
   // ---- 32 小節目: 投稿者名が取れないニコニコ動画も、VocaDB から作者名が入る（Tell Your World） ----
-  { beat: bar(32), len: 4, ev: "author:got", off: -0.8, rec: "feat", jp: "ニコニコの作者名も\nVocaDB から", en: "Missing Niconico artists filled in from VocaDB" },
+  { beat: bar(32), len: 4, ev: "author:got", off: -0.8, rec: "feat", jp: "ボカロの作者名も\nVocaDB から", en: "Vocaloid producers filled in from VocaDB" },
   // ---- 33 小節目: 大きく見る（32×1 を指で送る。16×16 の場面はエディタで外した） ----
   { beat: bar(33), len: 4, ev: "zoom32:open", off: -0.3, rec: "feat", speed: 1.8, jp: "「大きく見る」で細長い並びも見やすく", en: "Enlarge to scroll through long rows" },
   // ---- 34〜35 小節目: 埋めて並べる ----
@@ -161,8 +161,8 @@ export const SHOTS: Shot[] = [
 
 /** エンドカードのあとの録画（49–50 小節）。音楽はフェードの途中 */
 export const TAIL_SHOTS: Shot[] = [
-  { beat: bar(49), len: 4, ev: "updates:page", off: -0.2, rec: "feat", jp: "困ったら\n「更新情報」と「使い方」", en: "Stuck? See Updates and the Guide" },
-  { beat: bar(50), len: 4, ev: "guide:page", off: -0.2, rec: "feat", jp: "困ったら\n「更新情報」と「使い方」", en: "Stuck? See Updates and the Guide" },
+  // 1 ショットにまとめる（v5 で 2 ショットに分けたら字幕が 2 回出た）。更新情報のページを開いて下へ送るまで
+  { beat: bar(49), len: 8, ev: "updates:page", off: -0.2, rec: "feat", jp: "困ったら\n「更新情報」と「使い方」", en: "Stuck? See Updates and the Guide" },
 ];
 
 /** 8–9 小節「共有がさらに速く」（作った画）。2026-09-19 にスマホの共有画像を小さくした（最大辺 2000px・JPEG 0.78） */
@@ -172,7 +172,7 @@ export const FASTER_ROWS: { jp: string; en: string; from: string; to: string }[]
 ];
 
 /** タイムラプスの中のキメ（ショットの頭からの拍数）。1 つごとに寄り、最後の 1 つは横へも振る */
-export const TIMELAPSE_KIME = [3.5, 4.5, 5.5, 6.5];
+export const TIMELAPSE_KIME = [3.5, 4.5, 5.5, 6.5];   // 最後の 1 つで横に引き伸ばす
 
 /** URL 検索の対応サイト（8 分音符 3 連で 1 つずつ出す） */
 export const SITES = ["YouTube", "ニコニコ", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];
