@@ -41,8 +41,9 @@ album by album. It is completely free, and no sign-up is required.</p>
 <li><b>Set the number of cells:</b> Choose how many cells go down and across (up to 32 per side, 256 cells in total).</li>
 <li><b>Pick a cell and find a track:</b> Tap (or click) a cell and search by track title or artist name. Besides the standard
 iTunes search, you can switch to MusicBrainz, VocaDB (Vocaloid songs) or otoDB (otomad works).</li>
-<li><b>Add directly from a URL:</b> You can paste links from Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify and
-Apple Music. If a track has no cover, you can fill it in with an image URL or by uploading an image from your device.</li>
+<li><b>Add directly from a URL:</b> You can paste links from Bandcamp, SoundCloud, YouTube, Niconico, Spotify and
+Apple Music (Spotify gives only the title and the cover, so add the artist name yourself). If a track has no cover, you can
+fill it in with an image URL or by uploading an image from your device.</li>
 <li><b>Rearrange:</b> Select two cells one after the other to swap their positions. “Enlarge” shows the grid full-screen,
 so rearranging stays comfortable even with many cells.</li>
 <li><b>Export and share the image:</b> Choose the aspect ratio (1:1, 4:5, 16:9, 9:16 or no fixed ratio), the background colour
@@ -92,7 +93,7 @@ and share the music they love. When sharing, please follow the terms of use and 
 <ol class="steps">
 <li><b>マスの数を決める：</b>縦・横のマスの数を指定します（1辺最大32マス、合計256マスまで対応）。</li>
 <li><b>マスを選んで曲を探す：</b>マスをタップ（クリック）して曲名やアーティスト名で検索します。標準のiTunes検索のほか、MusicBrainz、VocaDB（ボカロ曲）、otoDB（音MAD）に切り替えて探すこともできます。</li>
-<li><b>URLから直接追加する：</b>Bandcamp、SoundCloud、YouTube、ニコニコ動画、bilibili、Spotify、Apple Musicのリンク貼り付けに対応しています。ジャケットがない曲は、画像URLの指定や端末内の画像アップロードで補えます。</li>
+<li><b>URLから直接追加する：</b>Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify、Apple Musicのリンク貼り付けに対応しています（Spotifyは曲名とジャケットのみのため、アーティスト名は手入力で補ってください）。ジャケットがない曲は、画像URLの指定や端末内の画像アップロードで補えます。</li>
 <li><b>並べ替える：</b>2つのマスを順番に選ぶと位置が入れ替わります。「大きく見る」でグリッドを全画面表示にすると、マス数が多い場合でも快適に並べ替えができます。</li>
 <li><b>画像を出力・共有する：</b>画像の比率（1:1、4:5、16:9、9:16、比率固定なし）、背景色、曲名リストの表示形式を選んで共有すると、完成画像と専用の共有URLが発行されます。</li>
 </ol>
@@ -151,7 +152,7 @@ domains (host names) are aggregated.</p>
 <h2>3. Communication with external services</h2>
 <p>When searching for or retrieving track and cover information, the search terms and URLs you enter are sent to the relevant external
 services (for example, the Apple iTunes Search API, MusicBrainz / Cover Art Archive, VocaDB, otoDB, Bandcamp, SoundCloud, YouTube,
-Niconico, bilibili and Spotify). Some searches are sent directly from your browser to these APIs. Information sent is handled under
+Niconico and Spotify). Some searches are sent directly from your browser to these APIs. Information sent is handled under
 each platform's privacy policy.</p>
 <p>The Site's server infrastructure runs on Render, and Cloudflare is used to deliver and cache shared files.</p>
 
@@ -187,7 +188,7 @@ The latest version is always published on this page.</p>
 <p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（曲名・検索語・URL などの内容は含みません）。不正アクセス防止や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは不可逆な形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザのUser-Agentそのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
 
 <h2>3. 外部サービスとの通信</h2>
-<p>楽曲やジャケットの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、bilibili、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
+<p>楽曲やジャケットの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
 <p>また、当サイトのサーバーインフラにはRenderを採用しており、共有ファイルの配信・キャッシュにはCloudflareを利用しています。</p>
 
 <h2>4. Cookieおよび広告配信について</h2>
@@ -246,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-20", "各サービスの利用規約に合わせて、URL貼り付けの対応範囲を見直しました。bilibiliの対応を終了し、SoundCloudのセットとSpotifyのプレイリストは一括読み込みを取りやめました（曲ごとのURLは引き続き使えます）。Spotifyは曲名とジャケットのみを取得するため、アーティスト名は手入力で補ってください。",
+     "We reviewed which URLs we support so that we follow each service's terms. bilibili is no longer supported, and SoundCloud sets and Spotify playlists can no longer be loaded all at once (a URL for a single track still works). Spotify now gives only the title and the cover, so please add the artist name yourself."),
     ("2026-09-20", "画面のいちばん下の「ソース」の名前から、それぞれの取得元（Apple Music・MusicBrainz・otoDB・VocaDB）のサイトへ飛べるようにしました。",
      "The source names at the bottom of the page now link to each source's site (Apple Music, MusicBrainz, otoDB, VocaDB)."),
     ("2026-09-20", "「URL から」の欄が、貼った URL の本数に合わせて縦に伸びるようにしました（8 行ぶんまで）。まとめて貼ったときに全部入ったか見えます。",

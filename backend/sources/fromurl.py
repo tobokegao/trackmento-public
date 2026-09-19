@@ -1,6 +1,6 @@
-"""URL 貼付の振り分け。Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify をホスト名で判定して fetch 関数を返す。
+"""URL 貼付の振り分け。Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify をホスト名で判定して fetch 関数を返す。
 
-動画サイト（ニコニコ／YouTube／bilibili／SoundCloud）で直接取れなかったとき（削除済みなど）は
+動画サイト（ニコニコ／YouTube／SoundCloud）で直接取れなかったとき（削除済みなど）は
 roxy（otoDB）にフォールバックする。sm12345 や BV… のような ID だけが貼られたときは、
 normalize() がそのサイトの URL に組み立ててから同じ流れに乗せる。
 
@@ -26,7 +26,8 @@ async def _applemusic_one(url: str, *, client: httpx.AsyncClient | None = None) 
     """Apple Music を 1 件で返す（アルバムやプレイリストの URL なら先頭の曲）。
     まとめて取りたいときは playlist.fetch が使われる。"""
     return (await applemusic.fetch(url, client=client))[0]
-_ROXY_FALLBACK = {"SoundCloud", "YouTube", "ニコニコ動画", "bilibili"}
+# bilibili は 2026-09-20 に対応をやめたので入れない（roxy が扱えるのはニコニコだけで、必ず無駄打ちになる）
+_ROXY_FALLBACK = {"SoundCloud", "YouTube", "ニコニコ動画"}
 
 # 動画 ID だけが貼られたとき、そのサイトの URL に組み立てる。以前は ID をまるごと roxy に投げていたが、
 # roxy が扱えるのはニコニコだけなので BV… と YouTube の 11 文字は必ず失敗していた（毎回 roxy への無駄打ち）。

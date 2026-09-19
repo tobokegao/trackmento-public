@@ -183,6 +183,9 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 
 **外部サービスの鍵**（無くても動く）
 
+`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`（Spotify の公式 Web API。**無いと曲名とジャケット 300px だけの
+oEmbed に落ち、アーティスト名が空になる。プレイリストはまとめて取れない**）、
+`YOUTUBE_API_KEY`（YouTube Data API v3。**無いと再生リストをまとめて取れない**。単体の動画は oEmbed なので要らない）、
 `DISCOGS_TOKEN`（Discogs 検索。未設定なら候補に出ない）、`LASTFM_API_KEY`、
 `ITUNES_PROXY_URL` / `ITUNES_PROXY_TOKEN`（iTunes が国から弾かれるときの迂回）、
 `GOOGLE_SITE_VERIFICATION`（Search Console の HTML タグ）、
@@ -1548,6 +1551,36 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
 
 ## 次にやること・保留中（2026-09-14 時点）
 
+- **外部サービスの規約とアクセス上限を一通り調べた**（2026-09-20）。robots.txt は 7 サイトとも実際に取得して確認した
+  - **数字の上限があるもの**: Apple の iTunes Search API **約 20 回/分**（1 日の上限は明記なし。キャッシュは推奨と明記）、
+    MusicBrainz **1 回/秒・IP ごと**（連絡先入り UA 必須。超えると 100% 拒否）、Discogs 認証あり **60 回/分**（本番では未使用）、
+    Cover Art Archive **「制限は無い」と明記**（条件は「coverartarchive.org 経由で取ること」＝守れている）、
+    YouTube Data API **1 日 10,000 ユニット**（読み取りは 1 件 1 ユニット）。**どれも実測では余裕がある**
+  - **数ではなく「自動取得そのもの」が規約に触れていたもの**を直した:
+    - **Spotify** … robots.txt が `Disallow: /embed/`、Developer Terms IV.2.4 が robot / spider を禁止。
+      **公式 Web API（Client Credentials）に移した**。鍵が無ければ公式 oEmbed（曲名とジャケット 300px だけ・アーティスト名なし）
+    - **YouTube の再生リスト** … 利用規約が自動アクセスを禁止（例外は公開検索エンジンと書面許可）。
+      **Data API の `playlistItems.list` に移した**（1 ページ 50 件・1 ユニット）。単体の動画は公式 oEmbed なので今までどおり
+    - **SoundCloud のセット** … 一覧を揃えるのに内部 API（`api-v2.soundcloud.com`）が要り、API Terms §10 の
+      scraping 禁止・§01 の client ID 必須に触れる。**セットの展開はやめた**（曲ごとの URL は公式 oEmbed で残る）
+    - **bilibili** … 規約 4.2.11 が「事前の明確な書面許可」を要求し、`api.bilibili.com` の robots.txt は
+      `User-agent: * / Disallow: /`。**許可を求める窓口が見当たらない**ので、**対応そのものをやめた**
+      （`video.fetch_bilibili` と `playlist._bilibili` は案内を返すだけ。`fromurl._ROXY_FALLBACK` からも外した）。
+      画像 URL の手入力でマスには入れられる。**すでに並びに入っている曲はそのまま映る**
+    - **名乗りを正直にする** … `playlist.py` と `applemusic.py` が素の Chrome の UA を、旧 `spotify.py` が
+      facebookexternalhit を名乗っていた。**ブラウザやクローラのふりをすると、相手は誰が来ているか分からず、
+      連絡も遮断もできない**。今は全部 `trackmento/0.1 (+https://trackmento.com)`（HTML を読む所は
+      `Mozilla/5.0 (compatible; trackmento/0.1; +https://trackmento.com)` の互換形）
+  - **Spotify は鍵を入れていない**。2026 年 2 月から、開発者アプリを登録するアカウントに **Spotify Premium が必須**に
+    なったため（新しい Client ID は 2/11、既存は 3/9 から）。コードは鍵があれば公式 API に切り替わる形にしてあるので、
+    入れるだけで曲名・アーティスト・640px のジャケット・プレイリストが戻る
+  - **今のままにすると決めたもの**（2026-09-20、利用者の判断）: **Bandcamp**（AUP が scraper を名指しで禁止。
+    ただし曲メタデータの公開 API が存在せず、正規ルートが無い。**Bandcamp にも一報入れる**方針で、文面を用意する）、
+    **ニコニコ**（規約に禁止条項は無いが robots.txt の `Disallow: /api/` が getthumbinfo を覆う。
+    Snapshot API は非営利限定なので代わりにならない）、
+    **Apple の Promo Content 条項**（「宣伝目的から離れた独立した娯楽価値のために使わない」。ジャケットを並べる
+    用途は文面と噛み合わないが、アフィリエイトのリンクは使っていない）
+  - 調べた元の資料と実測の突き合わせは、この日の scratchpad の `外部サービスの規約と実測.md`
 - **VocaDB への問い合わせは送付済み・返答待ち**（2026-09-20 に Discord で送った。利用者の操作）。
   API の決まりに「1 日数千件には事前の許可が要る」とあり、うちは 1 日 1,500〜2,500 件でその線に近い。
   **決まりを確かめないまま送り続けていたことのお詫び**を冒頭と締めに入れ、使い方・量・減らす工夫を書き、

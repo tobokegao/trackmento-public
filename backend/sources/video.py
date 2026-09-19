@@ -71,7 +71,6 @@ def clamp_size(url: str, want_px: int = 600) -> str:
         # 16:9 のサムネイルは正方形に切り出すので、高さが足りるものを選ぶ（横幅の 9/16 が実質の高さ）
         return url if now <= px else url[:m.start()] + f"{m.group(1)}{name}{m.group(3)}"
     return url
-BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
 
 def _host(url: str) -> str:
@@ -102,55 +101,15 @@ def _meta(html: str, attr: str, name: str) -> str | None:
     return m.group(1) if m else None
 
 
+# **bilibili の自動取得はやめた**（2026-09-20）。利用者規約 4.2.11 が「事前の明確な書面許可なしに、
+# 自動プログラム・スクリプト等でプラットフォームのサービス・コンテンツ・データを取得すること」を禁じており、
+# `api.bilibili.com` の robots.txt も `User-agent: * / Disallow: /` で全面的に塞いでいる。
+# 許可を求める窓口も見当たらず、正規のやり方が無い。画像 URL の手入力でマスには入れられる。
+# **すでに並びに入っている bilibili の曲はそのまま映る**（画像の URL はグリッドに残っているため）
+
+
 async def fetch_bilibili(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
-    own = client is None
-    client = client or httpx.AsyncClient(timeout=15, follow_redirects=True)
-    headers = {"User-Agent": BROWSER_UA, "Accept": "text/html", "Accept-Language": "ja,en;q=0.8"}
-    try:
-        if _host(url) == "b23.tv":
-            r0 = await netguard.safe_get(client, url, headers=headers)   # 短縮 URL の展開も検査付きで
-            url = getattr(r0, "final_url", url)
-        m = _BILI_ID_RE.search(urlparse(url).path)
-        if not m:
-            raise ValueError("bilibili の動画 URL（bilibili.com/video/BV… または av…）を貼ってください")
-        vid = m.group(1)
-        r = await client.get(f"https://www.bilibili.com/video/{vid}/", headers=headers)
-        if r.status_code == 404:
-            raise ValueError("bilibili にその動画がありません")
-        r.raise_for_status()
-        html = r.text
-        title = artist = pic = None
-        sm = _BILI_STATE_RE.search(html)
-        if sm:
-            try:
-                vd = (json.loads(sm.group(1)) or {}).get("videoData") or {}
-                title, artist, pic = vd.get("title"), (vd.get("owner") or {}).get("name"), vd.get("pic")
-            except json.JSONDecodeError:
-                pass
-        if not title:
-            t = _meta(html, "property", "og:title") or ""
-            title = re.sub(r"_哔哩哔哩_bilibili$", "", t).strip() or None
-        artist = artist or _meta(html, "name", "author") or ""
-        pic = pic or (_meta(html, "property", "og:image") or "").split("@")[0]
-        if not title or "视频去哪了" in title:
-            raise ValueError("bilibili にその動画がありません（削除済みか非公開の可能性）")
-        if not pic:
-            raise ValueError("この動画にはカバー画像がありません")
-        if pic.startswith("//"):
-            pic = "https:" + pic
-        pic = pic.replace("http://", "https://", 1)
-    finally:
-        if own:
-            await client.aclose()
-    return Track(
-        source="bilibili",
-        title=title.strip(),
-        artist=artist.strip(),
-        album=None,
-        image=bili_sized(pic),
-        thumb=bili_sized(pic, BILI_THUMB_SUFFIX),
-        external_url=f"https://www.bilibili.com/video/{vid}/",
-    )
+    raise ValueError("bilibili には対応していません。曲名・アーティスト名と画像の URL を手で入れてください")
 
 
 def youtube_id(url: str) -> str | None:

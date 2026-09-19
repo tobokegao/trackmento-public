@@ -1171,7 +1171,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>それぞれのサービスのプレイリスト URL（Bandcamp はアルバムも）なら、収録曲をまとめて取得出来ます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録曲をまとめて取得出来ます（最大 256 曲）</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
@@ -1370,8 +1370,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
           <p><b>VocaDB</b>: ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。既定ではオフです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
-          <p><b>まとめて取る</b>: プレイリスト・マイリスト・セット・収藏夹・再生リスト、それに Bandcamp のアルバムの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで</b>（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
-          <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
+          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。曲ごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
+          <p><b>URL から</b>: Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。Spotify だけは曲名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
@@ -1605,9 +1605,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "ソース": "Sources",
         "検索する": "Search",
         "URL から": "From a URL",
-        "Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。": "A page URL from Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify or Apple Music (a bare video ID such as sm… also works).",
+        "Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。": "A page URL from Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify or Apple Music (a bare video ID such as sm… also works).",
         "改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。": "Put one per line to pull from several sites at once.",
-        "それぞれのサービスのプレイリスト URL（Bandcamp はアルバムも）なら、収録曲をまとめて取得出来ます（最大 256 曲。YouTube は 100 曲、bilibili は 20 曲まで）": "A playlist URL from any of these services — or a Bandcamp album — pulls in every track at once (up to 500; YouTube stops at 100 and bilibili at 20).",
+        "プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録曲をまとめて取得出来ます（最大 256 曲）": "A playlist URL from any of these services — or a Bandcamp album — pulls in every track at once (up to 500; YouTube stops at 100 and bilibili at 20).",
         "URL から取得": "Fetch from URL",
         "手入力（画像 URL＋曲名）": "By hand (image URL + track name)",
         "手入力: ジャケット画像の URL": "By hand: cover image URL",
@@ -1678,10 +1678,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "組み合わせ": "Combining sources",
         ": ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。": ": you can pick several. Results follow the order of the buttons (iTunes → MusicBrainz → …), and for duplicates the earlier source wins, since iTunes is fast and steady while MusicBrainz gets busy. Your choice is remembered.",
         "まとめて取る": "Fetching a whole list",
-        ": プレイリスト・マイリスト・セット・収藏夹・再生リスト、それに Bandcamp のアルバムの URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。": ": paste a playlist, mylist, set, favourites or watch-list URL — or a Bandcamp album — and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
-        "YouTube の再生リストは 100 曲、bilibili の収藏夹は 20 曲まで": "YouTube playlists stop at 100 tracks and bilibili favourites at 20",
-        "（続きを取る仕組みが公開されていないため）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。": " because neither publishes a way to page through the rest. Put URLs on separate lines to mix several sites in one go.",
-        ": Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画、bilibili の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track or album), SoundCloud (track), Spotify (track or album), YouTube (video), Niconico or bilibili and it picks up the cover or thumbnail along with the title and the artist (or uploader). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bare ID such as sm12345 works too.",
+        ": ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置く」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。": ": paste a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or an Apple Music URL, and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
+        "SoundCloud のセットと Spotify のプレイリストはまとめて取れません": "SoundCloud sets and Spotify playlists can't be pulled in at once",
+        "（それぞれのサービスの決まりに合わせて外しました。曲ごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。": " — we took that out to follow their rules, though a URL for one track still works. Put URLs on separate lines to mix several sites in one go.",
+        ": Bandcamp（トラック／アルバム）、SoundCloud（トラック）、Spotify（トラック／アルバム）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。Spotify だけは曲名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track or album), SoundCloud (track), Spotify (track or album), YouTube (video), Niconico or bilibili and it picks up the cover or thumbnail along with the title and the artist (or uploader). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bare ID such as sm12345 works too.",
         "保存されるもの": "What gets stored",
         ": 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched covers are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
         "01 番に入れる曲を探す": "Find a track for cell 01",
@@ -1774,7 +1774,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "見つかりませんでした。表記を変えるか、別のソースを試してください。": "Nothing found. Try a different spelling, or another source.",
         "「マスに入れる」で、番号の若い空きマスから順に全部入ります。": "\"Fill the grid\" puts every one of them into the empty cells, lowest number first.",
         "やめました。": "Cancelled.",
-        "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。": "Paste a page URL starting with https:// (Bandcamp, SoundCloud, YouTube, Niconico, bilibili or Spotify), or a video ID (sm…, BV…, or the 11-character YouTube one). Put one per line for several.",
+        "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify）か、動画 ID（sm… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。": "Paste a page URL starting with https:// (Bandcamp, SoundCloud, YouTube, Niconico, bilibili or Spotify), or a video ID (sm…, BV…, or the 11-character YouTube one). Put one per line for several.",
         "画像は https:// の URL か、「画像を選ぶ」で取り込んだ /uploads/ の URL にしてください。": "The image must be an https:// URL, or a /uploads/ URL from \"Choose an image\".",
         "曲名を入れてください。": "Enter a track name.",
         "<strong>該当なし</strong><span>曲名を短くする、アーティスト名だけで検索する、などを試してください。</span>": "<strong>No matches</strong><span>Try a shorter title, or search by artist alone.</span>",
@@ -1814,6 +1814,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "{}/{} 件目を取得中…": "Fetching {0} of {1}…",
         "候補の先頭に「{}」を入れました。クリックで配置します。": "Put \"{0}\" at the top of the results. Click it to place it.",
         "候補の先頭に {} 件入れました。クリックで配置します。": "Put {0} at the top of the results. Click one to place it.",
+        "（Spotify はアーティスト名を返さないので、マスを選んで足してください）": " (Spotify doesn't give the artist name, so select the cell and add it.)",
         "{} 件を候補に入れました。取れなかったもの: {}": "Put {0} in the results. These could not be fetched: {1}",
         "取れませんでした。{}": "Nothing could be fetched. {0}",
         "{} を送っています…": "Uploading {0}…",
@@ -2502,7 +2503,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const lines = els.bcUrl.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     if (!lines.length || !lines.every(s => URL_LINE_RE.test(s))) {
       els.bcUrl.setAttribute("aria-invalid", "true");
-      say(els.bcMsg, tr("https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。"), "error");
+      say(els.bcMsg, tr("https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify）か、動画 ID（sm… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。"), "error");
       els.bcUrl.focus({ preventScroll: true });
       return;
     }
@@ -2532,9 +2533,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       currentResults = [...got, ...currentResults.filter(t => !images.has(t.image))];
       renderResults(currentResults);
     }
+    // Spotify は公式の oEmbed から曲名とジャケットだけを受け取るので、アーティスト名が空になる
+    // （Web API は開発者アカウントに Spotify Premium が要るため使っていない）。分かるように一言添える
+    const noArtist = got.filter(t => t.source === "spotify" && !(t.artist || "").trim()).length;
     if (got.length && !failed.length) {
-      say(els.bcMsg, got.length === 1 ? tr`候補の先頭に「${got[0].title}」を入れました。クリックで配置します。`
-                                      : tr`候補の先頭に ${got.length} 件入れました。クリックで配置します。`);
+      const tail = noArtist ? tr`（Spotify はアーティスト名を返さないので、マスを選んで足してください）` : "";
+      say(els.bcMsg, (got.length === 1 ? tr`候補の先頭に「${got[0].title}」を入れました。クリックで配置します。`
+                                       : tr`候補の先頭に ${got.length} 件入れました。クリックで配置します。`) + tail);
     } else if (got.length) {
       say(els.bcMsg, tr`${got.length} 件を候補に入れました。取れなかったもの: ${failed.join(" / ")}`, "error");
     } else {

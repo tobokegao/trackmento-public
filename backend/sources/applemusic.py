@@ -19,7 +19,11 @@ import httpx
 from backend.models import Track
 from backend.sources.itunes import COVER_PX
 
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+# **名乗りは正直にする**（2026-09-20）。以前は素の Chrome の User-Agent を送っていたが、
+# ブラウザのふりをすると相手から「誰が来ているか」が分からず、多すぎれば連絡も遮断もできない。
+# 形は Bandcamp 向けと同じ「Mozilla/5.0 (compatible; …)」。古い形を見て中身を出すサイトがあるため、
+# 互換の殻だけ残して名前と連絡先を入れる
+UA = "Mozilla/5.0 (compatible; trackmento/0.1; +https://trackmento.com)"
 LOOKUP = "https://itunes.apple.com/lookup"
 MAX_ITEMS = 500   # backend/sources/playlist.py と同じ
 

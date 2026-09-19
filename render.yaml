@@ -72,5 +72,14 @@ services:
         sync: false
       - key: GOOGLE_SITE_VERIFICATION   # Search Console の「HTML タグ」の content 値。未設定ならタグは出ない
         sync: false
+      # Spotify の公式 Web API（Client Credentials）。無いと曲名とジャケット 300px だけの oEmbed に落ち、
+      # プレイリストはまとめて取れない（2026-09-20 に、ページの読み取りから公式 API へ移した）
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      # YouTube Data API v3 のキー。無いと再生リストをまとめて取れない（単体の動画は oEmbed なので要らない）
+      - key: YOUTUBE_API_KEY
+        sync: false
       # 公開版では Discogs を使わない（DISCOGS_TOKEN を入れなければソースに出ない）。
       # GitHub Pages も使う場合だけ CORS_ORIGINS と FRONTEND_URL を追加する（README「公開する」B 参照）

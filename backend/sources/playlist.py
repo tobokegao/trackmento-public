@@ -4,16 +4,14 @@
 対応:
   - ニコニコ動画のマイリスト  https://www.nicovideo.jp/mylist/<id>
       nvapi.nicovideo.jp の公開 API。X-Frontend-Id が要る。サムネイル・投稿者まで取れる
-  - SoundCloud のセット        https://soundcloud.com/<user>/sets/<name>
-      ページに埋まっている window.__sc_hydration の playlist.tracks
-  - bilibili の収藏夹          https://space.bilibili.com/<uid>/favlist?fid=<media_id>
-      api.bilibili.com/x/v3/fav/resource/list。単体の動画ページと違い Cookie が要らない
+  - SoundCloud のセット        **やめた**（2026-09-20。内部 API が要るため。曲ごとの URL は使える）
+  - bilibili の収藏夹          **やめた**（2026-09-20。規約が書面許可を要求しているため）
   - Spotify のプレイリスト      https://open.spotify.com/playlist/<id>
-      /embed/playlist/<id> の __NEXT_DATA__（通常ページには曲が入っていない）
+      公式の Web API（playlists/<id>/tracks）。`SPOTIFY_CLIENT_ID` / `_SECRET` が要る（無ければ取らない）
   - Bandcamp のプレイリスト     https://bandcamp.com/<user>/playlist/<name>
       data-blob の appData.tracklist.tracks。画像は artId から組み立てる
   - YouTube の再生リスト        https://www.youtube.com/playlist?list=<id>
-      ytInitialData の lockupViewModel。タイトルも投稿者もここに入っており、1 本ずつ引く必要は無い
+      公式の Data API（playlistItems.list）。`YOUTUBE_API_KEY` が要る（無ければ取らない）
 
 いずれも公開されているものだけが取れる（非公開・限定公開は 0 件か失敗）。
 一度に返すのは MAX_ITEMS 件まで。
@@ -29,8 +27,8 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 
-from backend.models import NO_COVER, Track
-from backend.sources import applemusic, bandcamp, otodb, video, vocadb
+from backend.models import Track
+from backend.sources import applemusic, bandcamp, otodb, spotify, video, vocadb
 
 # マスの上限（256）より多く取る。入りきらない分は候補に置かれ、そこから選んで絞り込めるため
 # （500 は実機で候補パネルの描画が 500 件 52ms／1000 件 132ms だったので、その手前で切った値。
@@ -39,7 +37,11 @@ from backend.sources import applemusic, bandcamp, otodb, video, vocadb
 # ニコニコは全件、YouTube は 100 件、bilibili は 20 件が上限）
 MAX_ITEMS = 500
 
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+# **名乗りは正直にする**（2026-09-20）。以前は素の Chrome の User-Agent を送っていたが、
+# ブラウザのふりをすると相手から「誰が来ているか」が分からず、多すぎれば連絡も遮断もできない。
+# 形は Bandcamp 向けと同じ「Mozilla/5.0 (compatible; …)」。古い形を見て中身を出すサイトがあるため、
+# 互換の殻だけ残して名前と連絡先を入れる
+UA = "Mozilla/5.0 (compatible; trackmento/0.1; +https://trackmento.com)"
 
 _NICO_MYLIST_RE = re.compile(r"/mylist/(\d+)")
 _SC_SET_RE = re.compile(r"^/[^/]+/sets/[^/]+")
@@ -138,135 +140,62 @@ async def _fill_artist_from_vocadb(out: list[Track], client: httpx.AsyncClient) 
 
 
 # ---- SoundCloud のセット ----
-
-def _sc_track(t: dict) -> Track | None:
-    """SoundCloud の 1 曲。曲にジャケットが無ければ投稿者のアイコンを使う
-    （SoundCloud 自身がそう表示するので、そのままジャケットとして扱ってよい）。"""
-    title = (t.get("title") or "").strip()
-    if not title:
-        return None
-    user = t.get("user") or {}
-    art = t.get("artwork_url") or user.get("avatar_url") or ""
-    # 既定のアイコン（誰でも同じ灰色の 100px 画像）はジャケットにならないので、うちの画像に置き換える。
-    # 曲自体は残したいので、落とさずに並べる
-    if not art or "default_avatar" in art:
-        art = NO_COVER
-    return Track(source="soundcloud", title=title, artist=(user.get("username") or "").strip(),
-                 image=art.replace("-large.", "-t500x500."), thumb=art, external_url=t.get("permalink_url"))
-
-
-async def _sc_client_id(page_html: str, client: httpx.AsyncClient) -> str | None:
-    """ページが読んでいる JS から client_id を拾う（公開ページに載っている値）。"""
-    for js in reversed(re.findall(r'src="(https://a-v2\.sndcdn\.com/assets/[^"]+\.js)"', page_html)[-4:]):
-        try:
-            r = await client.get(js, headers={"User-Agent": UA})
-            m = re.search(r'client_id\s*[:=]\s*"([A-Za-z0-9]{20,})"', r.text)
-            if m:
-                return m.group(1)
-        except httpx.HTTPError:
-            continue
-    return None
+# **セットの一覧を取るのはやめた**（2026-09-20）。曲の一覧を揃えるにはページに埋まった JSON と、
+# 公式ドキュメントに無い内部 API（`api-v2.soundcloud.com`）が要った。SoundCloud の API Terms は
+# §10 で「API 経由で正当に取れるもの以外を scraping などで集めること」を禁じ、§01 で「API を叩くには
+# client ID が要る」としている。内部 API はその「API」に当たらないと読むのが自然なので外した。
+# **曲ごとの URL は今までどおり使える**（`backend/sources/soundcloud.py` の公式 oEmbed）
 
 
 async def _soundcloud(url: str, client: httpx.AsyncClient) -> list[Track]:
-    r = await client.get(url, headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"})
-    r.raise_for_status()
-    m = re.search(r"window\.__sc_hydration\s*=\s*(\[.*?\]);", r.text, re.S)
-    if not m:
-        raise ValueError("SoundCloud のページから曲の一覧を読めませんでした")
-    try:
-        hydration = json.loads(m.group(1))
-    except json.JSONDecodeError as e:
-        raise ValueError("SoundCloud のページの形式が変わったようです") from e
-    tracks = []
-    for ent in hydration:
-        if ent.get("hydratable") == "playlist":
-            tracks = (ent.get("data") or {}).get("tracks") or []
-            break
-    # ページに埋まっているのは先頭の数曲だけで、残りは id しか入っていない。
-    # 足りない分は公開 API（client_id はページの JS に載っている）でまとめて引く
-    out: list[Track] = [t for t in (_sc_track(x) for x in tracks if x.get("title")) if t]
-    missing = [str(x["id"]) for x in tracks if not x.get("title") and x.get("id")][: MAX_ITEMS - len(out)]
-    if missing:
-        cid = await _sc_client_id(r.text, client)
-        if cid:
-            for i in range(0, len(missing), 20):   # ids はまとめて渡せるが、長すぎる URL を避けて 20 件ずつ
-                try:
-                    rr = await client.get("https://api-v2.soundcloud.com/tracks",
-                                          params={"ids": ",".join(missing[i:i + 20]), "client_id": cid},
-                                          headers={"User-Agent": UA, "Accept": "application/json"})
-                    rr.raise_for_status()
-                except httpx.HTTPError:
-                    break   # 途中で失敗しても、そこまでに取れた分は返す
-                out.extend(t for t in (_sc_track(x) for x in rr.json()) if t)
-                if len(out) >= MAX_ITEMS:
-                    break
-    return out[:MAX_ITEMS]
+    raise ValueError("SoundCloud のセットは、曲ごとの URL を貼ってください"
+                     "（セットをまとめて取るのは、SoundCloud の API の決まりに合わせてやめました）")
 
 
 # ---- bilibili の収藏夹 ----
+# **やめた**（2026-09-20）。理由は `backend/sources/video.py` の fetch_bilibili と同じ
+# （規約 4.2.11 が書面許可を要求、`api.bilibili.com` は robots.txt で全面 Disallow）
+
 
 async def _bilibili(url: str, client: httpx.AsyncClient) -> list[Track]:
-    fid = (parse_qs(urlparse(url).query or "").get("fid") or [""])[0]
-    if not fid.isdigit():
-        raise ValueError("収藏夹の URL ではありません（fid が要ります）")
-    r = await client.get(
-        "https://api.bilibili.com/x/v3/fav/resource/list",
-        params={"media_id": fid, "pn": 1, "ps": min(MAX_ITEMS, 20), "platform": "web"},
-        headers={"User-Agent": UA, "Referer": "https://space.bilibili.com/", "Accept": "application/json"},
-    )
-    r.raise_for_status()
-    body = r.json()
-    if body.get("code") != 0:
-        raise ValueError(f"bilibili が拒否しました（{body.get('message')}）")
-    medias = (body.get("data") or {}).get("medias") or []
-    out: list[Track] = []
-    for m in medias:
-        title, cover, bvid = (m.get("title") or "").strip(), m.get("cover") or "", m.get("bvid")
-        if not (title and cover and bvid):
-            continue
-        cover = cover.replace("http://", "https://", 1)
-        out.append(Track(source="bilibili", title=title, artist=((m.get("upper") or {}).get("name") or "").strip(),
-                         image=video.bili_sized(cover), thumb=video.bili_sized(cover, video.BILI_THUMB_SUFFIX),
-                         external_url=f"https://www.bilibili.com/video/{bvid}/"))
-    return out
+    raise ValueError("bilibili には対応していません。曲名・アーティスト名と画像の URL を手で入れてください")
 
 
 # ---- Spotify のプレイリスト ----
+# **公式の Web API を使う**（2026-09-20）。以前は `/embed/playlist/<id>` の `__NEXT_DATA__` を読んでいたが、
+# Spotify の robots.txt は `Disallow: /embed/` で、Developer Terms も robot / spider による取得を禁じている。
+# 鍵（`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`）が無いときは取らない
+
+SPOTIFY_PAGE = 100     # API の上限
+
 
 async def _spotify(url: str, client: httpx.AsyncClient) -> list[Track]:
     m = _SPOTIFY_PLAYLIST_RE.search(urlparse(url).path)
     if not m:
         raise ValueError("プレイリストの URL ではありません")
-    # 通常のページには曲が入っていない。埋め込み用のページを読む
-    r = await client.get(f"https://open.spotify.com/embed/playlist/{m.group(1)}",
-                         headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"})
-    r.raise_for_status()
-    nd = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', r.text, re.S)
-    if not nd:
-        raise ValueError("Spotify のページから曲の一覧を読めませんでした")
-    try:
-        data = json.loads(nd.group(1))
-    except json.JSONDecodeError as e:
-        raise ValueError("Spotify のページの形式が変わったようです") from e
-    entity = (((data.get("props") or {}).get("pageProps") or {}).get("state") or {}).get("data", {}).get("entity") or {}
+    if not spotify.enabled():
+        raise ValueError("Spotify のプレイリストは今まとめて取れません。曲ごとの URL を貼ってください")
     out: list[Track] = []
-    for t in (entity.get("trackList") or [])[:MAX_ITEMS]:
-        title = (t.get("title") or "").strip()
-        # 画像はプレイリスト単位でしか付かないことがある。その場合は曲ごとの visuals を優先
-        cover = ""
-        for v in (t.get("visualIdentity") or {}).get("image") or []:
-            if v.get("url"):
-                cover = v["url"]
-        if not cover:
-            for v in (entity.get("visualIdentity") or {}).get("image") or []:
-                if v.get("url"):
-                    cover = v["url"]
-        if not (title and cover):
-            continue
-        out.append(Track(source="spotify", title=title, artist=(t.get("subtitle") or "").strip(),
-                         image=cover, thumb=cover,
-                         external_url=f"https://open.spotify.com/track/{t.get('uid') or ''}" if t.get("uid") else None))
+    for offset in range(0, MAX_ITEMS, SPOTIFY_PAGE):
+        body = await spotify.api_get(f"/playlists/{m.group(1)}/tracks", client,
+                                     {"limit": SPOTIFY_PAGE, "offset": offset,
+                                      "fields": "items(track(name,artists(name),album(name,images),external_urls)),next"})
+        for it in body.get("items") or []:
+            t = it.get("track") or {}
+            title = (t.get("name") or "").strip()
+            album = t.get("album") or {}
+            image, thumb = spotify.pick_image(album.get("images") or [])
+            if not (title and image):
+                continue
+            out.append(Track(source="spotify", title=title,
+                             artist=", ".join(a.get("name", "").strip() for a in t.get("artists") or [] if a.get("name")),
+                             album=(album.get("name") or "").strip() or None,
+                             image=image, thumb=thumb,
+                             external_url=(t.get("external_urls") or {}).get("spotify")))
+            if len(out) >= MAX_ITEMS:
+                return out
+        if not body.get("next"):
+            break
     return out
 
 
@@ -339,62 +268,61 @@ async def _bandcamp(url: str, client: httpx.AsyncClient) -> list[Track]:
 
 
 # ---- YouTube の再生リスト ----
+# **公式の Data API を使う**（2026-09-20）。以前は再生リストのページ HTML（ytInitialData）を読んでいたが、
+# YouTube の利用規約は自動アクセスを禁じていて、例外は「robots.txt に従う公開検索エンジン」と「書面の許可」だけ。
+# Data API なら `playlistItems.list` 1 回が 1 ユニットで、1 日 10,000 ユニットの枠に収まる
+# （500 曲でも 10 回＝10 ユニット）。**キーが無いときは再生リストを取らない**（曲ごとの URL は今までどおり）。
+# 単体の動画は公式 oEmbed（`backend/sources/video.py`）なのでキーは要らない
+YT_API = "https://www.googleapis.com/youtube/v3/playlistItems"
+YT_PAGE = 50          # API の上限
+YT_MAX_PAGES = 10     # 500 曲ぶん。1 ページ 1 ユニット
 
-def _yt_lockups(node, out: list) -> None:
-    """ytInitialData を辿って lockupViewModel（1 本の動画）を集める。
-    以前の playlistVideoRenderer から作りが変わっており、決まった場所に無いので全体を歩く。"""
-    if isinstance(node, dict):
-        if "lockupViewModel" in node:
-            out.append(node["lockupViewModel"])
-        for v in node.values():
-            _yt_lockups(v, out)
-    elif isinstance(node, list):
-        for v in node:
-            _yt_lockups(v, out)
+
+def youtube_key() -> str:
+    return os.getenv("YOUTUBE_API_KEY", "").strip()
 
 
 async def _youtube(url: str, client: httpx.AsyncClient) -> list[Track]:
     list_id = (parse_qs(urlparse(url).query or "").get("list") or [""])[0]
     if not list_id:
         raise ValueError("再生リストの URL ではありません（list= が要ります）")
-    r = await client.get("https://www.youtube.com/playlist", params={"list": list_id},
-                         headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"})
-    r.raise_for_status()
-    m = re.search(r"var ytInitialData = (\{.*?\});</script>", r.text, re.S)
-    if not m:
-        raise ValueError("YouTube のページから曲の一覧を読めませんでした")
-    try:
-        data = json.loads(m.group(1))
-    except json.JSONDecodeError as e:
-        raise ValueError("YouTube のページの形式が変わったようです") from e
-    lockups: list = []
-    _yt_lockups(data, lockups)
+    key = youtube_key()
+    if not key:
+        raise ValueError("YouTube の再生リストは今まとめて取れません。曲ごとの動画の URL を貼ってください")
     out: list[Track] = []
     seen: set[str] = set()
-    for lv in lockups:
-        vid = lv.get("contentId") or ""
-        if not re.fullmatch(r"[A-Za-z0-9_-]{11}", vid) or vid in seen:
-            continue
-        meta = (lv.get("metadata") or {}).get("lockupMetadataViewModel") or {}
-        title = ((meta.get("title") or {}).get("content") or "").strip()
-        if not title:
-            continue
-        # 投稿者はアバターの読み上げ文（「チャンネル「○○」に移動します」）からしか取れない。
-        # metadataParts に入っていることもあるので、両方見る
-        a11y = ((meta.get("image") or {}).get("decoratedAvatarViewModel") or {}).get("a11yLabel") or ""
-        am = re.search(r"[「\"'](.+?)[」\"']", a11y)
-        if not am:
-            for part in meta.get("metadataParts") or []:
-                text = ((part.get("text") or {}).get("content") or "").strip()
-                if text and not re.fullmatch(r"[\d,.\s]+(?:回視聴|views?)?", text):
-                    am = re.match(r"(.+)", text)
-                    break
-        seen.add(vid)
-        out.append(Track(source="youtube", title=title, artist=(am.group(1) if am else "").strip(),
-                         image=f"https://i.ytimg.com/vi/{vid}/sddefault.jpg",
-                         thumb=f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
-                         external_url=f"https://www.youtube.com/watch?v={vid}"))
-        if len(out) >= MAX_ITEMS:
+    token = ""
+    for _ in range(YT_MAX_PAGES):
+        params = {"part": "snippet", "playlistId": list_id, "maxResults": YT_PAGE, "key": key}
+        if token:
+            params["pageToken"] = token
+        r = await client.get(YT_API, params=params, headers={"Accept": "application/json"})
+        if r.status_code == 404:
+            raise ValueError("その再生リストが見つかりません（非公開か、URL が違うようです）")
+        if r.status_code == 403:
+            # 割り当てを使い切ったか、キーの設定が違う。どちらも利用者には同じ案内でよい
+            raise ValueError("YouTube の再生リストを取れませんでした。しばらく待つか、曲ごとの URL を貼ってください")
+        r.raise_for_status()
+        body = r.json() or {}
+        for it in body.get("items") or []:
+            sn = it.get("snippet") or {}
+            vid = ((sn.get("resourceId") or {}).get("videoId") or "").strip()
+            title = (sn.get("title") or "").strip()
+            if not (re.fullmatch(r"[A-Za-z0-9_-]{11}", vid) and title) or vid in seen:
+                continue
+            seen.add(vid)
+            # ジャケットは URL を組み立てる（API の thumbnails は消えた動画だと空。大きさの選び方は今までと同じ）
+            # 投稿者は videoOwnerChannelTitle（消えた動画では無い）。以前はアバターの読み上げ文から
+            # 拾っていたが、API では素直に取れる
+            out.append(Track(source="youtube", title=title,
+                             artist=(sn.get("videoOwnerChannelTitle") or "").strip(),
+                             image=f"https://i.ytimg.com/vi/{vid}/sddefault.jpg",
+                             thumb=f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                             external_url=f"https://www.youtube.com/watch?v={vid}"))
+            if len(out) >= MAX_ITEMS:
+                return out
+        token = body.get("nextPageToken") or ""
+        if not token:
             break
     return out
 
