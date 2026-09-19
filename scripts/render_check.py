@@ -254,6 +254,7 @@ def _to_gb(value: float, unit: str) -> float:
 STATS_RE = re.compile(r"(\S+?):(\d+)件/([\d.]+)s/max([\d.]+)s(?:/5xx(\d+))?(?:/h([\d.]+))?")
 # 待ち時間の区切り（秒）。backend/main.py の LAT_BUCKETS と同じ。[stats] と [srch] の `/h` は区切りごとの件数
 LAT_BUCKETS = (0.25, 0.5, 1, 2, 5, 10, 20)
+ALWAYS_PATHS = ("/share/upload", "/share", "/from-url", "/from-playlist", "/hiccup")
 # [srch] vocadb:db3/r2/net5/fail1/max8.0s/h… の 1 ソースぶん（ソースごとの検索。backend/main.py の _srch_stats）
 SRCH_RE = re.compile(r"(\S+?):db(\d+)/r2(\d+)/net(\d+)/fail(\d+)/max([\d.]+)s/h([\d.]+)")
 
@@ -467,6 +468,10 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     share_5xx = sum(p["5xx"] for k, p in pp.items() if k in ("/share", "/share/upload"))
     proxy = pp.get("/image-proxy") or {"count": 0, "5xx": 0}
     top = sorted(pp.items(), key=lambda kv: kv[1]["count"], reverse=True)[:8]
+    # 件数が少なくても必ず出す経路（共有と URL からの取得。件数順の上位 8 に入らず見落としていた。2026-09-19）
+    for k in ALWAYS_PATHS:
+        if k in pp and all(k != t for t, _ in top):
+            top.append((k, pp[k]))
     if la.get("cut_at"):
         # 読み切れなかったことを黙らない（件数・最大値・5xx はここまでの分しか入っていない）
         lines.append(f"- **ログを読み切れなかった**: {_jst(la['cut_at'])} までの {la['lines']} 行で集計"
