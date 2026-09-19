@@ -1,5 +1,5 @@
 // **自動生成（promo/plan_gen.mjs）。手で直さない**。直すのは譜割りエディタの「場面」レーンの「動画の台本」。
-// エディタの版: rev gf6vggi（2026-09-19T18:48:17.723Z）
+// エディタの版: rev 6t1sjia（2026-09-19T19:59:30.313Z）
 // 拍は 4 分音符・0 始まり（小節 n の頭 = (n - 1) * 4）。len も拍。off は印からの秒、speed は倍率
 export type PlanShot = { id: string; beat: number; len: number; ev: string; off: number; jp: string; en: string; speed?: number };
 export const PLAN_SHOTS: PlanShot[] = [
@@ -69,8 +69,8 @@ export const PLAN_SHOTS: PlanShot[] = [
   "len": 4,
   "ev": "start",
   "off": 0,
-  "jp": "曲名リストが賢くなりました",
-  "en": "Smarter track lists"
+  "jp": "曲名リストがより美しく",
+  "en": "Better-looking track lists"
  },
  {
   "id": "mfejuzc",
@@ -154,11 +154,11 @@ export const PLAN_SHOTS: PlanShot[] = [
   "id": "eoqbxrm",
   "beat": 100,
   "len": 4,
-  "ev": "add:multi",
-  "off": -2,
+  "ev": "multi:paste",
+  "off": -1.4,
   "jp": "改行で区切って丸ごと挿入",
   "en": "One per line, all at once",
-  "speed": 1.8
+  "speed": 2
  },
  {
   "id": "9mxejt1",
@@ -168,7 +168,7 @@ export const PLAN_SHOTS: PlanShot[] = [
   "off": -0.5,
   "jp": "Playlist の URL で一気に追加",
   "en": "A whole playlist in one paste",
-  "speed": 8.8
+  "speed": 3
  },
  {
   "id": "zd9g3ak",
@@ -262,10 +262,11 @@ export const PLAN_SHOTS: PlanShot[] = [
   "id": "uwohvic",
   "beat": 144,
   "len": 4,
-  "ev": "list:overlay",
-  "off": -0.5,
-  "jp": "曲名リストは 3 択（横・マスに重ねる・なし）",
-  "en": "Track list: beside, on the covers, or hidden"
+  "ev": "list:beside",
+  "off": -0.3,
+  "jp": "曲名リストは 3 択",
+  "en": "Three ways to show the track list",
+  "speed": 1.3
  },
  {
   "id": "10gxz2c",

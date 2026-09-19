@@ -24,7 +24,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-const CAPTURE_VERSION = 3;   // 撮り方（下の道具）を変えたら上げる。全部の場面が撮り直しになる
+const CAPTURE_VERSION = 4;   // 撮り方（下の道具）を変えたら上げる。全部の場面が撮り直しになる
 const FPS = 30;
 const BASE = process.env.TRACKMENTO_URL || "http://localhost:8000";
 const PC = process.env.MODE === "pc";
@@ -100,9 +100,18 @@ const attached = (sel) => async () => (await page.locator(sel).count()) > 0;
 const waitSel = (sel, o = {}) => until(o.state === "attached" ? attached(sel) : visible(sel), { label: sel, ...o });
 const mark = (name, extra = {}) => { events.push({ f: frames, name, ...extra }); console.log(`  ${(frames / FPS).toFixed(2)}s ${name}`); };
 
+/** 見えるようにする。**画面に収まっているなら動かさない**（v9 で、押すたびに真ん中へ送ってページが下にずれ、
+    グリッドの上が見切れていた）。収まっていないときだけ、スマホは真ん中・PC は近いほうの端へ送る */
 async function center(loc) {
-  if (PC) await loc.evaluate((el) => el.scrollIntoView({ block: "nearest", inline: "nearest" }));
-  else await loc.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest" }));
+  await loc.evaluate((el, pc) => {
+    const r = el.getBoundingClientRect(), vh = window.innerHeight;
+    let p = el.parentElement;   // シートの中なら、その入れ物の見えている範囲で見る
+    while (p && p !== document.body && !/(auto|scroll)/.test(getComputedStyle(p).overflowY)) p = p.parentElement;
+    const box = p && p !== document.body ? p.getBoundingClientRect() : { top: 0, bottom: vh };
+    const top = Math.max(0, box.top), bottom = Math.min(vh, box.bottom);
+    if (r.top >= top + 8 && r.bottom <= bottom - 8) return;
+    el.scrollIntoView({ block: pc ? "nearest" : "center", inline: "nearest" });
+  }, PC);
 }
 /** 押す。波紋（とカーソル）を出してから押す。押した瞬間が印の時刻 */
 async function tap(sel, name) {
@@ -176,12 +185,13 @@ async function pickFirstResult(label, source, match, timeout = 120000) {
   await waitSel("#sheet[hidden]", { state: "attached" });
   await hold(600);
 }
-async function pasteUrl(url, name) {
+async function pasteUrl(url, name, ms = 30) {
   await openSheet();
   await expandSub("sub-bandcamp", name);
   await center(page.locator("#bc-url"));
   await hold(300);
-  await setUrl(url);
+  await setUrl(url, ms);
+  await center(page.locator("#bc-btn"));   // 伸びた欄の下のボタンまで見えるように
 }
 const cell = (n) => `#grid .cell[data-index="${n - 1}"]`;
 async function swapCells(a, b) { await tap(cell(a), `select:${a}`); await hold(450); await tap(cell(b), `swap:${a}-${b}`); await hold(600); }
@@ -266,8 +276,11 @@ const MAIN = [
     } else await tap(".pane-options .fold", "open-options");
     await hold(600);
     await center(page.locator("#list-seg")); await hold(300);
-    await tap(`#list-seg input[value="overlay"] + span`, "list:overlay");
-    await hold(900);
+    // 3 択をぜんぶ押して見せ、最後は「マスに重ねる」に戻す（以後の共有はこの表示）
+    for (const [v, n] of [["side", "list:beside"], ["overlay", "list:overlay"], ["none", "list:none"], ["overlay", "list:overlay2"]]) {
+      await tap(`#list-seg input[value="${v}"] + span`, n); await hold(300);
+    }
+    await hold(600);
     for (const r of (PC ? ["9:16", "16:9", "free", "16:9"] : ["16:9", "9:16", "free", "9:16"])) { await tap(`#ratio-seg input[value="${r}"] + span`, `ratio:${r}`); await hold(380); }
     await hold(400);
     for (const c of ["cerulean", "pink", "mustard"]) { await tap(`#swatches input[value="${c}"]`, `bg:${c}`); await hold(450); }
@@ -325,10 +338,10 @@ async function manualAdd(image, title, artist, label) {
 const FEATS = [
   ["multi", async () => {
     mark("start");
-    await pasteUrl(MULTI_URLS, "url-multi");
+    await pasteUrl(MULTI_URLS, "url-multi", 12);
     await tap("#bc-btn", "multi:paste");
     await waitSel("#results .result", { timeout: 120000 });
-    await hold(2000); mark("multi:got");
+    await hold(1000); mark("multi:got");
     await hold(700);
     await tap("#results .result", "add:multi");
     await waitSel("#sheet[hidden]", { state: "attached" }).catch(() => {});

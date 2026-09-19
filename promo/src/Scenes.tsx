@@ -322,7 +322,8 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
           const k = spring({ frame: frame - at[i], fps, config: { damping: 11, stiffness: 320 } });
           // 枠は無し。画面全体（字幕の帯の下から下端まで）に散らばらせる（v7、利用者の指定）
           // 升目 4×4 に決まった順（真ん中と端が交互）で 1 枚ずつ置き、その中で揺らす（v9、利用者の指定: 終盤が真ん中に寄っていた）
-          const SLOTS = [0, 15, 5, 10, 3, 12, 6, 9, 1, 14, 7, 8, 2, 13, 4, 11];
+          // 最後の 1 枚は左下（升目 12）に置く（v10、利用者の指定）
+          const SLOTS = [0, 15, 5, 10, 3, 11, 6, 9, 1, 14, 7, 8, 2, 13, 4, 12];
           const slot = SLOTS[i % 16], gx = (slot % 4) / 3 - 0.5, gy = Math.floor(slot / 4) / 3 - 0.5;
           const rot = (rnd(i, 1) - 0.5) * 30;
           const dx = gx * (tall ? 80 : 150) + (rnd(i, 2) - 0.5) * (tall ? 18 : 30);
