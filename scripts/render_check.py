@@ -162,7 +162,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[vocadb]*", "[client]*", "[upload]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[out]*", "[vocadb]*", "[client]*", "[upload]*", "Traceback*", "ERROR:*"]
 
 
 # 1 時間あたりに読むページ数の見込み（1 ページ 100 行）。印付きの行は実測で 1 時間 600〜800 行ほど
@@ -292,6 +292,7 @@ def analyze_logs(logs: list[dict]) -> dict:
                                                     "hist": [0] * (len(LAT_BUCKETS) + 1)})
     client: Counter[str] = Counter()   # [client] ブラウザ側で起きた失敗の種類 → 件数
     vocadb: Counter[str] = Counter()   # [vocadb] VocaDB へ聞いた回数と、覚えていて聞かずに済んだ回数
+    out: Counter[str] = Counter()      # [out] 外へ出した要求のホスト → 件数
     upload = {"n": 0, "recv_max": 0.0, "save_max": 0.0, "cut": 0, "busy": 0, "kb": [],
               "recv_h": [0] * (len(LAT_BUCKETS) + 1)}   # [upload] 共有の送信の内訳
     ua_by_path: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
@@ -345,6 +346,11 @@ def analyze_logs(logs: list[dict]) -> dict:
                 k, _, n = pair.rpartition("=")
                 if k and n.isdigit():
                     client[k] += int(n)
+        elif m.startswith("[out]"):
+            for pair in m[len("[out]"):].split():
+                k, _, n = pair.rpartition("=")
+                if k and n.isdigit():
+                    out[k] += int(n)
         elif m.startswith("[vocadb]"):
             for pair in m[len("[vocadb]"):].split():
                 k, _, n = pair.rpartition("=")
@@ -405,6 +411,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "per_src": dict(per_src),
         "client": dict(client),
         "vocadb": dict(vocadb),
+        "out": dict(out),
         "upload": upload,
         "ua_by_path": {k: dict(v) for k, v in ua_by_path.items()},
         "src_counts": dict(src_counts),
@@ -565,6 +572,13 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         lines.append(f"- 共有の送信の内訳: {up['n']} 件。本文の受け取りは半分が {_pct(up['recv_h'], 0.5)}・95% が "
                      f"{_pct(up['recv_h'], 0.95)}・最大 {up['recv_max']:.1f} 秒、検査と保存は最大 {up['save_max']:.1f} 秒、"
                      f"大きさはおよそ {kb:.0f}KB、途中で切れた {up['cut']}、混雑で断った {up['busy']}")
+    ob = la.get("out") or {}
+    if ob:
+        # 外へ出した要求（ホストごと）。各サービスの規約の上限（1 分・1 日）と見比べるための数字
+        rows = sorted(ob.items(), key=lambda kv: -kv[1])
+        lines.append(f"- 外へ出した要求: 合計 {sum(ob.values())} 件（1 日に直すと約 {sum(ob.values()) / max(hours, 0.01) * 24:,.0f}）")
+        for h, n in rows[:12]:
+            lines.append(f"  - `{h}` {n} 件（1 日約 {n / max(hours, 0.01) * 24:,.0f}、1 分あたり平均 {n / max(hours * 60, 0.01):.1f}）")
     vd = la.get("vocadb") or {}
     if vd:
         # VocaDB へ聞いた回数（種類ごと）。「1 日数千件には事前の許可が要る」とされているので、窓の長さから 1 日に直して出す

@@ -150,6 +150,7 @@ async def lifespan(app: FastAPI):
         timeout=httpx.Timeout(30, connect=10),   # MusicBrainz や roxy は遅いことがある
         follow_redirects=True,
         headers={"User-Agent": os.getenv("MB_USER_AGENT", "trackmento/0.1 (+https://trackmento.com)")},
+        event_hooks={"request": [_note_out]},   # 外へ出した要求をホストごとに数える（`[out]`）
     )
     try:
         yield
@@ -240,6 +241,34 @@ def _note_srch(source: str, kind: int, dt: float = 0.0) -> None:
         s[4] += dt
         s[5] = max(s[5], dt)
         s[6][_lat_bucket(dt)] += 1
+
+
+# ---------- 外へ出した要求（2026-09-20）----------
+# 各サービスの規約には「1 分に N 件まで」「1 日に数千件なら事前の許可が要る」といった決まりがある
+# （VocaDB の件で分かった）。**守れているかを見るには、まずこちらが何回出しているかを知る必要がある**。
+# 共有のクライアント（`app.state.http`）から出た要求をホストごとに数えて 60 秒ごとに出す。
+# 画像の取得も同じクライアントを通るが、画像は別ホスト（`i.ytimg.com` と `www.youtube.com` など）なので混ざらない。
+# **URL やパス、検索語は数えない**（`[src]` や `[ua]` と同じ方針で、ホスト名と回数だけ）
+_out_stats: dict[str, int] = {}
+_OUT_TOP = 14
+
+
+async def _note_out(request: httpx.Request) -> None:
+    host = request.url.host or "?"
+    if len(_out_stats) < 200 or host in _out_stats:
+        _out_stats[host] = _out_stats.get(host, 0) + 1
+
+
+def _out_line() -> str:
+    """`[out] host=件数 …`（多い順に `_OUT_TOP` 件、残りは「ほか」）。数えた分は消す"""
+    items = sorted(_out_stats.items(), key=lambda kv: -kv[1])
+    _out_stats.clear()
+    if not items:
+        return ""
+    fields = [f"{h}={n}" for h, n in items[:_OUT_TOP]]
+    if rest := items[_OUT_TOP:]:
+        fields.append(f"ほか={sum(n for _, n in rest)}")
+    return "[out] " + " ".join(fields)
 
 
 # ---------- ブラウザ側で起きた失敗（2026-09-19）----------
@@ -405,6 +434,8 @@ async def _load_monitor():
                 f"{k}:db{v[0]}/r2{v[1]}/net{v[2]}/fail{v[3]}/max{v[5]:.1f}s/h" + ".".join(str(n) for n in v[6])
                 for k, v in sorted(_srch_stats.items())))
             _srch_stats.clear()
+        if tick % 60 == 0 and (out_line := _out_line()):
+            print(out_line)
         if tick % 60 == 0 and (calls := vocadb.take_calls()):
             # VocaDB へ聞いた回数と、覚えていて聞かずに済んだ回数（種類ごと）。語そのものは数えない
             print("[vocadb] " + " ".join(f"{k}={n}" for k, n in sorted(calls.items())))
