@@ -151,3 +151,115 @@ async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
         _pv_cache.clear()
     _pv_cache[key] = (now, name)
     return name
+
+
+# ---- 転載の動画は、題から曲を探して作者を補う ----
+# 転載（再投稿）の動画は VocaDB に動画 ID の登録が無いので `artist_by_pv` では埋まらない。
+# 題には「livetune feat. 初音ミク【Tell Your World】Music Video」のように曲名が入っているので、
+# 括弧の中などから曲名の候補を取り出して VocaDB で探す（2026-09-19、利用者の提案）。
+# **間違った作者名は空欄より悪い**ので、次をすべて満たすものだけ採る:
+#   - VocaDB の曲名（別名を含む）が題に含まれる
+#   - 原曲（songType が Original）。歌ってみた・リミックスを除く（同じ題のリミックスが先に来ることがある）
+#   - 題に歌声合成ソフトの名前（初音ミク など）があるなら、その曲の歌声にも同じ名前がある（同名の別の曲を除く）
+#   - 題に作者名が入っている候補があればそれを優先する。無ければ、当てはまる原曲が 1 つのときだけ
+#   - 「歌ってみた」「MAD」「実況」などは曲名の候補にしない（その語を題に持つ別の曲を拾っていた）
+# 利用者の「私を構成するボカロ曲25選」で試して、作者が取れていた 23 曲のうち 21 曲で正しい作者、
+# 残りは空欄（誤りは 0）。絞る前はリミックスの作者と同名の別の曲の作者を 1 件ずつ拾っていた
+_TITLE_NOISE = re.compile(
+    # 英字の語は前後が英字でないときだけ（「paranoia」の IA を消さない。\b は「曲PV」の境目を拾えない）
+    r"Long version|LONG ver\.?|Full ?ver\.?|fullver\.?|Music ?Video|"
+    r"(?<![A-Za-z])(?:PV|MV|feat\.?|vo\.|KAITO|MEIKO|GUMI|IA)(?![A-Za-z])|"
+    r"(?:ミク)?オリジナル(?:曲|MV|PV)?|付き|応募曲|修正版|第\d+回[^\s】」』]*|"
+    r"(?:歌|踊|弾|演奏し|叩)(?:っ|い)てみた|音?MAD|ゆっくり実況|実況|"
+    r"初音ミク|鏡音リン|鏡音レン|巡音ルカ|重音テト", re.I)
+# 括弧は同じ種類どうしで対にする（「【初音ミク(とく)】」を「【初音ミク(とく」と読まない）
+_TITLE_BR = re.compile(r"「([^」]+)」|『([^』]+)』|【([^】]+)】|\[([^\]]+)\]|〔([^〕]+)〕|\(([^)]+)\)|（([^）]+)）|“([^”]+)”|\"([^\"]+)\"")
+# 題に出ていたら「その歌声の曲か」を確かめる名前。VocaDB の artistString の feat. の後ろと突き合わせる
+VOICES = ("初音ミク", "鏡音リン", "鏡音レン", "巡音ルカ", "KAITO", "MEIKO", "GUMI", "重音テト", "IA", "結月ゆかり",
+          "可不", "flower", "音街ウナ", "ONE", "紲星あかり", "裏命", "星界", "歌愛ユキ", "がくっぽいど", "神威がくぽ")
+WEAK_LEAD = 5.0
+_title_cache: dict[str, tuple[float, str]] = {}
+
+
+def _title_queries(title: str) -> list[str]:
+    """題から曲名の候補を取り出す（括弧の中身 → 括弧の外）。最大 3 つ"""
+    from backend.merge import _n
+    out: list[str] = []
+    for groups in _TITLE_BR.findall(title):
+        m = next(g for g in groups if g)
+        c = re.sub(r"[()（）]", " ", _TITLE_NOISE.sub("", m)).strip(" -・/.")
+        if len(_n(c)) >= 2 and c not in out:
+            out.append(c)
+    rest = _TITLE_NOISE.sub("", _TITLE_BR.sub(" ", title)).strip(" -・/.")
+    if len(_n(rest)) >= 2 and rest not in out:
+        out.append(rest)
+    return out[:3]
+
+
+def _parts(artist_string: str) -> tuple[list[str], list[str]]:
+    """「kz, Google feat. 初音ミク Append (Dark)」→ (作者, 歌声の最初の語)"""
+    bits = re.split(r"\s+feat\.?\s+", artist_string, maxsplit=1)
+    head, tail = bits[0], bits[1] if len(bits) > 1 else ""
+    makers = [p.strip() for p in re.split(r"[,、，/]", head) if p.strip()]
+    voices = [re.split(r"[\s(]", v.strip())[0] for v in re.split(r"[,、]", tail) if v.strip()]
+    return makers, voices
+
+
+async def artist_by_title(title: str, *, client: httpx.AsyncClient | None = None) -> str:
+    """動画の題から VocaDB の曲を探し、確かなときだけ `artistString` を返す。無い・失敗なら空文字"""
+    from backend.merge import _n
+    now = time.monotonic()
+    hit = _title_cache.get(title)
+    if hit and now - hit[0] < PV_TTL:
+        return hit[1]
+    nt = _n(title)
+    voiced = [v for v in VOICES if _n(v) in nt]
+    own = client is None
+    client = client or httpx.AsyncClient(timeout=PV_TIMEOUT)
+    name = ""
+    try:
+        for q in _title_queries(title):
+            async with _PV_SEM:
+                r = await client.get(API, params={
+                    "query": q, "maxResults": 10, "nameMatchMode": "Auto", "sort": "RatingScore",
+                    "preferAccurateMatches": "true", "fields": "Names", "lang": "Japanese",
+                }, headers={"User-Agent": UA}, timeout=PV_TIMEOUT)
+            r.raise_for_status()
+            strong = ""
+            weak: dict[str, float] = {}   # artistString → 評価（同じ作者の別名義の曲は大きいほう）
+            for it in (r.json() or {}).get("items") or []:
+                if it.get("songType") != "Original":
+                    continue
+                names = [it.get("name") or ""] + [n.get("value") or "" for n in it.get("names") or []]
+                if not any(len(_n(n)) >= 2 and _n(n) in nt for n in names):
+                    continue
+                artist = (it.get("artistString") or "").strip()
+                makers, voices = _parts(artist)
+                if voiced and not any(len(_n(v)) >= 2 and _n(v) in nt for v in voices):
+                    continue
+                if any(len(_n(m)) >= 2 and _n(m) in nt for m in makers):
+                    strong = strong or artist
+                weak[artist] = max(weak.get(artist, 0.0), float(it.get("ratingScore") or 0))
+            # 題に作者名が無いときは、当てはまる原曲が 1 つに絞れるか、評価が 2 番目の `WEAK_LEAD` 倍以上
+            # 離れているときだけ採る（「ハロー」のように同じ名前の原曲がいくつもあると、上位が正しいとは限らない）
+            ranked = sorted(weak.items(), key=lambda kv: -kv[1])
+            if not strong and ranked and (len(ranked) == 1 or ranked[0][1] >= max(1.0, ranked[1][1]) * WEAK_LEAD):
+                name = ranked[0][0]
+            else:
+                name = strong
+            if name:
+                break
+    except (httpx.HTTPError, ValueError):
+        return ""   # 失敗は覚えない
+    finally:
+        if own:
+            await client.aclose()
+    if len(_title_cache) >= PV_CACHE_MAX:
+        _title_cache.clear()
+    _title_cache[title] = (now, name)
+    return name
+
+
+async def artist_for_video(pv_id: str, title: str, *, client: httpx.AsyncClient | None = None) -> str:
+    """投稿者名が取れない動画の作者名。動画 ID で引き、無ければ（転載など）題から探す"""
+    return await artist_by_pv(pv_id, client=client) or await artist_by_title(title, client=client)

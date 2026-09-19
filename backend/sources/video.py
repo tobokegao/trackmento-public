@@ -232,8 +232,8 @@ async def fetch_nicovideo(url: str, *, client: httpx.AsyncClient | None = None) 
             image = thumb + ".L"
         artist = (root.findtext(".//user_nickname") or root.findtext(".//ch_name") or "").strip()
         if not artist:
-            # 投稿者が退会・非公開だと名前が返らない。VocaDB に登録があれば作者名で埋める
-            artist = await vocadb.artist_by_pv(vid, client=client)
+            # 投稿者が退会・非公開だと名前が返らない。VocaDB に登録があれば作者名で埋める（転載なら題から探す）
+            artist = await vocadb.artist_for_video(vid, (root.findtext(".//title") or "").strip(), client=client)
     finally:
         if own:
             await client.aclose()

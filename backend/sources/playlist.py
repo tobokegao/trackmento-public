@@ -121,13 +121,13 @@ _PV_FILL_BUDGET = 10     # 全体で待つ秒数（間に合った分だけ反�
 
 
 async def _fill_artist_from_vocadb(out: list[Track], client: httpx.AsyncClient) -> None:
-    """投稿者名が空の動画（退会・非公開）を VocaDB で埋める。消えた動画（`is_gone`）は otoDB 側で埋めるので除く"""
+    """投稿者名が空の動画（退会・非公開・転載）を VocaDB で埋める。消えた動画（`is_gone`）は otoDB 側で埋めるので除く"""
     holes = [i for i, t in enumerate(out) if not t.artist and not is_gone(t.title) and t.external_url]
     if not holes:
         return
 
     async def one(i: int) -> None:
-        name = await vocadb.artist_by_pv(out[i].external_url.rsplit("/", 1)[-1], client=client)
+        name = await vocadb.artist_for_video(out[i].external_url.rsplit("/", 1)[-1], out[i].title, client=client)
         if name:
             out[i] = out[i].model_copy(update={"artist": name})
 

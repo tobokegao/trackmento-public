@@ -453,7 +453,13 @@ claude --remote-control TRACKMENTO                                             #
     投稿者が退会・非公開だと `getthumbinfo` に user_nickname も ch_name も無く、アーティスト名が空になっていた
     （利用者の 25 曲の共有で 2 曲）。`/api/songs/byPv?pvService=NicoNicoDouga&pvId=sm…` で引く。単体の URL
     （`video.fetch_nicovideo`）とマイリスト（`playlist._fill_artist_from_vocadb`、上限 24 件・10 秒）の両方。
-    同時 3 本、見つからなかった分も 1 日メモリに覚える。**再投稿（転載）の動画は VocaDB に無いので埋まらない**
+    同時 3 本、見つからなかった分も 1 日メモリに覚える
+  - **転載の動画（動画 ID が VocaDB に無い）は題から曲を探す**（`vocadb.artist_by_title`、利用者の提案）。
+    括弧の中身などから曲名の候補を取り（「初音ミク」「オリジナル」「歌ってみた」「MAD」などは外す）、VocaDB で検索する。
+    **間違った作者名は空欄より悪い**ので、採るのは「原曲（songType=Original）で、曲名が題に含まれ、題に歌声の名前が
+    あればその歌声の曲」で、さらに「題に作者名が入っている」か「当てはまる原曲が 1 つ、または評価が 2 番目の
+    `WEAK_LEAD`（5）倍以上」のときだけ。利用者の 25 曲で 24 曲が正しい作者、1 曲が空欄、誤り 0。
+    絞る前は「歌ってみた」「MAD」という語そのものや、同名の別の原曲（「ハロー」「ロキ」の GUMI 版）の作者を拾っていた
   - **キーは要らない**。データは CC ライセンスなので、画面のフッターに出典が出る（`#foot-sources` が自動）
   - ソースを足すときに触る所: `backend/sources/<名前>.py`、`backend/models.py` の `Source`、
     `backend/main.py` の import と `SOURCES`、frontend の `SOURCE_LABEL` / `ALL_SOURCES` / `SOURCE_ORDER`、
