@@ -256,6 +256,41 @@ CLIENT_KINDS = frozenset({
 _client_stats: dict[str, int] = {}
 
 
+# ---------- 共有の送信の内訳（2026-09-19）----------
+# `/share/upload` の所要時間は「本文を受け取る時間」と「検査と保存の時間」の合計で、どちらが長いのか分からなかった。
+# 点検で 5% 以上が 20 秒を超え、送り終えたように見えてから画面が打ち切る件（up_wait）が出ていたので、分けて数える
+_up_stats: dict[str, list] = {"recv": [], "save": [], "kb": [], "cut": [0], "busy": [0]}
+
+
+def _note_upload(recv: float | None = None, save: float | None = None, kb: float | None = None,
+                 cut: bool = False, busy: bool = False) -> None:
+    if recv is not None:
+        _up_stats["recv"].append(recv)
+    if save is not None:
+        _up_stats["save"].append(save)
+    if kb is not None:
+        _up_stats["kb"].append(kb)
+    if cut:
+        _up_stats["cut"][0] += 1
+    if busy:
+        _up_stats["busy"][0] += 1
+
+
+def _upload_line() -> str | None:
+    r, sv, kb = _up_stats["recv"], _up_stats["save"], _up_stats["kb"]
+    cut, busy = _up_stats["cut"][0], _up_stats["busy"][0]
+    if not (r or cut or busy):
+        return None
+    med = lambda xs: sorted(xs)[len(xs) // 2] if xs else 0.0   # noqa: E731
+    line = (f"[upload] n={len(r)} recv_med={med(r):.1f}s recv_max={max(r, default=0):.1f}s "
+            f"save_med={med(sv):.1f}s save_max={max(sv, default=0):.1f}s kb_med={med(kb):.0f} cut={cut} busy={busy}"
+            + " recv_h=" + ".".join(str(sum(1 for x in r if _lat_bucket(x) == i)) for i in range(len(LAT_BUCKETS) + 1)))
+    for k in ("recv", "save", "kb"):
+        _up_stats[k].clear()
+    _up_stats["cut"][0] = _up_stats["busy"][0] = 0
+    return line
+
+
 def _stat_key(path: str) -> str:
     for prefix in ("/grids/", "/s/", "/shares/", "/uploads/", "/outputs/"):
         if path.startswith(prefix):
@@ -367,6 +402,8 @@ async def _load_monitor():
                 f"{k}:db{v[0]}/r2{v[1]}/net{v[2]}/fail{v[3]}/max{v[5]:.1f}s/h" + ".".join(str(n) for n in v[6])
                 for k, v in sorted(_srch_stats.items())))
             _srch_stats.clear()
+        if tick % 60 == 0 and (up_line := _upload_line()):
+            print(up_line)
         if tick % 60 == 0 and _client_stats:
             print("[client] " + " ".join(f"{k}={n}" for k, n in sorted(_client_stats.items(), key=lambda kv: -kv[1])))
             _client_stats.clear()
@@ -1749,13 +1786,17 @@ async def share_upload(request: Request) -> dict:
     フォーム: doc（JSON 文字列）, image（旧名 png）, og"""
     _check_share_quota(request)   # 本文（数 MB）を読む前に断る。上限到達中に受け取ってから 429 にしない
     if _UPLOAD_RECV.locked():
+        _note_upload(busy=True)
         raise HTTPException(503, "共有が混み合っています。10 秒ほど待ってからもう一度お試しください", headers={"Retry-After": "10"})
     async with _UPLOAD_RECV:      # 受け取り（回線が細いと数十秒かかる）
+        t_recv = time.monotonic()
         try:
             form = await request.form()
         except ClientDisconnect:   # 利用者が送信途中で離脱（アプリ内ブラウザや回線切替）。サーバー側の異常ではないので 5xx にしない
+            _note_upload(recv=time.monotonic() - t_recv, cut=True)
             print("[share] 送信途中で切断（利用者側の離脱）")
             raise HTTPException(400, "送信が途中で切れました。もう一度お試しください")
+        _note_upload(recv=time.monotonic() - t_recv, kb=int(request.headers.get("content-length") or 0) / 1024)
         doc, image, og = form.get("doc"), form.get("image") or form.get("png"), form.get("og")
         # **カード用（og）は送られてこないのがふつう**（2026-09-16 から、本体だけ送ってカードはサーバーで作る）。
         # 開いたままの古いタブは今までどおり送ってくるので、来たときはそれを使う
@@ -1776,7 +1817,11 @@ async def share_upload(request: Request) -> dict:
                 raise HTTPException(400, str(e)) from e
             _check_share_quota(request)
             budget = share_budget_bytes() if (public_mode() or storage.get_storage().is_remote) else 0
-            return await _finish_share(request, run_in_threadpool(share.store, gdoc, img_b, og_b, w, h, budget, ext))
+            t_save = time.monotonic()
+            try:
+                return await _finish_share(request, run_in_threadpool(share.store, gdoc, img_b, og_b, w, h, budget, ext))
+            finally:
+                _note_upload(save=time.monotonic() - t_save)
 
 
 # 「みんなの並びを探す」。**印を付けた共有だけ**が対象（backend/shareindex.py）。

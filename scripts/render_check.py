@@ -162,7 +162,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[client]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[client]*", "[upload]*", "Traceback*", "ERROR:*"]
 
 
 # 1 時間あたりに読むページ数の見込み（1 ページ 100 行）。印付きの行は実測で 1 時間 600〜800 行ほど
@@ -291,6 +291,8 @@ def analyze_logs(logs: list[dict]) -> dict:
     per_src: dict[str, dict] = defaultdict(lambda: {"db": 0, "r2": 0, "net": 0, "fail": 0, "max_s": 0.0,
                                                     "hist": [0] * (len(LAT_BUCKETS) + 1)})
     client: Counter[str] = Counter()   # [client] ブラウザ側で起きた失敗の種類 → 件数
+    upload = {"n": 0, "recv_max": 0.0, "save_max": 0.0, "cut": 0, "busy": 0, "kb": [],
+              "recv_h": [0] * (len(LAT_BUCKETS) + 1)}   # [upload] 共有の送信の内訳
     ua_by_path: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     rss: list[tuple[str, int]] = []
     errors: list[str] = []
@@ -326,6 +328,17 @@ def analyze_logs(logs: list[dict]) -> dict:
                     p[k] += int(v)
                 p["max_s"] = max(p["max_s"], float(mx))
                 _add_hist(p["hist"], h)
+        elif m.startswith("[upload]"):
+            kv = dict(x.split("=", 1) for x in m[len("[upload]"):].split() if "=" in x)
+            upload["n"] += int(kv.get("n", 0))
+            upload["recv_max"] = max(upload["recv_max"], float(kv.get("recv_max", "0s").rstrip("s")))
+            upload["save_max"] = max(upload["save_max"], float(kv.get("save_max", "0s").rstrip("s")))
+            upload["cut"] += int(kv.get("cut", 0))
+            upload["busy"] += int(kv.get("busy", 0))
+            if kv.get("kb_med"):
+                upload["kb"].append(float(kv["kb_med"]))
+            if kv.get("recv_h"):
+                _add_hist(upload["recv_h"], kv["recv_h"])
         elif m.startswith("[client]"):
             for pair in m[len("[client]"):].split():
                 k, _, n = pair.rpartition("=")
@@ -385,6 +398,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "per_path": dict(per_path),
         "per_src": dict(per_src),
         "client": dict(client),
+        "upload": upload,
         "ua_by_path": {k: dict(v) for k, v in ua_by_path.items()},
         "src_counts": dict(src_counts),
         "ref_counts": dict(ref_counts),
@@ -538,6 +552,12 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         lines.append(f"  - 検索 `{src}` {n} 回: 覚えていた {p['db'] + p['r2']}（うち R2 の控え {p['r2']}、{hit:.0f}%）、"
                      f"外へ {p['net']}、失敗 {p['fail']}。外へ聞いた時間は半分が {_pct(p['hist'], 0.5)}・"
                      f"95% が {_pct(p['hist'], 0.95)}・最大 {p['max_s']:.1f} 秒")
+    up = la.get("upload") or {}
+    if up.get("n") or up.get("cut") or up.get("busy"):
+        kb = sorted(up["kb"])[len(up["kb"]) // 2] if up["kb"] else 0
+        lines.append(f"- 共有の送信の内訳: {up['n']} 件。本文の受け取りは半分が {_pct(up['recv_h'], 0.5)}・95% が "
+                     f"{_pct(up['recv_h'], 0.95)}・最大 {up['recv_max']:.1f} 秒、検査と保存は最大 {up['save_max']:.1f} 秒、"
+                     f"大きさはおよそ {kb:.0f}KB、途中で切れた {up['cut']}、混雑で断った {up['busy']}")
     cl = la.get("client") or {}
     if cl:
         # ブラウザ側で起きた失敗（画面が /hiccup に送る種類と回数）。サーバーのログには他に何も残らない

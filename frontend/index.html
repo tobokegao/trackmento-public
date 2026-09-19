@@ -1711,7 +1711,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "スカイ": "Sky", "リーフ": "Leaf", "ローズ": "Rose",
     "作者の曲": "Songs by the author",
     "画像を送っています": "Sending the image", "回線が細いと少し時間がかかります。このままお待ちください。": "On a slow connection this takes a little while. Please keep this open.",
-    "サーバーで保存しています…": "Saving on the server…",
+    "送信を仕上げています。回線が遅いと、ここで少し時間がかかります。このままお待ちください。": "Finishing the upload. On a slow connection this step can take a little while, so please wait.",
     "待っているあいだに、作者の曲はいかがですか": "While you wait, how about a song by the author",
     "みんなのグリッド": "everyone's grids",
     "に載せる": "",
@@ -4488,9 +4488,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      受け取りに 94.6 秒・122.7 秒かかった例が実際にある。回線が細いだけで、放っておけば通る）。
      一方「固まった」と感じるのは、**進みが止まったまま動かない**ときなので、そちらを短く切る。
      全体（3 分）は最後の保険 */
-  const UPLOAD_TIMEOUT = 180000;   // 全体の保険。実測の最長 122.7 秒 + 余裕
+  /* **送り終えたあと（100%）の待ちは長めに取る**（2026-09-19）。スマホのブラウザは、まだ回線を流れている途中でも
+     端末の送信用の置き場に入った時点で 100% と数えるので、回線が遅いと「送り終えた」あとに本当の送信が続く。
+     60 秒で切っていたときは点検で 4 時間に 8 件（up_wait）が打ち切られ、重いサーバー描画に回されていた */
+  const UPLOAD_TIMEOUT = 300000;   // 全体の保険。点検の最長 195 秒 + 余裕
   const UPLOAD_STALL = 45000;      // 送っている途中、これだけ進みが止まったら切る
-  const UPLOAD_WAIT = 60000;       // 送り終えたあと、返事をこれだけ待って切る
+  const UPLOAD_WAIT = 150000;      // 送り終えたあと、返事をこれだけ待って切る
   const UPLOAD_SLOW = 25;          // これを過ぎたら「時間がかかっています」と添える
   let upXhr = null, upTimer = 0, upStart = 0;
   function openUpload() {
@@ -4508,7 +4511,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     upTimer = setInterval(() => {
       const sec = Math.round((Date.now() - upStart) / 1000);
       upPct.textContent = `${upPct.dataset.pct || 0}%` + tr`（${sec} 秒）`;
-      if (sec >= UPLOAD_SLOW) upNote.textContent = tr("時間がかかっています。回線が不安定なときは「やめる」でやり直せます。");
+      // 100% のあとは「やめる」を勧めない（まだ送っている途中のことが多く、やめるとやり直しになる。4 時間で 18 件押されていた）
+      if (sec >= UPLOAD_SLOW && !upFill.dataset.done) upNote.textContent = tr("時間がかかっています。回線が不安定なときは「やめる」でやり直せます。");
     }, 1000);
   }
   function setUpload(ratio) {
@@ -4516,7 +4520,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     upFill.style.width = pct + "%";
     if (pct >= 100) upFill.dataset.done = "1";
     upPct.dataset.pct = pct;          // 文字は 1 秒ごとの表示（openUpload の setInterval）が書く
-    if (pct >= 100) upNote.textContent = tr("サーバーで保存しています…");
+    if (pct >= 100) upNote.textContent = tr("送信を仕上げています。回線が遅いと、ここで少し時間がかかります。このままお待ちください。");
   }
   function closeUpload() {
     clearInterval(upTimer); upTimer = 0; upXhr = null;
