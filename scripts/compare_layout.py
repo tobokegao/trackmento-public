@@ -44,6 +44,10 @@ def main() -> int:
     combos = [[c, r, q] for q in RATIOS for c in SIDES for r in SIDES if c * r <= 256]
     random.shuffle(combos)
     combos = combos[:n]
+    if "--small" in sys.argv:
+        # 1〜6 マス四方 × 比率 5 種（180 通り）。1 行型（曲名とアーティスト名を 1 行に並べる）は
+        # 曲が少ない並びでしか出ないので、ランダムの 200 通りにはほとんど入らない
+        combos = [[c, r, q] for q in RATIOS for c in range(1, 7) for r in range(1, 7)]
 
     src = json.loads((ROOT / "grids" / "default.json").read_text(encoding="utf-8"))
     tracks = [c for c in src["cells"] if c]

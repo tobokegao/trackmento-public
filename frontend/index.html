@@ -3775,24 +3775,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* 曲ごとの行数。アーティスト名があれば 2 行（曲名 + アーティスト）、曲名が入らなければ +1 行。
      **字ごとに丸めた幅が段の TITLE_ROWS3 倍を超えれば 3 行**（backend/render.py の _row_plan と同じ規則。
      折って縮めて測る判定は折る位置の 1 字の差でサーバーと食い違うので、幅だけで決める） */
-  // **1 行型**（2026-09-18。backend/render.py の INLINE_GAIN / INLINE_GAP_EM / _inline_plan と同じ）。
+  // **1 行型**（2026-09-18。backend/render.py の INLINE_GAIN / INLINE_GAP_EM / _inline_one_line と同じ）。
   // 曲名とアーティスト名を 1 行に並べ、アーティスト名を列の右端にそろえる。3x3・16:9 で右の 4 割が空いていた
   const INLINE_GAIN = 1.15, INLINE_GAP_EM = 1.0;
-  /* 1 行型の曲ごとの行数（1: 曲名の右 / 2: 次の行の右端）。単独で 1 行に入らない曲があれば null */
-  function inlinePlan(fontS, colW) {
+  // 全曲が 1 行に並ぶか（曲名 ＋ 1 字ぶんの空き ＋ 右端のアーティスト名。backend/render.py の _inline_one_line と同じ）
+  function inlineOneLine(fontS, colW) {
     const avail = Math.max(1, colW - numW(fontS));
     const fb = fontBold(Math.max(12, fontS)), fa = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
     const gap = Math.round(fontS * INLINE_GAP_EM);
-    const plan = [];
     for (const t of state.cells) {
-      if (!t) { plan.push(1); continue; }
+      if (!t) continue;
       let tw = 0, aw = 0;
       for (const ch of oneLine(t.title)) tw += charW1(fb, ch);
       for (const ch of oneLine(t.artist)) aw += charW1(fa, ch);
-      if (tw > avail || aw > avail) return null;
-      plan.push(!aw || tw + gap + aw <= avail ? 1 : 2);
+      if (tw + (aw ? gap + aw : 0) > avail) return false;
     }
-    return plan;
+    return true;
   }
   function rowPlan(fontS, maxW) {
     // 幅は字ごとに 1px へ丸めた和で見る（2026-09-18。まるごと測るとサーバーと 1px 未満だけ違い、
@@ -4105,22 +4103,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const fs2 = Math.round(lh2 * 0.56);
       if (fs2 > fontS && fs2 * scale >= FLOW_MIN_FONT) { lineH = lh2; fontS = fs2; }
     }
-    // **1 行型を試す**（backend/render.py と同じ）。「全曲 1 行」から始め、並ばない曲のぶん行を増やして字を決め直す
+    // **1 行型を試す**（backend/render.py と同じ）。全曲が 1 行に並ぶ大きさまで字を下げ、
+    // 字がはっきり大きくなるときだけ採る（2026-09-19。アーティスト名を次の行に落とすのはやめた）
     let sbInline = false;
     if (side === "right") {
-      let rowsI = state.cells.length, ip = null, lhI = 0, fsI = 0, wI = 0;
-      for (let k = 0; k < 8; k++) {
-        [lhI, fsI, wI] = sidebar(1, rowsI);
-        ip = inlinePlan(fsI, wI);
-        const sum = ip ? ip.reduce((a, b) => a + b, 0) : 0;
-        if (!ip || sum <= rowsI) break;
-        rowsI = sum;
-      }
-      if (ip && ip.reduce((a, b) => a + b, 0) <= rowsI && fsI * scale >= FLOW_MIN_FONT && fsI >= fontS * INLINE_GAIN) {
+      const nI = state.cells.length;
+      let [lhI, fsI, wI] = sidebar(1, nI);
+      // 下限は FLOW_KEEP_FONT（16px）。20px を割ったら下で流し込み・回り込みを試し、流し込みなら 1 行型に戻る
+      const floorI = Math.max(Math.ceil(fontS * INLINE_GAIN), Math.ceil(FLOW_KEEP_FONT / scale));
+      while (fsI >= floorI && !inlineOneLine(fsI, wI)) fsI -= 1;
+      if (fsI >= floorI) {
         sbInline = true;
-        sbCols = 1; lineH = lhI; fontS = fsI; sbW = wI; sbPlan = ip; sbARows = [];
+        sbCols = 1; lineH = lhI; fontS = fsI; sbW = wI; sbPlan = new Array(nI).fill(1); sbARows = [];
         // 行の高さは残りの高さいっぱいに広げる（字の大きさはそのまま。backend/render.py と同じ）
-        lineH = Math.max(lineH, Math.floor((gh - titleH) / Math.max(1, ip.reduce((a, b) => a + b, 0))));
+        lineH = Math.max(lineH, Math.floor((gh - titleH) / Math.max(1, nI)));
         [W, H, scale] = frame(sbW, sbH);
       }
     }
@@ -5077,13 +5073,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
             ctx.font = titleFont2; ctx.fillStyle = cssRgb(ink);
             ctx.fillText(ellipsizeText(ctx, title, maxW), x + nw, yy + base);
             if (artist) {
-              const ay = plan[i] < 2 ? yy : rowY(row + 1);
+              // 1 行型は全曲が 1 行に並ぶ大きさで組んである（inlineOneLine）ので、同じ行の右端に置く
               ctx.font = artistFont; ctx.fillStyle = cssRgb(muted); ctx.textAlign = "right";
-              ctx.fillText(ellipsizeText(ctx, artist, maxW), right, ay + base);
+              ctx.fillText(ellipsizeText(ctx, artist, maxW), right, yy + base);
               ctx.textAlign = "left";
             }
           }
-          row += plan[i];
+          row += 1;
         }
         return { canvas, bg };
       }
