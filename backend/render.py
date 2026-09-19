@@ -1732,6 +1732,16 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     if sb_flow and keep[4] * keep[7] >= FLOW_KEEP_FONT:
         sb_w, sb_h, sb_cols, line_h, font_s, W, H, scale, title_h = keep
         sb_flow = False
+    # **曲名リストの下端をマスの下端にそろえる**（2026-09-19）。行の高さはマスの送りの約数に寄せるので
+    # （`_snap_lead`）、1 行に満たない余りがリストの下に残り、「下辺にそろいそうなのにそろっていない」と見えた
+    # （利用者の 3x3・16:9・9 曲で指摘）。余りは**行の高さに均等に配る**（字の大きさはそのまま）。
+    # タイトルの下にまとめて回すと、そこだけ大きく空いた。1 行ぶんを超える余りは動かさない
+    if side == "right" and title_h and not sb_flow and not sb_inline and line_h > 0:
+        rows_now = _plan_rows(sb_plan, sb_cols) if sb_plan else base_rows
+        extra = gh - title_h - rows_now * line_h
+        if 0 < extra <= line_h and rows_now:
+            line_h += extra // rows_now
+            title_h += extra % rows_now
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,

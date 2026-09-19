@@ -4245,6 +4245,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     // **流し込みに落ちるくらいなら、1 曲 1 行を残す**（backend/render.py と同じ）。1 曲 1 行が FLOW_KEEP_FONT 以上なら戻す
     if (sbFlow && keep[4] * keep[7] >= FLOW_KEEP_FONT) { [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH] = keep; sbFlow = false; }
+    // **曲名リストの下端をマスの下端にそろえる**（backend/render.py と同じ）。1 行に満たない余りを行の高さに均等に配る
+    if (side === "right" && titleH && !sbFlow && !sbInline && lineH > 0) {
+      const rowsNow = sbPlan.length ? planRows(sbPlan, sbCols) : baseRows;
+      const extra = gh - titleH - rowsNow * lineH;
+      if (extra > 0 && extra <= lineH && rowsNow) { lineH += Math.floor(extra / rowsNow); titleH += extra % rowsNow; }
+    }
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
     const contentH = titleTopH + gh + (side === "bottom" ? sbGap + sbH : 0);
     const ox = Math.round((W - contentW) / 2), oy = Math.round((H - contentH) / 2);
