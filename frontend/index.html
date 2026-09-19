@@ -1106,6 +1106,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <p class="bar-status" id="bar-status" aria-live="polite"></p>
   <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
+<aside class="inapp" id="migrate-notice" hidden>
+  <p>新しいアドレス（trackmento.com）につながらなかったため、このアドレスのまま使っています。お使いの Wi-Fi のフィルタなどで止められている可能性があります。</p>
+  <div class="btns">
+    <button class="btn" type="button" id="migrate-close" aria-label="この案内を閉じる">閉じる</button>
+  </div>
+</aside>
 <aside class="inapp" id="inapp-notice" hidden>
   <p>アプリ内ブラウザでは共有が遅くなったり失敗したりします。右上のメニューから「ブラウザで開く」（Safari / Chrome）で開くのがおすすめです。</p>
   <div class="btns">
@@ -1504,10 +1510,35 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     v.style.cssText = "position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:var(--color-paper,#f5f3ee);color:var(--color-ink,#1c2430);font-size:14px";
     v.textContent = text;
     document.body.append(v);
+    return v;
+  }
+  /* **移る前に、新しいアドレスへつながるかを確かめる**（2026-09-19）。家の Wi-Fi のフィルタなどで
+     trackmento.com だけが止められている人がいて（旧アドレスとは同じサーバーなのに、名前で止められる）、
+     「新しいアドレスへ移っています…」のまま行き止まりになっていた。つながらなければ旧アドレスのまま使う。
+     CSP の connect-src には新しいアドレスが無いので fetch ではなく画像（img-src は https: を許している）で確かめる */
+  const MIGRATE_PROBE_MS = 5000;
+  function reachable(target) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const timer = setTimeout(() => { img.src = ""; resolve(false); }, MIGRATE_PROBE_MS);
+      img.onload = () => { clearTimeout(timer); resolve(true); };
+      img.onerror = () => { clearTimeout(timer); resolve(false); };
+      img.src = new URL(`/favicon.png?probe=${Date.now()}`, target).toString();
+    });
   }
   async function handoffOut(target) {
     MIGRATING = true;
-    migrateVeil(tr("新しいアドレスへ移っています…"));
+    const veil = migrateVeil(tr("新しいアドレスへ移っています…"));
+    if (!(await reachable(target))) {
+      // 旧アドレスのまま使う。画面の API は旧アドレスでも動く（301 で送らない経路）
+      veil.remove();
+      MIGRATING = false;
+      const box = $("#migrate-notice");
+      box.hidden = false;
+      $("#migrate-close").addEventListener("click", () => { box.hidden = true; });
+      hiccup("migrate_unreachable");
+      return;
+    }
     const url = new URL(location.pathname + location.search, target);
     try {
       const packed = b64url(await squeeze(new TextEncoder().encode(JSON.stringify(localData())), "gzip"));
@@ -1546,6 +1577,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "URL をコピー": "Copy URL",
         "新しいアドレスへ移っています…": "Moving to the new address…",
         "前のアドレスから引き継いでいます…": "Bringing your grid over from the old address…",
+        "新しいアドレス（trackmento.com）につながらなかったため、このアドレスのまま使っています。お使いの Wi-Fi のフィルタなどで止められている可能性があります。": "Couldn’t reach the new address (trackmento.com), so you’re staying on this one. A filter on your Wi-Fi or network may be blocking it.",
         "閉じる": "Close",
         "検索": "Search",
         "選択中のマス": "Selected cell",

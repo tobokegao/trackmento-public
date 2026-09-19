@@ -244,6 +244,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-19", "Wi-Fiなどの環境によって新しいアドレス（trackmento.com）につながらない場合は、旧アドレスのまま使い続けられるようにしました。",
+     "If the new address (trackmento.com) can’t be reached on your network, such as some Wi-Fi connections, you can now keep using the old address."),
     ("2026-09-19", "スマートフォンでの共有画像の容量を最適化し、アップロードにかかる時間を約3割短縮しました（X等のSNSでの見た目はほぼ変わりません）。",
      "Share images made on phones are now smaller, cutting upload time by about 30% (they look almost the same on X and other social media)."),
     ("2026-09-19", "ニコニコ動画で投稿者名が取得できない曲（退会・非公開・転載動画など）について、VocaDBのデータから作者名を自動補完するようにしました。",

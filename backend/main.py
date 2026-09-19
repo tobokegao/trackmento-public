@@ -251,6 +251,7 @@ CLIENT_KINDS = frozenset({
     "cover_fail",                                 # ジャケットが取れず、そのマスが空のまま描かれた
     "itunes_fail", "itunes_busy", "mb_fail", "mb_busy",   # ブラウザからの直接検索
     "search_fail",                                # 検索そのものが失敗（サーバーに届かないなど）
+    "migrate_unreachable",                        # 旧アドレスから新しいアドレスへつながらず、旧アドレスのまま使った
 })
 _client_stats: dict[str, int] = {}
 
@@ -692,11 +693,14 @@ async def rate_limit(request: Request, call_next):
       # フォントと画像を R2 から配るときは、その公開 URL だけを font-src / connect-src に足す
       # （外部の任意のホストを開くわけではない。自分のバケット 1 つだけ）
       r2 = _r2_origin()
+      # 引っ越し先へつながるかを画像で確かめる（frontend の reachable）。本番は https: で済むが、
+      # 手元で http://127.0.0.1 へ引っ越させて確かめるときのために、その 1 つだけ足す
+      mig = f" {migrate_to()}" if migrate_to().startswith("http://") else ""
       response.headers.setdefault("Content-Security-Policy",
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'; "
         # connect-src: iTunes と MusicBrainz（＋Cover Art Archive → archive.org へリダイレクト）の検索はブラウザから直接叩く
         # （サーバーの共有 IP が Apple に遮断され、MusicBrainz にはレート制限されるため）
-        f"img-src 'self' data: blob: https:; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; object-src 'none'; base-uri 'self'; "
+        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'self'")
     if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
