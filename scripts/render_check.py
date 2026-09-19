@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -164,18 +165,30 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
 LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "Traceback*", "ERROR:*"]
 
 
-def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime, max_pages: int = 25) -> list[dict]:
+# 1 時間あたりに読むページ数の見込み（1 ページ 100 行）。印付きの行は実測で 1 時間 600〜800 行ほど
+# （[stats] と [ua] が経路ごとに 60 秒おき、[health] も 60 秒おき）。多めに見積もり、読み切れなければ要約に出す
+PAGES_PER_HOUR = 12
+MAX_PAGES = 600          # 50 時間ぶん。/logs は 30 回/分なので、これで 20 分ほど
+
+
+def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime,
+               max_pages: int | None = None) -> tuple[list[dict], str | None]:
     """古い順に読む（100 行ずつ。hasMore の間 nextStartTime/nextEndTime で続きを取る）。
-    /logs は 30 回/分の制限があるので、要約に使う印付きの行だけ text で絞る（トレースバックの本文は取らない）。"""
+    /logs は 30 回/分の制限があるので、要約に使う印付きの行だけ text で絞る（トレースバックの本文は取らない）。
+    **ページ数の上限は窓の長さから決める**（2026-09-19）。以前は 25 ページ（2,500 行）固定で、10 時間の点検だと
+    窓の前半しか集計していなかった。それでも読み切れなければ、どこまで読んだか（最後の行の時刻）を返す"""
+    if max_pages is None:
+        hours = (end - start).total_seconds() / 3600
+        max_pages = min(MAX_PAGES, max(25, math.ceil(hours * PAGES_PER_HOUR)))
     out: list[dict] = []
     s, e = _iso(start), _iso(end)
     for _ in range(max_pages):
         page = _get("/logs", {"ownerId": owner, "resource": sid, "startTime": s, "endTime": e, "limit": 100, "direction": "forward", "text": LOG_TEXT}, key)
         out.extend(page.get("logs", []))
         if not page.get("hasMore"):
-            break
+            return out, None
         s, e = page.get("nextStartTime") or s, page.get("nextEndTime") or e
-    return out
+    return out, (out[-1].get("timestamp") if out else s)
 
 
 def fetch_tracebacks(key: str, owner: str, sid: str, at: list[str], most: int = 3) -> list[tuple[str, list[str]]]:
@@ -412,7 +425,11 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     share_5xx = sum(p["5xx"] for k, p in pp.items() if k in ("/share", "/share/upload"))
     proxy = pp.get("/image-proxy") or {"count": 0, "5xx": 0}
     top = sorted(pp.items(), key=lambda kv: kv[1]["count"], reverse=True)[:8]
-    lines.append(f"- 要求（[stats] {la['lines']} 行から集計）: 5xx 合計 {total_5xx}"
+    if la.get("cut_at"):
+        # 読み切れなかったことを黙らない（件数・最大値・5xx はここまでの分しか入っていない）
+        lines.append(f"- **ログを読み切れなかった**: {_jst(la['cut_at'])} までの {la['lines']} 行で集計"
+                     f"（上限 {MAX_PAGES} ページ。窓を短くするか PAGES_PER_HOUR を見直す）")
+    lines.append(f"- 要求（ログ {la['lines']} 行から集計）: 5xx 合計 {total_5xx}"
                  f"（`/image-proxy` を除く）、共有の 5xx {share_5xx}"
                  + (f"、`/image-proxy` の 5xx {proxy['5xx']}／{proxy['count']} 件"
                     f"（{proxy['5xx'] / proxy['count'] * 100:.1f}%）" if proxy["count"] else ""))
@@ -514,8 +531,9 @@ def main() -> int:
         # 窓の開始直前に終わったデプロイだと「uptime のリセットはあるのにデプロイが無い」ことになり、
         # 想定外の再起動として誤検知する（2026-09-14 23:30 の点検で実際に出た）
         events = fetch_events(key, sid, start - timedelta(minutes=20), end)
-        logs = fetch_logs(key, owner, sid, start, end)
+        logs, cut_at = fetch_logs(key, owner, sid, start, end)
         la = analyze_logs(logs)
+        la["cut_at"] = cut_at
         la["tb_body"] = fetch_tracebacks(key, owner, sid, la.get("tb_at") or [])
         bw = fetch_metric(key, "bandwidth", sid, start.replace(minute=0, second=0, microsecond=0), end, 3600)
         mem = fetch_metric(key, "memory", sid, start, end, 300, "MAX")
