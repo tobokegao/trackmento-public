@@ -9,16 +9,16 @@
     "render": "remotion render Promo out/trackmento-promo.mp4"
   },
   "dependencies": {
-    "@remotion/cli": "4.0.320",
-    "@remotion/fonts": "^4.0.320",
-    "@remotion/media-utils": "4.0.320",
+    "@remotion/cli": "4.0.526",
+    "@remotion/fonts": "4.0.526",
+    "@remotion/media-utils": "4.0.526",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "remotion": "4.0.320"
+    "remotion": "4.0.526"
   },
   "devDependencies": {
     "@types/react": "19.0.0",
-    "playwright": "1.55.0",
+    "playwright": "1.63.0",
     "typescript": "5.8.3"
   }
 }
