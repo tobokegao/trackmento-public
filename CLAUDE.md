@@ -1257,6 +1257,9 @@ claude --remote-control TRACKMENTO                                             #
   - 数え直すなら `scripts/note_charts.py --r2`（日ごとの数を `outputs/note/shares-daily.json` に書く）
   - 容量も同じ: R2 は 9/17 時点で合計 25.6GB（共有 21.9GB・画像キャッシュ 3.4GB）。30 日ためても月 $1 前後
 
+- **デプロイはサーバーに関係あるファイルが変わったときだけ**（`render.yaml` の `buildFilter`、2026-09-19）。範囲は Dockerfile の COPY と同じ
+  （`Dockerfile` `requirements.txt` `backend/**` `frontend/**` `fonts/**` `cli.py`）。**COPY を足したら buildFilter にも足す**
+  （足さないと、そのファイルを直してもデプロイされない）。独自ドメインも `domains:` に明記した（同期で消えないように）
 - **`render.yaml` を変えると、本番のインスタンスと環境変数がリポジトリの値に巻き戻る**。
   Blueprint（Blueprints → TRACKMENTO が `Synced`）は、**このファイルが変わったときに
   サービス定義を丸ごと適用し直す**。ふだんは触らないので気付かないが、一度でも変更すると

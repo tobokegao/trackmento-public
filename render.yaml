@@ -13,6 +13,21 @@ services:
     runtime: docker
     plan: standard   # 1c-2g。落とすときはダッシュボードとここの両方を直す
     healthCheckPath: /health
+    # 独自ドメイン（2026-09-19 に明記）。Blueprint の同期でダッシュボードの設定が巻き戻ることがあるので、
+    # 消えないよう書いておく。www は Render が自動で扱う（本体へ転送）
+    domains:
+      - trackmento.com
+    # **サーバーに関係あるファイルが変わったときだけデプロイする**（2026-09-19）。CLAUDE.md・promo/・scripts/ だけの
+    # コミットでもデプロイし直され、そのたびに cache.sqlite3 が消えてサーバーが入れ替わっていた（1 日 10 回以上）。
+    # Docker イメージに入るもの（Dockerfile の COPY）と同じ範囲にする。COPY を足したらここも足す
+    buildFilter:
+      paths:
+        - Dockerfile
+        - requirements.txt
+        - backend/**
+        - frontend/**
+        - fonts/**
+        - cli.py
     envVars:
       - key: PUBLIC_MODE
         value: "1"
