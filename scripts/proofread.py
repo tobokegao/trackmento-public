@@ -14,6 +14,7 @@ import json
 import os
 import pathlib
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -49,11 +50,19 @@ def ask(text: str, model: str, key: str) -> str:
     }).encode()
     req = urllib.request.Request(API.format(model=model), data=body, method="POST",
                                  headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    try:
-        with urllib.request.urlopen(req, timeout=180) as r:
-            data = json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        raise SystemExit(f"Gemini API {e.code}: {e.read().decode('utf-8', 'replace')[:500]}") from e
+    # 混雑（503）と回数制限（429）は少し待って取り直す。`gemini-3.8-flash` は混んでいて 503 が返ることがある（2026-09-19 実測）
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(req, timeout=180) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 503) and attempt < 4:
+                wait = 10 * (attempt + 1)
+                print(f"Gemini API {e.code} → {wait} 秒待って取り直す", file=sys.stderr)
+                time.sleep(wait)
+                continue
+            raise SystemExit(f"Gemini API {e.code}: {e.read().decode('utf-8', 'replace')[:500]}") from e
     parts = ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
     out = "".join(p.get("text", "") for p in parts).strip()
     if not out:
