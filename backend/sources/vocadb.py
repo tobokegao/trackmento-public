@@ -19,9 +19,11 @@ from __future__ import annotations
 import asyncio
 import re
 import time
+import unicodedata
 
 import httpx
 
+from backend import searchcache
 from backend.models import Track
 
 API = "https://vocadb.net/api/songs"
@@ -89,15 +91,62 @@ def artist_name(item: dict) -> str:
     return ", ".join(makers) + "".join(bits[1:])
 
 
+# ---- 外へ聞いた回数を数える（2026-09-20）----
+# VocaDB は有志の運営で、問い合わせが多すぎると止められうる。`[srch]` は「検索」しか数えないので、
+# 種類（検索・動画 ID・題）ごとに「外へ聞いた」「覚えていた（メモリ / R2）」を数えて 60 秒ごとに出す。
+# **語そのものは数えない**（`[src]` や `[ua]` と同じ方針）
+CALLS: dict[str, int] = {}
+
+
+def note_call(kind: str) -> None:
+    CALLS[kind] = CALLS.get(kind, 0) + 1
+
+
+def take_calls() -> dict[str, int]:
+    """数えた分を返して空にする（`main.py` のログの 60 秒ごとの出力から呼ぶ）"""
+    got = dict(CALLS)
+    CALLS.clear()
+    return got
+
+
+def query_key(q: str, artist: str = "") -> str:
+    """VocaDB に送る語。**曲名だけ**（無ければアーティスト名）を、表記の揺れをそろえてから使う（2026-09-20）。
+
+    VocaDB は有志の運営で「1 日数千件の問い合わせには事前の許可が要る」としているので、外へ聞く回数を
+    減らす。同じ曲を別のアーティスト名で引いた検索（「メルト ryo」と「メルト supercell」）も、
+    表記が違うだけの検索（「ｼｬﾙﾙ」「シャルル」「Tell Your World」「tell  your world 」）も、
+    **VocaDB へは 1 回**にまとまる。アーティストでの絞り込みは手元で行う（`narrow`）。
+
+    そろえ方は `merge._n` と同じ NFKC ＋ casefold（半角カナ・全角英数・単独の濁点を吸収）に、
+    続く空白を 1 つにまとめたもの。**記号は落とさない**（`_n` は落とすが、VocaDB に送る語が
+    変わると結果まで変わりかねない。そろえるのは、同じ語だとはっきり言える揺れだけ）"""
+    text = (q.strip() or artist.strip()).replace("゛", "゙").replace("゜", "゚")
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", text).casefold()).strip()
+
+
+def narrow(tracks: list[Track], q: str, artist: str) -> list[Track]:
+    """曲名だけで引いた結果を、手元でアーティスト名で絞る。1 件も残らなければ絞らずに返す
+    （表記が違うだけのことがある）。**外へ聞き直さない**ので、控えは曲名だけで共有できる"""
+    if not (q.strip() and artist.strip()):
+        return tracks
+    from backend.merge import _n
+    key = _n(artist)
+    return [t for t in tracks if key and key in _n(t.artist)] or tracks
+
+
 async def search(q: str, artist: str = "", *, limit: int = PAGE,
                  client: httpx.AsyncClient | None = None) -> list[Track]:
-    """VocaDB を検索する。原曲が上に来るように評価の高い順で引く。"""
+    """VocaDB を検索する。原曲が上に来るように評価の高い順で引く。
+
+    **`main.py` からは曲名だけの語（`query_key`）で呼ばれ、アーティストでの絞り込みは呼び出し側
+    （`narrow`）で行う**。ここに artist を渡しても同じ結果になるが、控えの鍵が分かれる"""
     # **query は曲名だけ**（無ければアーティスト名）。「シャルル バルーン」のように 2 つをつなぐと
     # VocaDB は曲名にその全文が含まれるものを探して 0 件になる（artistName パラメータは無視される。実測）。
-    # アーティスト名はこちらで絞る（下）。半角の濁点（ﾊﾞ）や単独の濁点（ハ゛）は merge._n が吸収する
-    query = q.strip() or artist.strip()
+    # 半角の濁点（ﾊﾞ）や単独の濁点（ハ゛）は merge._n / query_key が吸収する
+    query = query_key(q, artist)
     if not query:
         return []
+    note_call("search")
     own = client is None
     client = client or httpx.AsyncClient(timeout=TIMEOUT)
     try:
@@ -128,13 +177,7 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE,
             thumb=image,
             external_url=_links(it),
         ))
-    if q.strip() and artist.strip():
-        # アーティストで絞る。1 件も残らなければ絞らずに返す（表記が違うだけのことがある）
-        from backend.merge import _n
-        key = _n(artist)
-        hit = [t for t in out if key and key in _n(t.artist)]
-        out = hit or out
-    return out
+    return narrow(out, q, artist)
 
 
 # ---- 投稿者名が取れない動画のアーティスト名を補う ----
@@ -149,6 +192,29 @@ PV_CACHE_MAX = 5000
 _PV_SEM = asyncio.Semaphore(3)
 _pv_cache: dict[tuple[str, str], tuple[float, str]] = {}   # (サービス, 動画 ID) → (時刻, アーティスト名。無ければ "")
 
+# 作者名の控えを R2 にも置く（2026-09-20）。メモリの控えは 1 日もつが、**デプロイのたびにプロセスごと消える**。
+# ほぼ毎日デプロイしているので、同じマイリストを貼り直すたびに VocaDB へ聞き直していた。
+# 検索結果と同じ仕組み（`searchcache`。鍵は HMAC で、中身に動画 ID や題は入らない）に、
+# 擬似ソース `vocadb-pv` / `vocadb-title` として置く。**見つからなかった分（空文字）も覚える**
+# （転載や未登録の動画のほうが多く、そちらこそ聞き直さない意味がある）
+R2_TTL = 6 * 24 * 3600
+
+
+async def _remembered(kind: str, key: str) -> str | None:
+    """R2 の控え。アーティスト名（見つからなかったなら空文字）。控えが無いときだけ None"""
+    try:
+        rows = await asyncio.to_thread(searchcache.get, f"vocadb-{kind}", key, "", R2_TTL)
+    except Exception:
+        return None
+    if rows and isinstance(rows[0], dict) and "artist" in rows[0]:
+        note_call(f"{kind}_r2")
+        return str(rows[0].get("artist") or "")
+    return None
+
+
+def _remember(kind: str, key: str, name: str) -> None:
+    searchcache.put_bg(f"vocadb-{kind}", key, "", [{"artist": name}])
+
 
 async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
                        client: httpx.AsyncClient | None = None) -> str:
@@ -157,7 +223,13 @@ async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
     now = time.monotonic()
     hit = _pv_cache.get(key)
     if hit and now - hit[0] < PV_TTL:
+        note_call("pv_mem")
         return hit[1]
+    kept = await _remembered("pv", f"{service}/{pv_id}")
+    if kept is not None:
+        _pv_cache[key] = (now, kept)
+        return kept
+    note_call("pv")
     own = client is None
     client = client or httpx.AsyncClient(timeout=PV_TIMEOUT)
     name = ""
@@ -175,6 +247,7 @@ async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
     if len(_pv_cache) >= PV_CACHE_MAX:
         _pv_cache.clear()
     _pv_cache[key] = (now, name)
+    _remember("pv", f"{service}/{pv_id}", name)
     return name
 
 
@@ -236,7 +309,12 @@ async def artist_by_title(title: str, *, client: httpx.AsyncClient | None = None
     now = time.monotonic()
     hit = _title_cache.get(title)
     if hit and now - hit[0] < PV_TTL:
+        note_call("title_mem")
         return hit[1]
+    kept = await _remembered("title", title)
+    if kept is not None:
+        _title_cache[title] = (now, kept)
+        return kept
     nt = _n(title)
     voiced = [v for v in VOICES if _n(v) in nt]
     own = client is None
@@ -244,6 +322,7 @@ async def artist_by_title(title: str, *, client: httpx.AsyncClient | None = None
     name = ""
     try:
         for q in _title_queries(title):
+            note_call("title")
             async with _PV_SEM:
                 r = await client.get(API, params={
                     "query": q, "maxResults": 10, "nameMatchMode": "Auto", "sort": "RatingScore",
@@ -282,6 +361,7 @@ async def artist_by_title(title: str, *, client: httpx.AsyncClient | None = None
     if len(_title_cache) >= PV_CACHE_MAX:
         _title_cache.clear()
     _title_cache[title] = (now, name)
+    _remember("title", title, name)
     return name
 
 

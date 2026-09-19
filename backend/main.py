@@ -405,6 +405,9 @@ async def _load_monitor():
                 f"{k}:db{v[0]}/r2{v[1]}/net{v[2]}/fail{v[3]}/max{v[5]:.1f}s/h" + ".".join(str(n) for n in v[6])
                 for k, v in sorted(_srch_stats.items())))
             _srch_stats.clear()
+        if tick % 60 == 0 and (calls := vocadb.take_calls()):
+            # VocaDB へ聞いた回数と、覚えていて聞かずに済んだ回数（種類ごと）。語そのものは数えない
+            print("[vocadb] " + " ".join(f"{k}={n}" for k, n in sorted(calls.items())))
         if tick % 60 == 0 and (up_line := _upload_line()):
             print(up_line)
         if tick % 60 == 0 and _client_stats:
@@ -1004,22 +1007,25 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
     failed: dict[str, str] = {}
     results: list[list[Track] | None] = [None] * len(names)
     now = time.monotonic()
+    # 外へ聞く語（VocaDB は曲名だけ・表記の揺れをそろえたもの。下の `_narrow` で手元で絞る）
+    keys = [_source_key(name, q, artist) for name in names]
     if not nocache:
         for i, name in enumerate(names):
-            hit = await asyncio.to_thread(cache.get_search, name, q, artist)
+            kq, ka = keys[i]
+            hit = await asyncio.to_thread(cache.get_search, name, kq, ka)
             from_r2 = False
             if hit is None:
                 # SQLite はデプロイのたびに消えるので、R2 の控えも見る（索引に無ければ R2 へは行かない）
-                hit = await asyncio.to_thread(searchcache.get, name, q, artist, _search_ttl(name))
+                hit = await asyncio.to_thread(searchcache.get, name, kq, ka, _search_ttl(name))
                 if hit is not None:
                     from_r2 = True
-                    await asyncio.to_thread(cache.set_search, name, q, artist, hit)
+                    await asyncio.to_thread(cache.set_search, name, kq, ka, hit)
             if hit is not None:
-                results[i] = [Track.model_validate(t) for t in hit]
+                results[i] = _narrow(name, [Track.model_validate(t) for t in hit], q, artist)
                 _note_srch(name, 1 if from_r2 else 0)
                 continue
             # 直前に失敗した同じ検索は外部に聞き直さない（同じ検索の連打で iTunes / MusicBrainz を叩き続けないため）
-            recent = _recent_fail.get((name, q, artist))
+            recent = _recent_fail.get((name, kq, ka))
             if recent and now - recent[0] < FAIL_TTL:
                 results[i] = []
                 failed[name] = recent[1]
@@ -1027,15 +1033,15 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
     misses = [i for i, r in enumerate(results) if r is None]
     if misses:
         client = app.state.http
-        async def timed(name: str) -> tuple[float, list[Track]]:
+        async def timed(i: int) -> tuple[float, list[Track]]:
             t0 = time.monotonic()
             try:
-                got = await _fetch_source(name, q, artist, client)
+                got = await _fetch_source(names[i], *keys[i], client)
                 return time.monotonic() - t0, got
             except Exception as e:
                 e.elapsed = time.monotonic() - t0   # 失敗までの時間も分布に入れる（時間切れはここで 25 秒などになる）
                 raise
-        fetched = await asyncio.gather(*(timed(names[i]) for i in misses), return_exceptions=True)
+        fetched = await asyncio.gather(*(timed(i) for i in misses), return_exceptions=True)
         for i, res in zip(misses, fetched):
             if isinstance(res, BaseException):
                 _note_srch(names[i], 3, getattr(res, "elapsed", 0.0))
@@ -1049,17 +1055,33 @@ async def search_sources(names: list[str], q: str, artist: str, *, nocache: bool
                 failed[names[i]] = "busy" if isinstance(res, (musicbrainz.SourceBusy, itunes.SourceBlocked, asyncio.TimeoutError)) or "503" in str(res) else "error"
                 if isinstance(res, asyncio.TimeoutError) and names[i] in KEEP_ON_TIMEOUT:
                     continue   # 取得は裏で続いている。再検索はそこへ合流するので、失敗として覚えない
-                _recent_fail[(names[i], q, artist)] = (now, failed[names[i]])
+                _recent_fail[(names[i], *keys[i])] = (now, failed[names[i]])
                 if len(_recent_fail) > 500:
                     for k in [k for k, v in _recent_fail.items() if now - v[0] >= FAIL_TTL]:
                         del _recent_fail[k]
                 continue
-            results[i] = res
+            results[i] = _narrow(names[i], res, q, artist)
             if res and names[i] not in KEEP_ON_TIMEOUT:  # 空は保存しない（後からデータが増えたときや一時的な失敗で 0 件が固定されないように）
                 dumped = [t.model_dump() for t in res]
-                await asyncio.to_thread(cache.set_search, names[i], q, artist, dumped)
-                searchcache.put_bg(names[i], q, artist, dumped)
+                await asyncio.to_thread(cache.set_search, names[i], *keys[i], dumped)
+                searchcache.put_bg(names[i], *keys[i], dumped)
     return [r or [] for r in results], failed
+
+
+# ---- 外へ聞く語と、手元での絞り込み（2026-09-20）----
+# VocaDB は曲名だけで引き、アーティストでの絞り込みは手元で行う（`vocadb.query_key` / `narrow`）。
+# **控えの鍵もその語にする**ので、「メルト ryo」と「メルト supercell」、「ｼｬﾙﾙ」と「シャルル」は
+# VocaDB へ 1 回しか聞かない。ほかのソースは今までどおり（曲名とアーティストをそのまま渡す）
+
+
+def _source_key(name: str, q: str, artist: str) -> tuple[str, str]:
+    """そのソースに渡す（曲名, アーティスト名）。控えとキャッシュの鍵にもこれを使う"""
+    return (vocadb.query_key(q, artist), "") if name == "vocadb" else (q, artist)
+
+
+def _narrow(name: str, tracks: list[Track], q: str, artist: str) -> list[Track]:
+    """曲名だけで引いたソースの結果を、手元でアーティスト名で絞る"""
+    return vocadb.narrow(tracks, q, artist) if name == "vocadb" else tracks
 
 
 async def _fetch_source(name: str, q: str, artist: str, client: httpx.AsyncClient) -> list[Track]:
