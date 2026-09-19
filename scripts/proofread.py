@@ -43,9 +43,26 @@ STYLE = """あなたは日本語の Web サービスの告知文を整える編�
 """
 
 
-def ask(text: str, model: str, key: str) -> str:
+# 作業する人向けの文書（README など）の添削。告知文の STYLE は「です・ます」にそろえるので、そのまま流すと文体ごと書き換わる（2026-09-20）
+STYLE_DOC = """あなたは日本語の技術文書を整える編集者です。次の文章を添削してください。
+
+対象: 音楽のジャケットを並べて画像にする Web サービス「TRACKMENTO」の、開発・運用する人向けの文書（GitHub の README など、Markdown）。
+守ること:
+- 文体は今のまま（常体・体言止め）。「です・ます」にそろえない
+- 誤字脱字、意味の通りにくい文、同じことの重複、係り受けの分かりにくさを直す。専門用語はそのままでよい
+- 「〜しにくく」ではなく「〜しづらく」を使う
+- 事実・数値・固有名詞（サービス名、URL、日付）、コード・ファイル名・パス・環境変数名・コマンド（`` ` `` で囲まれた部分）は変えない。内容を足したり削ったりしない
+- Markdown の形式（見出し・箇条書き・表・コードブロック）はそのまま残す
+
+出力は次の 2 部に分けてください:
+1. 「## 添削後」の見出しのあとに、添削後の全文
+2. 「## 直した箇所」の見出しのあとに、直した箇所ごとに「元 → 後（理由）」を 1 行ずつ。直していない箇所は書かない
+"""
+
+
+def ask(text: str, model: str, key: str, style: str = STYLE) -> str:
     body = json.dumps({
-        "contents": [{"role": "user", "parts": [{"text": STYLE + "\n---\n" + text}]}],
+        "contents": [{"role": "user", "parts": [{"text": style + "\n---\n" + text}]}],
         "generationConfig": {"temperature": 0.2},
     }).encode()
     req = urllib.request.Request(API.format(model=model), data=body, method="POST",
@@ -75,12 +92,13 @@ def main() -> int:
     ap.add_argument("src", help="添削してもらう文章（UTF-8 のテキスト）")
     ap.add_argument("--out", help="添削結果を書き出すファイル（無ければ標準出力）")
     ap.add_argument("--model", default=os.getenv("GEMINI_MODEL", DEFAULT_MODEL))
+    ap.add_argument("--doc", action="store_true", help="作業する人向けの文書（README など）として添削する（文体は常体のまま）")
     a = ap.parse_args()
     key = os.getenv("GEMINI_API_KEY", "").strip()
     if not key:
         print("GEMINI_API_KEY が .env にありません", file=sys.stderr)
         return 1
-    out = ask(pathlib.Path(a.src).read_text(encoding="utf-8"), a.model, key)
+    out = ask(pathlib.Path(a.src).read_text(encoding="utf-8"), a.model, key, STYLE_DOC if a.doc else STYLE)
     if a.out:
         pathlib.Path(a.out).write_text(out + "\n", encoding="utf-8")
         print(f"書き出し: {a.out}（{a.model}）")
