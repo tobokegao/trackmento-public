@@ -1,7 +1,7 @@
 // TRACKMENTO 紹介動画。9:16（tall）と 16:9（wide）を同じ部品・同じ拍割りで描く。拍割りは timeline.ts
 import React from "react";
 import {
-  AbsoluteFill, Audio, Freeze, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig, Easing,
+  AbsoluteFill, Audio, Freeze, Img, OffthreadVideo, Sequence, interpolate, spring, measureSpring, staticFile, useCurrentFrame, useVideoConfig, Easing,
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
 import {
@@ -319,7 +319,11 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
     return (
       <div style={{ position: "absolute", inset: 0, background: C.paper, backgroundImage: `radial-gradient(${C.ink}18 1.2px, transparent 1.3px)`, backgroundSize: "14px 14px", overflow: "hidden" }}>
         {names.slice(0, idx + 1).map((n, i) => {
-          const k = spring({ frame: frame - at[i], fps, config: { damping: 11, stiffness: 320 } });
+          // **場面の終わりまでに落ち着かせる**（v11、利用者の指摘）。最後の 1 枚は次の場面まで 4 コマほどしか無く、
+          // 跳ねている途中で切り替わっていた。残りのコマが少ないカードは、その長さに縮めて着地させる（出る拍は変えない）
+          const left = beatFrame(shot.beat + shot.len) - beatFrame(shot.beat) - at[i] - 1;
+          const natural = measureSpring({ fps, config: { damping: 11, stiffness: 320 } });
+          const k = spring({ frame: frame - at[i], fps, config: { damping: 11, stiffness: 320 }, ...(left < natural ? { durationInFrames: Math.max(1, left) } : {}) });
           // 枠は無し。画面全体（字幕の帯の下から下端まで）に散らばらせる（v7、利用者の指定）
           // 升目 4×4 に決まった順（真ん中と端が交互）で 1 枚ずつ置き、その中で揺らす（v9、利用者の指定: 終盤が真ん中に寄っていた）
           // 最後の 1 枚は左下（升目 12）に置く（v10、利用者の指定）
