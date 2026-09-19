@@ -246,6 +246,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-19", "ロゴの「M」が「H」に見えやすかったため、字の形を変えました。あわせてロゴの下線のデザインを少し変えています。",
+     "The “M” in the logo was easy to mistake for an “H”, so its shape has been changed. The line under the logo has a slightly new look too."),
     ("2026-09-19", "曲名リストをグリッドの横に並べるとき、リストの下端がジャケットの下辺とそろうよう、行の間隔を調整しました。",
      "When the track list sits beside the grid, its line spacing is now adjusted so the list ends level with the bottom of the covers."),
     ("2026-09-19", "共有のアップロードが終わる直前に、回線が遅い環境で途中で打ち切られることがあったため、待ち時間を延ばしました。",
