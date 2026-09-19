@@ -244,28 +244,94 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-19", "スマホで作る共有画像を少し小さくし、送信にかかる時間を約3割短くしました。X での見た目はほとんど変わりません。",
-     "Share images made on phones are now a little smaller, so uploading takes about 30% less time. They look almost the same on X."),
-    ("2026-09-19", "ニコニコ動画で投稿者名が取れない曲（投稿者の退会・非公開、転載の動画）に、VocaDB から作者名を補うようにしました。",
-     "For Niconico videos whose uploader name is unavailable (deleted or private accounts, re-uploads), the producer name is now filled in from VocaDB."),
-    ("2026-09-19", "VocaDB の作者名から発行元（レーベルやチャンネル）を外し、「kz feat. 初音ミク」のような形で出すようにしました。",
-     "VocaDB artist names no longer include publishers such as labels or channels, e.g. \u201ckz feat. Hatsune Miku\u201d."),
-    ("2026-09-19", "曲名リストで曲名とアーティスト名を 1 行に並べるとき、アーティスト名だけが次の行に落ちないようにしました。",
-     "When the track list puts the title and artist on one line, the artist no longer drops to the next line on its own."),
-    ("2026-09-19", "VocaDB の検索が混み合うときに途中で止まりにくくしました。一度検索された曲は、次から速く出ます。",
-     "VocaDB searches are less likely to time out when it is busy, and songs someone has searched for before now come up faster."),
-    ("2026-09-18", "新しいアドレス trackmento.com に移りました。前のアドレスから開くと、作った並びを引き継いで移動します。",
-     "TRACKMENTO moved to trackmento.com. Opening the old address brings your grid over to the new one."),
-    ("2026-09-18", "曲名リストの出し方に「マスに重ねる」を足しました（ジャケットの下に曲名とアーティスト名を載せます）。",
-     "Added \u201cOverlay on cells\u201d to the track list options (the title and artist are shown over the bottom of each cover)."),
-    ("2026-09-18", "使い方・プライバシーポリシー・運営者のページを足しました。",
-     "Added the How to use, Privacy policy and About pages."),
-    ("2026-09-17", "英語の画面では、iTunes の曲名とアーティスト名を英語の表記で出すようにしました。",
-     "In the English interface, iTunes titles and artists are shown in their English names."),
-    ("2026-09-16", "「みんなのグリッド」を足しました。共有するときにチェックを入れた並びだけが、曲名やアーティスト名で探せます。",
-     "Added \u201cEveryone\u2019s grids\u201d. Only grids you choose to list when sharing can be found by track or artist."),
-    ("2026-09-16", "ボカロ曲のデータベース VocaDB から曲を探せるようにしました。Bandcamp のアルバムの URL は収録曲ごとに入るようになりました。",
-     "You can now search the Vocaloid database VocaDB. Bandcamp album URLs are now split into their individual tracks."),
+    ("2026-09-19", "スマートフォンでの共有画像の容量を最適化し、アップロードにかかる時間を約3割短縮しました（X等のSNSでの見た目はほぼ変わりません）。",
+     "Share images made on phones are now smaller, cutting upload time by about 30% (they look almost the same on X and other social media)."),
+    ("2026-09-19", "ニコニコ動画で投稿者名が取得できない曲（退会・非公開・転載動画など）について、VocaDBのデータから作者名を自動補完するようにしました。",
+     "For Niconico videos whose uploader name is unavailable (deleted or private accounts, re-uploads and so on), the producer name is now filled in automatically from VocaDB."),
+    ("2026-09-19", "VocaDBの作者名からレーベルやチャンネル等の表記を除外し、「kz feat. 初音ミク」のようにすっきりとしたアーティスト名で表示するようにしました。",
+     "VocaDB artist names no longer include labels or channels, so they read cleanly, e.g. “kz feat. Hatsune Miku”."),
+    ("2026-09-19", "曲名とアーティスト名を1行で並べるとき、アーティスト名だけが不自然に次行へ改行されないようレイアウトを調整しました。",
+     "When a track’s title and artist share one line, the artist no longer drops awkwardly onto the next line."),
+    ("2026-09-19", "VocaDBの検索処理を改善し、アクセス集中時のタイムアウトが起きづらくなるようにしました。また、一度検索された曲はキャッシュにより次回以降すばやく表示されます。",
+     "VocaDB searches are now less likely to time out when traffic is heavy, and songs that have been searched once come up quickly afterwards thanks to caching."),
+    ("2026-09-19", "更新情報ページ（本ページ）を公開しました。",
+     "Published this Updates page."),
+    ("2026-09-18", "独自ドメイン（trackmento.com）へ移転しました。旧アドレスからアクセスした場合でも、作成中の配置を引き継いで自動転送されます。",
+     "TRACKMENTO moved to its own domain, trackmento.com. Opening the old address forwards you automatically and brings your grid along."),
+    ("2026-09-18", "曲名リストの表示形式を「横に並べる／マスに重ねる／表示しない」の3通りから選べるようにしました。「マスに重ねる」を選ぶと、ジャケットの下部に白文字で曲情報が表示されます。",
+     "The track list can now be shown three ways: “Beside the grid”, “On the covers” or “Hidden”. “On the covers” puts the track info in white text along the bottom of each cover."),
+    ("2026-09-18", "曲数が少ないときは、曲名とアーティスト名を1行に並べてアーティスト名を右端に揃えるレイアウトを追加しました。余白を減らし、文字が大きく見やすくなります。",
+     "With fewer tracks, the title and artist now sit on one line with the artist aligned to the right, leaving less empty space and making the text larger and easier to read."),
+    ("2026-09-18", "使い方ガイド、プライバシーポリシー、運営者情報の各ページを公開しました。",
+     "Published the How to use, Privacy policy and About pages."),
+    ("2026-09-17", "英語表示の場合、iTunesの曲名・アーティスト名をUSストアの英語表記で取得・表示するようにしました（例：「マリーゴールド / あいみょん」→「Marigold / Aimyon」）。",
+     "In the English interface, iTunes titles and artists are shown as listed on the US store (e.g. “Marigold / Aimyon”)."),
+    ("2026-09-17", "「マスを全部外す」を押した際、誤操作を防ぐ確認ダイアログを表示するようにしました。外してしまった後も「元に戻す」で復元できます。",
+     "“Clear all cells” now asks for confirmation first, and you can still bring everything back with “Undo” afterwards."),
+    ("2026-09-17", "曲名リストの描画を見直し、画像の縦幅を最大限使って文字を大きく配置するようにしました。",
+     "The track list now uses the full height of the image so the text can be larger."),
+    ("2026-09-16", "ボカロ曲データベース「VocaDB」からの楽曲検索に対応しました。サブスク未配信の楽曲も検索でき、原曲が上位にヒットしやすくなっています。",
+     "You can now search VocaDB, the Vocaloid song database. It finds songs that aren’t on streaming services, with original songs ranked near the top."),
+    ("2026-09-16", "「みんなのグリッド」機能を追加しました。共有時に許可のチェックを入れたグリッドのみ、曲名やアーティスト名から他のユーザーが閲覧・検索できます。",
+     "Added “Everyone’s grids”. Only grids you tick to list when sharing can be found and viewed by others, by track or artist."),
+    ("2026-09-16", "「大きく見る（全画面表示）」機能を追加しました。マス数が多い配置や細長いレイアウトでも、画面いっぱいに広げて快適に並べ替えられます。",
+     "Added “Enlarge” (full screen). Grids with many cells or long, narrow layouts can be opened to fill the screen for easier rearranging."),
+    ("2026-09-16", "BandcampのアルバムURLを貼り付けると、収録曲を各マスに一括で追加できるようになりました。",
+     "Pasting a Bandcamp album URL now adds each of its tracks to the grid in one go."),
+    ("2026-09-16", "カラーパレットを8色1組で管理できるようにし、画面全体の背景色ごと切り替えられるようにしました。暗い配色の「ナイト」も選べます。",
+     "Colour palettes now come in sets of eight and switch the background of the whole interface too, including the dark “Night” palette."),
+    ("2026-09-16", "画像共有時に、アップロードの進捗状況（プログレスバー）を表示するようにしました。途中でキャンセルすることも可能です。",
+     "Sharing now shows an upload progress bar, and you can cancel partway through."),
+    ("2026-09-16", "「マスを全部外す」ボタンを誤タップしづらい位置へ移動し、実行後も「元に戻す」で復元できるようにしました。",
+     "Moved “Clear all cells” to a spot that’s harder to tap by mistake, and made it possible to undo."),
+    ("2026-09-16", "長い曲名の自動折り返しを最大3行までに拡張し、文字が途中で省略（…）されづらくしました。",
+     "Long titles now wrap onto up to three lines, so they are cut off with “…” less often."),
+    ("2026-09-16", "1〜3列の並びでは、曲名リストを各マスの真横に同じ並び順で配置するようにしました。どのジャケットがどの曲か一目で視線移動できます。",
+     "In grids one to three cells wide, each title now sits right beside its cell in the same order, so it’s easy to see which cover is which song."),
+    ("2026-09-16", "完成画像のプレビューと保存を端末内（ローカル）で直接処理するように改善しました。通信状態が不安定な環境でも保存に失敗しづらくなります。",
+     "The finished image is now previewed and saved directly on your device, so saving is less likely to fail on an unstable connection."),
+    ("2026-09-15", "カラーパレット機能を追加しました。好みのパレットを自作でき、カラーコードをコピーして他の人と共有することも可能です。",
+     "Added colour palettes. You can make your own and share it by copying its colour codes."),
+    ("2026-09-15", "共有ページの曲名から、各配信元（YouTube、ニコニコ動画、Bandcampなど）の元ページへ直接リンクで飛べるようにしました。",
+     "Track titles on share pages now link to their original pages (YouTube, Niconico, Bandcamp and so on)."),
+    ("2026-09-15", "共有画像および共有ページの保存期間を、7日間から30日間に延長しました。",
+     "Share images and share pages are now kept for 30 days instead of 7."),
+    ("2026-09-15", "曲名リストを「曲名＋アーティスト名」の2行組みレイアウトに対応させました。曲数が多い場合は自動で列数を増やし、文字サイズを大きく保ちます。",
+     "The track list now shows the title and artist on two lines. With many tracks it adds columns automatically to keep the text large."),
+    ("2026-09-15", "正方形に近い比率で曲数が多い場合、曲名リストをグリッドの周りに回り込ませることで、ジャケット画像をできるだけ大きく表示できるようにしました。",
+     "For near-square ratios with many tracks, the track list now wraps around the grid so the covers can be as large as possible."),
+    ("2026-09-15", "1×8や32×1などの極端に細長いレイアウトでも、マスと曲名がきれいに収まるよう表示を最適化しました。",
+     "Very long, narrow layouts such as 1×8 or 32×1 now fit the cells and titles neatly."),
+    ("2026-09-15", "URLの末尾に「?lang=en」「?lang=ja」を付けることで、表示言語を直接指定できるようにしました。",
+     "Adding “?lang=en” or “?lang=ja” to a URL now sets the display language."),
+    ("2026-09-15", "スマートフォンでの誤操作を防ぐため、スライダー（余白・マスの間隔・色調など）はつまみを正しくドラッグした時のみ動くように改善しました。",
+     "To prevent accidental changes on phones, sliders (margin, cell spacing, colour and so on) now move only when you drag the handle."),
+    ("2026-09-14", "長い曲名が2行に折り返されるよう調整し、続くアーティスト名が見切れたり消えたりしないようにしました。",
+     "Long titles now wrap onto two lines so the artist name that follows is no longer cut off or lost."),
+    ("2026-09-14", "曲数が多い場合、曲名リストを文章のように連続して流し込み、画像内に無駄なく収めるレイアウトを追加しました。",
+     "With many tracks, the track list can now flow continuously like running text to fit neatly in the image."),
+    ("2026-09-13", "プレイリストURLの一括読み込みに対応しました（ニコニコ動画のマイリスト、SoundCloud、bilibili、Spotify、Bandcamp、YouTubeに対応、最大500曲まで）。",
+     "You can now load a whole playlist from its URL (Niconico mylists, SoundCloud, bilibili, Spotify, Bandcamp and YouTube; up to 500 tracks)."),
+    ("2026-09-13", "プレイリスト内の削除済み動画について、otoDB（音MADデータベース）の情報をもとに正式なタイトル・サムネイルを自動復元・補完するようにしました。",
+     "Deleted videos in a playlist now get their proper title and thumbnail restored automatically from otoDB, the otomad database."),
+    ("2026-09-13", "「URL を貼る」に、改行区切りで複数のURLをまとめて貼り付けて一括登録できるようにしました。",
+     "“Paste a page URL” now accepts several URLs at once, one per line."),
+    ("2026-09-13", "Apple MusicのURL（楽曲・アルバム・プレイリスト）に対応しました。",
+     "Added support for Apple Music URLs (songs, albums and playlists)."),
+    ("2026-09-13", "グリッドの上限を256マスに拡大し、16×16や自由な縦長・横長の配置を作れるようにしました。",
+     "Grids can now have up to 256 cells, so you can make 16×16 or any tall or wide layout."),
+    ("2026-09-13", "画面右上のボタンから英語表示への切り替えに対応しました。共有ページもアクセスした人のブラウザ言語に合わせて表示されます。",
+     "The interface can now be switched to English with the button at the top right. Share pages follow the viewer’s browser language."),
+    ("2026-09-11", "共有画像の生成処理をお使いの端末（ブラウザ側）で行うようにし、アクセス集中時でも画像生成が止まりづらくなるようにしました。",
+     "Share images are now made on your device (in the browser), so making them is less likely to stall when traffic is heavy."),
+    ("2026-09-11", "画像の既定比率をX（旧Twitter）に適した「16:9」に変更しました。Instagram投稿向けの「4:5」も選択可能です。",
+     "The default image ratio is now 16:9, which suits X (formerly Twitter). 4:5 for Instagram posts is also available."),
+    ("2026-09-11", "カスタムカラー設定に、色相・彩度・明度を微調整できるスライダーを追加しました。",
+     "Custom colours now have hue, saturation and brightness sliders for fine-tuning."),
+    ("2026-09-11", "共有ページ上に、ページの有効期限（掲載終了予定日）を表示するようにしました。",
+     "Share pages now show when they will expire."),
+    ("2026-09-09", "TRACKMENTOを一般公開しました。iTunes、MusicBrainz、Discogs、otoDBからの楽曲検索に加え、Bandcamp、SoundCloud、YouTube、ニコニコ動画、bilibili、SpotifyのURL貼り付けに対応。ジャケットが無い曲は手動で画像をアップロードして設定できます。",
+     "TRACKMENTO launched. Search iTunes, MusicBrainz, Discogs and otoDB, or paste URLs from Bandcamp, SoundCloud, YouTube, Niconico, bilibili and Spotify. For tracks without a cover, you can upload an image yourself."),
 ]
 _MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
            "November", "December")
@@ -292,39 +358,39 @@ def _updates(lang: str, days: int) -> str:
     changes = "\n".join(rows)
     if en:
         return f"""
-<p>Recent changes you can see in TRACKMENTO, and known problems. Fixes are added here as they go live.</p>
+<p>A list of new features, improvements and other changes to TRACKMENTO, along with problems we currently know about. We update it whenever we fix or release something.</p>
 <h2>Recent changes</h2>
 {changes}
 <h2>Known problems</h2>
 <ul>
-<li>Covers from old Niconico videos look blurry. The site only provides small thumbnails for them.</li>
-<li>Deleted videos show no cover unless the work is registered on otoDB.</li>
-<li>Titles with some unusual symbols (such as \u25c8) may be placed slightly differently in images made on different devices.</li>
-<li>In in-app browsers (X, LINE and so on), sharing can be slow or fail. Opening the page in Safari or Chrome is more reliable.</li>
+<li><b>Old Niconico videos:</b> the source only has low-resolution images, so their covers may look blurry.</li>
+<li><b>Covers of deleted videos:</b> deleted videos that aren’t registered on otoDB can’t have their thumbnail or other details restored.</li>
+<li><b>Special characters:</b> titles with some unusual symbols (such as ◈) may be placed slightly differently in the image depending on your device and fonts.</li>
+<li><b>In-app browsers:</b> in the browsers built into X, LINE and similar apps, sharing may be slow or fail. Reopening the page in a regular browser such as Safari or Chrome is more reliable.</li>
 </ul>
-<h2>If something doesn\u2019t work</h2>
+<h2>If something doesn’t work</h2>
 <ul>
-<li><b>The page won\u2019t open:</b> switch between Wi-Fi and mobile data, or try another browser. Content filters on school or work networks may block new domains.</li>
-<li><b>Sharing takes a long time:</b> uploading depends on your connection, so try somewhere with better reception.</li>
-<li><b>Still stuck:</b> please contact us through the details on the <a href="/about?lang=en">About</a> page, with the time and what you were doing.</li>
+<li><b>The page won’t open:</b> switch between Wi-Fi and mobile data, or try another browser. School or work networks may temporarily block newly registered domains with security filters.</li>
+<li><b>Sharing takes a long time:</b> upload speed depends on your connection. Please try somewhere with good reception.</li>
+<li><b>Still not solved:</b> please contact us using the details on the <a href="/about?lang=en">About</a> page, with the date and time, your device and browser, and what you were doing.</li>
 </ul>
 """
     return f"""
-<p>TRACKMENTO で利用者の方から見える変更と、分かっている不具合をまとめています。直したものは公開したときにここに足していきます。</p>
+<p>TRACKMENTO の機能追加・改善などの変更点や、現在確認されている不具合をまとめています。修正やアップデートを実施した際に随時更新します。</p>
 <h2>最近の変更</h2>
 {changes}
-<h2>分かっている不具合</h2>
+<h2>確認されている不具合</h2>
 <ul>
-<li>古いニコニコ動画はジャケット（サムネイル）が粗くなります。配信元に小さい画像しか無いためです。</li>
-<li>削除された動画は、otoDB に登録が無いとジャケットが出ません。</li>
-<li>一部の特殊な記号（\u25c8 など）を含む曲名は、端末によって画像の中の文字の位置がわずかにずれることがあります。</li>
-<li>アプリ内ブラウザ（X や LINE の中で開いた画面）では、共有が遅くなったり失敗したりすることがあります。Safari や Chrome で開くと安定します。</li>
+<li><b>古いニコニコ動画の画質：</b>配信元の仕様により低解像度の画像しか存在しないため、ジャケット画像が粗く表示される場合があります。</li>
+<li><b>削除済み動画のジャケット：</b>otoDBに登録のない削除済み動画は、サムネイル等の情報を復元できません。</li>
+<li><b>特殊文字による表示のズレ：</b>一部の特殊な記号（◈ など）を含む曲名は、ご利用の端末やフォント環境によって画像内の文字位置がわずかにずれることがあります。</li>
+<li><b>アプリ内ブラウザでの動作：</b>XやLINEなどのアプリ内ブラウザで開いている場合、画像の共有が遅くなったり失敗したりすることがあります。SafariやChromeなどの標準ブラウザで開き直すと安定します。</li>
 </ul>
 <h2>うまくいかないとき</h2>
 <ul>
-<li><b>ページが開けない：</b>Wi-Fi とスマホの回線を切り替えるか、別のブラウザで試してください。学校や職場の回線では、新しいアドレスがフィルタで止められていることがあります。</li>
-<li><b>共有に時間がかかる：</b>画像の送信は回線の速さに左右されます。電波のよい場所で試してください。</li>
-<li><b>それでも解決しない：</b><a href="/about">運営者</a>のページの連絡先から、時刻と操作の内容を添えてお知らせください。</li>
+<li><b>ページが開けない場合：</b>Wi-Fiとモバイル回線を切り替えるか、別のブラウザでお試しください。学校や職場のネットワークでは、新設ドメインがセキュリティフィルターによって一時的に制限されている場合があります。</li>
+<li><b>共有に時間がかかる場合：</b>画像の送信速度はお使いの通信回線に左右されます。電波状況の良い場所でお試しください。</li>
+<li><b>それでも解決しない場合：</b><a href="/about">運営者ページ</a>記載の連絡先より、発生した日時・ご利用環境・具体的な操作内容を添えてお問い合わせください。</li>
 </ul>
 """
 
