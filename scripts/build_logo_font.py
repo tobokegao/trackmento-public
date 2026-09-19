@@ -70,11 +70,14 @@ def draw_m(rows: list[str]):
 
 def build(variant: str, out: pathlib.Path) -> None:
     f = TTFont(SRC)
-    gname = f.getBestCmap()[ord("M")]
-    glyph, width = draw_m(VARIANTS[variant])
-    f["glyf"][gname] = glyph
-    lsb = PX
-    f["hmtx"][gname] = (width, lsb)
+    # **小文字の m も同じ形にする**（2026-09-20）。Silkscreen の m は大文字と同じ高さ・同じ形なので、
+    # 「trackmento.com」のような小文字の表示でも H に見えていた
+    for ch in ("M", "m"):
+        gname = f.getBestCmap()[ord(ch)]
+        glyph, width = draw_m(VARIANTS[variant])
+        f["glyf"][gname] = glyph
+        f["hmtx"][gname] = (width, PX)
+        f["glyf"][gname].recalcBounds(f["glyf"])
     for rec in f["name"].names:
         if rec.nameID in (1, 4, 16):
             rec.string = FAMILY if rec.nameID != 4 else f"{FAMILY} Bold"
@@ -82,8 +85,6 @@ def build(variant: str, out: pathlib.Path) -> None:
             rec.string = f"{FAMILY}-Bold"
         elif rec.nameID == 3:
             rec.string = f"{FAMILY}-Bold;M-{variant}"
-    if "glyf" in f:
-        f["glyf"][gname].recalcBounds(f["glyf"])
     out.parent.mkdir(parents=True, exist_ok=True)
     f.save(out.with_suffix(".ttf"))
     f.flavor = "woff2"

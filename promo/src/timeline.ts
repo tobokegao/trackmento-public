@@ -109,7 +109,7 @@ export type Shot = {
   stillBeats?: number[];                                                                          // stills を切り替える拍（ショットの頭からの拍数）
   labels?: { jp: string; en: string }[];                                                          // stills ごとの添え書き
   scrap?: boolean;                                                                                // stills をスクラップブックのように角度・位置をばらして重ねていく（v6）
-  explorer?: { ev: string; beats?: [number, number, number] };                                     // beats = ショットの頭からの拍（窓が出る・ファイルが入る・選択の青が点滅し始める）                                                                      // その操作の時刻に「ファイルが保存された」窓を重ねる（v6、パレットの保存）
+  explorer?: { ev: string; beats?: [number, number, number]; hide?: number; file?: string };  // hide = 窓を引っ込める拍、file = 出すファイル名（録画に名前が無いとき）                                     // beats = ショットの頭からの拍（窓が出る・ファイルが入る・選択の青が点滅し始める）                                                                      // その操作の時刻に「ファイルが保存された」窓を重ねる（v6、パレットの保存）
 };
 
 /** 17 小節目の静止画 16 枚（promo/make_stills.py が作る）。16 分音符（0.25 拍）ずつ */
@@ -124,7 +124,8 @@ export const SHOTS: Shot[] = [
   // v6: 見つかった並びの共有ページの中まで開く
   { beat: bar(11), len: 4, ev: "find:open", off: -1.2, rec: "feat", speed: 1.6, jp: "曲名で、みんなの並びを探せる", en: "Search everyone's grids by track" },
   // v6: 並びを保存 → 全部外す → 読み込みで戻る（v3 の頃の GIF「並びを保存／読み込み」と同じ流れ）
-  { beat: bar(12), len: 4, ev: "io:save", off: -0.2, rec: "feat", speed: 4, jp: "並びを保存して、\n読み込みで復活", en: "Save your layout, load it back any time" },
+  { beat: bar(12), len: 4, ev: "io:save", off: -0.2, rec: "feat", speed: 4, jp: "並びを保存して、\n読み込みで復活", en: "Save your layout, load it back any time",
+    explorer: { ev: "io:save", beats: [0.25, 0.5, 1], hide: 2, file: "trackmento-grid-2026-09-19.json" } },
   { beat: bar(13), len: 4, ev: "pal:pop", off: -0.5, rec: "feat", speed: 1.2, jp: "パレットで配色ごと切り替え", en: "Palettes swap the whole colour scheme" },
   // v6: 自作の組をファイルに保存するまで（2 小節）。保存先の窓を重ねて見せる
   // 保存を押す時刻を 15.2（窓が出る合図）にそろえる速さ。窓 15.2 → ファイル 15.3 → 選択の青が 16 分で点滅 15.4（キメのレーン）
@@ -160,8 +161,8 @@ export const SHOTS: Shot[] = [
   { beat: bar(34), len: 4, ev: "add:ilovelove", off: -0.4, jp: "枠が全部埋まったら", en: "Once every cell is full", zoomPc: { x: 0.6, y: 0.45, s: 1.5 } },
   { beat: bar(35), len: 4, ev: "select:1", off: -0.2, speed: 1.2, jp: "タップで入れ替え", en: "Tap two cells to swap", zoomPc: { x: 0.6, y: 0.45, s: 1.6 } },
   // ---- 36〜42 小節目: 出力と共有 ----
-  { beat: bar(36), len: 4, ev: "list:overlay", off: -0.5, fx: "flashIn", jp: "曲名リストは 3 択（横・マスに重ねる・なし）", en: "Track list: beside, on the covers, or hidden", zoomPc: { x: 1, y: 0.5, s: 1.8 } },
-  { beat: bar(37), len: 4, ev: "ratio:16:9", off: -0.3, speed: 1.1, jp: "解像度は 5 種類", en: "Five aspect ratios", zoomPc: { x: 1, y: 0.3, s: 1.9 } },
+  { beat: bar(36), len: 4, ev: "ratio:16:9", off: -0.3, speed: 1.1, fx: "flashIn", jp: "解像度は 5 種類", en: "Five aspect ratios", zoomPc: { x: 1, y: 0.3, s: 1.9 } },
+  { beat: bar(37), len: 4, ev: "list:overlay", off: -0.5, jp: "曲名リストは 3 択（横・マスに重ねる・なし）", en: "Track list: beside, on the covers, or hidden", zoomPc: { x: 1, y: 0.5, s: 1.8 } },
   { beat: bar(38), len: 4, ev: "bg:cerulean", off: -0.3, jp: "背景色は 8 色", en: "Eight background colours", zoomPc: { x: 1, y: 0.62, s: 1.9 } },
   { beat: bar(39), len: 4, ev: "bg:custom", off: -0.4, jp: "カスタム色はつまみで", en: "Or dial in any colour", zoomPc: { x: 1, y: 0.67, s: 2.0 } },
   { beat: bar(40), len: 8, ev: "share", off: -0.2, speed: 1.3, jp: "共有すると、送信の進み具合が見える", en: "Share — with an upload progress bar", zoomPc: { x: 0.55, y: 0.7, s: 1.6 } },

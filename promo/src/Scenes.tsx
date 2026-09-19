@@ -13,7 +13,8 @@ import {
 loadFont({ family: "Plex", url: staticFile("fonts/IBMPlexSansJP-Bold.ttf"), weight: "700" });
 loadFont({ family: "Plex", url: staticFile("fonts/IBMPlexSansJP-Regular.ttf"), weight: "400" });
 loadFont({ family: "Silk", url: staticFile("fonts/Silkscreen-Bold.ttf"), weight: "700" });
-loadFont({ family: "Mark", url: staticFile("fonts/TrackmentoMark-Bold.ttf"), weight: "700" });   // ロゴ専用（M だけ描き替えた Silkscreen。scripts/build_logo_font.py）
+loadFont({ family: "Mark", url: staticFile("fonts/TrackmentoMark-Bold.ttf"), weight: "700" });
+loadFont({ family: "Mark", url: staticFile("fonts/TrackmentoMark-Bold.ttf"), weight: "400" });   // 細字の指定でも同じ字（M が H に見えないように。v8）   // ロゴ専用（M だけ描き替えた Silkscreen。scripts/build_logo_font.py）
 loadFont({ family: "Dot", url: staticFile("fonts/DotGothic16-Regular.ttf"), weight: "400" });
 
 // ---- 色（frontend/index.html のトークンと同じ系統） ----
@@ -218,7 +219,7 @@ const AbBadge: React.FC<{ L: Layout }> = ({ L }) => {
     // 字幕の裏に回しつつ、文字どうしが重ならない高さ
     <div style={{ position: "absolute", left: L.phone.x, width: L.phone.w, top: L.phone.y - (tall ? 96 : 74),
       display: "flex", justifyContent: "flex-end", pointerEvents: "none" }}>
-      <div style={{ background: before ? C.muted : C.vermilion, color: C.paper, fontFamily: "Silk", fontWeight: 700,
+      <div style={{ background: before ? C.muted : C.vermilion, color: C.paper, fontFamily: "Mark", fontWeight: 700,
         fontSize: tall ? 46 : 40, padding: "8px 26px", border: `4px solid ${C.ink}`,
         transform: `translateY(${(1 - s) * 20}px) scale(${0.85 + s * 0.15})`, opacity: s }}>
         {before ? "BEFORE" : "AFTER"}
@@ -268,11 +269,11 @@ const Clip: React.FC<{ kind: Kind; lang: Lang; session: "main" | "feat"; from: n
 };
 
 /** ファイルが保存された窓。frame 0 = 保存した瞬間。名前は録画の events.json（pal:saved の file）から */
-const SavedWindow: React.FC<{ L: Layout; file: string; rowAt?: number; blinkAt?: number }> = ({ L, file, rowAt = 8, blinkAt }) => {
+const SavedWindow: React.FC<{ L: Layout; file: string; rowAt?: number; blinkAt?: number; hideAt?: number }> = ({ L, file, rowAt = 8, blinkAt, hideAt }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   if (frame < 0) return null;
-  const s = spring({ frame, fps, config: { damping: 13, stiffness: 200 } });
+  const s = spring({ frame, fps, config: { damping: 13, stiffness: 200 } }) * (hideAt === undefined ? 1 : 1 - spring({ frame: frame - hideAt, fps, config: { damping: 16, stiffness: 260 } }));
   const row = spring({ frame: frame - rowAt, fps, config: { damping: 14, stiffness: 220 } });
   // 選択中の青を 16 分音符で点滅（v7）
   const sixteenth = (beatFrame(1) - beatFrame(0)) / 4;
@@ -292,7 +293,7 @@ const SavedWindow: React.FC<{ L: Layout; file: string; rowAt?: number; blinkAt?:
             transform: i === 0 ? `translateX(${(1 - row) * -40}px)` : undefined, opacity: i === 0 ? row : 1 }}>
             <span style={{ width: fs * 0.9, height: fs * 1.1, border: `3px solid ${i === 0 && selOn ? C.paper : C.ink}`, flex: "none" }} />
             <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: i === 0 ? 700 : 400 }}>{name}</span>
-            <span style={{ fontFamily: "Silk", fontSize: fs * 0.7 }}>{size}</span>
+            <span style={{ fontFamily: "Mark", fontSize: fs * 0.7 }}>{size}</span>
           </div>
         ))}
       </div>
@@ -357,15 +358,17 @@ const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
   const per = total / TIMELAPSE_STEPS;
   // キメ（エディタの「キメ」のレーン）ごとに一段ずつ寄る。最後の 1 つは**枠ごと**横に 2 倍まで引き伸ばす（v5、利用者の指定。v4 は横へ振っていた）
   const hits = TIMELAPSE_KIME.map((b) => beatFrame(TIMELAPSE_BEAT + b) - beatFrame(TIMELAPSE_BEAT));
-  let zoom = 1, stretch = 0;
+  let zoom = 1, stretch = 0, white = 0;
   hits.forEach((at, i) => {
     const k = spring({ frame: frame - at, fps, config: { damping: 12, stiffness: 260 } });
     zoom += k * 0.09;
     // 最後のキメからシーンの終わりまで、最初が速い曲線で横に 3 倍まで伸ばし続ける（v7、利用者の指定）
-    if (i === hits.length - 1) stretch = interpolate(frame, [at, total], [0, 2], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+    // 白も同じ時刻・同じ曲線で被せていき、シーンの終わりで透けなくなる（v8、利用者の指定）
+    if (i === hits.length - 1) {
+      const k2 = interpolate(frame, [at, total], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+      stretch = k2 * 2; white = k2;
+    }
   });
-  // 終わり際（最後の 1 拍）に白で覆っていく（透けないところまで）
-  const white = interpolate(frame, [total - (beatFrame(1) - beatFrame(0)), total], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <>
       <Caption L={L} jp="画像完成まで" en="Start to finish" />
@@ -439,7 +442,7 @@ const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
           {L.lang === "ja" && <div style={{ fontFamily: "Plex", fontWeight: 700, fontSize: tall ? 54 : 56, color: C.ink }}>あなたは何曲オススメを？</div>}
           <div style={{ fontFamily: "Dot", fontSize: L.lang === "ja" ? (tall ? 38 : 40) : (tall ? 50 : 52), color: L.lang === "ja" ? C.muted : C.ink }}>What would you pick?</div>
         </div>
-        <div style={{ marginTop: tall ? 90 : 60, background: C.ink, color: C.paper, fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 44 : 48, padding: "18px 40px", letterSpacing: "0.04em", opacity: sUrl, transform: `scale(${0.8 + sUrl * 0.2})` }}>trackmento.com</div>
+        <div style={{ marginTop: tall ? 90 : 60, background: C.ink, color: C.paper, fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 44 : 48, padding: "18px 40px", letterSpacing: "0.04em", opacity: sUrl, transform: `scale(${0.8 + sUrl * 0.2})` }}>trackmento.com</div>
         <div style={{ marginTop: 28, fontFamily: "Dot", fontSize: 32, color: C.muted, opacity: sFree, transform: `translateY(${(1 - sFree) * 20}px)` }}>{L.lang === "ja" ? "無料・登録なし / Free, no sign-up" : "Free, no sign-up"}</div>
       </AbsoluteFill>
     </Paper>
@@ -462,7 +465,7 @@ const NewUrl: React.FC<{ L: Layout }> = ({ L }) => {
   const blinkFrom = beatLen * 4 + eighth;
   const blinkOn = frame >= blinkFrom && Math.floor((frame - blinkFrom) / eighth) % 2 === 0;
   const urlBox = (dark: boolean): React.CSSProperties => ({
-    fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 50 : 60, letterSpacing: "0.04em", padding: "14px 34px",
+    fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 50 : 60, letterSpacing: "0.04em", padding: "14px 34px",
     background: dark ? C.ink : "transparent", color: dark ? C.paper : C.muted, border: `4px solid ${dark ? C.ink : C.muted}`, whiteSpace: "nowrap",
   });
   return (
@@ -476,7 +479,7 @@ const NewUrl: React.FC<{ L: Layout }> = ({ L }) => {
           <div style={urlBox(false)}>trackmento.onrender.com</div>
           <div style={{ position: "absolute", left: 20, right: 20, top: "50%", height: 6, marginTop: -3, background: C.vermilion, transformOrigin: "0 50%", transform: `scaleX(${strike})` }} />
         </div>
-        <div style={{ fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 70 : 64, color: C.ink, opacity: sNew, transform: `translateY(${(1 - sNew) * -20}px)` }}>↓</div>
+        <div style={{ fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 70 : 64, color: C.ink, opacity: sNew, transform: `translateY(${(1 - sNew) * -20}px)` }}>↓</div>
         <div style={{ ...urlBox(true), fontSize: tall ? 64 : 76, boxShadow: `10px 10px 0 ${C.mustard}`, opacity: sNew, transform: `scale(${0.8 + sNew * 0.2})` }}>trackmento.com</div>
         <div style={{ marginTop: tall ? 20 : 8, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 40 : 40, color: C.ink, opacity: blinkOn ? 1 : 0 }}>
           {ja ? "前の URL から開いても、並びごと引っ越し" : "Old links still work — your grids move with you"}
@@ -519,7 +522,7 @@ const Bandwidth: React.FC<{ L: Layout; title?: [string, string]; rows?: NumRow[]
             return (
               <div key={r.jp} style={{ display: "flex", alignItems: "baseline", gap: tall ? 16 : 24, transform: `translateX(${(1 - k) * -30}px)`, opacity: k }}>
                 <div style={{ fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 34 : 36, color: C.ink, flex: 1 }}>{ja ? r.jp : r.en}</div>
-                <div style={{ fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 30 : 32, color: C.muted, textDecoration: "line-through" }}>{r.from}</div>
+                <div style={{ fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 30 : 32, color: C.muted, textDecoration: "line-through" }}>{r.from}</div>
                 <div style={{ fontFamily: ja ? "Plex" : "Silk", fontWeight: 700, fontSize: tall ? 32 : 34, color: C.paper, background: STRIPE[i % 6], padding: "2px 12px", border: `3px solid ${C.ink}` }}>{r.to}</div>
               </div>
             );
@@ -607,8 +610,9 @@ function shotSeq(L: Layout, s: Shot, next: number, base: number) {
                   // 拍が決めてあればそれに乗せる（キメのレーン）。無ければ録画で保存した時刻
                   const at = ex.beats ? rel(ex.beats[0]) : Math.round(((evTime(L.kind, L.lang, sess, ex.ev) - from) / r) * FPS);
                   const ev = RECORDINGS[L.kind][L.lang][sess].events.find((e) => e.name === ex.ev) as { file?: string } | undefined;
-                  return <Sequence from={at} layout="none"><SavedWindow L={L} file={ev?.file ?? "trackmento-palette.json"}
-                    rowAt={ex.beats ? rel(ex.beats[1]) - at : undefined} blinkAt={ex.beats ? rel(ex.beats[2]) - at : undefined} /></Sequence>;
+                  return <Sequence from={at} layout="none"><SavedWindow L={L} file={ex.file ?? ev?.file ?? "trackmento-palette.json"}
+                    rowAt={ex.beats ? rel(ex.beats[1]) - at : undefined} blinkAt={ex.beats ? rel(ex.beats[2]) - at : undefined}
+                    hideAt={ex.hide !== undefined ? rel(ex.hide) - at : undefined} /></Sequence>;
                 })()}
               </Sequence>
   );
