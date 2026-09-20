@@ -28,6 +28,13 @@
   - **Spotify は鍵を入れていない**。2026 年 2 月から、開発者アプリを登録するアカウントに **Spotify Premium が必須**に
     なったため（新しい Client ID は 2/11、既存は 3/9 から）。コードは鍵があれば公式 API に切り替わる形にしてあるので、
     入れるだけで曲名・アーティスト・640px のジャケット・プレイリストが戻る
+  - **YouTube の鍵は入れた**（2026-09-20）。Google Cloud のプロジェクト `trackmento`（ID は `project-a969726d-0008-4752-ab6`。
+    `My First Project` から名前だけ変えたもの）で YouTube Data API v3 を有効にし、API キー `trackmento-youtube` を作った。
+    **キーの制限は「API の制限＝YouTube Data API v3 だけ」。アプリケーションの制限は「なし」**（Render の送信 IP は固定でないので
+    IP 制限は掛けられず、サーバーから叩くのでリファラ制限も効かない）。OAuth 同意画面は要らない（公開データを読むだけで、
+    利用者の Google アカウントには触らないため。認証情報ページに出る警告は OAuth クライアント ID 向けの常設の注意書き）。
+    手元は `.env`、本番は Render の Environment に `YOUTUBE_API_KEY` として入れてある。
+    183 曲の再生リストで、手元と本番の両方から取れることを確かめた
   - **Bandcamp への問い合わせは送付済み・返答待ち**（2026-09-20、利用者が `bandcamp.com/contact?subj=API%20Access` から送った）。
     AUP が scraper を名指しで禁止しているが、曲メタデータの公開 API が無く正規ルートが無い。
     「何をしているか（公開ページを 1 回・1 週間キャッシュ・1 日数百回）・Bandcamp へ戻すリンク・名乗り」を書き、

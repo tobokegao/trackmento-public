@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-20", "YouTubeの再生リストを、URLを1本貼るだけでまとめて読み込めるようにしました（最大500曲）。",
+     "A YouTube playlist can now be loaded all at once by pasting a single URL (up to 500 tracks)."),
     ("2026-09-20", "手入力で曲を追加するとき、リンク先のURLも入れられるようにしました。共有ページの曲名から、そのページへ飛べるようになります。",
      "When you add a track by hand, you can now give it a link URL as well, so the track name on the shared page links to that page."),
     ("2026-09-20", "各サービスの利用規約に合わせて、URL貼り付けの対応範囲を見直しました。bilibiliの対応を終了し、SoundCloudのセットとSpotifyのプレイリストは一括読み込みを取りやめました（曲ごとのURLは引き続き使えます）。Spotifyは曲名とジャケットのみを取得するため、アーティスト名は手入力で補ってください。",
