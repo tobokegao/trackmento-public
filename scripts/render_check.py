@@ -653,7 +653,7 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
 
 def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: list[str]) -> None:
     """点検 1 回分を JSON Lines で書き足す。読みやすさより機械で読める形を優先する"""
-    gb = sum(v for _, v in (bw[1] or []))
+    gb = sum(_to_gb(v, bw[0]) for _, v in (bw[1] or []))   # API の単位は mb のことがある（生の値を足さない）
     rss = [v for _, v in (la.get("rss") or [])]   # (時刻, MB) の並び
     rec = {
         "jst": datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M"),
@@ -679,10 +679,10 @@ def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: li
 
 
 def _to_mb(metric) -> float:
-    """メモリの系列（単位は API が返す）から最大値を MB で返す"""
+    """メモリの系列から最大値を MB で返す。単位の解釈は帯域と同じ `_to_gb` に任せる"""
     unit, series = metric
     top = max((v for _, v in (series or [])), default=0.0)
-    return top / (1024 * 1024) if (unit or "").lower().startswith("byte") else top
+    return _to_gb(top, unit) * 1024
 
 
 def main() -> int:
