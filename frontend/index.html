@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="trackmento-public" content="__PUBLIC__">
+<!-- 引っ越し中の移転先（移転中の古いホストで開いたときだけ中身が入る）。**JS ではなくここに置く**:
+     JS は app.<hash>.js として外に出して 1 年キャッシュに乗せるので、リクエストごとに変わる値を含められない -->
+<meta name="trackmento-migrate" content="__MIGRATE__">
+<!-- 共有が消えるまでの日数。英語の対訳表がこの値を含むので、JS はここから読む（上と同じ理由） -->
+<meta name="trackmento-retention" content="__RETENTION__">
 <title>TRACKMENTO</title>
 <!--__FONT_LINK__-->
 <meta name="description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
@@ -21,10 +26,15 @@
 /* IBM Plex Sans JP と DotGothic16 は unicode-range で分割した断片（fonts/split/、scripts/build_fonts.py が生成）。
    画面と共有画像に出る文字を含む断片だけがダウンロードされる（丸ごと配ると 1 訪問 1.6MB で転送量の主因だった）。
    @font-face は <head> の <!--__FONT_LINK__--> にサーバーが <link> で入れる */
+/* **ここはサーバーが URL を差し替える @font-face だけを置く**（2026-09-20）。本体の CSS は
+   scripts/build_app.py が app.<hash>.css として外に出し、R2 から配る。外に出したものは
+   1 年キャッシュに乗せるので、リクエストごとに変わる URL を含められない */
 @font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Regular.woff2") format("woff2"), url("fonts/Silkscreen-Regular.ttf") format("truetype"); }
 @font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Bold.woff2") format("woff2"), url("fonts/Silkscreen-Bold.ttf") format("truetype"); }
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
+</style>
+<style id="app-css">
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(97% 0.003 95) · accent: oklch(60% 0.14 235)
  * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
@@ -1489,7 +1499,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script>
+<script id="app-js">
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
@@ -1500,8 +1510,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      旧ドメインの画面が自分で「trackmento」で始まる保存を全部まとめ、gzip して URL の
      `#` の後ろ（フラグメント。**サーバーには送られない**）に付けて新ドメインへ移動する。
      新ドメイン側はそれを自分の localStorage に書いてから、`#` を外して読み込み直す。
-     MIGRATE_TO はサーバーが埋める（移転中の古いホストで開いたときだけ中身が入る）。 */
-  const MIGRATE_TO = "__MIGRATE__";
+     MIGRATE_TO はサーバーが <meta name="trackmento-migrate"> に埋める（移転中の古いホストで開いたときだけ中身が入る）。
+     trackmento-public と同じやり方。**この JS は外に出して 1 年キャッシュに乗せるので、値を直に埋められない** */
+  const MIGRATE_TO = ((document.querySelector('meta[name="trackmento-migrate"]') || {}).content || "");
   const CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8";   // お問い合わせフォーム（backend/pages.py の CONTACT_FORM と同じ）
   const HANDOFF = "#tm=";
   const HANDOFF_MAX = 1200000;   // フラグメントの上限（これを超えるなら引き継がずに移動する）
@@ -1592,8 +1603,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      ${…} を含む文面は tr`…` とタグ付きテンプレートで呼び、鍵は raw を "{}" でつないだもの。
      英語側の差し込み位置は {0} {1} … で書く（語順が日本語と変わるため）。
      HTML に直接書いた文言は起動時に控えを取り、切り替えのたびに差し替える（後から足した
-     利用者のデータは控えに無いので触らない）。__RETENTION__ はサーバーが HTML 全体を
-     置換するので、鍵と DOM の文字列は必ず同じ値になる。 */
+     利用者のデータは控えに無いので触らない）。共有が消えるまでの日数は、この表を作ったあとに
+     <meta> の値で差し替える（すぐ下）。 */
   const EN = {
         "アプリ内ブラウザでは共有が遅くなったり失敗したりします。右上のメニューから「ブラウザで開く」（Safari / Chrome）で開くのがおすすめです。": "Sharing is slow and often fails in in-app browsers. Use the menu at the top right to open this page in Safari or Chrome.",
         "URL をコピー": "Copy URL",
@@ -1857,6 +1868,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "共有 {} の並びを読み込みました（{} 曲）。この画面での変更は自分のグリッドとして保存されます。": "Loaded the layout from share {0} ({1} tracks). Changes you make here are saved as your own grid.",
         "共有 {} を読み込めませんでした（{}）。": "Could not load share {0} ({1})."
     };
+  /* **共有が消えるまでの日数を表にも入れる**（2026-09-20）。以前はサーバーが HTML 全体を置換していて、
+     鍵と DOM の文字列が自動で一致していた。この JS を app.<hash>.js として外に出し 1 年キャッシュに
+     乗せたので、サーバーは触れない。DOM 側は置換済みなので、鍵と訳文をここで同じ値にそろえる。
+     1 枚で配るとき（R2 に上げ忘れたときの控え）はサーバーが置換済みなので、置き換えは何も起きない */
+  const RETENTION_DAYS = ((document.querySelector('meta[name="trackmento-retention"]') || {}).content || "").trim();
+  if (RETENTION_DAYS) {
+    for (const [k, v] of Object.entries(EN)) {
+      if (!k.includes("__RETENTION__") && !v.includes("__RETENTION__")) continue;
+      delete EN[k];
+      EN[k.split("__RETENTION__").join(RETENTION_DAYS)] = v.split("__RETENTION__").join(RETENTION_DAYS);
+    }
+  }
   const LANG_KEY = "trackmento.lang";
   let LANG = "";
   // **URL の ?lang=en / ?lang=ja が最優先**。日本語環境の人が英語の画面を開くリンクを作れるようにする
@@ -1934,7 +1957,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   const isGatewayError = (r) => r.status === 502 || r.status === 504;   // 503 はサーバーが意図して断っている（混雑）ので自動では再試行しない
   const sleep = (ms) => new Promise(res => setTimeout(res, ms));
-  // 公開モードかはサーバーが HTML に埋める（/status が広告ブロッカーに遮断されても分かるように）。GitHub Pages 配信では置換されず "__PUBLIC__" のまま
+  // 公開モードかはサーバーが <meta> に埋める（/status が広告ブロッカーに遮断されても分かるように）。
+  // GitHub Pages 配信では置換されず印がそのまま残るので、"1" と一致せず非公開扱いになる
   let isPublic = ((document.querySelector('meta[name="trackmento-public"]') || {}).content || "") === "1";
   snapI18n();
   applyI18n();

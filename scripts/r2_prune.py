@@ -10,11 +10,11 @@ fonts/ まで消えて本番のフォントが 404 になるため、削除は�
 KEEP_PREFIXES に挙げたものは古くても消さない:
   - fonts/   … 分割フォント。消えると本番の表示が壊れる（scripts/upload_fonts_r2.py が上げる）
 
-SHORT_PREFIXES のものは共有より短い期限で消す:
-  - imgcache/ … 画像キャッシュ。SQLite 側の索引が 6 日（cache.R2_IMAGE_TTL）で無効になるので、
-                それより長く置いても二度と使われない。共有の期限を延ばしたときに道連れで
-                太らせないため、ここだけ分けてある
-  - searchcache/ … 検索結果の控え（backend/searchcache.py）。索引が 6 日で無効になるので、imgcache/ と同じく 7 日で消す
+共有（既定 720 時間）より短い期限で消すものが 2 つあり、期限はそれぞれ違う:
+  - imgcache/ … 画像キャッシュ。既定 336 時間（14 日）。SQLite 側の索引が 13 日
+                （cache.R2_IMAGE_TTL）なので、それより長く置く。**索引 < 掃除**を必ず守る
+                （逆にすると、消えた後もリダイレクトし続けて 404 になる）
+  - searchcache/ … 検索結果の控え（backend/searchcache.py）。索引が 6 日なので 168 時間（7 日）
 
 削除後に使用量を取り直して表示する。
 """
@@ -35,16 +35,22 @@ load_dotenv(ROOT / ".env")
 from backend import storage  # noqa: E402
 
 # 古くても消さないもの（前方一致）。共有の期限とは無関係に置いておく必要があるファイル
-KEEP_PREFIXES = ("fonts/",)
-# 共有より短い期限で消すもの（前方一致 → 時間数）。既定は --image-cache-hours で上書きできる
-SHORT_PREFIXES = ("imgcache/", "searchcache/")   # searchcache/ は検索結果の控え（backend/searchcache.py、索引は 6 日）
+# app/ … 切り出した CSS と JS（scripts/upload_app_r2.py）。配布済みの殻がまだ古い名前を指しているので消さない
+KEEP_PREFIXES = ("fonts/", "app/")
+# 共有（既定 720 時間）より短い期限で消すもの。**2 つは期限が違う**ので分けてある
+IMAGE_PREFIXES = ("imgcache/",)      # 画像キャッシュ。索引は cache.R2_IMAGE_TTL（13 日）
+SEARCH_PREFIXES = ("searchcache/",)  # 検索結果の控え（backend/searchcache.py。索引は 6 日）
+SHORT_PREFIXES = IMAGE_PREFIXES + SEARCH_PREFIXES   # 表示用
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--older-than-hours", type=float, required=True, help="これより古い（最終更新がこの時間数より前の）ファイルを対象にする")
-    ap.add_argument("--image-cache-hours", type=float, default=168.0,
-                    help=f"{', '.join(SHORT_PREFIXES)} を消すまでの時間数（既定 168 = 7 日）。共有より短くしておく")
+    ap.add_argument("--image-cache-hours", type=float, default=336.0,
+                    help=f"{', '.join(IMAGE_PREFIXES)} を消すまでの時間数（既定 336 = 14 日）。"
+                         "cache.R2_IMAGE_TTL（13 日）より長くしておく")
+    ap.add_argument("--search-cache-hours", type=float, default=168.0,
+                    help=f"{', '.join(SEARCH_PREFIXES)} を消すまでの時間数（既定 168 = 7 日）。索引の 6 日より長くしておく")
     ap.add_argument("--apply", action="store_true", help="実際に削除する（無ければ数えるだけ）")
     a = ap.parse_args()
 
@@ -52,6 +58,7 @@ def main() -> int:
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=a.older_than_hours)
     cutoff_img = now - timedelta(hours=a.image_cache_hours)
+    cutoff_srch = now - timedelta(hours=a.search_cache_hours)
     victims: list[str] = []
     vbytes = keep_n = keep_bytes = kept_n = kept_bytes = 0
     for key, size, modified in st.list_objects():
@@ -59,14 +66,21 @@ def main() -> int:
             kept_n += 1
             kept_bytes += size
             continue
-        if modified < (cutoff_img if key.startswith(SHORT_PREFIXES) else cutoff):
+        if key.startswith(IMAGE_PREFIXES):
+            limit = cutoff_img
+        elif key.startswith(SEARCH_PREFIXES):
+            limit = cutoff_srch
+        else:
+            limit = cutoff
+        if modified < limit:
             victims.append(key)
             vbytes += size
         else:
             keep_n += 1
             keep_bytes += size
     print(f"保存先: {st.name}  基準: {cutoff:%Y-%m-%d %H:%M} UTC より古いもの"
-          f"（{', '.join(SHORT_PREFIXES)} は {cutoff_img:%Y-%m-%d %H:%M} UTC）")
+          f"（{', '.join(IMAGE_PREFIXES)} は {cutoff_img:%Y-%m-%d %H:%M} UTC、"
+          f"{', '.join(SEARCH_PREFIXES)} は {cutoff_srch:%Y-%m-%d %H:%M} UTC）")
     print(f"削除対象: {len(victims)} 件 {vbytes / 1024**3:.2f} GB   残す: {keep_n} 件 {keep_bytes / 1024**3:.2f} GB")
     if kept_n:
         print(f"対象外（{', '.join(KEEP_PREFIXES)}）: {kept_n} 件 {kept_bytes / 1024**3:.2f} GB")

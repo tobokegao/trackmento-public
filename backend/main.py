@@ -140,9 +140,15 @@ async def lifespan(app: FastAPI):
         print(f"[outputs] removed {removed} old files")
     print(f"[public] PNG の URL は {public_base_url()}/outputs/... で返します（.env の PUBLIC_BASE_URL）")
     app.state.started_at = time.time()
+    global _app_shell
+    try:
+        _app_shell = _check_app_shell()   # 切り出した CSS / JS が R2 に載っていれば殻を配る
+    except Exception as e:
+        print(f"[app] 殻を確かめられませんでした（1 枚のまま配ります）: {type(e).__name__}: {e}")
+        _app_shell = None
     monitor = asyncio.create_task(_load_monitor()) if public_mode() else None
     seed = asyncio.create_task(_seed_share_count()) if public_mode() and st.is_remote else None
-    imgidx = asyncio.create_task(_seed_image_index()) if st.is_remote else None
+    imgidx = asyncio.create_task(_seed_r2_index()) if st.is_remote else None
     listed = asyncio.create_task(_seed_listed_index())
     srchidx = asyncio.create_task(_seed_search_index()) if st.is_remote else None
     usage = asyncio.create_task(_usage_loop()) if (public_mode() or st.is_remote) else None
@@ -436,6 +442,13 @@ async def _load_monitor():
             _srch_stats.clear()
         if tick % 60 == 0 and (out_line := _out_line()):
             print(out_line)
+        if tick % 60 == 0 and _img_stats:
+            # imgcache の当たり外れ。hit/(hit+miss) が 42% を下回ると、R2 に置くより
+            # 中継したほうが安くなる（put $0.0000045 対 帯域 74KB $0.0000106）
+            print("[img] " + " ".join(f"{k}={_img_stats[k]}" for k in ("hit", "miss", "put", "stale") if k in _img_stats))
+            _img_stats.clear()
+            if len(_img_stale) > _IMG_INDEX_MAX // 10:   # 取り直されないまま溜まったぶんは捨てる
+                _img_stale.clear()
         if tick % 60 == 0 and (calls := vocadb.take_calls()):
             # VocaDB へ聞いた回数と、覚えていて聞かずに済んだ回数（種類ごと）。語そのものは数えない
             print("[vocadb] " + " ".join(f"{k}={n}" for k, n in sorted(calls.items())))
@@ -771,7 +784,9 @@ async def rate_limit(request: Request, call_next):
       # 手元で http://127.0.0.1 へ引っ越させて確かめるときのために、その 1 つだけ足す
       mig = f" {migrate_to()}" if migrate_to().startswith("http://") else ""
       response.headers.setdefault("Content-Security-Policy",
-        f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'; "
+        # script-src は nonce だけ（**外に出した <script src> にも nonce は効く**ので、R2 のオリジンを足す必要はない）。
+        # style-src には足す: 切り出した app.<hash>.css を R2 から <link> で読むため
+        f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'{r2}; "
         # connect-src: iTunes と MusicBrainz（＋Cover Art Archive → archive.org へリダイレクト）の検索はブラウザから直接叩く
         # （サーバーの共有 IP が Apple に遮断され、MusicBrainz にはレート制限されるため）
         f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; object-src 'none'; base-uri 'self'; "
@@ -873,11 +888,49 @@ def _font_head() -> str:
     return f"<style>{_FONT_CSS_FALLBACK}</style>"
 
 
+APP_R2_PREFIX = "app/"
+# 切り出した CSS と JS を R2 から配るか（既定は有効）。R2 と公開 URL が無ければ自動で 1 枚のまま配る
+APP_FROM_R2 = os.getenv("APP_FROM_R2", "1") not in ("0", "false", "no")
+_app_shell: str | None = None   # 使える殻（frontend/dist/index.html の中身）。使わないなら None
+
+
+def _check_app_shell() -> str | None:
+    """殻を使ってよければその中身、駄目なら None。起動時に 1 回だけ呼ぶ。
+
+    **殻が指す app.<hash>.css / .js が R2 に両方載っていることを確かめてから使う**。
+    上げ忘れたままデプロイしても、1 枚の index.html に倒れるだけで白い画面にならない
+    （フォントは上げ忘れると本番で 404 になる作りで、CLAUDE.md に注意書きが要った。同じ轍を踏まない）。
+    確かめるのは HeadObject 2 回で、Class B なので実質無料。
+    """
+    shell_path = FRONTEND / "dist" / "index.html"
+    if not APP_FROM_R2 or not shell_path.is_file():
+        return None
+    st = storage.get_storage()
+    base = st.public_url(APP_R2_PREFIX) if st.is_remote else ""
+    if not base:
+        return None
+    shell = shell_path.read_text(encoding="utf-8")
+    names = re.findall(r'"' + re.escape(APP_R2_PREFIX) + r'(app\.[0-9a-f]{8}\.(?:css|js))"', shell)
+    if len(names) != 2:
+        print(f"[app] 殻が指すファイルが {len(names)} 個でした（css と js の 2 個であること）。1 枚のまま配ります")
+        return None
+    for name in names:
+        if not st.exists(APP_R2_PREFIX + name):
+            print(f"[app] {name} が R2 にありません。1 枚のまま配ります"
+                  "（python scripts/build_app.py → scripts/upload_app_r2.py）")
+            return None
+    # 殻の中は相対パス。配るときに R2 の公開 URL へ差し替える（フォントと同じやり方）
+    shell = shell.replace(f'"{APP_R2_PREFIX}', f'"{base.rstrip("/")}/')
+    print(f"[app] CSS と JS を R2 から配ります（{', '.join(names)}）")
+    return shell
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     # OG タグの絶対 URL（__BASE__）をこのサーバーの URL に置き換えて配る
     _note_src(request)
-    html = (FRONTEND / "index.html").read_text(encoding="utf-8").replace("__BASE__", base_url_for(request))
+    src = _app_shell if _app_shell is not None else (FRONTEND / "index.html").read_text(encoding="utf-8")
+    html = src.replace("__BASE__", base_url_for(request))
     html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
     html = html.replace("__MIGRATE__", _migrate_host(request))   # 引っ越し中なら移転先。画面が並びを持って移動する
     html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
@@ -896,7 +949,9 @@ async def index(request: Request) -> HTMLResponse:
     etag = '"' + hashlib.sha256(html.encode("utf-8")).hexdigest()[:16] + '"'
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
-    html = html.replace("<script>", f'<script nonce="{request.state.csp_nonce}">', 1)   # CSP（script-src 'nonce-…'）用
+    # CSP（script-src 'nonce-…'）用。**外に出した <script src> にも nonce は効く**ので、
+    # 殻を配るときも 1 枚で配るときも同じ 1 行で済む（id で狙う）
+    html = html.replace('<script id="app-js"', f'<script id="app-js" nonce="{request.state.csp_nonce}"', 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache", "ETag": etag})   # no-cache = 毎回 ETag で確認（更新をすぐ配る）
 
 
@@ -1239,13 +1294,27 @@ def _image_hash(url: str) -> str:
 # 一覧は 1000 件ごとに 1 回の Class A（実測 5,609 件で 6 回）。1 件ずつ HeadObject を引くより安く、
 # 取得前には分からない拡張子（jpg/png/webp/gif）を知らなくても引ける。
 _IMG_INDEX: dict[str, tuple[str, float]] = {}
-_IMG_INDEX_MAX = int(os.getenv("IMAGE_INDEX_MAX", "200000"))   # 1 件あたり 150B 程度。20 万件で 30MB
+# 1 件あたり 150B 程度。40 万件で 60MB（本番の RSS は 211MB、割当は 2048MB）。
+# 2026-09-20 に 20 万から上げた。imgcache/ が 132,371 件で上限の 66% まで来ていたため。
+# 超えたぶんは索引に載らず、SQLite も忘れていればデプロイ直後に配信元から取り直すことになる
+_IMG_INDEX_MAX = int(os.getenv("IMAGE_INDEX_MAX", "400000"))
+
+# imgcache の当たり外れ（60 秒ごとに `[img]` で出す）。語や URL は数えない
+#   hit   … R2 へ 302 で返せた
+#   miss  … 返せず本体を取りに行った
+#   put   … R2 に置けた
+#   stale … put のうち、索引に同じ鍵があったが期限切れだったもの（新しい画像ではなく取り直し）
+_img_stats: dict[str, int] = {}
+
+
+def _note_img(kind: str) -> None:
+    _img_stats[kind] = _img_stats.get(kind, 0) + 1
 
 
 def _image_index_get(url: str) -> str | None:
     """索引に載っていて、まだ R2 のライフサイクルで消えていなければ R2 のキー。
 
-    期限は R2_IMAGE_TTL（6 日）で切る。R2 側の掃除は 7 日なので、こちらを短くしておかないと
+    期限は R2_IMAGE_TTL（13 日）で切る。R2 側の掃除は 14 日なので、こちらを短くしておかないと
     消えた後もリダイレクトし続けて 404 になる（cache.get_image_r2key と同じ理由）。
     """
     ent = _IMG_INDEX.get(_image_hash(url))
@@ -1254,8 +1323,15 @@ def _image_index_get(url: str) -> str | None:
     key, mtime = ent
     if time.time() - mtime > R2_IMAGE_TTL:
         _IMG_INDEX.pop(_image_hash(url), None)
+        _img_stale.add(_image_hash(url))   # 次に put されたら「新しい画像」ではなく「取り直し」と数える
         return None
     return key
+
+
+# 期限切れで索引から外した鍵。次に同じものが put されたら stale として数える（`[img]`）。
+# 取り直しがどれだけあるかが分かれば、R2 の掃除と索引の期限を延ばす効果を測れる。
+# 増え続けないよう、数えたら消す・多すぎれば捨てる
+_img_stale: set[str] = set()
 
 
 def _image_index_put(url: str, key: str) -> None:
@@ -1263,41 +1339,63 @@ def _image_index_put(url: str, key: str) -> None:
         _IMG_INDEX[_image_hash(url)] = (key, time.time())
 
 
-def _load_image_index() -> dict[str, tuple[str, float]]:
+def _load_r2_index() -> tuple[dict[str, tuple[str, float]], int]:
+    """バケットを 1 周して (imgcache の索引, 全体の合計バイト数) を返す。
+
+    **索引づくりと使用量の集計で一覧を 2 回回さない**（2026-09-20）。どちらも全件の一覧が要るので、
+    同じ 1 周で済ませる。1 周が Class A 212 回・132 秒なので、起動あたり 344 回 → 212 回になる。
+    合計バイト数は共有の容量上限に使うものなので、imgcache/ に限らず**全件**を足す。
+    """
     st = storage.get_storage()
     out: dict[str, tuple[str, float]] = {}
-    for key, _size, modified in st.list_objects(IMAGE_R2_PREFIX):
+    total = 0
+    for key, size, modified in st.list_objects():
+        total += size
+        if not key.startswith(IMAGE_R2_PREFIX):
+            continue
         name = key[len(IMAGE_R2_PREFIX):].rsplit(".", 1)[0]
         if len(name) == 20 and len(out) < _IMG_INDEX_MAX:   # _image_hash が作る sha1 の頭 20 桁だけを拾う
             out[name] = (key, modified.timestamp())
-    return out
+    return out, total
 
 
-async def _seed_image_index() -> None:
-    """起動後に R2 の imgcache/ を一覧して索引を作る。失敗しても取り直すだけなので握りつぶす。"""
+async def _seed_r2_index() -> None:
+    """起動後に R2 を 1 周して、imgcache の索引と使用量をまとめて作る。
+
+    失敗しても、画像は取り直すだけ・使用量は `_usage_loop` が次の回で拾い直すだけなので握りつぶす。
+    """
     st = storage.get_storage()
-    if not IMAGE_TO_R2 or not st.is_remote or not st.public_url(""):
+    if not st.is_remote:
         return
+    want_index = IMAGE_TO_R2 and bool(st.public_url(""))
     try:
-        got = await asyncio.to_thread(_load_image_index)
+        got, total = await asyncio.to_thread(_load_r2_index)
     except Exception as e:
-        print(f"[error] imgcache の索引を作れませんでした: {type(e).__name__}: {e}")
+        print(f"[error] R2 の一覧を取れませんでした: {type(e).__name__}: {e}")
         return
-    _IMG_INDEX.update(got)
-    print(f"[storage] imgcache の索引: {len(_IMG_INDEX)} 件（デプロイ後の取り直しを防ぐ）")
+    storage.set_usage(total)
+    print(f"[storage] 使用量 {total / 1024**3:.1f} GB（起動時の一覧から）")
+    if want_index:
+        _IMG_INDEX.update(got)
+        print(f"[storage] imgcache の索引: {len(_IMG_INDEX)} 件（デプロイ後の取り直しを防ぐ）")
 
 
 async def _usage_loop() -> None:
-    """R2 の使用量を裏で数え直す（共有の容量の上限に使う。`storage.usage_cached`）。起動直後に 1 回、以後 10 分ごと。
-    全件の一覧に 2 分ほどかかるので、共有の保存の途中では数えない（2026-09-19）"""
+    """R2 の使用量を裏で数え直す（共有の容量の上限に使う。`storage.usage_cached`）。
+
+    全件の一覧に 2 分ほどかかるので、共有の保存の途中では数えない（2026-09-19）。
+    **起動直後の 1 回は `_seed_r2_index()` が済ませているので、先に眠ってから数える**（2026-09-20）。
+    同じ一覧を 2 回回さないため。`_seed_r2_index()` が落ちた場合はここが次の回で拾い直す
+    （それまで `usage_cached()` は None を返し、上限判定は通す。歯止めなので許容する）。
+    """
     while True:
+        await asyncio.sleep(storage.USAGE_CACHE_SEC)
         try:
             t0 = time.monotonic()
             n = await asyncio.to_thread(storage.usage_bytes, True)
             print(f"[storage] 使用量 {n / 1024**3:.1f} GB（数えるのに {time.monotonic() - t0:.0f} 秒）")
         except Exception as e:
             print(f"[error] R2 の使用量を数えられませんでした: {type(e).__name__}: {e}")
-        await asyncio.sleep(storage.USAGE_CACHE_SEC)
 
 
 async def _seed_search_index() -> None:
@@ -1337,10 +1435,13 @@ async def _image_r2_redirect(url: str) -> Response | None:
     # SQLite が忘れていても（デプロイでコンテナのディスクごと消える）、R2 に現物が残っていれば索引で引ける
     key = await asyncio.to_thread(cache.get_image_r2key, url) or _image_index_get(url)
     if not key:
+        _note_img("miss")
         return None
     public = storage.get_storage().public_url(key)
     if not public:
+        _note_img("miss")
         return None
+    _note_img("hit")
     return RedirectResponse(public, status_code=302, headers={"Cache-Control": "public, max-age=86400"})
 
 
@@ -1354,6 +1455,10 @@ async def _image_to_r2(url: str, ctype: str, data: bytes) -> None:
         await asyncio.to_thread(st.put, key, data, ctype)
         await asyncio.to_thread(cache.mark_image_r2, url, key)
         _image_index_put(url, key)   # SQLite の行が掃除されても索引だけで 302 を返せるように
+        _note_img("put")
+        if _image_hash(url) in _img_stale:
+            _img_stale.discard(_image_hash(url))
+            _note_img("stale")   # 新しい画像ではなく、期限切れによる取り直し
     except Exception as e:
         print(f"[error] 画像を R2 に置けませんでした: {type(e).__name__}: {e}")
 

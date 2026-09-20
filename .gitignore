@@ -29,3 +29,11 @@ promo/public/
 !.env.example
 # 譜割りエディタの中身の控え（メモ書きが入るので公開リポジトリに入れない。src/plan.gen.ts は入れる）
 promo/plan.json
+
+# 切り出した CSS / JS（scripts/build_app.py → upload_app_r2.py）。
+# **殻だけはコミットする**（サーバーが frontend/dist/index.html を読んで配るため）。
+# CSS と JS は R2 に上げるので、リポジトリには入れない（毎回 385KB 増えるのを避ける）。
+# 上の dist/ でディレクトリごと無視されているので、順に打ち消す
+!frontend/dist/
+frontend/dist/*
+!frontend/dist/index.html

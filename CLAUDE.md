@@ -77,7 +77,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 
 | ファイル | 役割 | 触るときの注意 |
 | --- | --- | --- |
-| `frontend/index.html` | 画面すべて。CSS も JS も 1 枚に入っている | 固定文字を変えたら**フォントの作り直しと i18n の照合**が要る（下の表） |
+| `frontend/index.html` | 画面すべて。CSS も JS も 1 枚に入っている（**編集するのはここ**） | 固定文字を変えたら**フォントの作り直しと i18n の照合**が要る（下の表）。配るときだけ `build_app.py` が殻＋`app.<hash>.css` / `.js` に割り、CSS と JS は R2 から出す |
 | `backend/main.py` | 経路、CSP、`/image-proxy`、ログ、起動処理 | CSP は `R2_PUBLIC_URL` から自動で組む。手で書き足さない |
 | `backend/render.py` | サーバー側の描画 | `renderShareCanvas` と**対で直す**。`rnd()` を使う（Python の `round()` は偶数丸め） |
 | `backend/grids.py` | 並びの検証・保存 | マスの上限をここだけ小さくすると**並びが黙って潰れる** |
@@ -270,6 +270,7 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
 
 | 何を変えたか | 回すもの | 忘れるとどうなるか |
 | --- | --- | --- |
+| `frontend/index.html`（中身を何か変えたら） | `scripts/build_app.py` → `scripts/upload_app_r2.py` → 殻（`frontend/dist/index.html`）もコミット | 古い CSS / JS が配られ続ける（R2 に新しい名前が無ければ 1 枚配信に倒れるので壊れはしない） |
 | `frontend/index.html` の固定文字 | `scripts/build_fonts.py` → `scripts/upload_fonts_r2.py` | **本番でフォントが 404**（断片名にハッシュが入るため） |
 | 同上 | `scripts/check_i18n.py` | 英語表示でそこだけ日本語のまま残る（警告は出ない） |
 | 描画（`render.py` か `renderShareCanvas`） | `scripts/compare_render.py` | サーバー描画とブラウザ描画がずれる（描けない端末だけ見た目が変わる） |

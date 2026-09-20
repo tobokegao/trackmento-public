@@ -153,10 +153,16 @@ class R2Storage:
         return done
 
 
-# ---- 使用量の集計（10 分キャッシュ。保存のたびに加算するので、その間も上限判定がずれない） ----
+# ---- 使用量の集計（3 時間キャッシュ） ----
+#
+# **全件の一覧は高い**。バケットは 211,301 件・30.41 GB あり、1 周に 132 秒・Class A で 212 回かかる
+# （2026-09-20 の実測）。10 分ごとに回していたころは、この 1 つだけで月 91.6 万回と
+# R2 の無料枠 100 万回のほとんどを使い切っていた（2026-09-20 に 600 秒から延ばした）。
+# 使い道は共有の容量上限（share.py の _check_budget）だけで、上限は暴走の歯止めなので
+# 数時間の遅れは問題にならない。本番は上限 120 GB に対し使用 30 GB。
 _usage_lock = threading.Lock()
 _usage: tuple[float, int] | None = None   # (取得時刻, バイト数)
-USAGE_CACHE_SEC = 600
+USAGE_CACHE_SEC = 3 * 3600
 
 
 _listing = False   # 一覧取得中（重複して回さない）
@@ -178,6 +184,18 @@ def usage_bytes(refresh: bool = False) -> int:
     with _usage_lock:
         _usage = (time.monotonic(), n)
     return n
+
+
+def set_usage(n: int) -> None:
+    """外で数えた合計バイト数を覚える（起動時の一覧と相乗りするため。2026-09-20）。
+
+    起動直後は `main.py` の `_seed_r2_index()` が imgcache の索引を作るために全件を 1 周する。
+    その 1 周でバイト数も足せるので、ここに渡してもらえば同じ一覧を 2 回回さずに済む
+    （起動あたり Class A 344 回 → 212 回）。
+    """
+    global _usage
+    with _usage_lock:
+        _usage = (time.monotonic(), n)
 
 
 def usage_cached() -> int | None:
