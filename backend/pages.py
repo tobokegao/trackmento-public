@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-20", "共有画像に使う文字を、曲を並べている間に先に読み込むようにしました。回線が遅いところで「トラックを共有」を押してからの待ち時間が短くなり、画像の作成に失敗しづらくなります。",
+     "The fonts used in the shared image are now fetched while you arrange your tracks. On a slow connection, there is less waiting after you press “Share tracks”, and the image is less likely to fail."),
     ("2026-09-20", "YouTubeの再生リストを、URLを1本貼るだけでまとめて読み込めるようにしました（最大500曲）。",
      "A YouTube playlist can now be loaded all at once by pasting a single URL (up to 500 tracks)."),
     ("2026-09-20", "手入力で曲を追加するとき、リンク先のURLも入れられるようにしました。共有ページの曲名から、そのページへ飛べるようになります。",

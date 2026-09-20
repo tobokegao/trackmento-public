@@ -4998,6 +4998,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const d = serialize();
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch { /* 容量超過や無効化は無視 */ }
       schedulePush(d);
+      warmShareFonts();   // 共有を押す前に、共有画像用のフォントを裏で取っておく
     }, 150);
   }
   function schedulePush(d) {
@@ -5114,13 +5115,34 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     });
     $("#inapp-close").addEventListener("click", () => { box.hidden = true; try { sessionStorage.setItem("trackmento:inapp-dismissed", "1"); } catch { /* ignore */ } });
   }
+  const shareFontSpecs = () => [fontBold(24), fontRegular(24), fontPixel(24)];
+  // フォントは unicode-range で分割してあるので、描く文字を渡して必要な断片だけ読み込む（曲名・アーティスト名・タイトル・番号・「…」）
+  const shareFontText = () =>
+    ["TRACKMENTO 0123456789…", state.title, ...state.cells.filter(Boolean).flatMap(t => [t.title, t.artist])].map(v => oneLine(v || "")).join(" ");
   async function loadShareFonts() {
-    const specs = [fontBold(24), fontRegular(24), fontPixel(24)];
-    // フォントは unicode-range で分割してあるので、描く文字を渡して必要な断片だけ読み込む（曲名・アーティスト名・タイトル・番号・「…」）
-    const text = ["TRACKMENTO 0123456789…", state.title, ...state.cells.filter(Boolean).flatMap(t => [t.title, t.artist])].map(v => oneLine(v || "")).join(" ");
+    const specs = shareFontSpecs(), text = shareFontText();
     // 回線が遅いときにサーバー描画へ落ちると、かえってサーバーが詰まる。フォントは長めに待つ
     const ok = await Promise.race([Promise.all(specs.map(f => document.fonts.load(f, text))).then(() => true), sleep(25000).then(() => false)]);
     if (!ok || !specs.every(f => document.fonts.check(f, text))) throw new Error("fonts not ready");
+  }
+  /* **並べている間にフォントを温めておく**（2026-09-20）。画面は IBM Plex Sans JP の Regular しか使わないので、
+     共有を押した瞬間が Bold を要求する最初の機会になっていた。押してから Bold の先頭断片（124KB）と
+     曲名の漢字ブロックぶんの断片がまとめて落ちてくるため、遅い回線では 25 秒の上限に当たり、
+     `font_fail` を出してサーバー描画へ落ちていた（点検で 2 時間に 16 件、サーバー描画 16 件と一致）。
+     実測（遅い 3G・断片のキャッシュ無し）: 9 曲 6.5 秒 → 1ms、32 曲 6.9 秒 → 2ms、256 曲 25 秒で失敗 → 6ms。
+     R2 の転送量は無料なので、先に取っておくこと自体の費用は無い */
+  let warmTimer = null, warmedText = "";
+  function warmShareFonts() {
+    if (!ready || MIGRATING) return;
+    clearTimeout(warmTimer);
+    // ジャケットの読み込みと競らせない。並べ終える前に何度も走らせても無駄なので、手が止まってから
+    warmTimer = setTimeout(() => {
+      const text = shareFontText();
+      if (text === warmedText) return;
+      warmedText = text;
+      const go = () => { for (const f of shareFontSpecs()) document.fonts.load(f, text).catch(() => { warmedText = ""; }); };
+      if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 4000 }); else go();
+    }, 2000);
   }
   const yieldToUI = () => new Promise(res => setTimeout(res, 0));
   // 描く前に「それぞれの画像が R2 のどこにあるか」をまとめて聞いておく（POST /image-r2）。
