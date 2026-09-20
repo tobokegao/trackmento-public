@@ -1252,6 +1252,10 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
     6. `node promo/shoot_tables.mjs outputs/note/trackmento-story.html outputs/note`（表の画像。story の表から撮る）
     7. `scripts/build_note_paste.py`（note に貼る HTML と、アーティファクト版 `note-paste-artifact.html`）
     8. アーティファクトを 2 つ更新（story: LqMEwkwDwu6jFkk5N3N3ih、貼り付け用: AVDUx4d3UEsUMdUqEJRXSs）
+- **点検の数字は `metrics/series.jsonl` に 1 行ずつ残す**（2026-09-20）。Render のログは日が経つと消えるので、
+  あとから推移を描くにはここに残すしかない（`outputs/note/series.json` は手で集めていたので 09-17 で止まっていた）。
+  `render_check.py --append metrics/series.jsonl` で足り、`render-check.yml` が 2 時間おきに commit する。
+  **`metrics/` は `buildFilter` に無いので、この push でデプロイは走らない**。語や URL は入れない（ホスト名と件数だけ）
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）
   - **`?src=…` でどこから来たかを数える**（2026-09-15）。投稿に貼るリンクへ `?src=x` のように付けると、

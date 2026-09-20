@@ -14,7 +14,7 @@ on:
         default: "2"
 
 permissions:
-  contents: read
+  contents: write   # 点検の数字を metrics/series.jsonl に書き足すため
   issues: write
 
 jobs:
@@ -33,9 +33,26 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           set +e
-          python scripts/render_check.py --hours "${{ inputs.hours || '2' }}" --strict --out summary.md
+          python scripts/render_check.py --hours "${{ inputs.hours || '2' }}" --strict --out summary.md --append metrics/series.jsonl
           echo "code=$?" >> "$GITHUB_OUTPUT"
           cat summary.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "要約なし（スクリプトが途中で落ちた）" | tee summary.md >> "$GITHUB_STEP_SUMMARY"
+      # 点検の数字を 1 行ずつ残す（Render のログは日が経つと消えるので、あとから推移を描けるように）。
+      # **`metrics/` は render.yaml の buildFilter に入っていないので、これを push してもデプロイは走らない**
+      - name: 推移の記録を足す
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          test -s metrics/series.jsonl || exit 0
+          git add metrics/series.jsonl
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(metrics): 点検の数字を 1 行足す [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase --autostash && git push && exit 0
+            sleep 5
+          done
+          echo "記録を push できなかった（次の点検でまとめて入る）"
+
       - name: 異常なら Issue に書く
         if: steps.check.outputs.code == '2'
         env:

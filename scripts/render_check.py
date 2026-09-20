@@ -646,12 +646,52 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     return "\n".join(lines), problems
 
 
+# ---- 推移の記録（2026-09-20）----
+# 点検の数字はログからしか取れず、Render のログは日が経つと消える。**点検のたびに 1 行残す**ようにして、
+# あとから推移の図を描けるようにする（`outputs/note/series.json` は手で作っていたので 09-17 で止まっていた）。
+# 1 行 1 回分の JSON Lines。**語や URL は入れない**（ホスト名と件数だけ。`[out]` と同じ方針）
+
+def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: list[str]) -> None:
+    """点検 1 回分を JSON Lines で書き足す。読みやすさより機械で読める形を優先する"""
+    gb = sum(v for _, v in (bw[1] or []))
+    rss = [v for _, v in (la.get("rss") or [])]   # (時刻, MB) の並び
+    rec = {
+        "jst": datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M"),
+        "hours": round(hours, 2),
+        "req": sum(v["count"] for v in (la.get("per_path") or {}).values()),
+        "gb": round(gb, 3),
+        "fivexx": sum(v["5xx"] for v in (la.get("per_path") or {}).values()),
+        "rss": round(max(rss), 1) if rss else None,
+        "cpu": round(max((v for _, v in (cpu[1] or [])), default=0.0), 3),
+        "mem_mb": round(_to_mb(mem), 1) if mem[1] else None,
+        "shares": (la.get("restored") or [(None, None)])[-1][1],
+        "out": dict(sorted((la.get("out") or {}).items(), key=lambda kv: -kv[1])[:12]),
+        "srch": {k: [v["db"], v["r2"], v["net"], v["fail"]] for k, v in (la.get("per_src") or {}).items()},
+        "vocadb": la.get("vocadb") or {},
+        "client": la.get("client") or {},
+        "ng": len(problems),
+    }
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + chr(10))
+    print(f"[append] {p} に 1 行足した（{rec['jst']} JST）")
+
+
+def _to_mb(metric) -> float:
+    """メモリの系列（単位は API が返す）から最大値を MB で返す"""
+    unit, series = metric
+    top = max((v for _, v in (series or [])), default=0.0)
+    return top / (1024 * 1024) if (unit or "").lower().startswith("byte") else top
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--hours", type=float, default=2.0, help="さかのぼる時間（既定 2）")
     ap.add_argument("--strict", action="store_true", help="異常があれば終了コード 2")
     ap.add_argument("--out", help="要約（Markdown）を書き出すファイル")
     ap.add_argument("--json", action="store_true", help="集計結果を JSON でも標準出力に出す")
+    ap.add_argument("--append", metavar="PATH", help="1 行 1 回分の記録（JSON Lines）を書き足す。推移の図はこれを元に描く")
     args = ap.parse_args()
 
     _load_dotenv()
@@ -689,6 +729,8 @@ def main() -> int:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
     if args.json:
         print(json.dumps({"problems": problems, "per_path": la["per_path"], "rss": la["rss"][-5:], "events": [e.get("type") for e in events]}, ensure_ascii=False))
+    if args.append:
+        _append_record(args.append, args.hours, la, bw, mem, cpu, problems)
     return 2 if (problems and args.strict) else 0
 
 
