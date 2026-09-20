@@ -192,7 +192,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[out]*", "[vocadb]*", "[client]*", "[upload]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[out]*", "[vocadb]*", "[client]*", "[img]*", "[upload]*", "Traceback*", "ERROR:*"]
 
 
 # 1 時間あたりに読むページ数の見込み（1 ページ 100 行）。印付きの行は実測で 1 時間 600〜800 行ほど
@@ -321,6 +321,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     per_src: dict[str, dict] = defaultdict(lambda: {"db": 0, "r2": 0, "net": 0, "fail": 0, "max_s": 0.0,
                                                     "hist": [0] * (len(LAT_BUCKETS) + 1)})
     client: Counter[str] = Counter()   # [client] ブラウザ側で起きた失敗の種類 → 件数
+    img: Counter[str] = Counter()      # [img] imgcache の当たり外れ（hit/miss/put/stale）
     vocadb: Counter[str] = Counter()   # [vocadb] VocaDB へ聞いた回数と、覚えていて聞かずに済んだ回数
     out: Counter[str] = Counter()      # [out] 外へ出した要求のホスト → 件数
     upload = {"n": 0, "recv_max": 0.0, "save_max": 0.0, "cut": 0, "busy": 0, "kb": [],
@@ -371,6 +372,11 @@ def analyze_logs(logs: list[dict]) -> dict:
                 upload["kb"].append(float(kv["kb_med"]))
             if kv.get("recv_h"):
                 _add_hist(upload["recv_h"], kv["recv_h"])
+        elif m.startswith("[img]"):
+            for pair in m[len("[img]"):].split():
+                k, _, n = pair.rpartition("=")
+                if k and n.isdigit():
+                    img[k] += int(n)
         elif m.startswith("[client]"):
             for pair in m[len("[client]"):].split():
                 k, _, n = pair.rpartition("=")
@@ -440,6 +446,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "per_path": dict(per_path),
         "per_src": dict(per_src),
         "client": dict(client),
+        "img": dict(img),
         "vocadb": dict(vocadb),
         "out": dict(out),
         "upload": upload,
@@ -617,6 +624,15 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         per_day = net / max(hours, 0.01) * 24
         lines.append(f"- VocaDB へ聞いた回数: {net}（1 日に直すと約 {per_day:.0f}）。覚えていて聞かずに済んだ {kept}。"
                      + "内訳 " + "、".join(f"`{k}` {n}" for k, n in sorted(vd.items(), key=lambda kv: -kv[1])))
+    im = la.get("img") or {}
+    if im:
+        hit, miss, put, stale = (im.get(k, 0) for k in ("hit", "miss", "put", "stale"))
+        rate = 100 * hit / (hit + miss) if (hit + miss) else 0.0
+        # 42% が損益分岐。キャッシュが無いと 37KB の画像 1 枚で「取り直す」＋「返す」の 2 回ぶん（$0.0000106）を
+        # 食い、PutObject 1 回は $0.0000045。下回り続けるなら R2 に置かないほうが安い
+        note = "置き続けてよい" if rate >= 42 else "**42% を下回っている（置かないほうが安いかもしれない）**"
+        lines.append(f"- 画像キャッシュ: 当たり {hit}／外れ {miss}（当たり {rate:.0f}%、分岐点 42% → {note}）、"
+                     f"R2 に置いた {put}" + (f"（うち期限切れの取り直し {stale}）" if stale else ""))
     cl = la.get("client") or {}
     if cl:
         # ブラウザ側で起きた失敗（画面が /hiccup に送る種類と回数）。サーバーのログには他に何も残らない
@@ -669,6 +685,7 @@ def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: li
         "srch": {k: [v["db"], v["r2"], v["net"], v["fail"]] for k, v in (la.get("per_src") or {}).items()},
         "vocadb": la.get("vocadb") or {},
         "client": la.get("client") or {},
+        "img": la.get("img") or {},
         "ng": len(problems),
     }
     p = Path(path)
