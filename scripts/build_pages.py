@@ -41,7 +41,7 @@ def build(api: str, out: Path) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--api", default="", help="バックエンドの URL（例: https://trackmento.onrender.com）。空なら同一オリジン")
+    ap.add_argument("--api", default="", help="バックエンドの URL（例: https://trackmento.com）。空なら同一オリジン")
     ap.add_argument("--out", default="dist", help="出力先ディレクトリ")
     a = ap.parse_args()
     build(a.api, Path(a.out))

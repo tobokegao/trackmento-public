@@ -10,7 +10,7 @@ page.on("response", async (r) => {
   const key = u.hostname + (u.pathname.startsWith("/image-proxy") ? "/image-proxy" : u.pathname.split("/").slice(0, 2).join("/"));
   sizes.set(key, (sizes.get(key) || 0) + (h ? +h : 0));
 });
-await page.goto("https://trackmento.onrender.com/", { waitUntil: "networkidle" });
+await page.goto("https://trackmento.com/", { waitUntil: "networkidle" });
 const out = await page.evaluate(async () => {
   const r = await fetch("/shares/1a01be848019.json");
   const d = await r.json();

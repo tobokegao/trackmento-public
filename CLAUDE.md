@@ -87,7 +87,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 | `backend/merge.py` | 出どころ違いの結果をまとめる | 曲名の正規化はブラウザの `nkey()` と**同じ規則**にする |
 | `cli.py` | スマホから使うための命令 | サーバーが動いていないと使えない |
 | `scripts/` | 点検・突き合わせ・フォント生成・割り付けの総点検 | 下の「変更したら回すもの」に載っているものは必ず回す |
-| `promo/` | 紹介動画（Remotion + Playwright）と、記事用の GIF・写真の撮影 | 詳しくは `video-notes.md`。**撮影は `capture.mjs`（1 コマずつ・場面ごと）、書き出しは `render_cached.mjs`（変わった区切りだけ）、台本は譜割りエディタから `plan_gen.mjs`**（2026-09-20）。**使い捨ての調査スクリプトは置かない**（scratchpad で済ませる。2026-09-16 に 19 本たまって消した） |
+| `promo/` | 紹介動画（Remotion + Playwright）と、記事用の GIF・写真の撮影 | 詳しくは `video-notes.md`。**撮影は `capture.mjs`（1 コマずつ・場面ごと）、書き出しは `render_cached.mjs`（変わった区切りだけ）、台本は譜割りエディタから `plan_gen.mjs`**（2026-09-20）。**使い捨ての調査スクリプトは置かない**（scratchpad で済ませる。2026-09-16 と 2026-09-20 に 19 本ずつ消した。**docs か video-notes.md から名指しされているものだけ残す**） |
 
 ### データはどこにあるか
 
@@ -274,6 +274,7 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
 | 同上 | `scripts/check_i18n.py` | 英語表示でそこだけ日本語のまま残る（警告は出ない） |
 | 描画（`render.py` か `renderShareCanvas`） | `scripts/compare_render.py` | サーバー描画とブラウザ描画がずれる（描けない端末だけ見た目が変わる） |
 | マスの上限 | 4 か所すべて（下記） | 並びが黙って潰れる |
+| 機能を足した・やめた | `scripts/check_consistency.py`（手順は `/consistency-check`） | 文書と画面に古い案内が残る |
 
 上限の 4 か所: `frontend/index.html` の `MAX_SIDE_CELLS`（1 辺 32）と `MAX_CELLS`（総数 256）、
 `backend/grids.py` の `MAX_COLS` / `MAX_ROWS`（1 辺）、`backend/config.py` の `max_cells()`（総数）。

@@ -1,7 +1,7 @@
 """TRACKMENTO の安全性チェック（自動部分）。/site-safety-check スキルから呼ぶ。
 
   .venv/Scripts/python scripts/safety_check.py                                  # ローカル（http://127.0.0.1:8000）
-  .venv/Scripts/python scripts/safety_check.py https://trackmento.onrender.com  # 公開サイト
+  .venv/Scripts/python scripts/safety_check.py https://trackmento.com  # 公開サイト
 
 サーバーに対して読み取り中心の検査をする。書き込みは「検査用グリッド 1 件の PUT」と「メタデータ付き画像 1 枚のアップロード」
 「共有 1 件の作成」だけで、共有とアップロードは R2 の資格情報（.env）があれば最後に消す。
