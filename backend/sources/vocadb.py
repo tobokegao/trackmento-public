@@ -27,6 +27,28 @@ from backend import searchcache
 from backend.models import Track
 
 API = "https://vocadb.net/api/songs"
+
+# ---- 外へ出すときの門（2026-09-20）----
+# VocaDB から「1 分に 2 回くらいなら気にする量ではない。できれば**間隔を空けて、同時に多く送らない**でほしい」
+# と返答をもらった（問い合わせへの回答）。数の上限ではなく**出し方**の要望なので、
+# **VocaDB へのすべての要求**（検索・動画 ID・題からの検索）をこの門に通す。
+#   - `_GATE` … 同時に出す本数。3 → 2
+#   - `MIN_GAP` … 直前の要求からこれだけ空ける。まとめて貼られたときも階段状に出る
+# マイリストの穴埋めは全体 10 秒で打ち切るので、間隔を空けたぶん埋まる数は減る（正しさより行儀を取る）
+_GATE = asyncio.Semaphore(2)
+_gap_lock = asyncio.Lock()
+_last_call_at = 0.0
+MIN_GAP = 0.5
+
+
+async def _pace() -> None:
+    """直前の要求から MIN_GAP 秒は空ける（プロセス全体で 1 本の列）"""
+    global _last_call_at
+    async with _gap_lock:
+        wait = MIN_GAP - (time.monotonic() - _last_call_at)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _last_call_at = time.monotonic()
 UA = "trackmento/0.1 (+https://trackmento.com)"
 PAGE = 30            # 1 回に取る件数の上限（VocaDB 側は 50 まで受けるが、候補パネルに合わせる）
 TIMEOUT = 20         # 実測で 1.6〜2.8 秒。iTunes より遅いので、選んだときだけ引く
@@ -150,11 +172,13 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE,
     own = client is None
     client = client or httpx.AsyncClient(timeout=TIMEOUT)
     try:
-        r = await client.get(API, params={
-            "query": query, "maxResults": max(1, min(limit, PAGE)),
-            "nameMatchMode": "Auto", "sort": "RatingScore", "preferAccurateMatches": "true",
-            "fields": "ThumbUrl,PVs,Artists", "lang": "Japanese",
-        }, headers={"User-Agent": UA})
+        async with _GATE:
+            await _pace()
+            r = await client.get(API, params={
+                "query": query, "maxResults": max(1, min(limit, PAGE)),
+                "nameMatchMode": "Auto", "sort": "RatingScore", "preferAccurateMatches": "true",
+                "fields": "ThumbUrl,PVs,Artists", "lang": "Japanese",
+            }, headers={"User-Agent": UA})
         r.raise_for_status()
         items = (r.json() or {}).get("items") or []
     finally:
@@ -189,7 +213,6 @@ BY_PV = "https://vocadb.net/api/songs/byPv"
 PV_TIMEOUT = 8
 PV_TTL = 86400
 PV_CACHE_MAX = 5000
-_PV_SEM = asyncio.Semaphore(3)
 _pv_cache: dict[tuple[str, str], tuple[float, str]] = {}   # (サービス, 動画 ID) → (時刻, アーティスト名。無ければ "")
 
 # 作者名の控えを R2 にも置く（2026-09-20）。メモリの控えは 1 日もつが、**デプロイのたびにプロセスごと消える**。
@@ -234,7 +257,8 @@ async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
     client = client or httpx.AsyncClient(timeout=PV_TIMEOUT)
     name = ""
     try:
-        async with _PV_SEM:
+        async with _GATE:
+            await _pace()
             r = await client.get(BY_PV, params={"pvService": service, "pvId": pv_id, "fields": "Artists", "lang": "Japanese"},
                                  headers={"User-Agent": UA}, timeout=PV_TIMEOUT)
         if r.status_code == 200 and r.content.strip() not in (b"", b"null"):
@@ -323,7 +347,8 @@ async def artist_by_title(title: str, *, client: httpx.AsyncClient | None = None
     try:
         for q in _title_queries(title):
             note_call("title")
-            async with _PV_SEM:
+            async with _GATE:
+                await _pace()
                 r = await client.get(API, params={
                     "query": q, "maxResults": 10, "nameMatchMode": "Auto", "sort": "RatingScore",
                     "preferAccurateMatches": "true", "fields": "Names,Artists", "lang": "Japanese",
