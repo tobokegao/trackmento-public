@@ -180,8 +180,9 @@ export const FASTER_ROWS: { jp: string; en: string; from: string; to: string }[]
 export const TIMELAPSE_KIME = [0, 1, 2, 3];   // タイムラプスの頭からの拍（42.4.5 / 43.1.5 / 43.2.5 / 43.3.5）。最後の 1 つで横に引き伸ばす
 
 /** URL 検索の対応サイト（8 分音符 3 連で 1 つずつ出す） */
-export const SITES = ["YouTube", "ニコニコ", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];
-export const SITES_EN = ["YouTube", "Niconico", "Bandcamp", "SoundCloud", "Spotify", "bilibili", "Apple Music"];
+// bilibili は 2026-09-20 に対応をやめた（利用者規約 4.2.11）ので外した
+export const SITES = ["YouTube", "ニコニコ", "Bandcamp", "SoundCloud", "Spotify", "Apple Music"];
+export const SITES_EN = ["YouTube", "Niconico", "Bandcamp", "SoundCloud", "Spotify", "Apple Music"];
 
 /** ⑥「さらに軽くなりました」で出す数字（録画ではなく作った画で見せる。v3 は 2026-09-16 の対策の数字） */
 export const BANDWIDTH_ROWS: { jp: string; en: string; from: string; to: string }[] = [

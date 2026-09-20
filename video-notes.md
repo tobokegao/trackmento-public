@@ -279,6 +279,11 @@ X で xxxbaaa（@xxxbaaa07gk）さんから「音と画を合わせるのに足�
   （載せた共有は本番の「みんなのグリッドを探す」に出てしまう）
 - 使い方: `node capture.mjs`（本編）、`SCENE=feat node capture.mjs`、`MODE=pc`・`LANG_UI=en` で横・英語。
   `--list` で撮り直しが要る場面を見る、`--only 名前,名前` で指定した場面だけ、`--force` で全部
+- **サイト側の文言や見た目を直しても指紋は変わらない**（指紋は `CAPTURE_VERSION`・台本の関数・頭の状態だけで、
+  サイトのコードは見ていない）。画面に映る文言を変えたら、それが映る場面を `--only` で撮り直す。
+  2026-09-20: bilibili の対応をやめたのに「URL から」欄の古い説明（`… / bilibili / Spotify …`、`bilibili は 20 曲まで`）が
+  25・26・27–28 小節に残っていた。`add-talk`（main）と `multi` / `playlist`（feat）を撮り直して直した（v13）。
+  マスの中身は変わらないので後ろの場面の指紋は動かず、書き出しも `--only 25-28` の 2 区切りで済んだ
 
 ### 3. 変わった区切りだけ書き出す（`promo/render_cached.mjs`）
 
