@@ -609,7 +609,7 @@ function shotSeq(L: Layout, s: Shot, next: number, base: number) {
                 {/* 札はタイトルの裏に回す（先に描くと字幕が上に来る） */}
                 {s.ab && <AbBadge L={L} />}
                 {s.scrap && <div style={{ position: "absolute", inset: 0, zIndex: 2 }}><Caption L={L} jp={s.jp} en={s.en} /></div>}
-                {!s.scrap && <Caption L={L} jp={s.jp} en={s.en} still={s.capStill} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.ev === "url:talk" && <SiteBadges L={L} startBeat={s.beat} />}</Caption>}
+                {!s.scrap && <Caption L={L} jp={s.jp} en={s.en} still={s.capStill} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.sites && <SiteBadges L={L} startBeat={s.beat} />}</Caption>}
                 {!s.scrap && <Phone L={L} fx={s.fx}>
                   {s.stills ? (
                     <Stills L={L} shot={s} />

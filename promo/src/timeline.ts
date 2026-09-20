@@ -112,6 +112,7 @@ export type Shot = {
   labels?: { jp: string; en: string }[];                                                          // stills ごとの添え書き
   capStill?: boolean;                                                                             // 字幕を動かさずに出したまま（前のショットから続けて見せる）
   scrap?: boolean;                                                                                // stills をスクラップブックのように角度・位置をばらして重ねていく（v6）
+  sites?: boolean;                                                                                // 字幕の下に URL 対応サイトのバッジを 8 分音符 3 連で並べる（SITES）
   explorer?: { ev: string; beats?: [number, number, number]; hide?: number; file?: string };  // hide = 窓を引っ込める拍、file = 出すファイル名（録画に名前が無いとき）                                     // beats = ショットの頭からの拍（窓が出る・ファイルが入る・選択の青が点滅し始める）                                                                      // その操作の時刻に「ファイルが保存された」窓を重ねる（v6、パレットの保存）
 };
 
@@ -136,7 +137,7 @@ const SHOT_EXTRAS: Record<string, Partial<Shot>> = {
   "37o6me6": {"zoomPc": {"x": 0.52, "y": 0.36, "s": 1.8}},   // 枠をタップ
   "blgvply": {"zoomPc": {"x": 0, "y": 0.43, "s": 1.9}},   // 検索ソースは 4 種類
   "d0fv045": {"zoomPc": {"x": 0, "y": 0.3, "s": 1.7}},   // 曲を探す
-  "dcj7rht": {"zoomPc": {"x": 0, "y": 0.74, "s": 1.7}},   // URL 検索も対応
+  "dcj7rht": {"zoomPc": {"x": 0, "y": 0.74, "s": 1.7}, "sites": true},   // URL 検索も対応（対応サイトのバッジを出す）
   "eoqbxrm": {},   // 改行で区切って丸ごと挿入
   "9mxejt1": {},   // Playlist の URL で一気に追加
   "zd9g3ak": {},   // 最大 500 曲がまとめて入る
