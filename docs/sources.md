@@ -1,7 +1,7 @@
 # 取得元（backend/sources/）
 
 iTunes・MusicBrainz・VocaDB・otoDB・Bandcamp などからの取得と、画像の大きさの選び方。
-各サービスの規約と上限は CLAUDE.md の「外部サービスの規約」を見る。
+各サービスの規約と上限は `docs/services-terms.md` を見る。
 
 （`CLAUDE.md` から分けたもの。2026-09-20。中身は当時のまま）
 
@@ -9,7 +9,7 @@ iTunes・MusicBrainz・VocaDB・otoDB・Bandcamp などからの取得と、画�
   - iTunes `itunes.clamp_size` … `/1000x1000bb.jpg` → `/600x600bb.jpg`（171KB → 77KB）
   - Bandcamp `bandcamp.clamp_size` … 欲しい実寸を満たす最小のサイズコードを選ぶ（`_7` 150px/11KB → `_9` 210px/20KB →
     `_4` 300px/34KB → `_16` 700px/88KB）。**原寸 `_0` は 1 枚 6.5MB あった**。コードと実寸の対応は総当たりで調べた値を `_CODE_PX` に持つ
-  - bilibili `video.clamp_size` … 指定なし（原寸）→ `@600w_600h_1c`（640KB → 50KB）
+  - bilibili `video.clamp_size` … 指定なし（原寸）→ `@600w_600h_1c`（640KB → 50KB）。**2026-09-20 に URL 貼付をやめたので、すでに並びに入っている画像にだけ効く**
   - **うちが知らないホストの画像（利用者が手で貼った URL）も、サーバー側で縮める**（2026-09-15）。
     どこのサイトか分からないので `clamp_size` が効かず、原寸のまま通っていた（実測で 3000x3000 が素通し）。
     `_known_image_host()`（`IMAGE_HOST_ALLOWLIST` に末尾一致するか）で判定し、知らないホストなら otoDB と同じ扱いにする。
@@ -20,7 +20,7 @@ iTunes・MusicBrainz・VocaDB・otoDB・Bandcamp などからの取得と、画�
     常に 1280x720 / 平均 166KB を返すため、256 マスだと合計 41.5MB になる。**マスは正方形で中央を切り抜くので短辺を基準に縮める**
     （長辺で縮めると短辺が足りず拡大ボケする）。刻みは 200px 単位（200/400/600）で、キャッシュと R2 のキーは `<url>#px=<N>` と分ける。
     短辺 200px で 1 枚 22.6KB（256 マスで 5.7MB、-86%）。これだけ JPEG 品質 85 で再エンコードするので原本とはバイト列が変わる
-  - 実測して問題が無かったもの: SoundCloud 78KB、YouTube 32KB、ニコニコ 10KB、Spotify 120KB（640px）、Cover Art Archive は `front-250`（28KB）が最小で 250/500/1200 の 3 段階しかない
+  - 実測して問題が無かったもの: SoundCloud 78KB、YouTube 32KB、ニコニコ 10KB、Spotify 120KB（640px。鍵があるときの値。本番は鍵なしで oEmbed の 300px）、Cover Art Archive は `front-250`（28KB）が最小で 250/500/1200 の 3 段階しかない
     （ブラウザから直接読むので Render を通らない）
 - **Bandcamp のアーティスト名は `data-tralbum` から取る**（`bandcamp.fetch`、2026-09-16）。
   JSON-LD の `byArtist` だけを見ていたが、**レーベルのアカウントが上げた曲ではそこがレーベル名**に
@@ -95,7 +95,7 @@ iTunes・MusicBrainz・VocaDB・otoDB・Bandcamp などからの取得と、画�
   - **「有名 × 削除済み」は珍しい**。転載の多い作品は誰かが再アップし続けるので生き残り、
     消えるのは 1 本しか上がっていない作品が多い。2026-09-14 に 75 work を調べて、
     ソースが 5 件以上あって削除済みを含むのは 1 件だけだった（動画の素材探しの結論は `video-notes.md`）
-  - **roxy が未登録の動画を各サイトから取りに行くのはニコニコだけ**（2026-09 実測）。YouTube / bilibili /
+  - **roxy が未登録の動画を各サイトから取りに行くのはニコニコだけ**（2026-09 実測）。YouTube / bilibili（2026-09-20 に対応をやめた）/
     SoundCloud は生きている URL でも 404 `Cannot fallback` になる。otoDB に登録済みの作品なら
     他のサイト出典でも引ける可能性はあるが未確認。SoundCloud 対応を足すならここが確認できてから
   - **roxy の応答には Cache-Control が無い**ので、結果を `cache.sqlite3` の search テーブルに

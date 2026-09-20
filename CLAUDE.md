@@ -6,15 +6,15 @@
 画像を、音楽サブスクに入っていなくても、どのサイトの曲でも混ぜて作れるようにしたもの。
 
 本番 https://trackmento.com/ 。（2026-09-18 に trackmento.onrender.com から移転。古い URL は引っ越しの受け皿として生かしてある）手元では同じコードをローカルの uvicorn で動かす。
-仕様と経緯の原本は `trackmento-spec.md`。このファイルは**作業する人がまず読むもの**。
+`trackmento-spec.md` は 2026-09-09 時点の初期仕様の記録（今の仕様はこのファイルと `docs/` が正）。このファイルは**作業する人がまず読むもの**。
 
 ### 何が他と違うか
 
 - **曲単位**で扱う。アルバム単位の似た道具は多いが、曲ごとのジャケットを並べられるものは少ない
-- **出どころを混ぜられる**。iTunes・MusicBrainz・otoDB の検索に加えて、Bandcamp / SoundCloud /
-  YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music の URL を貼っても入る。
+- **出どころを混ぜられる**。iTunes・MusicBrainz・otoDB・VocaDB（Discogs はトークンがあるとき）の検索に加えて、
+  Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music の URL を貼っても入る。
   ジャケットが無い曲は画像 URL を手で入れてもいい
-- **プレイリストを丸ごと**入れられる（最大 500 曲）。マイリストやセットの URL を 1 本貼るだけ
+- **プレイリストを丸ごと**入れられる（最大 500 曲）。マイリストや再生リストの URL を 1 本貼るだけ
 - **消えた動画がよみがえる**。削除済みのニコニコ動画でも、otoDB（音MAD データベース）に
   登録があればタイトル・作者・サムネイルを引ける
 - **登録なし・無料**。並びはブラウザとサーバーの両方に持ち、共有は 30 日で自然に消える
@@ -176,7 +176,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 
 - `PUBLIC_MODE` … 1 で公開モード。**手元のブラウザ確認でも必ず付ける**（付けないと利用者の `grids/default.json` を上書きする）
 - `MAX_CELLS` / `MAX_SIDE` … マスの総数と PNG の最大辺。**変えるなら 4 か所すべて**（下の表）
-- R2 の 5 つ（`R2_ACCOUNT_ID` ほか）… 揃っていないと `get_storage()` が黙ってローカルの `shares/` に落ちる
+- R2 の 4 つ（`R2_ACCOUNT_ID` ほか。`R2_PUBLIC_URL` と `R2_ENDPOINT` は任意）… 揃っていないと `get_storage()` が黙ってローカルの `shares/` に落ちる
 - 鍵は**リポジトリに書かない**。本番は Render のダッシュボード、手元は `.env`、点検は GitHub Secrets
 
 ## 起動（PC 側、毎回）
@@ -196,7 +196,7 @@ claude --remote-control TRACKMENTO                                             #
 
 ```bash
 .venv/Scripts/python cli.py add    --artist "A" --title "T" [--grid NAME] [--source itunes|mb|discogs|otodb] [--first]
-.venv/Scripts/python cli.py add    --url "https://xxx.bandcamp.com/track/..." [--grid NAME]     # Bandcamp / SoundCloud / Spotify / YouTube / ニコニコ動画 / bilibili の URL
+.venv/Scripts/python cli.py add    --url "https://xxx.bandcamp.com/track/..." [--grid NAME]     # Bandcamp / SoundCloud / Spotify / Apple Music / YouTube / ニコニコ動画の URL
 .venv/Scripts/python cli.py add    --image "https://.../cover.jpg" --artist "A" --title "T" [--grid NAME]   # 手入力
 .venv/Scripts/python cli.py pick   --index N [--grid NAME]     # 直前の候補から選ぶ
 .venv/Scripts/python cli.py search --artist "A" --title "T"    # 候補を見るだけ（pick で選べる）
@@ -215,7 +215,7 @@ claude --remote-control TRACKMENTO                                             #
 - 既定グリッド `default`。状態は `grids/<NAME>.json` 保存、Web UI と共有
   （Web は起動時 localStorage とサーバーの新しい方を読込。開いたままの Web には「サーバーから読み直す」ボタン）
 - `share` / `render` は指定オプションをグリッド JSON にも保存。次回以降省略可
-- `share` は画像（JPEG 品質 90）と並びスナップショットを `shares/<id>.{jpg,json}` 保存、共有ページ `http://…/s/<id>` の URL 出力。
+- `share` は画像（JPEG 品質 78）と並びスナップショットを `shares/<id>.{jpg,json}` 保存、共有ページ `http://…/s/<id>` の URL 出力。
   共有ページ内容: 画像・曲リスト・「TRACKMENTO で開く」（`/?share=<id>` でその並びを Web 読込）
 - `share` / `render` 最終行は必ず `URL: http://...`
 - 検索結果・画像は `cache.sqlite3` にキャッシュ。再取得は Web の `/search?...&nocache=true`
@@ -227,7 +227,7 @@ claude --remote-control TRACKMENTO                                             #
 2. 曲名＋アーティスト一致候補あれば自動で次の空きマスへ。出力「NN 番に追加: …」をそのまま伝達
    （検索順 iTunes → MusicBrainz → Discogs（--source mb,discogs 等で絞込可）。iTunes は曲名・アーティスト名にクエリ含むもののみ返却、完全一致先頭）
 3. **候補複数時は必ず番号付き提示、ユーザーの番号返答後** `cli.py pick --index N` で確定。勝手に選ばない
-4. 未発見時の順: `--source discogs` / `--source mb`（音MAD は `--source otodb`）→ Bandcamp / SoundCloud / Spotify / YouTube / ニコニコ動画 / bilibili なら URL 受取→ `--url URL` → 画像 URL 受取→ `--image URL --artist --title`
+4. 未発見時の順: `--source discogs` / `--source mb`（音MAD は `--source otodb`）→ Bandcamp / SoundCloud / Spotify / Apple Music / YouTube / ニコニコ動画なら URL 受取→ `--url URL` → 画像 URL 受取→ `--image URL --artist --title`
 5. 空きマスなしの場合、`remove --index N` で除外か `render --size 4x6` 等で拡張かをユーザーに確認
 
 ### 「今の並びは？」
@@ -357,7 +357,7 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
 
 ## 覚え書き（核）
 
-- **マスの上限は 3 か所にあり、ずれると並びが黙って壊れる**。`frontend/index.html` の `MAX_SIDE_CELLS`（1 辺）と
+- **マスの上限は 4 か所にあり、ずれると並びが黙って壊れる**。`frontend/index.html` の `MAX_SIDE_CELLS`（1 辺）と
   `MAX_CELLS`（総数）、`backend/grids.py` の `MAX_COLS` / `MAX_ROWS`（1 辺）、`backend/config.py` の `max_cells()`（総数）。
   **`grids.py` の側を小さくしてはいけない**。`GridDoc` の検証は cols/rows を黙って丸め、はみ出したマスを stash に移すので、
   16x16 の並びを保存した瞬間に 12x12 へ潰れる（2026-09-14 に実際に起きていた。上限を 256 に上げたとき

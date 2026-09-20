@@ -34,7 +34,7 @@ from backend.sources import applemusic, bandcamp, otodb, spotify, video, vocadb
 # （500 は実機で候補パネルの描画が 500 件 52ms／1000 件 132ms だったので、その手前で切った値。
 #  ニコニコのマイリストの上限もちょうど 500 で、他のソースは実測でこれに届かない）。
 # 1 回のページ取得で返る分だけ入れる（ソースによっては 1 回で全部返らない。
-# ニコニコは全件、YouTube は 100 件、bilibili は 20 件が上限）
+# ニコニコと YouTube は全件（YouTube は Data API で 50 件ずつ 10 ページまで））
 MAX_ITEMS = 500
 
 # **名乗りは正直にする**（2026-09-20）。以前は素の Chrome の User-Agent を送っていたが、

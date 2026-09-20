@@ -21,7 +21,7 @@
 - **9/17 より前のログの「本日の共有数」は共有の数ではない**（2026-09-17 に発覚）。`share.count_today()` が
   バケット全体の .jpg / .png を数えていて、**画像キャッシュ（`imgcache/`）とアップロード画像まで入っていた**。
   9/16（UTC）は共有 2,806 件に対してログは 42,410 件。直下（キーに `/` を含まないもの）だけを数えるように直した
-  - このファイルの「直近の数字」などにある「本日の共有数 27,515 件」「12,044 件」、9/15 の
+  - `docs/ops.md` の「直近の数字」などにある「本日の共有数 27,515 件」「12,044 件」、9/15 の
     「3,788 件で上限に当たって 429」は**すべてキャッシュ込みの値**。実際の共有は 1 日 1,800〜4,400 件
   - R2 で数えた実数（UTC の日ごと）: 9/11 4,287 / 9/12 4,184 / 9/13 1,773 / 9/14 2,560 / 9/15 4,387 / 9/16 2,806。
     **9/11 09:30 JST より前の共有は R2 に無い**。保存容量と通信量の上限に当たった 9/11 の障害のとき、非圧縮に近い PNG で重かった共有を手で消した（利用者には X でお詫び済み）。`r2_prune.py` は一度も消していない。そのため 9/11（UTC）の 4,287 件も 09:00〜09:30 の分が欠けている
@@ -93,7 +93,7 @@
   - **ブラウザ描画の絵は `window.__renderShare(2400)`（`renderShareCanvas` の口）で拡張機能なしに確かめられる**。
     `__setGridUI(c, r, opt, cells)` で並びを入れてから呼び、`canvas.toDataURL()` を保存する
   - `scripts/compare_layout.py --tracks=<json>` で曲を差し替えて突き合わせられる（長い題の並びを試すとき）
-- **画像が `/image-proxy` を通るかはホストで決まる**。`frontend/index.html` の `DIRECT_IMAGE_HOSTS`（mzstatic / coverartarchive.org / archive.org）はブラウザが直接読むので **Render の転送量に乗らない**。それ以外（Bandcamp・SoundCloud・YouTube・ニコニコ・bilibili・Discogs・otoDB）はサーバーを通る。帯域を調べるときは、まずここで対象を絞る
+- **画像が `/image-proxy` を通るかはホストで決まる**。`frontend/index.html` の `DIRECT_IMAGE_HOSTS`（mzstatic / coverartarchive.org / archive.org）はブラウザが直接読むので **Render の転送量に乗らない**。それ以外（Bandcamp・SoundCloud・YouTube・ニコニコ・Discogs・otoDB。bilibili は 2026-09-20 に対応をやめたので、すでに並びに入っている画像だけ）はサーバーを通る。帯域を調べるときは、まずここで対象を絞る
 - **`raise HTTPException(...)` で返した 5xx は `[error]` に出ない**。`http_error` が握るので `unhandled_error` を通らず、点検では「エラー行 0・5xx N」としか分からなかった。理由（detail）を見るために `[5xx]` という別の印を足してある（`main.py` の `_log_5xx` が理由ごとに数え、`_load_monitor` が `[stats]` と同じ 60 秒窓で `[5xx] <件数> <status> <パス種別> <理由>` を出す。上位 `_5XX_TOP` 件＋残りは「ほか」にまとめる）。
   **配信元に無い画像は 404 で返し、1 時間覚えて取りに行かない**（`_IMG_MISSING` / `IMG_MISSING_TTL`、2026-09-17）。
   それまで 502 で数えていたので、点検の 5xx に「消えた画像」（削除された動画のサムネイルなど。2 時間で 1,000 件）が

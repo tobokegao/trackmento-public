@@ -18,7 +18,7 @@ TRACKMENTO を公開したまま安全に保つための点検手順。月 1 回
 ## 1. 自動チェックを走らせる
 
 ```bash
-.venv/Scripts/python scripts/safety_check.py https://trackmento.onrender.com
+.venv/Scripts/python scripts/safety_check.py https://trackmento.com
 ```
 
 `[NG]` の行が対処対象。項目の意味と直し方の当たりは次のとおり。
@@ -45,7 +45,7 @@ TRACKMENTO を公開したまま安全に保つための点検手順。月 1 回
 3. **ログの中身**: `[error]` / `[share] failed` の print にクエリ文字列や IP が混ざる変更が入っていないか `git log -p --since=<前回> -- backend/main.py` で見る。
    Docker の起動コマンドに `--no-access-log` が残っているか `Dockerfile` を見る
 4. **秘密の混入**: `git ls-files | grep -i "\.env$\|secret\|key"` が `.env.example` 以外を返さないこと。`git log -p -S"R2_SECRET_ACCESS_KEY=" --all` が空であること
-5. **利用条件の変化**: README「各サービスの利用条件」の日付が 6 か月以上前なら、iTunes / MusicBrainz / YouTube oEmbed / niconico / bilibili / Spotify / otoDB の規約ページを見直すよう提案する（変更の確認は利用者が原文を読む）
+5. **利用条件の変化**: README「各サービスの利用条件」の日付が 6 か月以上前なら、iTunes / MusicBrainz / YouTube（oEmbed と Data API）/ niconico / Spotify Web API / otoDB / VocaDB / Bandcamp / Apple Music の規約ページを見直すよう提案する（変更の確認は利用者が原文を読む）
 6. **外部の採点**: 利用者に https://securityheaders.com と https://observatory.mozilla.org に `https://trackmento.com` を入れてもらい、A 未満の項目があれば理由を調べる
 
 ## 3. 報告のしかた

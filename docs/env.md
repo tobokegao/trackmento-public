@@ -52,9 +52,9 @@
 **外部サービスの鍵**（無くても動く）
 
 `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`（Spotify の公式 Web API。**無いと曲名とジャケット 300px だけの
-oEmbed に落ち、アーティスト名が空になる。プレイリストはまとめて取れない**）、
+oEmbed に落ち、アーティスト名が空になる。プレイリストはまとめて取れない**。**本番は鍵を入れていない**——開発者登録に Spotify Premium が要るため）、
 `YOUTUBE_API_KEY`（YouTube Data API v3。**無いと再生リストをまとめて取れない**。単体の動画は oEmbed なので要らない）、
-`DISCOGS_TOKEN`（Discogs 検索。未設定なら候補に出ない）、`LASTFM_API_KEY`、
+`DISCOGS_TOKEN`（Discogs 検索。未設定なら候補に出ない）、
 `ITUNES_PROXY_URL` / `ITUNES_PROXY_TOKEN`（iTunes が国から弾かれるときの迂回）、
 `GOOGLE_SITE_VERIFICATION`（Search Console の HTML タグ）、
 `RENDER_API_KEY` / `RENDER_SERVICE_NAME`（点検スクリプトが Render の API を叩く）、
