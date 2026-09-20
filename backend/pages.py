@@ -23,7 +23,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "プライバシーポリシー", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "Privacy policy", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年9月18日", "en": "Last updated: September 18, 2026"}
+UPDATED = {"ja": "最終更新: 2026年9月20日", "en": "Last updated: September 20, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
 
@@ -52,8 +52,8 @@ and how the track list is shown, then share. You get the finished image and a de
 
 <h2>Handy features</h2>
 <ul>
-<li><b>Import whole playlists:</b> Paste a single playlist, mylist or set URL to load up to 500 tracks at once.
-Tracks that don't fit in the grid stay in the candidate list.</li>
+<li><b>Import whole playlists:</b> Paste a single URL — a Niconico mylist, a YouTube playlist, a Bandcamp album or an
+Apple Music playlist — to load up to 500 tracks at once. Tracks that don't fit in the grid stay in the candidate list.</li>
 <li><b>Automatic recovery of deleted videos:</b> Even if a Niconico video has been deleted, TRACKMENTO automatically restores the
 official title, creator name and thumbnail when the work is registered in otoDB (the otomad database).</li>
 <li><b>Three track list styles:</b> Choose from “beside the grid”, “on the covers” or “hidden”. When cells are too small and the
@@ -100,7 +100,7 @@ and share the music they love. When sharing, please follow the terms of use and 
 
 <h2>便利な機能</h2>
 <ul>
-<li><b>プレイリストの一括読み込み：</b>プレイリスト、マイリスト、セットリストなどのURLを1つ貼るだけで、最大500曲を一気に読み込みます。マスに入り切らなかった曲は候補リストに残ります。</li>
+<li><b>プレイリストの一括読み込み：</b>ニコニコ動画のマイリスト、YouTubeの再生リスト、Bandcampのアルバム、Apple MusicのプレイリストのURLを1つ貼るだけで、最大500曲を一気に読み込みます。マスに入り切らなかった曲は候補リストに残ります。</li>
 <li><b>削除動画の自動補完：</b>ニコニコ動画で削除済みの動画であっても、otoDB（音MADデータベース）に登録があれば、正式なタイトル・作者名・サムネイルを自動で復元・補完します。</li>
 <li><b>選べる3種類の曲名リスト：</b>曲名リストは「グリッドの横に並べる」「ジャケットに重ねる」「表示しない」の3通りから選択可能です。マスが小さく文字が潰れてしまう場合は、重ねる表示が自動でオフになります。</li>
 <li><b>カラーパレット：</b>画面全体の配色テーマを切り替えられます。好みの8色セットを自作してカラーコードをコピーし、他の人と共有することも可能です。</li>
@@ -151,8 +151,8 @@ domains (host names) are aggregated.</p>
 
 <h2>3. Communication with external services</h2>
 <p>When searching for or retrieving track and cover information, the search terms and URLs you enter are sent to the relevant external
-services (for example, the Apple iTunes Search API, MusicBrainz / Cover Art Archive, VocaDB, otoDB, Bandcamp, SoundCloud, YouTube,
-Niconico and Spotify). Some searches are sent directly from your browser to these APIs. Information sent is handled under
+services (for example, the Apple iTunes Search API, Apple Music, MusicBrainz / Cover Art Archive, VocaDB, otoDB, Bandcamp,
+SoundCloud, YouTube, Niconico and Spotify). Some searches are sent directly from your browser to these APIs. Information sent is handled under
 each platform's privacy policy.</p>
 <p>The Site's server infrastructure runs on Render, and Cloudflare is used to deliver and cache shared files.</p>
 
@@ -188,7 +188,7 @@ The latest version is always published on this page.</p>
 <p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（曲名・検索語・URL などの内容は含みません）。不正アクセス防止や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは不可逆な形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザのUser-Agentそのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
 
 <h2>3. 外部サービスとの通信</h2>
-<p>楽曲やジャケットの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
+<p>楽曲やジャケットの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、Apple Music、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
 <p>また、当サイトのサーバーインフラにはRenderを採用しており、共有ファイルの配信・キャッシュにはCloudflareを利用しています。</p>
 
 <h2>4. Cookieおよび広告配信について</h2>

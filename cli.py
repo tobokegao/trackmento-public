@@ -1,7 +1,7 @@
 """TRACKMENTO CLI。Claude Code（Remote Control でスマホから）が Bash で叩く想定。
 
   python cli.py add    --artist A --title T [--grid NAME] [--source itunes|mb|discogs|otodb] [--first]
-  python cli.py add    --url URL [--grid NAME]                            # Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify の URL
+  python cli.py add    --url URL [--grid NAME]                            # Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music の URL
   python cli.py add    --image URL --artist A --title T [--link URL] [--grid NAME]   # 手入力
   python cli.py pick   --index N [--grid NAME]                            # 直前の候補から選択
   python cli.py search --artist A --title T [--source ...]               # 候補を見るだけ
@@ -353,7 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--artist", "-a", help="アーティスト名")
     sp.add_argument("--source", "-s", help="itunes | mb | discogs | otodb。カンマ区切りで複数可（省略時は iTunes → MusicBrainz → Discogs の順。otodb は音MAD 用で明示指定のみ）")
     sp.add_argument("--first", action="store_true", help="候補が複数でも先頭を採用する")
-    sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify のページ URL")
+    sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL")
     sp.add_argument("--bandcamp", metavar="URL", help=argparse.SUPPRESS)  # 旧名
     sp.add_argument("--image", metavar="URL|PATH", help="手入力: ジャケット画像の URL か PC 上のファイルパス（--title --artist と併用）")
     sp.add_argument("--link", metavar="URL", help="手入力: 曲のページの URL（省略可。共有ページの曲名からここへ飛べる）")
