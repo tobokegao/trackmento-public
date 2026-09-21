@@ -81,7 +81,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 | `backend/main.py` | 経路、CSP、`/image-proxy`、ログ、起動処理 | CSP は `R2_PUBLIC_URL` から自動で組む。手で書き足さない |
 | `backend/render.py` | サーバー側の描画 | `renderShareCanvas` と**対で直す**。`rnd()` を使う（Python の `round()` は偶数丸め） |
 | `backend/grids.py` | 並びの検証・保存 | マスの上限をここだけ小さくすると**並びが黙って潰れる** |
-| `backend/cache.py` | 検索結果と画像の SQLite キャッシュ | 画像の期限は R2 の掃除（7 日）より短い 6 日。逆にすると 404 が出続ける |
+| `backend/cache.py` | 検索結果と画像の SQLite キャッシュ | 画像の期限は R2 の掃除（14 日）より短い 13 日。逆にすると 404 が出続ける |
 | `backend/storage.py` | R2 の読み書き | `connect_timeout` は 3 秒のまま。長くすると利用者の待ち時間が跳ねる |
 | `backend/sources/*` | 各サイトからの取得 | 取れるサイズを URL で選ぶ `clamp_size` を各自が持つ |
 | `backend/merge.py` | 出どころ違いの結果をまとめる | 曲名の正規化はブラウザの `nkey()` と**同じ規則**にする |
@@ -93,7 +93,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 
 - `grids/<名前>.json` … 並び。公開モードではブラウザごとに `u-<id>.json` に分かれる。**git 管理外**
 - `cache.sqlite3` … 検索結果と画像。**デプロイのたびに消える**（コンテナのディスクなので）
-- R2 … 共有画像・並びの控え・アップロード画像・フォント断片・画像キャッシュ・検索結果の控え。共有は 30 日、画像キャッシュと検索結果の控えは 7 日で消える（`scripts/r2_prune.py`）
+- R2 … 共有画像・並びの控え・アップロード画像・フォント断片・画像キャッシュ・検索結果の控え。共有は 30 日、画像キャッシュは 14 日、検索結果の控えは 7 日で消える（`scripts/r2_prune.py`）
   - **検索結果の控え（`searchcache/`、`backend/searchcache.py`、2026-09-19）**。`cache.sqlite3` はデプロイで消えるので、
     サーバーで引いた検索結果（VocaDB・otoDB・Discogs・MusicBrainz の引き直し）を R2 にも置く。起動後に一覧して索引を作り
     （`imgcache/` と同じ）、索引に無い語は R2 を見に行かない。R2 から読むのは 0.15 秒（VocaDB は数秒〜25 秒）。
