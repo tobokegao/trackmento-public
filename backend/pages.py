@@ -247,8 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-21", "正方形のマスでも「ぼかして埋める」を選べるようにしました。動画のサムネイルを、左右を切らずに入れられます。マスごとの設定は「このマスのぼかしの入れ方」に名前を変えました。",
-     "“Blur to fill” now works with square cells too, so video thumbnails go in without their sides cut off. The per-cell setting is now called “Blur fill for this cell”."),
+    ("2026-09-21", "正方形のマスでも「ぼかして埋める」を選べるようにしました。動画のサムネイルを、左右を切らずに入れられます。マスごとの設定は「このマスのサムネの入れ方」に名前を変えました。",
+     "“Blur to fill” now works with square cells too, so video thumbnails go in without their sides cut off. The per-cell setting is now called “How this thumbnail fits”."),
     ("2026-09-21", "「元の投稿を探す」で otoDB も引くようにしました。動画が otoDB に登録された作品なら、転載でも作品の作者がアーティスト名の候補に出ます。",
      "“Find the original post” now also checks otoDB. If the video belongs to a work registered on otoDB, the work’s creator appears as an artist name suggestion, even for reuploads."),
     ("2026-09-21", "YouTube の転載動画を入れたとき、概要欄に元の動画が書かれていれば、元の投稿者をアーティスト名の候補に出すようにしました。マスを選ぶと出ます。「元の投稿を探す」でニコニコ動画の同じ題の古い投稿も探せます。",
