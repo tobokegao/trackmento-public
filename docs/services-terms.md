@@ -5,6 +5,28 @@
 
 （`CLAUDE.md` から分けたもの。2026-09-20）
 
+## ニコニコ動画のスナップショット検索 API（2026-09-21）
+
+転載の元をたどるために使う（`backend/sources/nicosearch.py`）。**公開 API で、規約上の問題は無い**。
+
+- 窓口: `https://snapshot.search.nicovideo.jp/api/v2/snapshot/video/contents/search`
+- **`_context` にアプリ名を入れる決まり**（`trackmento`）
+- **1 秒に 1 リクエストまで**が目安。`_wait_turn()` で間隔を空けている
+- **押したときだけ引く**（利用者が編集パネルで「元の投稿を探す」を押したとき）。自動では引かない。
+  100 曲の並びで 100 リクエストになるため
+- 投稿者名は `contentId` から `getthumbinfo`（既存の取得先）で引く。上位 3 件だけ
+
+## YouTube Data API の使い道が増えた（2026-09-21）
+
+再生リスト（`playlistItems.list`）に加えて、**単体の動画にも `videos.list` を使う**ようになった
+（概要欄から転載元を読むため。`backend/sources/video.py`）。
+
+- `videos.list` は **1 unit / 回**で、`id` は 50 件までまとめられる
+- **`fields` で絞ること**。`part=snippet` を丸ごと受けると 1 件 5.7KB、絞れば 1.0KB（実測）
+- 日あたりの見込みは **76 units**（YouTube 由来は全体の 23%、画像取得 16,546 件/日から。
+  無料枠 10,000 units/日の 0.8%）
+- **鍵が無い・枠切れ（403）なら oEmbed に倒す**。再生リストの取得を巻き添えにしない
+
 - **外部サービスの規約とアクセス上限を一通り調べた**（2026-09-20）。robots.txt は 7 サイトとも実際に取得して確認した
   - **数字の上限があるもの**: Apple の iTunes Search API **約 20 回/分**（1 日の上限は明記なし。キャッシュは推奨と明記）、
     MusicBrainz **1 回/秒・IP ごと**（連絡先入り UA 必須。超えると 100% 拒否）、Discogs 認証あり **60 回/分**（本番では未使用）、

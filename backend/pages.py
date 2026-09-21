@@ -247,9 +247,13 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-21", "YouTube の転載動画を入れたとき、概要欄に元の動画が書かれていれば、元の投稿者をアーティスト名の候補に出すようにしました。マスを選ぶと出ます。「元の投稿を探す」でニコニコ動画の同じ題の古い投稿も探せます。",
+     "When you add a reposted YouTube video whose description names the original, the original uploader now appears as an artist name suggestion when you select the cell. “Find the original post” also looks for older posts with the same title on niconico."),
+    ("2026-09-21", "「マスを全部外す」を説明文の下に移しました。ほかのボタンと離れ、続けて押したときに当たりづらくなります。",
+     "Moved “Clear all cells” below the notes, away from the other buttons, so it is harder to hit by accident."),
     ("2026-09-21", "マスの形に「横長 16:9」を選べるようにしました。YouTube やニコニコ動画のサムネイルが、左右を切られずに並びます。正方形のジャケットが混ざるときは「絵の入れ方」で選べます（マスごとにも変えられます）。",
      "You can now set the cell shape to “Wide 16:9”, so YouTube and niconico thumbnails are no longer cut off at the sides. When square covers are mixed in, “How covers fit” lets you choose, and you can also change it for a single cell."),
-    ("2026-09-21", "曲名から「【東方Vocal】」「- Topic」のような、曲名ではない部分を外して出すようにしました。曲が多い並びでジャケットが大きく出ます。書き出しオプションの「曲名の蛇足を外す」で切れます。「すべての曲名を短くする」を押すと、曲名そのものを短くできます。",
+    ("2026-09-21", "曲名から「【東方Vocal】」「- Topic」のような、曲名ではない部分を外して出すようにしました。曲が多い並びでジャケットが大きく出ます。書き出しオプションの「蛇足な曲名を除外する」で切れます。「全曲名を短縮する」を押すと、曲名そのものを短くできます。",
      "Titles now leave out parts that are not the song name, such as “【東方Vocal】” or “- Topic”. Covers come out larger in grids with many tracks. You can turn it off with “Trim needless title text” in the output options, and “Shorten all titles” rewrites the stored titles."),
     ("2026-09-21", "「出力サイズ」に、実際にできる画像の大きさを出すようにしました。これまでは大きめの数字が出ていて、保存した画像と食い違っていました。",
      "“Output size” now shows the size of the image you actually get. It used to show a larger number that did not match the saved image."),
