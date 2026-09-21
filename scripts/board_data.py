@@ -146,7 +146,11 @@ def r2_from_prune() -> dict | None:
     return {
         "gb": round(gb, 1),
         "note": f"無料 {FREE_GB:.0f}GB ＋ 超過 {over:.1f}GB ＝ 月 ${over * PER_GB:.2f}",
-        "counted": f"{last.get('jst', '')} JST の掃除で数えた（共有 {shares:,} 件）",
+        "counted": f"{last.get('jst', '')} JST の掃除で数えた",
+        # 共有の総数。以前は起動時にバケットを 1 周して「本日の共有」を数えていたが、
+        # 全体の上限を使っていないとその数はどこにも使われないので 2026-09-21 にやめた（Class A 214 回／起動）
+        "shares": shares,
+        "kept_days": 30,
     }
 
 

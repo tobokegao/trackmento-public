@@ -12,6 +12,11 @@ COPY backend ./backend
 COPY frontend ./frontend
 COPY fonts ./fonts
 COPY cli.py .
+# 点検の記録。起動時に metrics/r2.jsonl の最後の行から R2 の使用量を持ち越し、
+# 全件の一覧（Class A 214 回）を imgcache/ だけ（134 回）に減らすために要る（2026-09-21）。
+# **buildFilter には入れない**（点検の push でデプロイを走らせないため。焼かれる値が数日古くても、
+# 歯止めの用途では多めにずれるだけで安全）
+COPY metrics ./metrics
 RUN mkdir -p outputs grids uploads shares \
     && useradd --system --no-create-home --uid 10001 app \
     && chown -R app:app /app

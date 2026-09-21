@@ -147,7 +147,11 @@ async def lifespan(app: FastAPI):
         print(f"[app] 殻を確かめられませんでした（1 枚のまま配ります）: {type(e).__name__}: {e}")
         _app_shell = None
     monitor = asyncio.create_task(_load_monitor()) if public_mode() else None
-    seed = asyncio.create_task(_seed_share_count()) if public_mode() and st.is_remote else None
+    # **全体の上限を使っているときだけ数える**（2026-09-21）。`count_today()` はバケットを 1 周するので
+    # 起動あたり Class A 214 回かかるが、`SHARE_LIMIT_PER_DAY` が 0（＝無制限）だと復元した数を読む分岐
+    # （`_share()` の `if per_day and …`）が成立せず、ログ 1 行のためだけに払っていた。
+    # 共有の件数は毎日の掃除が `metrics/r2.jsonl` に残すので、運用ボードはそちらから出す
+    seed = asyncio.create_task(_seed_share_count()) if public_mode() and st.is_remote and share_limits()[1] else None
     imgidx = asyncio.create_task(_seed_r2_index()) if st.is_remote else None
     listed = asyncio.create_task(_seed_listed_index())
     srchidx = asyncio.create_task(_seed_search_index()) if st.is_remote else None
@@ -1339,17 +1343,42 @@ def _image_index_put(url: str, key: str) -> None:
         _IMG_INDEX[_image_hash(url)] = (key, time.time())
 
 
-def _load_r2_index() -> tuple[dict[str, tuple[str, float]], int]:
-    """バケットを 1 周して (imgcache の索引, 全体の合計バイト数) を返す。
+def _usage_from_metrics() -> int | None:
+    """前回の掃除が数えた合計バイト数（`metrics/r2.jsonl` の最後の行）。無ければ None。
 
-    **索引づくりと使用量の集計で一覧を 2 回回さない**（2026-09-20）。どちらも全件の一覧が要るので、
-    同じ 1 周で済ませる。1 周が Class A 212 回・132 秒なので、起動あたり 344 回 → 212 回になる。
-    合計バイト数は共有の容量上限に使うものなので、imgcache/ に限らず**全件**を足す。
+    掃除（`scripts/r2_prune.py --append`）はどのみちバケットを 1 周するので、その数えを持ち越せば
+    起動時に全件を一覧しなくて済む（`imgcache/` だけに絞れて Class A 214 → 134 回）。
+
+    **多めにずれる側に倒れる**: 最後の掃除より後に消えたものは引かれていない。増えたぶんは
+    `storage.add_usage()` が共有の保存ごとに足す。歯止めの用途なので、多めに見えるのは安全な向き。
+    ファイルはイメージに焼かれた時点のもの（`metrics/` は buildFilter に無いのでデプロイは走らない）で、
+    古くても数日ぶん。読めなければ None を返し、呼び出し側が今までどおり全件を数える。
+    """
+    path = ROOT / "metrics" / "r2.jsonl"
+    try:
+        last = ""
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                last = line
+        if not last:
+            return None
+        n = json.loads(last).get("total_bytes")
+        return int(n) if n else None
+    except Exception:
+        return None
+
+
+def _load_r2_index(prefix: str = "") -> tuple[dict[str, tuple[str, float]], int]:
+    """バケットを 1 周して (imgcache の索引, 数えたぶんの合計バイト数) を返す。
+
+    `prefix` を渡すとその接頭辞だけを一覧する（`imgcache/` に絞ると Class A 214 → 134 回）。
+    **そのとき合計バイト数は絞ったぶんだけ**になるので、全体の使用量として使ってはいけない。
+    prefix 無しで呼ぶと今までどおり全件で、索引づくりと使用量の集計を 1 周で兼ねる（2026-09-20）。
     """
     st = storage.get_storage()
     out: dict[str, tuple[str, float]] = {}
     total = 0
-    for key, size, modified in st.list_objects():
+    for key, size, modified in st.list_objects(prefix):
         total += size
         if not key.startswith(IMAGE_R2_PREFIX):
             continue
@@ -1368,13 +1397,20 @@ async def _seed_r2_index() -> None:
     if not st.is_remote:
         return
     want_index = IMAGE_TO_R2 and bool(st.public_url(""))
+    # 使用量を掃除の記録から持ち越せたら、一覧は imgcache/ だけで済む（Class A 214 → 134 回）。
+    # 持ち越せなければ今までどおり全件を 1 周して、索引と使用量をまとめて作る
+    carried = _usage_from_metrics()
     try:
-        got, total = await asyncio.to_thread(_load_r2_index)
+        got, total = await asyncio.to_thread(_load_r2_index, IMAGE_R2_PREFIX if carried else "")
     except Exception as e:
         print(f"[error] R2 の一覧を取れませんでした: {type(e).__name__}: {e}")
         return
-    storage.set_usage(total)
-    print(f"[storage] 使用量 {total / 1024**3:.1f} GB（起動時の一覧から）")
+    if carried:
+        storage.set_usage(carried)
+        print(f"[storage] 使用量 {carried / 1024**3:.1f} GB（前回の掃除の数えから。一覧は imgcache/ だけ）")
+    else:
+        storage.set_usage(total)
+        print(f"[storage] 使用量 {total / 1024**3:.1f} GB（起動時の一覧から）")
     if want_index:
         _IMG_INDEX.update(got)
         print(f"[storage] imgcache の索引: {len(_IMG_INDEX)} 件（デプロイ後の取り直しを防ぐ）")

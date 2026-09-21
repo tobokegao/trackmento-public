@@ -578,7 +578,11 @@
         "当たり " + num(m.img.hit) + "／外れ " + num(m.img.miss) + "。分岐点 42%" + (rate >= 42 ? " → 置き続けてよい" : " → 見直す")));
     }
 
+    // 「本日の共有」は起動時の全件一覧から出していたが、それをやめた（2026-09-21）。
+    // 点検のログに残っている回だけ出し、ふだんは掃除が数えた総数のほうを出す
     if (m.shares != null) box.appendChild(tile("ok", "本日の共有", num(m.shares), "", "1 日の上限なし・IP ごと 50"));
+    else if (m.r2 && m.r2.shares) box.appendChild(tile("ok", "共有の総数", num(m.r2.shares), "",
+      (m.r2.kept_days || 30) + " 日で消えるので、残っている数。1 日の上限なし・IP ごと 50"));
 
     if (m.out_total) {
       const perDay = Math.round(m.out_total * 24 / (m.hours || 2));
