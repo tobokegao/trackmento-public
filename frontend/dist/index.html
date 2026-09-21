@@ -34,7 +34,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.baf5042c.css">
+<link rel="stylesheet" href="app/app.1f79cb26.css">
 </head>
 <body>
 
@@ -77,7 +77,7 @@
         </div>
         <div class="field" id="e-fit-field">
           <label>このマスのサムネの入れ方</label>
-          <div class="seg" id="e-fit-seg" role="radiogroup" aria-label="このマスのサムネの入れ方">
+          <div class="seg radio" id="e-fit-seg" role="radiogroup" aria-label="このマスのサムネの入れ方">
             <label><input type="radio" name="eFit" value="" checked><span>全体に従う</span></label>
             <label><input type="radio" name="eFit" value="crop"><span>切り抜く</span></label>
             <label><input type="radio" name="eFit" value="blur"><span>ぼかして埋める</span></label>
@@ -99,7 +99,7 @@
       </div>
       <fieldset class="field">
         <legend>ソース <button class="hint-btn" type="button" id="src-hint-btn" aria-haspopup="dialog" title="各ソースの説明">?</button></legend>
-        <div class="seg" id="sources" role="group" aria-label="検索ソース（複数選択）"></div>
+        <div class="seg radio" id="sources" role="radiogroup" aria-label="検索ソース"></div>
       </fieldset>
       <div class="search-actions">
         <button class="btn btn-primary" type="submit" id="search-btn"><span class="label">検索する</span></button>
@@ -232,7 +232,7 @@
 
       <fieldset class="field">
         <legend>比率</legend>
-        <div class="seg" id="ratio-seg" role="radiogroup" aria-label="出力比率">
+        <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="出力比率">
           <label><input type="radio" name="ratio" value="1:1"><span>1:1 正方形</span></label>
           <label><input type="radio" name="ratio" value="4:5"><span>4:5 インスタ</span></label>
           <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 ツイート</span></label>
@@ -245,11 +245,16 @@
       <fieldset class="field">
         <legend>マスの形</legend>
         <!-- 動画サイトのサムネイルは 16:9。正方形のマスに入れると左右が 28% ずつ切れる -->
-        <div class="seg" id="cell-ratio-seg" role="radiogroup" aria-label="マスの形">
+        <div class="seg radio" id="cell-ratio-seg" role="radiogroup" aria-label="マスの形">
           <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形</span></label>
           <label><input type="radio" name="cellRatio" value="16:9"><span>横長 16:9</span></label>
         </div>
-        <div class="seg" id="cell-fit-seg" role="radiogroup" aria-label="サムネの入れ方">
+      </fieldset>
+
+      <!-- マスの形と続けて並べると、ラジオボタンの 2 組が 1 組に見えるので見出しを分ける（2026-09-22） -->
+      <fieldset class="field">
+        <legend>サムネの入れ方</legend>
+        <div class="seg radio" id="cell-fit-seg" role="radiogroup" aria-label="サムネの入れ方">
           <label><input type="radio" name="cellFit" value="crop" checked><span>切り抜く</span></label>
           <label><input type="radio" name="cellFit" value="blur"><span>ぼかして埋める</span></label>
         </div>
@@ -270,7 +275,7 @@
 
       <fieldset class="field">
         <legend>曲名リスト</legend>
-        <div class="seg" id="list-seg" role="radiogroup" aria-label="曲名リスト">
+        <div class="seg radio" id="list-seg" role="radiogroup" aria-label="曲名リスト">
           <label><input type="radio" name="listmode" value="side" checked><span>横に並べる</span></label>
           <label><input type="radio" name="listmode" value="overlay"><span>マスに重ねる</span></label>
           <label><input type="radio" name="listmode" value="none"><span>表示しない</span></label>
@@ -335,8 +340,8 @@
     <div class="modal-body note">
           <p><b>iTunes</b>: 曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。</p>
           <p><b>MusicBrainz</b>: 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
-          <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。既定ではオフです。</p>
-          <p><b>VocaDB</b>: ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。既定ではオフです。</p>
+          <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。</p>
+          <p><b>VocaDB</b>: ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。曲ごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（曲）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。Spotify だけは曲名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
@@ -452,6 +457,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.64912cc6.js"></script>
+<script id="app-js" src="app/app.43a6fdaf.js"></script>
 </body>
 </html>
