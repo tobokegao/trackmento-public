@@ -1313,6 +1313,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <!-- label で包まない（「みんなのグリッドに載せる」と同じ）。包むと行のどこを押しても箱が切り替わり、行全体が光る -->
         <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
         <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
+        <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
+        <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">曲名の蛇足を外す</span></div>
       </fieldset>
 
       <fieldset class="field">
@@ -1677,6 +1679,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "表示しない": "Hidden",
         "この並びだとマスが小さく、重ねた曲名が読めない大きさになるので、曲名は出しません。マスを減らすか、横に並べてください。": "The covers are too small in this layout for readable titles on top, so no titles will be drawn. Use fewer cells or put the list beside the grid.",
         "番号バッジ": "Number badges",
+        "曲名の蛇足を外す": "Trim needless title text",
         "背景色": "Background",
         "カスタムカラー": "Custom colour",
         "色相": "Hue",
@@ -2079,7 +2082,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
-    ratio: "16:9", showTitle: true, sidebar: true, overlay: false, numbers: false, bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（比率は X 向けの 16:9）
+    ratio: "16:9", showTitle: true, sidebar: true, overlay: false, numbers: false, trimNames: true, bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（比率は X 向けの 16:9）
     listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
@@ -2101,7 +2104,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"),
-    ratioMsg: $("#ratio-msg"), optTitle: $("#opt-title"), listSeg: $("#list-seg"), listMsg: $("#list-msg"), optNumbers: $("#opt-numbers"),
+    ratioMsg: $("#ratio-msg"), optTitle: $("#opt-title"), listSeg: $("#list-seg"), listMsg: $("#list-msg"), optNumbers: $("#opt-numbers"), optTrim: $("#opt-trim"),
     swatches: $("#swatches"), bgCustomBtn: $("#bg-custom-btn"), bgCustomPanel: $("#bg-custom-panel"), palImport: $("#pal-import"),
     hsvH: $("#hsv-h"), hsvS: $("#hsv-s"), hsvV: $("#hsv-v"), hsvHOut: $("#hsv-h-out"), hsvSOut: $("#hsv-s-out"), hsvVOut: $("#hsv-v-out"), hsvHex: $("#hsv-hex"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"), specMargin: $("#spec-margin"),
@@ -2237,6 +2240,24 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      ブラウザ検索とサーバー検索で結果が変わる） */
   // 単独の濁点・半濁点（゛゜）は結合文字にしてから NFKC（「ハ゛」→「バ」）。backend/merge.py の _n と同じ規則
   const nkey = (v) => (v || "").replace(/\u309b/g, "\u3099").replace(/\u309c/g, "\u309a").normalize("NFKC").toLowerCase().replace(/ß/g, "ss").replace(/featuring/g, "feat").replace(/feat\./g, "feat").replace(/[^\p{L}\p{N}]+/gu, "");
+  /* 表示・書き出しが読むマスの列。**データ（state.cells）は元のまま**で、ここで刈った写しを返す。
+     割り付けを決める前に通さないと枠が縮まない（backend/render.py の `_trimmed` と同じ）。
+     毎回作り直すと 256 マスぶんの正規表現が割り付けのたびに走るので、元の列と設定が
+     変わらないかぎり使い回す */
+  let _viewCells = null, _viewSrc = null, _viewTrim = null;
+  function viewCells() {
+    if (!state.trimNames) return state.cells;
+    if (_viewCells && _viewSrc === state.cells && _viewTrim === state.trimNames) return _viewCells;
+    _viewSrc = state.cells; _viewTrim = state.trimNames;
+    _viewCells = state.cells.map((t) => {
+      if (!t) return t;
+      const [title, artist] = trimName(t.title || "", t.artist || "");
+      return title === t.title && artist === t.artist ? t : { ...t, title, artist };
+    });
+    return _viewCells;
+  }
+  const clearViewCells = () => { _viewCells = null; _viewSrc = null; };
+
   /* ---- 曲名の刈り込み ---- */
   /* 曲名とアーティスト名から蛇足を外す。**backend/names.py と対で直すこと**。
      片方だけ直すと画面と書き出しで曲名が変わる（scripts/compare_trim.py で突き合わせられる）。
@@ -2252,7 +2273,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      黙って別物になる（実際に「FULL ver.」が外れなくなった）。埋め込みは `.source` で行う */
   const MEDIA_RE = /(?:Full\s*|Short\s*|Long\s*)?(?:M\/?V|P\/?V|Music\s*Video|Lyric\s*Video|Official\s*(?:Music\s*)?Video|Official\s*Audio|Visualizer|Audio|Teaser|Trailer|Live\s*Video)|(?:ENG\s*)?Sub(?:s|bed|title[ds]?)?|字幕(?:付き?)?|歌詞(?:付き?)?|Full\s*ver\.?|Short\s*ver\.?|(?:公式|Official)\s*(?:MV|PV|Video)/;
   const MEDIA_ONLY = new RegExp("^\\s*(?:" + MEDIA_RE.source + ")\\s*$", "i");
-  const MEDIA_TAIL = new RegExp("[\\s　]*[/／|・-]?[\\s　]*(?:" + MEDIA_RE.source + ")[\\s　]*$", "i");
+  /* 全角の字は `\uXXXX` と書く（　は 　、／は ／、・は ・）。文字列の中に生の
+     全角文字があると `scripts/check_i18n.py` が「訳し忘れの日本語」と読んでしまう */
+  const MEDIA_TAIL = new RegExp("[\\s\\u3000]*[/\\uff0f|\\u30fb-]?[\\s\\u3000]*(?:" + MEDIA_RE.source + ")[\\s\\u3000]*$", "i");
   /* **「東方」単独は入れない**（【東方紅魔郷・東方花映塚】のような原作名まで消える） */
   const TRIM_GENRE = /Vocal|ボーカル|ヴォーカル|アレンジ|arrange|ニコカラ|カラオケ|歌ってみた|演奏してみた|踊ってみた|公式|Official|M\/?V|P\/?V|Music\s*Video|Lyric\s*Video|Sub(?:s|bed)?|字幕|歌詞付|Full\s*ver|初音ミク|MMD|音MAD|実況/i;
   const CHANNEL_TAIL = /\s*(?:[-–—]\s*Topic|Official\s*(?:YouTube\s*)?Channel|公式\s*(?:YouTube\s*)?チャンネル|(?<!\w)VEVO|Channel|チャンネル)\s*$/i;
@@ -2994,7 +3017,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.grid.dataset.numbers = state.numbers ? "on" : "off";
     els.gridSizeLabel.textContent = `${state.cols}×${state.rows}`;
     els.grid.innerHTML = "";
-    state.cells.forEach((t, i) => {
+    // **マスに出すのは刈った題**（書き出しと同じ見た目にする）。編集パネルの入力欄は元のまま
+    viewCells().forEach((t, i) => {
       const li = document.createElement("li");
       li.className = "cell" + (selected === i ? " is-selected" : "") + (target === i && !t ? " is-target" : ""); li.dataset.index = i;
       li.addEventListener("click", (e) => { if (e.target.closest(".rm")) return; onCellTap(i); });
@@ -3110,6 +3134,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     updateSpec();
   });
   els.optNumbers.addEventListener("change", () => { state.numbers = els.optNumbers.checked; renderGrid(); });
+  els.optTrim.addEventListener("change", () => { state.trimNames = els.optTrim.checked; clearViewCells(); renderGrid(); updateSpec(); });
   els.optListed.addEventListener("change", () => { state.listed = els.optListed.checked; save(); });
   els.findLink.href = api("/find");   // 別オリジンに API を置く構成でも飛べるように
   els.margin.addEventListener("input", () => { state.margin = Number(els.margin.value); els.marginOut.value = state.margin; updateSpec(); });
@@ -4347,8 +4372,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const { cols, rows } = state;
     const m = state.margin;
     const title = state.showTitle ? state.title.trim() : "";
-    const n = state.cells.length;
-    const nTracks = Math.max(1, state.cells.filter(Boolean).length);   // 入っている曲の数（「消える曲」の割合の母数）
+    const n = viewCells().length;
+    const nTracks = Math.max(1, viewCells().filter(Boolean).length);   // 入っている曲の数（「消える曲」の割合の母数）
     const g = state.gap;
     const gw = cols * CELL_PX + (cols - 1) * g, gh = rows * CELL_PX + (rows - 1) * g;
     const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
@@ -4364,7 +4389,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 横長の比率（16:9）で左右の余白ばかり広がるため
     const titleTopH = side === "right" ? 0 : titleH;
     // 1 曲は「曲名の行 + アーティストの行」の 2 行。まずその前提で行の高さを見積もる
-    const baseRows = state.cells.reduce((a, t) => a + (t && oneLine(t.artist) ? 2 : 1), 0);
+    const baseRows = viewCells().reduce((a, t) => a + (t && oneLine(t.artist) ? 2 : 1), 0);
     const availH = gh - titleH;
     const pitch = CELL_PX + state.gap;   // マスの段 1 つぶんの送り（行をこれの約数にそろえる）
     let sbW = 0, sbH = 0, sbCols = 1;
@@ -4472,7 +4497,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const colW0 = Math.floor((sbW - LIST_COL_GAP * (sbCols - 1)) / sbCols);
       sbPlan = rowPlan(fontS, colW0);
       const avail0 = Math.max(1, colW0 - numW(fontS));
-      sbARows = state.cells.map((t) => artistRows(t ? oneLine(t.artist) : "", fontS, avail0));
+      sbARows = viewCells().map((t) => artistRows(t ? oneLine(t.artist) : "", fontS, avail0));
       const rowsPerCol = planRows(sbPlan, sbCols);
       // **1 曲が列をまたがないので、折らなくても 1 列の行数が見込みより増えることがある**
       // （backend/render.py と同じ。25 曲を 2 列にすると 13 曲 ＝ 26 行で、最後の曲がマスの下端からはみ出していた）
@@ -4502,7 +4527,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 字がはっきり大きくなるときだけ採る（2026-09-19。アーティスト名を次の行に落とすのはやめた）
     let sbInline = false;
     if (side === "right") {
-      const nI = state.cells.length;
+      const nI = viewCells().length;
       let [lhI, fsI, wI] = sidebar(1, nI);
       // 下限は FLOW_KEEP_FONT（16px）。20px を割ったら下で流し込み・回り込みを試し、流し込みなら 1 行型に戻る
       const floorI = Math.max(Math.ceil(fontS * INLINE_GAIN), Math.ceil(FLOW_KEEP_FONT / scale));
@@ -4529,7 +4554,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       // 1 行型の表を試す（backend/render.py と同じ）。幅は流し込みと同じく比率で余るぶん全部
       const wT = Math.max(sbW, Math.round((titleTopH + gh + m * 2) * ratio) - m * 2 - gw - sbGap);
       const [WT, HT, scT] = frame(wT, sbH);
-      const nT = state.cells.length;
+      const nT = viewCells().length;
       let best = null;
       for (let colsT = 2; colsT <= TABLE_MAX_COLS; colsT++) {
         const lhT = Math.floor((gh - titleH) / Math.max(1, Math.ceil(nT / colsT)));
@@ -4664,7 +4689,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   window.__shareSide = (base, coarse) => shareRenderSide(base, coarse);   // 共有画像を実際に描く大きさ（流し込みを避けて上げた結果）を覗くため
   window.__sharePlan = (base, coarse) => shareRenderPlan(base, coarse);   // 同上。割り付けごと覗く（「出力サイズ」の表示と同じもの）
   window.__loadShareFonts = () => loadShareFonts();   // 割り付けを測る前に Web フォントを読む（promo/dump_layouts.mjs）
-  window.__clearCharW = () => { CHAR_W.clear(); clearSharePlan(); };
+  window.__clearCharW = () => { CHAR_W.clear(); clearSharePlan(); clearViewCells(); };
   window.__trimName = (t, a) => trimName(t, a);   // 刈り込みの突き合わせ（scripts/compare_trim.py）
   // 並びを差し替えて割り付けだけ見るための口（promo/dump_layouts.mjs）。マスは曲で埋める
   window.__setGrid = (c, r, opt = {}, base = null) => {
@@ -4680,7 +4705,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     window.__setGrid(c, r, opt, base);
     els.cols.value = String(c); els.rows.value = String(r);
     if (state.ratio) { const i = els.ratioSeg.querySelector(`input[value="${state.ratio}"]`); if (i) i.checked = true; }
-    els.optTitle.checked = !!state.showTitle; syncListSeg(); els.optNumbers.checked = !!state.numbers;
+    els.optTitle.checked = !!state.showTitle; syncListSeg(); els.optNumbers.checked = !!state.numbers; els.optTrim.checked = state.trimNames !== false;
     els.margin.value = String(state.margin); els.marginOut.value = String(state.margin);
     els.gap.value = String(state.gap); els.gapOut.value = String(state.gap);
     renderSwatches(); renderGrid(); updateSpec(); syncPreview();
@@ -4693,6 +4718,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     syncPreview();
     save();
     clearSharePlan();   // 並びか設定が変わった。共有画像の大きさの見込みは組み直す
+    clearViewCells();   // 曲名の刈り込みの控えも捨てる（並びが書き換わっているかもしれない）
     clearTimeout(specTimer);
     specTimer = setTimeout(updateSpecNow, 180);
   }
@@ -5110,7 +5136,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return {
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
-      options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, bg: state.bg, bgCustom: state.bgCustom, margin: state.margin, gap: state.gap },
+      options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false, bg: state.bg, bgCustom: state.bgCustom, margin: state.margin, gap: state.gap },
     };
   }
   function applyData(d) {
@@ -5130,7 +5156,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     state.title = typeof d.title === "string" ? d.title.slice(0, 60) : "";
     const o = d.options || {};
     state.ratio = o.ratio in RATIOS ? o.ratio : "16:9";
-    state.showTitle = o.showTitle !== false; state.overlay = o.overlay === true; state.sidebar = !state.overlay && o.sidebar !== false; state.numbers = o.numbers === true;
+    state.showTitle = o.showTitle !== false; state.overlay = o.overlay === true; state.sidebar = !state.overlay && o.sidebar !== false; state.numbers = o.numbers === true; state.trimNames = o.trimNames !== false; clearViewCells();
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else {
       state.bg = ALL_BG_KEYS.includes(o.bg) ? o.bg : "paper";
@@ -5150,7 +5176,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.title.value = state.title; els.title.disabled = !state.showTitle;
     els.cols.value = state.cols; els.rows.value = state.rows;
     els.ratioSeg.querySelector(`input[value="${state.ratio}"]`).checked = true;
-    els.optTitle.checked = state.showTitle; syncListSeg(); els.optNumbers.checked = state.numbers;
+    els.optTitle.checked = state.showTitle; syncListSeg(); els.optNumbers.checked = state.numbers; els.optTrim.checked = state.trimNames !== false;
     els.optListed.checked = state.listed;
     for (const i of els.swatches.querySelectorAll("input")) i.checked = i.value === state.bg;
     syncCustomColor();
@@ -5449,7 +5475,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 代替フォントの幅が残っているとサーバー描画と折り返しがずれる
     CHAR_W.clear();
     const L = layout(maxSide), S = L.scale, sc = (v) => Math.round(v * S);
-    const n = state.cells.length;
+    const n = viewCells().length;
     const bg = state.bg === "custom" && state.bgCustom ? hexToRgb(state.bgCustom) : TOKENS_RGB[state.bg] || TOKENS_RGB.paper;
     const light = isLightRgb(bg);
     const ink = TOKENS_RGB[light ? "ink" : "paper"], badgeBg = TOKENS_RGB[light ? "paper" : "ink"], muted = mixRgb(ink, bg, 0.30), cellBg = TOKENS_RGB[light ? "paper-3" : "ink-2"];
@@ -5480,7 +5506,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const cell = sc(CELL_PX), numF = fontPixel(numPx);
     // 描く前に R2 の場所をまとめて聞く（302 を追わないため。上の preloadR2Map を参照）
     const wantPx = cell < CELL_PX * 0.55 ? Math.ceil(cell / 50) * 50 : 0;
-    await preloadR2Map(state.cells.flatMap(t => (t ? [t.image, t.thumb] : [])).filter(Boolean).map(url => ({ url, px: wantPx })));
+    await preloadR2Map(viewCells().flatMap(t => (t ? [t.image, t.thumb] : [])).filter(Boolean).map(url => ({ url, px: wantPx })));
     // **取得だけ数枚先まで走らせる**。描く順番は変えない。1 枚ずつ順に取ると、1 往復ぶんの
     // 待ち時間（30〜180ms）がマスの数だけ積み上がる（256 マスで 9 秒以上）。
     // 同時に持つのは PREFETCH 枚まで（描いたら bitmap は close するので抱え込みも増えない）
@@ -5488,7 +5514,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const pending = new Map();
     const startAt = (i) => {
       if (i >= n || pending.has(i)) return;
-      const t2 = state.cells[i];
+      const t2 = viewCells()[i];
       if (t2) pending.set(i, loadCover(t2, wantPx).catch(() => null));
     };
     for (let i = 0; i < Math.min(n, PREFETCH); i++) startAt(i);
@@ -5496,7 +5522,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const ovSh = Math.max(1, Math.round(cell * OVERLAY_SHADE)), ovTs = Math.max(8, Math.round(cell * OVERLAY_TITLE));
     const ovAs = Math.max(8, Math.round(cell * OVERLAY_ARTIST)), ovPad = Math.round(cell * OVERLAY_PAD);
     for (let i = 0; i < n; i++) {
-      const t = state.cells[i], c = i % state.cols, r = Math.floor(i / state.cols);
+      const t = viewCells()[i], c = i % state.cols, r = Math.floor(i / state.cols);
       const x = sc(L.ox + c * (CELL_PX + state.gap)), y = sc(y0 + r * (CELL_PX + state.gap));
       ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cell, cell);
       const drawOverlay = () => {
@@ -5545,8 +5571,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const fs = Math.max(8, sc(L.fontS));
       const fNum = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
       const fT = fontBold(fs), fA = fontRegular(Math.max(8, Math.round(fs * ARTIST_SCALE)));
-      for (let i = 0; i < state.cells.length && i < L.wrapSegs.length; i++) {
-        const t = state.cells[i];
+      for (let i = 0; i < viewCells().length && i < L.wrapSegs.length; i++) {
+        const t = viewCells()[i];
         const [sx0, sy0, sw] = L.wrapSegs[i];
         const x = sc(sx0), cy = sc(sy0 + L.lineH / 2);
         const num = String(i + 1).padStart(2, "0");
@@ -5670,7 +5696,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         });
         return { canvas, bg };
       }
-      const plan = (L.sbPlan && L.sbPlan.length) ? L.sbPlan : state.cells.map(() => 1);
+      const plan = (L.sbPlan && L.sbPlan.length) ? L.sbPlan : viewCells().map(() => 1);
       // 行の割り付け（列・その列の中での行番号）。**1 曲が列をまたがないように**詰める
       const rowsPerCol = planRows(plan, L.sbCols);
       const places = []; let pcol = 0, pused = 0;
@@ -5690,7 +5716,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const rule = mixRgb(ink, bg, TABLE_RULE), ruleH = Math.max(1, Math.round(fontS * 0.04));
         for (let i = 0; i < n; i++) {
           const col = Math.floor(i / perCol), row = i % perCol, cx = sx + col * (tColW + tGap);
-          const t = state.cells[i], x = sc(cx), right = sc(cx + tColW), yy = rowY(row);
+          const t = viewCells()[i], x = sc(cx), right = sc(cx + tColW), yy = rowY(row);
           if (L.sbCols > 1 && row < perCol - 1 && i < n - 1) {
             const ly = sc(sy + (row + 1) * L.lineH);
             ctx.fillStyle = cssRgb(rule); ctx.fillRect(x, ly, right - x, ruleH);
@@ -5716,7 +5742,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
       const shift = {};   // 割り付けより少ない行で描けた曲のぶん、その列の後ろを詰める（backend/render.py と同じ）
       for (let i = 0; i < n; i++) {
-        const t = state.cells[i], [col, row0] = places[i];
+        const t = viewCells()[i], [col, row0] = places[i];
         const row = row0 - (shift[col] || 0);
         const x = sc(sx + col * (colW + LIST_COL_GAP)), yy = rowY(row);
         const num = String(i + 1).padStart(2, "0");

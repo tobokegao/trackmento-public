@@ -227,6 +227,8 @@
         <!-- label で包まない（「みんなのグリッドに載せる」と同じ）。包むと行のどこを押しても箱が切り替わり、行全体が光る -->
         <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
         <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
+        <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
+        <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">曲名の蛇足を外す</span></div>
       </fieldset>
 
       <fieldset class="field">
@@ -413,6 +415,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.8cc05711.js"></script>
+<script id="app-js" src="app/app.427a12ab.js"></script>
 </body>
 </html>
