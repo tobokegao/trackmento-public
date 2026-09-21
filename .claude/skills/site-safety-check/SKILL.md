@@ -44,7 +44,37 @@ TRACKMENTO を公開したまま安全に保つための点検手順。月 1 回
    ローカルで `scratchpad` 相当の計測（64 マス・3000px・16:9 でピーク 150MB 未満）を再現する
 3. **ログの中身**: `[error]` / `[share] failed` の print にクエリ文字列や IP が混ざる変更が入っていないか `git log -p --since=<前回> -- backend/main.py` で見る。
    Docker の起動コマンドに `--no-access-log` が残っているか `Dockerfile` を見る
-4. **秘密の混入**: `git ls-files | grep -i "\.env$\|secret\|key"` が `.env.example` 以外を返さないこと。`git log -p -S"R2_SECRET_ACCESS_KEY=" --all` が空であること
+4. **秘密の混入**: 2 段で見る。**値は報告に出さない**（変数名と、漏れたか／入れ替えたかだけ書く）
+
+   **(a) いまのリポジトリ（ここは必ず空であること）**
+   ```bash
+   git ls-files | grep -iE "(^|/)\.env($|\.)|secret|credential|\.pem$|\.key$"   # .env.example だけ
+   git grep -nIE "(sk-[A-Za-z0-9_-]{16,}|rnd_[A-Za-z0-9]{16,}|AIza[0-9A-Za-z_-]{30,}|ghp_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)"
+   git grep -nIE "(API_KEY|SECRET|TOKEN|PASSWORD|ACCESS_KEY)[\"' ]*[:=][\"' ]*[A-Za-z0-9_/+-]{16,}" | grep -viE "example|your-|xxx|getenv|os\.environ|process\.env|secrets\."
+   ```
+   `frontend/index.html`（ブラウザに配る）も同じ目で見る。
+
+   **(b) 履歴（既知の 1 件を除いて、新しいものが無いこと）**
+   ```bash
+   git log --all --oneline --diff-filter=A --name-only -- '.env' '.env.*' '*.env'
+   ```
+   **2026-09-14 の `412582f` で入り 2026-09-19 の `3eec4d2` で消した `.env.bak-before-customdomain` は既知**
+   （`docs/gotchas.md` に記録。R2 のキーと Discogs のトークンは失効・再発行済みで、古い鍵は Unauthorized を確認済み）。
+   **これ以外が出たら新しい漏洩**なので、その場で鍵を止めて入れ替える。
+   **履歴を書き換えて消そうとしない**（force-push は clone を壊し、GitHub は GC 前の blob を残す。
+   鍵を失効させるほうが確実で早い）。`-S"R2_SECRET_ACCESS_KEY="` での検索は、この既知の 1 件のせいで
+   **必ず 4 件返る**ので判定に使わない。
+
+   **(c) GitHub 側の守り**
+   ```bash
+   gh api repos/tobokegao/trackmento-public -q '.security_and_analysis | to_entries[] | "\(.key): \(.value.status)"'
+   ```
+   `secret_scanning` と `secret_scanning_push_protection` が `enabled`。
+   **`secret_scanning_non_provider_patterns` も `enabled`** であること（R2 のキーは「ただの長い英数字」で
+   発行元が特定できず、これが無効だとプロバイダパターンをすり抜ける。今回の漏洩がまさにそれ）。
+   **この項目は API の PATCH が 200 を返しても反映されない**ので、変えるときは
+   Settings → Advanced Security → Secret Protection の画面で切り替える。
+   `gh api repos/tobokegao/trackmento-public/secret-scanning/alerts` が空であること
 5. **利用条件の変化**: README「各サービスの利用条件」の日付が 6 か月以上前なら、iTunes / MusicBrainz / YouTube（oEmbed と Data API）/ niconico / Spotify Web API / otoDB / VocaDB / Bandcamp / Apple Music の規約ページを見直すよう提案する（変更の確認は利用者が原文を読む）
 6. **外部の採点**: 利用者に https://securityheaders.com と https://observatory.mozilla.org に `https://trackmento.com` を入れてもらい、A 未満の項目があれば理由を調べる
 
