@@ -2237,6 +2237,153 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      ブラウザ検索とサーバー検索で結果が変わる） */
   // 単独の濁点・半濁点（゛゜）は結合文字にしてから NFKC（「ハ゛」→「バ」）。backend/merge.py の _n と同じ規則
   const nkey = (v) => (v || "").replace(/\u309b/g, "\u3099").replace(/\u309c/g, "\u309a").normalize("NFKC").toLowerCase().replace(/ß/g, "ss").replace(/featuring/g, "feat").replace(/feat\./g, "feat").replace(/[^\p{L}\p{N}]+/gu, "");
+  /* ---- 曲名の刈り込み ---- */
+  /* 曲名とアーティスト名から蛇足を外す。**backend/names.py と対で直すこと**。
+     片方だけ直すと画面と書き出しで曲名が変わる（scripts/compare_trim.py で突き合わせられる）。
+     外すのは「媒体の表記」「チャンネル名の尾」「分類のタグ」「アーティスト名の重複」だけで、
+     サークル名（【魂音泉】）・原曲名（【ハルトマンの妖怪少女】）・歌唱者（（Vo:あよ））は残す。
+     規則と実測は docs/superpowers/specs/2026-09-21-trim-names-design.md */
+  const TRIM_BR = [["【", "】"], ["［", "］"], ["[", "]"], ["〔", "〕"], ["《", "》"]];
+  /* R4（作者名との突き合わせ）でだけ丸括弧も括弧として扱う。**R1/R3 には入れない**:
+     入れると「(on vocal)」が分類語の「Vocal」に当たって外れ、ニコカラの版の違いが消える */
+  const TRIM_BR_R4 = TRIM_BR.concat([["（", "）"], ["(", ")"]]);
+  /* **正規表現リテラルで書く**こと。`new RegExp("…\\s…")` の形は、文字列の中で
+     バックスラッシュが 1 つに減ると `\s` が ただの `s` になり（JS では "\s" === "s"）、
+     黙って別物になる（実際に「FULL ver.」が外れなくなった）。埋め込みは `.source` で行う */
+  const MEDIA_RE = /(?:Full\s*|Short\s*|Long\s*)?(?:M\/?V|P\/?V|Music\s*Video|Lyric\s*Video|Official\s*(?:Music\s*)?Video|Official\s*Audio|Visualizer|Audio|Teaser|Trailer|Live\s*Video)|(?:ENG\s*)?Sub(?:s|bed|title[ds]?)?|字幕(?:付き?)?|歌詞(?:付き?)?|Full\s*ver\.?|Short\s*ver\.?|(?:公式|Official)\s*(?:MV|PV|Video)/;
+  const MEDIA_ONLY = new RegExp("^\\s*(?:" + MEDIA_RE.source + ")\\s*$", "i");
+  const MEDIA_TAIL = new RegExp("[\\s　]*[/／|・-]?[\\s　]*(?:" + MEDIA_RE.source + ")[\\s　]*$", "i");
+  /* **「東方」単独は入れない**（【東方紅魔郷・東方花映塚】のような原作名まで消える） */
+  const TRIM_GENRE = /Vocal|ボーカル|ヴォーカル|アレンジ|arrange|ニコカラ|カラオケ|歌ってみた|演奏してみた|踊ってみた|公式|Official|M\/?V|P\/?V|Music\s*Video|Lyric\s*Video|Sub(?:s|bed)?|字幕|歌詞付|Full\s*ver|初音ミク|MMD|音MAD|実況/i;
+  const CHANNEL_TAIL = /\s*(?:[-–—]\s*Topic|Official\s*(?:YouTube\s*)?Channel|公式\s*(?:YouTube\s*)?チャンネル|(?<!\w)VEVO|Channel|チャンネル)\s*$/i;
+  const TRIM_PROMO = /発売中|販売中|配信中|通販|予約|受付中|好評|新譜|NEW\s*(?:ALBUM|SINGLE|SONG)|最新|公開中|投稿中|更新中|チャンネル登録|Subscribe|公式(?:サイト|ストア|通販)|Store|毎週|毎月|毎日|活動中|始めました/i;
+  const TRIM_SEP = /[/／,、，|｜]|\s+[-–—]\s+/;            /* アーティスト名の区切り */
+  /* 曲名の区切り。アーティスト名と違い「、」「,」では割らない（曲名の一部であることが多い） */
+  const TITLE_SEP = /[\s　]*(?:[/／|｜]|(?<=[\s　])[-–—](?=[\s　]))[\s　]*/g;
+  const TRIM_SEP_REPEAT = /[_/／|｜・･]|\s+[-–—]\s+/;      /* A1 で使う区切り（_ を含む） */
+  const WORK_TAIL = /(?:テーマ曲?|主題歌|挿入歌|OP|ED|イメージソング|より|収録)\s*$/;
+  const WORK_BRACKET = /[『「【\[（(][^』」】\])）]*[』」】\])）]/g;
+  const trimEdge = (s) => s.replace(/^[\s　/／|\-–—,、]+/, "").replace(/[\s　/／|\-–—,、]+$/, "");
+  const trimOk = (s) => nkey(s).length >= 2;
+
+  /* 括弧の (開始, 終了, 中身) を左から。対応しない括弧は無視する */
+  function trimSpans(s, brackets) {
+    const out = [];
+    let i = 0;
+    outer: while (i < s.length) {
+      for (const [op, cl] of brackets) {
+        if (s.startsWith(op, i)) {
+          const j = s.indexOf(cl, i + op.length);
+          if (j >= 0) { out.push([i, j + cl.length, s.slice(i + op.length, j)]); i = j + cl.length; continue outer; }
+        }
+      }
+      i++;
+    }
+    return out;
+  }
+  const dropBrackets = (s) => { let out = "", cut = 0; for (const [st, en] of trimSpans(s, TRIM_BR_R4)) { out += s.slice(cut, st); cut = en; } return out + s.slice(cut); };
+  const bracketsOnly = (s) => trimSpans(s, TRIM_BR_R4).map(([st, en]) => s.slice(st, en)).join("");
+
+  /* **括弧の外にある区切りだけ**で割る。[要素, 区切り, 要素, …] の形で返す。
+     括弧の中の「/」まで割ると【人形裁判/不思議の国のアリス】（原曲名）が切れて片方だけ残る */
+  function splitOutside(s) {
+    const inside = new Set();
+    for (const [st, en] of trimSpans(s, TRIM_BR_R4)) for (let i = st; i < en; i++) inside.add(i);
+    const out = [];
+    let last = 0, m;
+    TITLE_SEP.lastIndex = 0;
+    while ((m = TITLE_SEP.exec(s))) {
+      if (inside.has(m.index)) continue;
+      out.push(s.slice(last, m.index));
+      out.push(m[0]);
+      last = m.index + m[0].length;
+    }
+    out.push(s.slice(last));
+    return out;
+  }
+
+  /* G: 題からアーティスト名を移植してよいか。よければ移植先の名前、だめなら null。
+     **判定は刈る前の元の名前で行う**（先に「公式チャンネル」を刈ると G1 が立たなくなる） */
+  function trimGraft(title, artist) {
+    const items = artist.split(TRIM_SEP).map((p) => p.trim()).filter(Boolean);
+    if (!items.some((p) => TRIM_PROMO.test(p))) return null;      /* G1 */
+    const nt = nkey(title);
+    if (items.some((p) => nkey(p) && nt.includes(nkey(p)))) return null;   /* G2 */
+    const bits = title.split(/[/／]/);
+    if (bits.length !== 2) return null;                           /* G3 */
+    let cand = bits[1].replace(WORK_BRACKET, "");
+    cand = trimEdge(cand.replace(WORK_TAIL, ""));
+    cand = trimName(cand, "")[0];
+    if (!trimOk(cand) || nkey(cand) === nkey(artist)) return null;
+    return cand;
+  }
+
+  /* A1 同じ名前の繰り返しを 1 つに、A2 宣伝の文句を含む要素を落とす */
+  function tidyArtist(a) {
+    const parts = a.split(TRIM_SEP_REPEAT).filter((p) => p.trim());
+    if (parts.length >= 2 && new Set(parts.map(nkey)).size === 1 && trimOk(parts[0])) a = parts[0].trim();
+    const items = a.split(TRIM_SEP).map((p) => p.trim()).filter(Boolean);
+    if (items.length >= 2) {
+      const keep = items.filter((p) => !TRIM_PROMO.test(p));
+      if (keep.length && keep.length < items.length) a = keep.join(" / ");
+    }
+    return a;
+  }
+
+  /* 曲名とアーティスト名から蛇足を外す。**データは変えず、表示のときだけ通す** */
+  function trimName(title, artist) {
+    let t = (title || "").trim(), a = (artist || "").trim();
+
+    const grafted = trimGraft(t, a);
+    if (grafted) {
+      /* 移植したら、題の中の移植元（「/」の後ろ）は落とす。同じ名前が題と作者欄に二重に出るのを防ぐ */
+      a = grafted;
+      const head = trimEdge(t.split(/[/／]/)[0]);
+      if (trimOk(head)) t = head;
+    }
+    a = tidyArtist(a);
+
+    for (let i = 0; i < 3; i++) {                 /* R2 チャンネル名の尾（重なることがある） */
+      const n = trimEdge(a.replace(CHANNEL_TAIL, ""));
+      if (n === a || !trimOk(n)) break;
+      a = n;
+    }
+
+    const names = new Set(a.split(TRIM_SEP).filter(trimOk).map(nkey));   /* R4 で突き合わせる作者名 */
+
+    let kept = "", cut = 0;                       /* R1/R3/R4 括弧のかたまり */
+    for (const [st, en, inner] of trimSpans(t, TRIM_BR)) {
+      if (MEDIA_ONLY.test(inner) || names.has(nkey(inner)) || TRIM_GENRE.test(inner)) { kept += t.slice(cut, st); cut = en; }
+    }
+    const nt = trimEdge((kept + t.slice(cut)).trim().replace(/\s{2,}/g, " "));
+    if (trimOk(nt)) t = nt;
+
+    for (let i = 0; i < 2; i++) {                 /* R1 括弧に入っていない末尾の媒体語 */
+      const n = trimEdge(t.replace(MEDIA_TAIL, ""));
+      if (n === t || !trimOk(n)) break;
+      t = n;
+    }
+
+    /* R4 区切りで割って、**作者名と同じ要素を落とす**（位置は問わない）。
+       括弧が付いていることがあるので括弧を除いた残りで突き合わせ、当たったら**括弧だけ残す** */
+    const bits = splitOutside(t);
+    if (bits.length >= 3) {
+      const keep = bits.map(() => true);
+      for (let i = 0; i < bits.length; i += 2) {
+        const bare = dropBrackets(bits[i]).trim();
+        if (!bare || !(names.has(nkey(bare)) || nkey(bare) === nkey(a))) continue;
+        const rest = bracketsOnly(bits[i]).trim();
+        bits[i] = rest;
+        if (!rest) keep[i] = false;
+        if (i > 0) keep[i - 1] = false;           /* 前の区切りごと落とす */
+        else if (!rest) keep[1] = false;          /* 先頭なら後ろの区切りを落とす */
+      }
+      const joined = trimEdge(bits.filter((b, i) => keep[i]).join(""));
+      if (joined !== t && trimOk(joined)) t = joined;
+    }
+    return [t, a];
+  }
+
   const hiresArt = (url) => url.replace(/\/\d+x\d+(bb)?\.(jpg|png)$/, (m, bb, ext) => `/1000x1000${bb || ""}.${ext}`);
   async function itunesSearch(q, artist) {
     const term = `${artist} ${q}`.trim();
@@ -4518,6 +4665,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   window.__sharePlan = (base, coarse) => shareRenderPlan(base, coarse);   // 同上。割り付けごと覗く（「出力サイズ」の表示と同じもの）
   window.__loadShareFonts = () => loadShareFonts();   // 割り付けを測る前に Web フォントを読む（promo/dump_layouts.mjs）
   window.__clearCharW = () => { CHAR_W.clear(); clearSharePlan(); };
+  window.__trimName = (t, a) => trimName(t, a);   // 刈り込みの突き合わせ（scripts/compare_trim.py）
   // 並びを差し替えて割り付けだけ見るための口（promo/dump_layouts.mjs）。マスは曲で埋める
   window.__setGrid = (c, r, opt = {}, base = null) => {
     Object.assign(state, opt);
