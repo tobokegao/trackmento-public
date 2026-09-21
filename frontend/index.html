@@ -3399,7 +3399,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を続けて流し込み、
   // 幅で折り返す。区切りの記号は置かない。番号がピクセルフォントで本文と書体も色も違うので、それ自体が切れ目になる。
   // サーバー描画（backend/render.py の FLOW_* と _flow_rows）と同じ式にしてある。片方だけ変えてはいけない
-  const FLOW_MIN_FONT = 20, FLOW_KEEP_FONT = 16;
+  const FLOW_MIN_FONT = 20, FLOW_KEEP_FONT = 14;   // KEEP は 16 から下げた（2026-09-21）
   // 行の中心からベースラインまでの下向きの量（字の大きさに対する比）。**実測せず固定比**
   // （backend/render.py の BASELINE と同じ。字面の測り方が PIL と Canvas で数 px 違うため）
   const BASELINE = 0.38;
@@ -4510,6 +4510,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   window.__renderShare = (ms) => renderShareCanvas(ms || 2400, () => {});   // 描画の確認用（promo の点検スクリプトから呼ぶ。絵を data URL にして比べる）
   window.__layoutFor = (q, ms) => { const b = state.ratio; state.ratio = q; try { return layout(ms); } finally { state.ratio = b; } };
   window.__layout = layout;   // 突き合わせ（scripts/compare_render.py）から割り付けを覗くため
+  window.__shareSide = (base, coarse) => shareRenderSide(base, coarse);   // 共有画像を実際に描く大きさ（流し込みを避けて上げた結果）を覗くため
   window.__loadShareFonts = () => loadShareFonts();   // 割り付けを測る前に Web フォントを読む（promo/dump_layouts.mjs）
   window.__clearCharW = () => CHAR_W.clear();
   // 並びを差し替えて割り付けだけ見るための口（promo/dump_layouts.mjs）。マスは曲で埋める
@@ -5124,6 +5125,31 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (mem !== undefined && mem <= 2) return 2000;
     return window.matchMedia("(pointer: coarse)").matches ? 2000 : 2400;
   }
+  /* **流し込みに落ちる並びだけ、整列に戻る大きさまで上げる**（2026-09-21）。
+     曲名リストの組み方は「出力での文字の大きさ」で決まるので、同じ並び・同じ比率でも
+     出力の大きさだけで組み方が変わる。利用者の 5x5・16:9・25 曲は、1 曲 1 行にすると
+     2000px で 14.4px（`FLOW_KEEP_FONT` = 16px にわずかに届かない）、2400px で 17.2px。
+     2000px の端末だけが段落のような流し込みになっていた。流し込みは曲の区切りが見えないので、
+     1 段上げれば整列に戻るなら、そのぶん画像を大きくするほうがよい。
+     **上げるのは流し込みに落ちる並びだけ**。上げ幅は端末で変える:
+     - メモリの少ない端末（`deviceMemory <= 2`）… 上げない
+     - 指で触る端末（スマホ・タブレット）… 2400 まで 1 段だけ。2000 に下げたのは上りの遅さが理由
+       （上のコメント）で、送るバイトが約 1.44 倍に戻るため、2 段目以降は上げない
+     - PC … 3200 まで
+     **大きくしても流し込みのままなら、いちばん軽い大きさで描く**（曲が多い並びは何 px にしても
+     字が下限に届かない。実測では 26 曲以上の並びがそれに当たる） */
+  const SHARE_SIDE_STEPS = [2400, 2800, 3200];
+  function shareRenderSide(base = shareMaxSide(), coarse = window.matchMedia("(pointer: coarse)").matches) {
+    const mem = navigator.deviceMemory;
+    if (mem !== undefined && mem <= 2) return base;
+    const cap = coarse ? 2400 : 3200;
+    if (!layout(base).sbFlow) return base;
+    for (const s of SHARE_SIDE_STEPS) {
+      if (s <= base || s > cap) continue;
+      if (!layout(s).sbFlow) return s;
+    }
+    return base;
+  }
   const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent) || location.hash === "#inapp";
   /* アプリ内ブラウザなら外部ブラウザを勧める帯を出す（「閉じる」でそのタブの間は出さない） */
   function showInAppNotice() {
@@ -5611,7 +5637,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!("createImageBitmap" in window) || !document.fonts) throw new Error("unsupported");   // アプリ内ブラウザでもまず試し、失敗ならサーバー描画へ
     await loadShareFonts();
     say(els.gridMsg, tr("画像を作成中…"));
-    const { canvas, bg } = await renderShareCanvas(shareMaxSide(), (i, n) => say(els.gridMsg, tr`画像を作成中… ${i}/${n}`));
+    const { canvas, bg } = await renderShareCanvas(shareRenderSide(), (i, n) => say(els.gridMsg, tr`画像を作成中… ${i}/${n}`));
     const enc = await encodeShare(canvas, bg);
     say(els.gridMsg, tr`アップロード中…（${(enc.png.size / 1e6).toFixed(1)} MB）`);
     const fd = new FormData();
