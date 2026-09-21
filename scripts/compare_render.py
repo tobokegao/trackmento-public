@@ -12,6 +12,8 @@
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 16 16 1:1
     #    曲名リストの流し込みを比べるときは fill を足して全マス埋める
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 16 16 16:9 fill
+    #    「ぼかして埋める」を比べるときは blur（マスは正方形のまま）、横長のマスなら wide も足す
+    PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 3 3 1:1 blur
     # 2) 出た URL をブラウザで開き「トラックを共有」を押す（ブラウザ描画の共有ができる）
     # 3) 2 つの共有 ID を比べる
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py diff <サーバーのID> <ブラウザのID>
@@ -39,7 +41,7 @@ NO_COVER_CELL = {"source": "manual", "title": "ジャケット無しの曲", "ar
                  "image": "/no-cover.png", "thumb": "/no-cover.png", "external_url": None}
 
 
-def make(cols: int, rows: int, ratio: str, fill: bool = False) -> None:
+def make(cols: int, rows: int, ratio: str, fill: bool = False, blur: bool = False, wide: bool = False) -> None:
     """grids/default.json の曲を使って比較用の並びを作り、サーバー描画の共有を 1 件作る。
 
     fill=True なら曲を繰り返して全部のマスを埋める。曲名リストの流し込み（曲が多いときだけ
@@ -54,11 +56,12 @@ def make(cols: int, rows: int, ratio: str, fill: bool = False) -> None:
     else:
         for i, t in enumerate(tracks[: cols * rows]):
             cells[i] = t
-    name = f"u-rendercmp{cols}x{rows}{'full' if fill else ''}"
+    name = f"u-rendercmp{cols}x{rows}{'full' if fill else ''}{'blur' if blur else ''}{'wide' if wide else ''}"
     doc = {"app": "trackmento", "version": 1, "name": name, "cols": cols, "rows": rows,
            "cells": cells, "stash": [], "title": "描画くらべ",
            "options": {"ratio": ratio, "showTitle": True, "sidebar": True, "numbers": True,
-                       "bg": "mustard", "bgCustom": None, "margin": 16, "gap": 16}}
+                       "bg": "mustard", "bgCustom": None, "margin": 16, "gap": 16,
+                       "cellRatio": "16:9" if wide else "1:1", "cellFit": "blur" if blur else "crop"}}
     with httpx.Client(timeout=300) as c:
         c.put(f"{BASE}/grids/{name}", json=doc).raise_for_status()
         d = c.post(f"{BASE}/share", json={"grid": name}).json()
@@ -137,8 +140,10 @@ def main() -> int:
         return 2
     cmd = sys.argv[1]
     if cmd == "make":
-        args = [a for a in sys.argv[2:] if a != "fill"]
-        make(int(args[0]), int(args[1]), args[2] if len(args) > 2 else "16:9", "fill" in sys.argv[2:])
+        flags = {"fill", "blur", "wide"}
+        args = [a for a in sys.argv[2:] if a not in flags]
+        make(int(args[0]), int(args[1]), args[2] if len(args) > 2 else "16:9", "fill" in sys.argv[2:],
+             blur="blur" in sys.argv[2:], wide="wide" in sys.argv[2:])
         return 0
     if cmd == "diff":
         return diff(sys.argv[2], sys.argv[3])

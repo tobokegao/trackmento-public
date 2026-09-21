@@ -311,8 +311,9 @@ def _load_cover_from(url: str, t: Track, w: int, h: int, fit: str = "crop") -> I
     if imgtools.is_video_thumb(url) or t.source in ("youtube", "nicovideo", "bilibili", "otodb"):
         im = imgtools.trim_letterbox(im)   # 動画サムネイルの黒帯を落としてから切り抜く
     # **「ぼかして埋める」を選んだマスだけ切らずに収める**。既定は今までどおり中央で切る。
-    # 文字の入ったジャケットは切ると読めなくなるので、そこだけ利用者が選ぶ（docs/ui.md）
-    fitted = (_cover_blur_pad(im, w, h) if fit == "blur" and w != h and abs(im.width / im.height - w / h) > 0.01
+    # 文字の入ったジャケットは切ると読めなくなるので、そこだけ利用者が選ぶ（docs/ui.md）。
+    # 正方形のマスでも効く（16:9 のサムネを左右を切らずに入れる。2026-09-21）
+    fitted = (_cover_blur_pad(im, w, h) if fit == "blur" and abs(im.width / im.height - w / h) > 0.01
               else _cover_fit(im, w, h))
     im.close()
     return fitted

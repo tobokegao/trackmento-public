@@ -759,17 +759,17 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
    CELL_H_BY_RATIO と同じ比**にすること（画面と書き出しで形が違って見える） */
 .grid[data-cell-ratio="16:9"] .cell { aspect-ratio: 16 / 9; }
 /* 「ぼかして埋める」のマス: 同じ絵をぼかした下地を敷き、本体は切らずに収める
-   （Canvas の `coverBlurPad` と同じ見た目。**正方形のマスでは効かせない**） */
+   （Canvas の `coverBlurPad` と同じ見た目。正方形のマスでも効く: 16:9 のサムネを左右を切らずに入れる） */
 .cell .cover-bg { display: none; }
-.grid[data-cell-ratio="16:9"] .cell[data-fit="blur"] .cover-bg {
+.cell[data-fit="blur"] .cover-bg {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; filter: blur(6px); z-index: 0;
   /* **下地を外へ広げてから切り取る**。マスちょうどでぼかすと縁がにじんで四角の枠がぼやける
      （書き出し側の `coverBlurPad` と同じ考え方。あちらは広く描いてから clip する） */
   transform: scale(1.12);
 }
-.grid[data-cell-ratio="16:9"] .cell[data-fit="blur"] { overflow: hidden; }
-.grid[data-cell-ratio="16:9"] .cell[data-fit="blur"] > img:not(.cover-bg) { object-fit: contain; position: relative; z-index: 1; }
+.cell[data-fit="blur"] { overflow: hidden; }
+.cell[data-fit="blur"] > img:not(.cover-bg) { object-fit: contain; position: relative; z-index: 1; }
 /* 下地を敷くと重なり順が変わるので、番号・×・曲名の帯を絵より前に出す */
 .cell[data-fit="blur"] .num, .cell[data-fit="blur"] .rm, .cell[data-fit="blur"] .cap { position: relative; z-index: 2; }
 .cell {
@@ -1194,9 +1194,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <button class="btn" type="button" id="e-origin-find">元の投稿を探す</button>
           <p class="msg" id="e-origin-msg" role="status" aria-live="polite"></p>
         </div>
-        <div class="field" id="e-fit-field" hidden>
-          <label>このマスの絵の入れ方</label>
-          <div class="seg" id="e-fit-seg" role="radiogroup" aria-label="このマスの絵の入れ方">
+        <div class="field" id="e-fit-field">
+          <label>このマスのぼかしの入れ方</label>
+          <div class="seg" id="e-fit-seg" role="radiogroup" aria-label="このマスのぼかしの入れ方">
             <label><input type="radio" name="eFit" value="" checked><span>全体に従う</span></label>
             <label><input type="radio" name="eFit" value="crop"><span>切り抜く</span></label>
             <label><input type="radio" name="eFit" value="blur"><span>ぼかして埋める</span></label>
@@ -1368,11 +1368,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形</span></label>
           <label><input type="radio" name="cellRatio" value="16:9"><span>横長 16:9</span></label>
         </div>
-        <div class="seg" id="cell-fit-seg" role="radiogroup" aria-label="絵の入れ方" hidden>
+        <div class="seg" id="cell-fit-seg" role="radiogroup" aria-label="絵の入れ方">
           <label><input type="radio" name="cellFit" value="crop" checked><span>切り抜く</span></label>
           <label><input type="radio" name="cellFit" value="blur"><span>ぼかして埋める</span></label>
         </div>
-        <p class="note" id="cell-fit-note" hidden>正方形のジャケットの入れ方です。文字が入ったジャケットは「ぼかして埋める」にすると切れません。マスごとに変えることもできます。</p>
+        <p class="note" id="cell-fit-note">マスと形の違う絵（正方形のマスには動画のサムネ、横長のマスには正方形のジャケット）の入れ方です。「ぼかして埋める」にすると絵が切れません。マスごとに変えることもできます。</p>
       </fieldset>
 
       <fieldset class="field">
@@ -1767,9 +1767,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "絵の入れ方": "How covers fit",
         "切り抜く": "Crop",
         "ぼかして埋める": "Blur to fill",
-        "このマスの絵の入れ方": "How this cover fits",
+        "このマスのぼかしの入れ方": "Blur fill for this cell",
         "全体に従う": "Follow the setting",
-        "正方形のジャケットの入れ方です。文字が入ったジャケットは「ぼかして埋める」にすると切れません。マスごとに変えることもできます。": "This is for square covers. Choose “Blur to fill” to keep covers with text from being cut off. You can also change it for a single cell.",
+        "マスと形の違う絵（正方形のマスには動画のサムネ、横長のマスには正方形のジャケット）の入れ方です。「ぼかして埋める」にすると絵が切れません。マスごとに変えることもできます。": "How to fit art whose shape differs from the cell (video thumbnails in square cells, square covers in 16:9 cells). Choose “Blur to fill” to keep the art from being cut off. You can also change it for a single cell.",
         "全曲名を短縮する": "Shorten all titles",
         "曲名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
         "短くする": "Shorten",
@@ -3231,7 +3231,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         const img = document.createElement("img");
         img.src = proxied(t.thumb || t.image); img.alt = ""; img.draggable = false;   // 表示は小さい方（転送量）。フル解像度は共有画像を描くときだけ
         // **「ぼかして埋める」のマスは、同じ絵をぼかした下地を敷く**（書き出しと同じ見た目にする）。
-        // マスごとの `t.fit` が無ければ並び全体の設定に従う。正方形のマスでは CSS 側で出さない
+        // マスごとの `t.fit` が無ければ並び全体の設定に従う
         li.dataset.fit = t.fit || state.cellFit || "crop";
         if (li.dataset.fit === "blur") {
           const bg = document.createElement("img");
@@ -3363,11 +3363,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.ratioSeg.addEventListener("change", () => { state.ratio = els.ratioSeg.querySelector("input:checked").value; updateSpec(); });
   /* セグメントの選択を値で合わせる（既存の `input[value=…]` を探す書き方をまとめたもの） */
   const setSeg = (seg, v) => { const i = seg.querySelector(`input[value="${v}"]`); if (i) i.checked = true; };
-  /* マスの形。**「絵の入れ方」は横長のときだけ出す**（正方形なら切る・埋めるの違いが出ない） */
+  /* マスの形。「絵の入れ方」は**どちらの形でも出す**（2026-09-21、利用者の求め。はじめは横長のときだけだった）。
+     正方形のマスには 16:9 のサムネ、横長のマスには正方形のジャケットが「形の違う絵」として入る */
   function syncCellFit() {
-    const wide = state.cellRatio === "16:9";
-    els.cellFitSeg.hidden = !wide; els.cellFitNote.hidden = !wide;
-    els.eFitField.hidden = !wide;
     els.grid.dataset.cellRatio = state.cellRatio;
   }
   els.cellRatioSeg.addEventListener("change", () => {
@@ -5760,7 +5758,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* マスに絵を入れる。**「ぼかして埋める」を選んだマスだけ切らずに収める**（既定は中央で切る）。
      `fit` は "crop" か "blur"（マスごとの `t.fit` が無ければ並び全体の `state.cellFit`） */
   function paintCover(ctx, bmp, x, y, cw, ch, fit) {
-    if (fit === "blur" && cw !== ch && Math.abs(bmp.width / bmp.height - cw / ch) > 0.01) coverBlurPad(ctx, bmp, x, y, cw, ch);
+    if (fit === "blur" && Math.abs(bmp.width / bmp.height - cw / ch) > 0.01) coverBlurPad(ctx, bmp, x, y, cw, ch);
     else drawCover(ctx, bmp, x, y, cw, ch);
   }
   async function renderShareCanvas(maxSide, onProgress) {
