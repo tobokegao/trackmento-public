@@ -40,6 +40,9 @@ class GridOptions(BaseModel):
     # **重ねるときは sidebar を切って保存する**。この項目を知らない古いタブで開いても「曲名リストなし」になるだけで壊れない
     overlay: bool = False
     numbers: bool = False
+    # 曲名とアーティスト名から蛇足（【東方Vocal】・「- Topic」など）を外して表示する（backend/names.py）。
+    # **データは元のまま**で、表示のときだけ通す。この項目を知らない古いタブで開いても刈らないだけで壊れない
+    trimNames: bool = True
     bg: str = "paper"
     bgCustom: Optional[str] = None
     margin: int = 16

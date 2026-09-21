@@ -21,7 +21,7 @@ from pathlib import Path
 import httpx
 from PIL import Image, ImageDraw, ImageFont
 
-from backend import imgtools, netguard, uploads
+from backend import imgtools, names, netguard, uploads
 from backend.cache import cache
 from backend.logutil import brief
 from backend.grids import GridDoc
@@ -1542,7 +1542,24 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
     return None
 
 
+def _trimmed(doc: GridDoc) -> GridDoc:
+    """曲名・アーティスト名から蛇足を外した写しを返す（`trimNames` が偽ならそのまま）。
+
+    **割り付けを決める前に通すこと**。刈ったあとの文字で行数と字の大きさを決めないと枠が縮まない。
+    `layout()` と `render()` の両方の入口で呼ぶので**二重に掛かる**。`names.trim` は
+    掛け直しても結果が変わらない（`scripts/check_trim.py` が確かめている）。
+    """
+    if not doc.options.trimNames or not any(doc.cells):
+        return doc
+    out = doc.model_copy(deep=True)
+    for cell in out.cells:
+        if cell is not None:
+            cell.title, cell.artist = names.trim(cell.title or "", cell.artist or "")
+    return out
+
+
 def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layout:
+    doc = _trimmed(doc)
     o = doc.options
     cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
     n_tracks = max(1, sum(1 for t in doc.cells if t))   # 入っている曲の数（「消える曲」の割合を測る母数）
@@ -1948,6 +1965,7 @@ def _title_width(title: str, title_size: int) -> int:
 def render(doc: GridDoc) -> Image.Image:
     """レイアウト（論理 px。CELL_PX=600 基準）を計算し、最終サイズ（max_side 以内）で直接描く。
     以前は原寸で描いてから縮小していたが、8×8 だと原寸キャンバスだけで 140MB になり、無料ホストのメモリ上限を超えた。"""
+    doc = _trimmed(doc)               # 描くときも刈った題を使う（`layout()` と同じものを見るため）
     o = doc.options
     L = layout(doc)
     S = L.scale                       # 1.0 か、max_side に収めるための縮小率

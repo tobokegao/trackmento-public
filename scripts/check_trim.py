@@ -57,6 +57,12 @@ def main() -> int:
             print(f"[違う] {title} / {artist}")
             print(f"   期待: {want_t!r} / {want_a!r}")
             print(f"   実際: {got_t!r} / {got_a!r}")
+        # **掛け直しても結果が変わらないこと**。`render.py` は `layout()` と `render()` の
+        # 両方の入口で刈るので、二重に掛かっても同じでないと描く題と測った題がずれる
+        again = trim(got_t, got_a)
+        if again != (got_t, got_a):
+            bad += 1
+            print(f"[二度目で変わる] {got_t!r} / {got_a!r} → {again[0]!r} / {again[1]!r}")
     print(f"{len(CASES) - bad} / {len(CASES)} 件そろいました")
     return 1 if bad else 0
 
