@@ -345,6 +345,11 @@ def _cover_fit(img: Image.Image, w: int, h: int) -> Image.Image:
 BLUR_RADIUS = 0.06    # 下地のぼかし半径（マスの高さに対する比）。**論理 px ではなく出力 px の高さに掛ける**
 
 
+def blur_margin(h: int) -> int:
+    """下地を作るときにマスの外へ広げる幅。**frontend の `blurMargin` と同じ式**"""
+    return max(1, round(max(1.0, h * BLUR_RADIUS) * 3))
+
+
 def _cover_blur_pad(img: Image.Image, w: int, h: int) -> Image.Image:
     """**絵を切らずに**マスいっぱいに収める。余る側は、同じ絵を cover で広げてぼかした下地で埋める
     （YouTube の再生画面と同じやり方）。**frontend の `coverBlurPad` と対で直すこと**。
@@ -352,7 +357,12 @@ def _cover_blur_pad(img: Image.Image, w: int, h: int) -> Image.Image:
     16:9 のマスに正方形のジャケットが来たときに使う。中央で切ると、アルバムアートは
     中央に絵があるので損なう。
     """
-    base = _cover_fit(img, w, h).filter(ImageFilter.GaussianBlur(max(1.0, h * BLUR_RADIUS)))
+    r = max(1.0, h * BLUR_RADIUS)
+    # **下地はマスより広く作ってから切り取る**。マスちょうどで作ってぼかすと、端に外側の色が無いぶん
+    # 縁がにじんで四角の枠がぼやける（ブラウザの `blur()` は範囲の外を透明として扱うのでなおさら）。
+    # 広げる幅は半径の 3 倍（ガウスぼかしが実質届く範囲）。**frontend の `coverBlurPad` と同じ式にすること**
+    m = blur_margin(h)
+    base = _cover_fit(img, w + m * 2, h + m * 2).filter(ImageFilter.GaussianBlur(r)).crop((m, m, m + w, m + h))
     f = min(w / img.width, h / img.height)                  # contain
     fw, fh = max(1, round(img.width * f)), max(1, round(img.height * f))
     base.paste(img.resize((fw, fh), Image.LANCZOS), ((w - fw) // 2, (h - fh) // 2))

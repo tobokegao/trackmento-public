@@ -755,7 +755,11 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .grid[data-cell-ratio="16:9"] .cell[data-fit="blur"] .cover-bg {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; filter: blur(6px); z-index: 0;
+  /* **下地を外へ広げてから切り取る**。マスちょうどでぼかすと縁がにじんで四角の枠がぼやける
+     （書き出し側の `coverBlurPad` と同じ考え方。あちらは広く描いてから clip する） */
+  transform: scale(1.12);
 }
+.grid[data-cell-ratio="16:9"] .cell[data-fit="blur"] { overflow: hidden; }
 .grid[data-cell-ratio="16:9"] .cell[data-fit="blur"] > img:not(.cover-bg) { object-fit: contain; position: relative; z-index: 1; }
 /* 下地を敷くと重なり順が変わるので、番号・×・曲名の帯を絵より前に出す */
 .cell[data-fit="blur"] .num, .cell[data-fit="blur"] .rm, .cell[data-fit="blur"] .cap { position: relative; z-index: 2; }
@@ -5606,11 +5610,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* **絵を切らずに**マスいっぱいに収める。余る側は、同じ絵を cover で広げてぼかした下地で埋める
      （YouTube の再生画面と同じやり方）。**backend/render.py の `_cover_blur_pad` と対で直すこと**。
      ぼかし半径は**出力 px の高さ**に掛ける（論理 px で決めるとサーバーとぼけ方がずれる） */
+  const blurMargin = (ch) => Math.max(1, Math.round(Math.max(1, ch * BLUR_RADIUS) * 3));
   function coverBlurPad(ctx, bmp, x, y, cw, ch) {
     ctx.save();
     ctx.beginPath(); ctx.rect(x, y, cw, ch); ctx.clip();
     ctx.filter = `blur(${Math.max(1, ch * BLUR_RADIUS)}px)`;
-    drawCover(ctx, bmp, x, y, cw, ch);
+    // **下地はマスより広く描いてから切り取る**（clip で切る）。マスちょうどに描くと、
+    // `blur()` が範囲の外を透明として扱うぶん縁がにじみ、四角の枠がぼやけて見える。
+    // 広げる幅は backend/render.py の `blur_margin` と同じ式
+    const m = blurMargin(ch);
+    drawCover(ctx, bmp, x - m, y - m, cw + m * 2, ch + m * 2);
     ctx.filter = "none";
     const f = Math.min(cw / bmp.width, ch / bmp.height);
     const fw = Math.max(1, Math.round(bmp.width * f)), fh = Math.max(1, Math.round(bmp.height * f));
