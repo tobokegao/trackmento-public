@@ -178,7 +178,7 @@
         </div>
         <div class="chart" id="storage-wrap" hidden>
           <h3>R2 の使用量（GB）</h3>
-          <p class="cap">点線が無料枠の 10GB。<strong>種類の内訳が出るのは 09-21 から</strong>（毎日の掃除が数えた日）。それより前は Cloudflare の記録から引いた合計だけで、灰色の帯で出る。</p>
+          <p class="cap">点線が無料枠の 10GB。09-09 の公開から。<strong>まだ一度も掃除で減っていない</strong>（imgcache の 14 日は 09-23、共有の 30 日は <strong>10-09</strong> に初めて効く）。伸びが緩んだのは共有が 1 日 4,287 → 747 件に落ち着いたため。<strong>内訳が出るのは 09-21 から</strong>で、それより前は Cloudflare の記録から引いた合計だけ（灰色）。</p>
           <div id="c-storage"></div>
           <div class="legend" id="storage-legend"></div>
         </div>
@@ -652,7 +652,7 @@
     { id: "filter", t: "フィルタ各社の分類を確認", d: "ネットスター・トレンドマイクロ・Cloudflare・Norton・McAfee。9/19 に申請済み", when: "2026-09-22" },
     { id: "adsense", t: "AdSense の審査結果", d: "承認されても、CSP に script-src / frame-src を足さないと広告は出ない。出すかどうかは未決" },
     { id: "video12", t: "紹介動画 v14 を公開するか決める", d: "v14（縦・日本語）まで書き出し済み。YouTube などに投稿するかは未決。英語・横は新しい撮り方でまだ撮っていない", when: "未決" },
-    { id: "cftoken", t: "CLOUDFLARE_API_TOKEN を .env に入れる", d: "発行済み（Account Analytics Read）。入れたら scripts/r2_history.py で R2 の使用量の過去 31 日ぶんを埋められる", when: "手元の作業" }
+    { id: "prune30", t: "10-09 に共有の 30 日掃除が初めて効く", d: "09-09 の公開から一度も消えていない。その日 R2 の使用量が初めて減る（はず）。減らなければ r2-prune.yml が効いていない。09-23 の imgcache（14 日）も同じ目で見る", when: "2026-10-09" }
   ];
 
   let WATCH = [];   // 点検の数字から組み立てたもの（db の board/metrics から来る）
