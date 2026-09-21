@@ -43,6 +43,9 @@ class GridOptions(BaseModel):
     # マスの形。"1:1"（正方形）か "16:9"（横長。動画サイトのサムネイルに合う）。
     # **既定は正方形**（今ある並びと共有画像の見た目を変えないため）
     cellRatio: str = "1:1"
+    # 正方形でないマスへの絵の入れ方。"crop"（中央で切る）か "blur"（切らずにぼかして埋める）。
+    # マスごとに `Track.fit` で上書きできる（文字の入ったジャケットだけ埋めたいとき）
+    cellFit: str = "crop"
     # 曲名とアーティスト名から蛇足（【東方Vocal】・「- Topic」など）を外して表示する（backend/names.py）。
     # **データは元のまま**で、表示のときだけ通す。この項目を知らない古いタブで開いても刈らないだけで壊れない
     trimNames: bool = True
@@ -60,6 +63,11 @@ class GridOptions(BaseModel):
     @classmethod
     def _cell_ratio(cls, v: str) -> str:
         return v if v in ("1:1", "16:9") else "1:1"
+
+    @field_validator("cellFit")
+    @classmethod
+    def _cell_fit(cls, v: str) -> str:
+        return v if v in ("crop", "blur") else "crop"
 
     @field_validator("margin", mode="before")
     @classmethod
@@ -98,9 +106,6 @@ class GridDoc(BaseModel):
     cells: list[Optional[Track]] = Field(default_factory=list)
     stash: list[Track] = Field(default_factory=list)
     options: GridOptions = Field(default_factory=GridOptions)
-    # **みんなの並びから探せるようにするか**（既定オフ）。共有は本来 URL を知っている人だけのものなので、
-    # 索引（`backend/shareindex.py`）に載せるのは利用者が自分でチェックを入れたものだけにする
-    listed: bool = False
     # **みんなの並びから探せるようにするか**（既定オフ）。共有は本来 URL を知っている人だけのものなので、
     # 索引（`backend/shareindex.py`）に載せるのは利用者が自分でチェックを入れたものだけにする
     listed: bool = False

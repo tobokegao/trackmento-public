@@ -44,6 +44,7 @@ FIELDS = ["W", "H", "scale", "font", "line_h", "ox", "oy", "title_size", "title_
           "wrap", "wrap_pad", "wrap_top", "segs", "cols", "side", "flow", "inline", "title_x", "row_inline"]
 SIDES = (1, 2, 3, 5, 8, 12, 16, 20, 26, 31, 32)
 RATIOS = ("1:1", "4:5", "9:16", "16:9", "free")
+CELL_RATIOS = ("1:1", "16:9")     # マスの形
 
 
 def main() -> int:
@@ -52,13 +53,14 @@ def main() -> int:
     # `--tracks <json>` で曲を差し替えられる（長い題で 3 行に折れる並びなど、default.json に無い中身を試すとき）
     tracks_path = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--tracks=")), None)
     random.seed(7)
-    combos = [[c, r, q] for q in RATIOS for c in SIDES for r in SIDES if c * r <= 256]
+    # **マスの形も回す**（16:9 は塊の高さが変わるので割り付けが別物になる）
+    combos = [[c, r, q, cq] for cq in CELL_RATIOS for q in RATIOS for c in SIDES for r in SIDES if c * r <= 256]
     random.shuffle(combos)
     combos = combos[:n]
     if "--small" in sys.argv:
         # 1〜6 マス四方 × 比率 5 種（180 通り）。1 行型（曲名とアーティスト名を 1 行に並べる）は
         # 曲が少ない並びでしか出ないので、ランダムの 200 通りにはほとんど入らない
-        combos = [[c, r, q] for q in RATIOS for c in range(1, 7) for r in range(1, 7)]
+        combos = [[c, r, q, cq] for cq in CELL_RATIOS for q in RATIOS for c in range(1, 7) for r in range(1, 7)]
 
     src = json.loads((ROOT / "grids" / "default.json").read_text(encoding="utf-8"))
     tracks = [c for c in src["cells"] if c]
@@ -73,25 +75,25 @@ def main() -> int:
     if r.returncode:
         print(r.stdout, r.stderr)
         return 1
-    js = {(c, rr, q): row for c, rr, q, *row in json.loads((tmp / "js.json").read_text(encoding="utf-8"))}
+    js = {(c, rr, q, cq): row for c, rr, q, cq, *row in json.loads((tmp / "js.json").read_text(encoding="utf-8"))}
 
     bad = 0
-    for c, rr, q in combos:
+    for c, rr, q, cq in combos:
         cells = [tracks[i % len(tracks)] for i in range(c * rr)]
         doc = GridDoc(**{**src, "name": "t", "cols": c, "rows": rr, "cells": cells, "stash": [],
                          "title": "私を構成する9選",
                          "options": {**src.get("options", {}), "ratio": q, "showTitle": True,
                                      "sidebar": True, "numbers": False, "margin": 16, "gap": 16,
-                                     "bg": "mustard", "bgCustom": None}})
+                                     "bg": "mustard", "bgCustom": None, "cellRatio": cq}})
         L = R.layout(doc)
         py = [L.W, L.H, round(L.scale * 1e9), L.font_s, L.line_h, L.ox, L.oy, L.title_size, L.title_h,
               1 if L.wrap else 0, L.wrap_pad, L.wrap_top, len(L.wrap_segs), L.sb_cols,
               L.side, 1 if L.sb_flow else 0, 1 if L.sb_inline else 0, L.wrap_tx, 1 if L.wrap_inline else 0]
-        got = js.get((c, rr, q))
+        got = js.get((c, rr, q, cq))
         if got != py:
             bad += 1
             if bad <= 12:
-                print(f"{c}x{rr} {q}: " + ", ".join(
+                print(f"{c}x{rr} {q} マス{cq}: " + ", ".join(
                     f"{FIELDS[i]} サーバー={py[i]} ブラウザ={got[i]}" for i in range(len(py)) if py[i] != got[i]))
     print(f"食い違い {bad} / {len(combos)}")
     return 1 if bad else 0

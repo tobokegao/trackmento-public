@@ -31,6 +31,15 @@ class Track(BaseModel):
     image: str
     thumb: Optional[str] = None
     external_url: Optional[str] = None
+    # 正方形でないマスに、この絵をどう入れるか。None なら並び全体の設定（`GridOptions.cellFit`）に従う。
+    # "crop" は中央で切る、"blur" は切らずに左右をぼかした下地で埋める。**マスに置いたあとの見た目の話**なので
+    # 検索結果には出ない（`backend/render.py` と frontend の `paintCover` が読む）
+    fit: Optional[str] = None
+
+    @field_validator("fit")
+    @classmethod
+    def _fit(cls, v):
+        return v if v in ("crop", "blur") else None
 
     @field_validator("title", "artist", "album", mode="before")
     @classmethod

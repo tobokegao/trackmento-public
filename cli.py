@@ -300,7 +300,7 @@ def cmd_render(a: argparse.Namespace) -> int:
     opts = doc.options.model_dump()
     updates = {
         "ratio": a.ratio, "sidebar": a.sidebar, "overlay": a.overlay, "showTitle": a.show_title, "numbers": a.numbers,
-        "trimNames": a.trim_names,
+        "trimNames": a.trim_names, "cellRatio": a.cell_ratio, "cellFit": a.cell_fit,
         "bg": a.bg, "bgCustom": a.bg_custom, "margin": a.margin, "gap": a.gap,
     }
     if a.bg_custom and a.bg is None:
@@ -423,6 +423,8 @@ def _render_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--no-numbers", dest="numbers", action="store_false")
     sp.add_argument("--trim", dest="trim_names", action="store_true", default=None, help="曲名の蛇足（【東方Vocal】・「- Topic」など）を外す（既定）")
     sp.add_argument("--no-trim", dest="trim_names", action="store_false")
+    sp.add_argument("--cell", dest="cell_ratio", choices=["1:1", "16:9"], help="マスの形（既定は正方形）")
+    sp.add_argument("--fit", dest="cell_fit", choices=["crop", "blur"], help="横長のマスへの絵の入れ方（既定は切り抜く）")
     sp.add_argument("--bg", choices=["paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink",
                              "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
                              "night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta"], help="背景色")

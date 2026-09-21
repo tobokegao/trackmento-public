@@ -285,14 +285,14 @@ def fetch_image_bytes(url: str) -> bytes:
     return data
 
 
-def load_cover(t: Track, w: int = CELL_W, h: int | None = None) -> Image.Image | None:
+def load_cover(t: Track, w: int = CELL_W, h: int | None = None, fit: str = "crop") -> Image.Image | None:
     """ジャケットを取得し、マスの大きさ（w × h）に収めて返す。
     原寸の画像を持ち続けないこと（64 枚 × 数千 px で GB 単位になる）。JPEG は draft で縮小デコードする。
     高解像度（image）が取れないときはサムネイル（thumb）で代用する（Cover Art Archive の 500、YouTube の maxres 欠落など）。"""
     urls = [t.image] + ([t.thumb] if t.thumb and t.thumb != t.image else [])
     for url in urls:
         try:
-            return _load_cover_from(url, t, w, h if h is not None else w)
+            return _load_cover_from(url, t, w, h if h is not None else w, fit)
         except Exception as e:  # 1枚の失敗で全体を止めない
             timed_out = isinstance(e, httpx.TimeoutException)
             retry = url != urls[-1] and not timed_out   # 配信元が応答しないときはサムネイルも同じ配信元なので待たない
@@ -302,7 +302,7 @@ def load_cover(t: Track, w: int = CELL_W, h: int | None = None) -> Image.Image |
     return None
 
 
-def _load_cover_from(url: str, t: Track, w: int, h: int) -> Image.Image:
+def _load_cover_from(url: str, t: Track, w: int, h: int, fit: str = "crop") -> Image.Image:
     data = fetch_image_bytes(url)
     with Image.open(io.BytesIO(data)) as src:
         if src.format == "JPEG":
@@ -310,9 +310,9 @@ def _load_cover_from(url: str, t: Track, w: int, h: int) -> Image.Image:
         im = src.convert("RGB")
     if imgtools.is_video_thumb(url) or t.source in ("youtube", "nicovideo", "bilibili", "otodb"):
         im = imgtools.trim_letterbox(im)   # 動画サムネイルの黒帯を落としてから切り抜く
-    # **正方形でないマスは、絵を切らずにぼかして埋める**。中央で切ると、アルバムアートは
-    # 中央に絵があるので損なう（正方形のマスは今までどおり中央で切る）
-    fitted = (_cover_blur_pad(im, w, h) if w != h and abs(im.width / im.height - w / h) > 0.01
+    # **「ぼかして埋める」を選んだマスだけ切らずに収める**。既定は今までどおり中央で切る。
+    # 文字の入ったジャケットは切ると読めなくなるので、そこだけ利用者が選ぶ（docs/ui.md）
+    fitted = (_cover_blur_pad(im, w, h) if fit == "blur" and w != h and abs(im.width / im.height - w / h) > 0.01
               else _cover_fit(im, w, h))
     im.close()
     return fitted
@@ -2043,7 +2043,7 @@ def render(doc: GridDoc) -> Image.Image:
     num_font = font("pixel", num_px)
     from backend.config import public_mode
     with ThreadPoolExecutor(max_workers=2 if public_mode() else 6, initializer=lower_thread_priority) as ex:   # 公開時は控えめに（0.1 vCPU）
-        covers = list(ex.map(lambda t: load_cover(t, cw, ch) if t else None, doc.cells))
+        covers = list(ex.map(lambda t: load_cover(t, cw, ch, t.fit or o.cellFit) if t else None, doc.cells))
     ov = o.overlay and overlay_ok(S, cell_short(doc))
     if ov:
         # 帯は全マス共通なので 1 回だけ作る。濃さは上端 0 → 下端 OVERLAY_ALPHA の直線（Canvas の線形グラデーションと同じ）

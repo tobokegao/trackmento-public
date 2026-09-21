@@ -24,10 +24,11 @@ const res = await page.evaluate(async ({ combos, tracks, maxSide }) => {
   await window.__loadShareFonts();
   window.__clearCharW();
   const got = [];
-  for (const [c, r, q] of combos) {
-    window.__setGrid(c, r, opt, tracks);
+  for (const [c, r, q, cellRatio] of combos) {
+    // **マスの形も組み合わせに入れる**（16:9 は塊の高さが変わるので、割り付けが別物になる）
+    window.__setGrid(c, r, { ...opt, cellRatio: cellRatio || "1:1" }, tracks);
     const L = window.__layoutFor(q, maxSide);
-    got.push([c, r, q, L.W, L.H, Math.round(L.scale * 1e9), L.fontS, L.lineH, L.ox, L.oy,
+    got.push([c, r, q, cellRatio || "1:1", L.W, L.H, Math.round(L.scale * 1e9), L.fontS, L.lineH, L.ox, L.oy,
               L.titleSize, L.titleH, L.wrap ? 1 : 0, L.wrapPad, L.wrapTop, L.wrapSegs.length,
               L.sbCols, L.side, L.sbFlow ? 1 : 0, L.sbInline ? 1 : 0, L.wrapTx || 0, L.wrapInline ? 1 : 0]);
   }

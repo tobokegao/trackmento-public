@@ -743,6 +743,22 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   min-width: min(100%, 16rem);
 }
 .grid[data-numbers="off"] .num { display: none; }
+/* `hidden` を付けた段・注記を確実に隠す。`.seg { display: flex }` のような具体的な指定が
+   `hidden` の既定（display: none）に勝つので、明示的に打ち消す */
+.seg[hidden], .note[hidden], .field[hidden] { display: none; }
+/* マスの形。横長は動画サイトのサムネイル（16:9）に合わせたもの。**backend/render.py の
+   CELL_H_BY_RATIO と同じ比**にすること（画面と書き出しで形が違って見える） */
+.grid[data-cell-ratio="16:9"] .cell { aspect-ratio: 16 / 9; }
+/* 「ぼかして埋める」のマス: 同じ絵をぼかした下地を敷き、本体は切らずに収める
+   （Canvas の `coverBlurPad` と同じ見た目。**正方形のマスでは効かせない**） */
+.cell .cover-bg { display: none; }
+.grid[data-cell-ratio="16:9"] .cell[data-fit="blur"] .cover-bg {
+  display: block; position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; filter: blur(6px); z-index: 0;
+}
+.grid[data-cell-ratio="16:9"] .cell[data-fit="blur"] > img:not(.cover-bg) { object-fit: contain; position: relative; z-index: 1; }
+/* 下地を敷くと重なり順が変わるので、番号・×・曲名の帯を絵より前に出す */
+.cell[data-fit="blur"] .num, .cell[data-fit="blur"] .rm, .cell[data-fit="blur"] .cap { position: relative; z-index: 2; }
 .cell {
   position: relative; aspect-ratio: 1;
   background-color: var(--color-paper-2);
@@ -1154,6 +1170,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <div class="field"><label for="e-artist">アーティスト名</label><input class="input" id="e-artist" type="text" autocomplete="off" maxlength="120"></div>
         </div>
         <p class="editor-meta" id="editor-meta"></p>
+        <div class="field" id="e-fit-field" hidden>
+          <label>このマスの絵の入れ方</label>
+          <div class="seg" id="e-fit-seg" role="radiogroup" aria-label="このマスの絵の入れ方">
+            <label><input type="radio" name="eFit" value="" checked><span>全体に従う</span></label>
+            <label><input type="radio" name="eFit" value="crop"><span>切り抜く</span></label>
+            <label><input type="radio" name="eFit" value="blur"><span>ぼかして埋める</span></label>
+          </div>
+        </div>
         <div class="editor-actions">
           <button class="btn" type="button" id="e-remove">このマスを外す</button>
           <button class="btn" type="button" id="e-close">選択解除</button>
@@ -1307,6 +1331,20 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <label><input type="radio" name="ratio" value="free"><span>設定なし</span></label>
         </div>
         <p class="msg" id="ratio-msg" hidden></p>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend>マスの形</legend>
+        <!-- 動画サイトのサムネイルは 16:9。正方形のマスに入れると左右が 28% ずつ切れる -->
+        <div class="seg" id="cell-ratio-seg" role="radiogroup" aria-label="マスの形">
+          <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形</span></label>
+          <label><input type="radio" name="cellRatio" value="16:9"><span>横長 16:9</span></label>
+        </div>
+        <div class="seg" id="cell-fit-seg" role="radiogroup" aria-label="絵の入れ方" hidden>
+          <label><input type="radio" name="cellFit" value="crop" checked><span>切り抜く</span></label>
+          <label><input type="radio" name="cellFit" value="blur"><span>ぼかして埋める</span></label>
+        </div>
+        <p class="note" id="cell-fit-note" hidden>正方形のジャケットの入れ方です。文字が入ったジャケットは「ぼかして埋める」にすると切れません。マスごとに変えることもできます。</p>
       </fieldset>
 
       <fieldset class="field">
@@ -1681,6 +1719,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "この並びだとマスが小さく、重ねた曲名が読めない大きさになるので、曲名は出しません。マスを減らすか、横に並べてください。": "The covers are too small in this layout for readable titles on top, so no titles will be drawn. Use fewer cells or put the list beside the grid.",
         "番号バッジ": "Number badges",
         "曲名の蛇足を外す": "Trim needless title text",
+        "マスの形": "Cell shape",
+        "正方形": "Square",
+        "横長 16:9": "Wide 16:9",
+        "絵の入れ方": "How covers fit",
+        "切り抜く": "Crop",
+        "ぼかして埋める": "Blur to fill",
+        "このマスの絵の入れ方": "How this cover fits",
+        "全体に従う": "Follow the setting",
+        "正方形のジャケットの入れ方です。文字が入ったジャケットは「ぼかして埋める」にすると切れません。マスごとに変えることもできます。": "This is for square covers. Choose “Blur to fill” to keep covers with text from being cut off. You can also change it for a single cell.",
         "すべての曲名を短くする": "Shorten all titles",
         "曲名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
         "短くする": "Shorten",
@@ -1980,7 +2027,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 取り込んだら VocaDB へのリンクを付けることを求めている。ほかの取得元も同じ形でそろえる
   const SOURCE_HOME = { itunes: "https://www.apple.com/apple-music/", musicbrainz: "https://musicbrainz.org/",
     discogs: "https://www.discogs.com/", otodb: "https://otodb.net/", vocadb: "https://vocadb.net/" };
-  const CELL_PX = 600, GAP_PX = 12, MAX_SIDE = 8000;
+  /* マスの寸法（論理 px）。**形を変えても幅は変えない**ので、幅から決まる式（タイトルの大きさ・
+     余白・サイドバーの幅）はそのまま効く。高さから決まる式だけ cellH() を見る。
+     **backend/render.py の CELL_W / cell_h() と対で直すこと**。どの式がどちらを見るかは docs/layout.md */
+  const CELL_W = 600, CELL_H_BY_RATIO = { "1:1": 600, "16:9": 338 }, GAP_PX = 12, MAX_SIDE = 8000;
+  const CELL_PX = CELL_W;                                        // 旧名。幅から決まる式が読む
+  const cellH = () => CELL_H_BY_RATIO[state.cellRatio] || CELL_W;
+  const cellShort = () => Math.min(CELL_W, cellH());             // 帯や番号を出すかの判定は**短辺**
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
   // ---- パレット（背景色に並ぶ 8 色 ＝ 画面の配色）----
   // **地の色（クリーム）・文字の色（黒）＋ 装飾の 6 色**をひと組として切り替える。
@@ -2089,7 +2142,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
-    ratio: "16:9", showTitle: true, sidebar: true, overlay: false, numbers: false, trimNames: true, bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（比率は X 向けの 16:9）
+    ratio: "16:9", showTitle: true, sidebar: true, overlay: false, numbers: false, trimNames: true,
+    cellRatio: "1:1", cellFit: "crop", bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（比率は X 向けの 16:9）
     listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
@@ -2111,7 +2165,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"),
-    ratioMsg: $("#ratio-msg"), optTitle: $("#opt-title"), listSeg: $("#list-seg"), listMsg: $("#list-msg"), optNumbers: $("#opt-numbers"), optTrim: $("#opt-trim"), trimAllBtn: $("#trim-all-btn"),
+    ratioMsg: $("#ratio-msg"), optTitle: $("#opt-title"), listSeg: $("#list-seg"), listMsg: $("#list-msg"), optNumbers: $("#opt-numbers"), optTrim: $("#opt-trim"), trimAllBtn: $("#trim-all-btn"), cellRatioSeg: $("#cell-ratio-seg"), cellFitSeg: $("#cell-fit-seg"),
+    cellFitNote: $("#cell-fit-note"), eFitField: $("#e-fit-field"), eFitSeg: $("#e-fit-seg"),
     swatches: $("#swatches"), bgCustomBtn: $("#bg-custom-btn"), bgCustomPanel: $("#bg-custom-panel"), palImport: $("#pal-import"),
     hsvH: $("#hsv-h"), hsvS: $("#hsv-s"), hsvV: $("#hsv-v"), hsvHOut: $("#hsv-h-out"), hsvSOut: $("#hsv-s-out"), hsvVOut: $("#hsv-v-out"), hsvHex: $("#hsv-hex"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"), specMargin: $("#spec-margin"),
@@ -2944,6 +2999,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.eSource.textContent = tr(SOURCE_LABEL[t.source] || t.source); els.eSource.dataset.source = t.source;
     if (document.activeElement !== els.eTitleIn) els.eTitleIn.value = t.title;
     if (document.activeElement !== els.eArtistIn) els.eArtistIn.value = t.artist;
+    setSeg(els.eFitSeg, t.fit || "");   // このマスだけの入れ方（空なら全体に従う）
     els.eMeta.innerHTML = "";
     const parts = [];
     if (t.album) parts.push(tr`アルバム: ${t.album}`);
@@ -3039,6 +3095,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         // 描画側は R2 の URL を直接読むので、キャッシュの枠が別になりぶつからない
         const img = document.createElement("img");
         img.src = proxied(t.thumb || t.image); img.alt = ""; img.draggable = false;   // 表示は小さい方（転送量）。フル解像度は共有画像を描くときだけ
+        // **「ぼかして埋める」のマスは、同じ絵をぼかした下地を敷く**（書き出しと同じ見た目にする）。
+        // マスごとの `t.fit` が無ければ並び全体の設定に従う。正方形のマスでは CSS 側で出さない
+        li.dataset.fit = t.fit || state.cellFit || "crop";
+        if (li.dataset.fit === "blur") {
+          const bg = document.createElement("img");
+          bg.src = img.src; bg.alt = ""; bg.draggable = false; bg.className = "cover-bg";
+          li.append(bg);
+        }
         const rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.setAttribute("aria-label", tr`${i + 1} 番の ${t.title} を外す`);
         rm.addEventListener("click", (e) => { e.stopPropagation(); removeAt(i); });
         const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `${t.title} / ${t.artist}`;
@@ -3162,6 +3226,28 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.cols.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value), "cols"));
   els.rows.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value), "rows"));
   els.ratioSeg.addEventListener("change", () => { state.ratio = els.ratioSeg.querySelector("input:checked").value; updateSpec(); });
+  /* セグメントの選択を値で合わせる（既存の `input[value=…]` を探す書き方をまとめたもの） */
+  const setSeg = (seg, v) => { const i = seg.querySelector(`input[value="${v}"]`); if (i) i.checked = true; };
+  /* マスの形。**「絵の入れ方」は横長のときだけ出す**（正方形なら切る・埋めるの違いが出ない） */
+  function syncCellFit() {
+    const wide = state.cellRatio === "16:9";
+    els.cellFitSeg.hidden = !wide; els.cellFitNote.hidden = !wide;
+    els.eFitField.hidden = !wide;
+    els.grid.dataset.cellRatio = state.cellRatio;
+  }
+  els.cellRatioSeg.addEventListener("change", () => {
+    state.cellRatio = els.cellRatioSeg.querySelector("input:checked").value;
+    syncCellFit(); renderGrid(); updateSpec();
+  });
+  els.cellFitSeg.addEventListener("change", () => {
+    state.cellFit = els.cellFitSeg.querySelector("input:checked").value; renderGrid(); updateSpec();
+  });
+  els.eFitSeg.addEventListener("change", () => {
+    const t = selected !== null ? state.cells[selected] : null;
+    if (!t) return;
+    const v = els.eFitSeg.querySelector("input:checked").value;
+    t.fit = v || null; renderGrid(); updateSpec();
+  });
   els.optTitle.addEventListener("change", () => { state.showTitle = els.optTitle.checked; els.title.disabled = !state.showTitle; updateSpec(); });
   // 曲名リスト: 横に並べる / マスに重ねる / 表示しない。**保存は sidebar と overlay の 2 つ**（backend の GridOptions と同じ。
   // 重ねるときは sidebar を切るので、この項目を知らない古いタブで開いても「曲名リストなし」になるだけ）
@@ -3632,7 +3718,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const OVERLAY_SHADE = 0.52, OVERLAY_ALPHA = 0.82, OVERLAY_TITLE = 0.085, OVERLAY_ARTIST = 0.066, OVERLAY_PAD = 0.055, OVERLAY_LEAD = 1.3, OVERLAY_MIN_PX = 12;
   const OVERLAY_TEXT = [255, 255, 255], OVERLAY_SUB = [214, 218, 224];
   /* この縮尺で曲名を重ねて読めるか（backend の overlay_ok と同じ） */
-  const overlayOk = (scale) => Math.round(CELL_PX * OVERLAY_TITLE * scale) >= OVERLAY_MIN_PX;   // 右に置く流し込みで、入った段から字を 1 論理 px ずつ大きくする回数の上限（backend/render.py と同じ）
+  const overlayOk = (scale) => Math.round(cellShort() * OVERLAY_TITLE * scale) >= OVERLAY_MIN_PX;   // 右に置く流し込みで、入った段から字を 1 論理 px ずつ大きくする回数の上限（backend/render.py と同じ）
   function clipTo(ctx, text, font, maxW) {
     ctx.font = font;
     if (ctx.measureText(text).width <= maxW) return text;
@@ -3790,7 +3876,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
       inline = false;
     }
-    const pitch = CELL_PX + state.gap;   // マスの段 1 つぶんの送り
+    const pitch = cellH() + state.gap;   // マスの段 1 つぶんの送り（**高さ**で決まる）
     // 段の中で縦に積むか横に並べるか。縦に積むほうが 1 行を長く取れるので既定。
     // 段が多いと 1 曲ぶんが薄くなりすぎるので（2x32 で出力 10.8px）、そのときは横に並べる
     const per = beside ? pitch : Math.round(pitch / cols);   // 曲名 1 曲ぶんの高さ
@@ -4008,7 +4094,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const fontS = fs || Math.max(18, Math.round(target / scale));
       // **マスの送りの約数に寄せる**（塊の左右に流れる行がジャケットの段とそろう）。
       // ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
-      const lineH = snapLead(Math.round(fontS * 1.5), CELL_PX + state.gap);
+      const lineH = snapLead(Math.round(fontS * 1.5), cellH() + state.gap);   /* マスの段にそろえる（高さ） */
       const pad = modPad(Math.max(m, Math.round(Math.min(W, H) * 0.035)), state.gap);
       // **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む。下を参照）
       let gx = Math.round((W - gw) / 2);
@@ -4111,7 +4197,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       let best = base;
       // **余地があれば文字を大きくする**。最初に見つけた大きさのマスから WRAP_CELL_KEEP を
       // 割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
-      const floor = base.scale * (CELL_PX * base.scale >= WRAP_CELL_OK ? WRAP_CELL_KEEP : WRAP_CELL_KEEP_SMALL);
+      const floor = base.scale * (cellShort() * base.scale >= WRAP_CELL_OK ? WRAP_CELL_KEEP : WRAP_CELL_KEEP_SMALL);   /* **短辺**で見る */
       // **塊が横いっぱいに入っているなら、それを崩してまで文字を大きくしない**
       // （崩すと左右に使えない空白が残る）
       const fillsWidth = (p) => gw >= (p.W - p.pad * 2) * 0.95;
@@ -4414,7 +4500,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const n = viewCells().length;
     const nTracks = Math.max(1, viewCells().filter(Boolean).length);   // 入っている曲の数（「消える曲」の割合の母数）
     const g = state.gap;
-    const gw = cols * CELL_PX + (cols - 1) * g, gh = rows * CELL_PX + (rows - 1) * g;
+    const gw = cols * CELL_W + (cols - 1) * g, gh = rows * cellH() + (rows - 1) * g;
     const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
     let titleH = title ? Math.round(titleSize * 1.9) : 0;   // 右に置くときは、下で行の整数倍に直す
     const ratio = RATIOS[state.ratio];
@@ -4430,7 +4516,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 1 曲は「曲名の行 + アーティストの行」の 2 行。まずその前提で行の高さを見積もる
     const baseRows = viewCells().reduce((a, t) => a + (t && oneLine(t.artist) ? 2 : 1), 0);
     const availH = gh - titleH;
-    const pitch = CELL_PX + state.gap;   // マスの段 1 つぶんの送り（行をこれの約数にそろえる）
+    const pitch = cellH() + state.gap;   // マスの段 1 つぶんの送り（行をこれの約数にそろえる。**高さ**）
     let sbW = 0, sbH = 0, sbCols = 1;
     // **マスの塊と曲名リストのすきま**。定数だと枠が大きいときに出力で 3px にしかならない。
     // 内容の高さに比例させる（backend/render.py と同じ）
@@ -4745,6 +4831,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.cols.value = String(c); els.rows.value = String(r);
     if (state.ratio) { const i = els.ratioSeg.querySelector(`input[value="${state.ratio}"]`); if (i) i.checked = true; }
     els.optTitle.checked = !!state.showTitle; syncListSeg(); els.optNumbers.checked = !!state.numbers; els.optTrim.checked = state.trimNames !== false;
+    setSeg(els.cellRatioSeg, state.cellRatio || "1:1"); setSeg(els.cellFitSeg, state.cellFit || "crop"); syncCellFit();
     els.margin.value = String(state.margin); els.marginOut.value = String(state.margin);
     els.gap.value = String(state.gap); els.gapOut.value = String(state.gap);
     renderSwatches(); renderGrid(); updateSpec(); syncPreview();
@@ -4758,6 +4845,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     save();
     clearSharePlan();   // 並びか設定が変わった。共有画像の大きさの見込みは組み直す
     clearViewCells();   // 曲名の刈り込みの控えも捨てる（並びが書き換わっているかもしれない）
+    syncCellFit();      // マスの形が変わっていれば「絵の入れ方」の出し入れも合わせる
     clearTimeout(specTimer);
     specTimer = setTimeout(updateSpecNow, 180);
   }
@@ -4774,9 +4862,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // 実物と食い違っていた。**共有と同じ `shareRenderPlan()` の割り付けを使う**（計算は 1 回で済む）
     const L = sharePlan().L;
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
-    els.specCell.textContent = `${Math.round(CELL_PX * L.scale)} px`;
+    els.specCell.textContent = cellH() === CELL_W ? `${Math.round(CELL_W * L.scale)} px`
+      : `${Math.round(CELL_W * L.scale)} × ${Math.round(cellH() * L.scale)} px`;
     els.specMargin.textContent = tr`上下 ${Math.round(L.oy * L.scale)} / 左右 ${Math.round(L.ox * L.scale)} px`;
-    noteSmallCell(Math.round(CELL_PX * L.scale));
+    noteSmallCell(Math.round(cellShort() * L.scale));   /* 潰れて読めなくなるのは**短辺**で決まる */
     // 重ねた曲名が読めない大きさになる並びでは、選べなくする（今選んでいるなら、出さないことを知らせる）
     // **判定は共有画像を描く大きさで行う**。重ねる組み方には曲名リストが無く、流し込みに落ちることも
     // ないので、上げる前の `shareMaxSide()` で測れば足りる（`overlayScale` が使う）
@@ -4789,8 +4878,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const ZOOM_MIN_CELL = 48;
   const ZOOM_WIDE_FILL = 0.35, ZOOM_WIDE_MAX = 200;   // 横に長い並びを大きく見るときの目安（syncPreview）   // 拡大窓でのマスの下限（CSS px。指の当たり判定の 44〜48px）
   function syncPreview() {
-    const gw = state.cols * CELL_PX + (state.cols - 1) * state.gap;
-    const gh = state.rows * CELL_PX + (state.rows - 1) * state.gap;
+    const gw = state.cols * CELL_W + (state.cols - 1) * state.gap;
+    const gh = state.rows * cellH() + (state.rows - 1) * state.gap;
     const ar = (gw + state.margin * 2) / (gh + state.margin * 2);   // 中身の縦横比
     if (gridZoomed) {
       // **拡大窓では並び全体がそのまま入る大きさにする**（縦・横のうち先に当たるほうに合わせる）。
@@ -5175,7 +5264,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return {
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
-      options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false, bg: state.bg, bgCustom: state.bgCustom, margin: state.margin, gap: state.gap },
+      options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false,
+        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, margin: state.margin, gap: state.gap },
     };
   }
   function applyData(d) {
@@ -5196,6 +5286,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const o = d.options || {};
     state.ratio = o.ratio in RATIOS ? o.ratio : "16:9";
     state.showTitle = o.showTitle !== false; state.overlay = o.overlay === true; state.sidebar = !state.overlay && o.sidebar !== false; state.numbers = o.numbers === true; state.trimNames = o.trimNames !== false; clearViewCells();
+    state.cellRatio = o.cellRatio === "16:9" ? "16:9" : "1:1";
+    state.cellFit = o.cellFit === "blur" ? "blur" : "crop";
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else {
       state.bg = ALL_BG_KEYS.includes(o.bg) ? o.bg : "paper";
@@ -5216,6 +5308,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.cols.value = state.cols; els.rows.value = state.rows;
     els.ratioSeg.querySelector(`input[value="${state.ratio}"]`).checked = true;
     els.optTitle.checked = state.showTitle; syncListSeg(); els.optNumbers.checked = state.numbers; els.optTrim.checked = state.trimNames !== false;
+    setSeg(els.cellRatioSeg, state.cellRatio || "1:1"); setSeg(els.cellFitSeg, state.cellFit || "crop"); syncCellFit();
     els.optListed.checked = state.listed;
     for (const i of els.swatches.querySelectorAll("input")) i.checked = i.value === state.bg;
     syncCustomColor();
@@ -5503,11 +5596,32 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     hiccup("cover_fail");   // ジャケットが取れず、そのマスが空のまま描かれる
     return null;
   }
-  function drawCover(ctx, bmp, x, y, cell) {
+  function drawCover(ctx, bmp, x, y, cw, ch) {
     // CSS object-fit: cover 相当（中央トリミング）。backend/render.py の _cover_fit と同じ式
-    const w = bmp.width, h = bmp.height, s = Math.max(cell / w, cell / h);
-    const sw = Math.min(cell / s, w), sh = Math.min(cell / s, h), sx = Math.max((w - sw) / 2, 0), sy = Math.max((h - sh) / 2, 0);
-    ctx.drawImage(bmp, sx, sy, sw, sh, x, y, cell, cell);
+    const w = bmp.width, h = bmp.height, s = Math.max(cw / w, ch / h);
+    const sw = Math.min(cw / s, w), sh = Math.min(ch / s, h), sx = Math.max((w - sw) / 2, 0), sy = Math.max((h - sh) / 2, 0);
+    ctx.drawImage(bmp, sx, sy, sw, sh, x, y, cw, ch);
+  }
+  const BLUR_RADIUS = 0.06;   // 下地のぼかし半径（マスの高さに対する比）。backend/render.py と同じ値
+  /* **絵を切らずに**マスいっぱいに収める。余る側は、同じ絵を cover で広げてぼかした下地で埋める
+     （YouTube の再生画面と同じやり方）。**backend/render.py の `_cover_blur_pad` と対で直すこと**。
+     ぼかし半径は**出力 px の高さ**に掛ける（論理 px で決めるとサーバーとぼけ方がずれる） */
+  function coverBlurPad(ctx, bmp, x, y, cw, ch) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, cw, ch); ctx.clip();
+    ctx.filter = `blur(${Math.max(1, ch * BLUR_RADIUS)}px)`;
+    drawCover(ctx, bmp, x, y, cw, ch);
+    ctx.filter = "none";
+    const f = Math.min(cw / bmp.width, ch / bmp.height);
+    const fw = Math.max(1, Math.round(bmp.width * f)), fh = Math.max(1, Math.round(bmp.height * f));
+    ctx.drawImage(bmp, x + Math.floor((cw - fw) / 2), y + Math.floor((ch - fh) / 2), fw, fh);
+    ctx.restore();
+  }
+  /* マスに絵を入れる。**「ぼかして埋める」を選んだマスだけ切らずに収める**（既定は中央で切る）。
+     `fit` は "crop" か "blur"（マスごとの `t.fit` が無ければ並び全体の `state.cellFit`） */
+  function paintCover(ctx, bmp, x, y, cw, ch, fit) {
+    if (fit === "blur" && cw !== ch && Math.abs(bmp.width / bmp.height - cw / ch) > 0.01) coverBlurPad(ctx, bmp, x, y, cw, ch);
+    else drawCover(ctx, bmp, x, y, cw, ch);
   }
   async function renderShareCanvas(maxSide, onProgress) {
     // **描く直前に字幅の控えを捨てる**。読み込み直後の layout() は Web フォントが効く前に測るので、
@@ -5542,9 +5656,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       y0 += L.titleH;
     }
     const numPx = Math.max(8, sc(22));   // 番号の字の大きさ。**8px を下限にする**
-    const cell = sc(CELL_PX), numF = fontPixel(numPx);
+    const cw = sc(CELL_W), ch = sc(cellH()), cs = Math.min(cw, ch), numF = fontPixel(numPx);   /* 帯の文字は**短辺**から */
     // 描く前に R2 の場所をまとめて聞く（302 を追わないため。上の preloadR2Map を参照）
-    const wantPx = cell < CELL_PX * 0.55 ? Math.ceil(cell / 50) * 50 : 0;
+    const wantPx = cw < CELL_W * 0.55 ? Math.ceil(cw / 50) * 50 : 0;
     await preloadR2Map(viewCells().flatMap(t => (t ? [t.image, t.thumb] : [])).filter(Boolean).map(url => ({ url, px: wantPx })));
     // **取得だけ数枚先まで走らせる**。描く順番は変えない。1 枚ずつ順に取ると、1 往復ぶんの
     // 待ち時間（30〜180ms）がマスの数だけ積み上がる（256 マスで 9 秒以上）。
@@ -5558,19 +5672,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     };
     for (let i = 0; i < Math.min(n, PREFETCH); i++) startAt(i);
     const ov = state.overlay && overlayOk(S);
-    const ovSh = Math.max(1, Math.round(cell * OVERLAY_SHADE)), ovTs = Math.max(8, Math.round(cell * OVERLAY_TITLE));
-    const ovAs = Math.max(8, Math.round(cell * OVERLAY_ARTIST)), ovPad = Math.round(cell * OVERLAY_PAD);
+    const ovSh = Math.max(1, Math.round(ch * OVERLAY_SHADE)), ovTs = Math.max(8, Math.round(cs * OVERLAY_TITLE));
+    const ovAs = Math.max(8, Math.round(cs * OVERLAY_ARTIST)), ovPad = Math.round(cs * OVERLAY_PAD);
     for (let i = 0; i < n; i++) {
       const t = viewCells()[i], c = i % state.cols, r = Math.floor(i / state.cols);
-      const x = sc(L.ox + c * (CELL_PX + state.gap)), y = sc(y0 + r * (CELL_PX + state.gap));
-      ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cell, cell);
+      const x = sc(L.ox + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + state.gap));
+      ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch);
       const drawOverlay = () => {
         // 帯: 上端 0 → 下端 OVERLAY_ALPHA の直線（backend は 1 行ずつの濃さを同じ式で作る）
-        const top = y + cell - ovSh, gr = ctx.createLinearGradient(0, top, 0, top + ovSh);
+        const top = y + ch - ovSh, gr = ctx.createLinearGradient(0, top, 0, top + ovSh);
         gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, `rgba(0,0,0,${OVERLAY_ALPHA})`);
-        ctx.fillStyle = gr; ctx.fillRect(x, top, cell, ovSh);
-        const maxW = cell - ovPad * 2, title = oneLine(t.title), artist = oneLine(t.artist);
-        const ab = y + cell - ovPad, tb = artist ? ab - Math.round(ovAs * OVERLAY_LEAD) : ab;
+        ctx.fillStyle = gr; ctx.fillRect(x, top, cw, ovSh);
+        const maxW = cw - ovPad * 2, title = oneLine(t.title), artist = oneLine(t.artist);
+        const ab = y + ch - ovPad, tb = artist ? ab - Math.round(ovAs * OVERLAY_LEAD) : ab;
         ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
         ctx.font = shrinkFont(ctx, title, fontBold(ovTs), ovTs, maxW); ctx.fillStyle = cssRgb(OVERLAY_TEXT);
         ctx.fillText(ellipsizeText(ctx, title, maxW), x + ovPad, tb);
@@ -5585,7 +5699,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         startAt(i + PREFETCH);                 // 1 枚描くたびに、先の 1 枚の取得を始める
         const bmp = await (pending.get(i) || loadCover(t, wantPx).catch(() => null));
         pending.delete(i);
-        if (bmp) { drawCover(ctx, bmp, x, y, cell); if (bmp.close) bmp.close(); }
+        if (bmp) { paintCover(ctx, bmp, x, y, cw, ch, t.fit || state.cellFit); if (bmp.close) bmp.close(); }
         if (ov) drawOverlay();
         onProgress(i + 1, n);
         await yieldToUI();
