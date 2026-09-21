@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-22", "検索の候補や URL から曲を入れたとき、「〇番に…を入れました」と出るのにマスが空のままになることがあったのを直しました。",
+     "Fixed a cell sometimes staying empty after adding a track from search results or a URL, even though the message said the track was added."),
     ("2026-09-22", "一部の端末で「トラックを共有」したとき、otoDB から入れた曲のサムネイルが画像に出ないことがあったのを直しました。",
      "Fixed otoDB thumbnails sometimes missing from the image when using “Share track” on some devices."),
     ("2026-09-21", "正方形のマスでも「ぼかして埋める」を選べるようにしました。動画のサムネイルを、左右を切らずに入れられます。マスごとの設定は「このマスのサムネの入れ方」に名前を変えました。",

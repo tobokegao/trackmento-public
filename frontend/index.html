@@ -2350,11 +2350,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      割り付けを決める前に通さないと枠が縮まない（backend/render.py の `_trimmed` と同じ）。
      毎回作り直すと 256 マスぶんの正規表現が割り付けのたびに走るので、元の列と設定が
      変わらないかぎり使い回す */
-  let _viewCells = null, _viewSrc = null, _viewTrim = null;
+  let _viewCells = null, _viewSrc = null, _viewTrim = null, _viewKey = null;
+  /* 控えを使ってよいか。**配列が同じかだけで決めてはいけない**（2026-09-22）。曲を入れる（addTrack）・まとめて入れる
+     （fillEmptyCells）は state.cells を**その場で書き換える**ので、配列は同じまま中身が変わる。配列だけで見ていたときは
+     古い控えのまま描き、入れた曲がマスに出なかった（「2 番に…を入れました」と出るのにマスは空）。
+     マスごとに、曲そのものと、描くのに使う値（曲名・アーティスト名・画像・入れ方）が同じかを確かめる（256 マスでも軽い） */
+  const viewKeyOf = (t) => (t ? [t, t.title, t.artist, t.image, t.thumb, t.fit] : null);
+  const viewFresh = () => _viewCells && _viewSrc === state.cells && _viewTrim === state.trimNames && _viewKey.length === state.cells.length
+    && state.cells.every((t, i) => { const k = _viewKey[i]; return t ? !!k && k[0] === t && k[1] === t.title && k[2] === t.artist && k[3] === t.image && k[4] === t.thumb && k[5] === t.fit : k === null; });
   function viewCells() {
     if (!state.trimNames) return state.cells;
-    if (_viewCells && _viewSrc === state.cells && _viewTrim === state.trimNames) return _viewCells;
-    _viewSrc = state.cells; _viewTrim = state.trimNames;
+    if (viewFresh()) return _viewCells;
+    _viewSrc = state.cells; _viewTrim = state.trimNames; _viewKey = state.cells.map(viewKeyOf);
     _viewCells = state.cells.map((t) => {
       if (!t) return t;
       const [title, artist] = trimName(t.title || "", t.artist || "");
@@ -2362,7 +2369,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     });
     return _viewCells;
   }
-  const clearViewCells = () => { _viewCells = null; _viewSrc = null; };
+  const clearViewCells = () => { _viewCells = null; _viewSrc = null; _viewKey = null; };
 
   /* ---- 曲名の刈り込み ---- */
   /* 曲名とアーティスト名から蛇足を外す。**backend/names.py と対で直すこと**。
