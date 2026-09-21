@@ -1368,11 +1368,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形</span></label>
           <label><input type="radio" name="cellRatio" value="16:9"><span>横長 16:9</span></label>
         </div>
-        <div class="seg" id="cell-fit-seg" role="radiogroup" aria-label="絵の入れ方">
+        <div class="seg" id="cell-fit-seg" role="radiogroup" aria-label="サムネの入れ方">
           <label><input type="radio" name="cellFit" value="crop" checked><span>切り抜く</span></label>
           <label><input type="radio" name="cellFit" value="blur"><span>ぼかして埋める</span></label>
         </div>
-        <p class="note" id="cell-fit-note">マスと形の違う絵（正方形のマスには動画のサムネ、横長のマスには正方形のジャケット）の入れ方です。「ぼかして埋める」にすると絵が切れません。マスごとに変えることもできます。</p>
+        <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。</p>
       </fieldset>
 
       <fieldset class="field">
@@ -1764,12 +1764,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "マスの形": "Cell shape",
         "正方形": "Square",
         "横長 16:9": "Wide 16:9",
-        "絵の入れ方": "How covers fit",
+        "サムネの入れ方": "How thumbnails fit",
         "切り抜く": "Crop",
         "ぼかして埋める": "Blur to fill",
         "このマスのぼかしの入れ方": "Blur fill for this cell",
         "全体に従う": "Follow the setting",
-        "マスと形の違う絵（正方形のマスには動画のサムネ、横長のマスには正方形のジャケット）の入れ方です。「ぼかして埋める」にすると絵が切れません。マスごとに変えることもできます。": "How to fit art whose shape differs from the cell (video thumbnails in square cells, square covers in 16:9 cells). Choose “Blur to fill” to keep the art from being cut off. You can also change it for a single cell.",
+        "マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。": "How to fit thumbnails whose shape differs from the cell (for example, video thumbnails in square cells or square covers in 16:9 cells). Choose “Blur to fill” to fit them in without cutting. You can also change it for a single cell.",
         "全曲名を短縮する": "Shorten all titles",
         "曲名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
         "短くする": "Shorten",
@@ -3364,7 +3364,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* セグメントの選択を値で合わせる（既存の `input[value=…]` を探す書き方をまとめたもの） */
   const setSeg = (seg, v) => { const i = seg.querySelector(`input[value="${v}"]`); if (i) i.checked = true; };
   /* マスの形。「絵の入れ方」は**どちらの形でも出す**（2026-09-21、利用者の求め。はじめは横長のときだけだった）。
-     正方形のマスには 16:9 のサムネ、横長のマスには正方形のジャケットが「形の違う絵」として入る */
+     正方形のマスには 16:9 のサムネ、横長のマスには正方形のジャケットが「形の違うサムネ」として入る（画面では「絵」と言わず「サムネ」にそろえる。2026-09-21、利用者の指定） */
   function syncCellFit() {
     els.grid.dataset.cellRatio = state.cellRatio;
   }
