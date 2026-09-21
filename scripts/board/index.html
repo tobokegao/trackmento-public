@@ -1,0 +1,712 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>TRACKMENTO 運用ボード</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #ffffff;
+    --panel: #ffffff;
+    --soft: #f4f3f1;
+    --soft-2: #e9e8e5;
+    --ink: #12171b;
+    --ink-2: #3a4148;
+    --muted: #6b7178;
+    --rule: #d8d7d3;
+    --line-strong: #12171b;
+    --mustard: #e6b731;
+    --cerulean: #008bc7;
+    --lavender: #9d8ada;
+    --vermilion: #d93c22;
+    --mint: #3fbd8b;
+    --shadow: rgba(18, 23, 27, 0.16);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.75;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding-inline: 16px; padding-block: 26px 64px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+  header.top { margin-bottom: 8px; }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+  h1 { font-size: 27px; line-height: 1.25; margin: 6px 0 6px; text-wrap: balance; }
+  .sub { color: var(--muted); margin: 0; font-size: 13px; }
+
+  section.win { border: 1px solid var(--rule); background: var(--panel); box-shadow: 0 1px 2px var(--shadow); margin-top: 24px; }
+  section.win > .bar {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule); background: var(--soft);
+    padding: 9px 14px;
+  }
+  .bar h2 { font-size: 14px; margin: 0; letter-spacing: .01em; }
+  .bar .count { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--muted); margin-left: auto; }
+  section.win > .body { padding: 16px 14px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; }
+  .tile { border-left: 4px solid var(--rule); padding: 4px 0 4px 12px; }
+  .tile.ok { border-left-color: var(--mint); }
+  .tile.watch { border-left-color: var(--mustard); }
+  .tile .k { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
+  .tile .v { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 24px; line-height: 1.2; }
+  .tile .v small { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+  .tile .n { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+  /* 図 */
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+  .chart h3 { font-size: 13px; margin: 0 0 2px; }
+  .chart p.cap { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+
+  /* メーター */
+  .bars { display: grid; gap: 10px; }
+  .barrow { display: grid; grid-template-columns: minmax(130px, 190px) 1fr 46px; gap: 12px; align-items: center; }
+  .barrow .host { font-size: 12.5px; overflow-wrap: anywhere; }
+  .barrow .track { display: block; height: 14px; background: var(--soft-2); border-radius: 1px; overflow: hidden; }
+  .barrow .fill { display: block; height: 100%; background: var(--cerulean); min-width: 3px; }
+  .barrow .fill.img { background: var(--lavender); }
+  .barrow .val { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-2); text-align: right; }
+  @media (max-width: 520px) {
+    .barrow { grid-template-columns: 1fr 46px; row-gap: 4px; }
+    .barrow .track { grid-column: 1; }
+    .barrow .host { grid-column: 1 / -1; }
+  }
+
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .06em; color: var(--muted); border-bottom: 2px solid var(--line-strong); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  td .who { font-weight: 600; }
+  td .note { color: var(--muted); font-size: 12px; display: block; }
+  .nums { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .pill { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 10.5px; padding: 2px 7px; border: 1px solid var(--rule); white-space: nowrap; background: var(--soft); }
+  .pill.ok { border-color: var(--mint); color: #14724f; background: #eefaf4; }
+  .pill.wait { border-color: var(--mustard); color: #7a5a06; background: #fdf6e3; }
+  .pill.stop { border-color: var(--vermilion); color: #a02914; background: #fdeeea; }
+  .pill.fix { border-color: var(--cerulean); color: #045c82; background: #e8f5fb; }
+
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.list li { border-bottom: 1px solid var(--rule); }
+  ul.list li:last-child { border-bottom: none; }
+  label.row { display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start; padding: 11px 4px; cursor: pointer; }
+  label.row:hover { background: var(--soft); }
+  .box {
+    appearance: none; -webkit-appearance: none;
+    width: 22px; height: 22px; margin: 1px 0 0; flex: none;
+    border: 2px solid var(--ink-2); background: #fff; border-radius: 2px;
+    display: grid; place-content: center; cursor: pointer;
+  }
+  .box:checked { background: var(--mustard); border-color: #b8901f; }
+  .box:checked::after { content: "✓"; font-size: 15px; line-height: 1; color: #12171b; font-weight: 700; }
+  .box:focus-visible { outline: 3px solid var(--cerulean); outline-offset: 2px; }
+  .item .t { font-weight: 600; }
+  .item .d { color: var(--muted); font-size: 12.5px; display: block; }
+  li.done .item .t { text-decoration: line-through; color: var(--muted); }
+  code, code.cmd { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; background: var(--soft); padding: 1px 5px; border: 1px solid var(--rule); border-radius: 2px; }
+  .when { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--muted); border: 1px solid var(--rule); padding: 1px 6px; margin-left: 8px; white-space: nowrap; }
+  .when.soon { color: #a02914; border-color: var(--vermilion); background: #fdeeea; }
+  .savehint { font-size: 12px; color: var(--muted); }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s; }
+  ol.steps li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+  ol.steps .n { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; color: #fff; background: var(--ink-2); width: 26px; height: 26px; display: grid; place-content: center; border-radius: 2px; }
+  ol.steps b { display: block; font-size: 13.5px; }
+  ol.steps .d { color: var(--muted); font-size: 12.5px; display: block; }
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
+  .split h3 { font-size: 12px; margin: 0 0 6px; letter-spacing: .05em; color: var(--muted); font-family: "IBM Plex Mono", monospace; }
+  dl.kv { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12.5px; }
+  dl.kv dt { color: var(--muted); white-space: nowrap; }
+  dl.kv dd { margin: 0; }
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .note-block h3 { font-size: 12px; margin: 0 0 6px; letter-spacing: .05em; color: var(--muted); font-family: "IBM Plex Mono", monospace; }
+  .note-block dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12.5px; }
+  .note-block dt { color: var(--muted); white-space: nowrap; }
+  .note-block dd { margin: 0; }
+
+  footer { margin-top: 30px; color: var(--muted); font-size: 12px; }
+  a { color: var(--cerulean); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">trackmento.com / 運用</div>
+    <h1>TRACKMENTO 運用ボード</h1>
+    <p class="sub">点検の数字・推移の図・外部サービスの上限と実測・忘れやすい手順・待っていること。<span id="asof">—</span> 時点。</p>
+  </header>
+
+  <section class="win">
+    <div class="bar"><h2>いまの状況</h2><span class="count" id="now-when">—</span></div>
+    <div class="body">
+      <div class="tiles" id="tiles"></div>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><h2>推移</h2><span class="count" id="series-count">点検の記録 metrics/series.jsonl から</span></div>
+    <div class="body">
+      <div class="charts">
+        <div class="chart">
+          <h3>2 時間あたりの要求数</h3>
+          <p class="cap">点は点検 1 回ぶん（窓の長さが違う回は 2 時間に直してある）。09-17〜09-19 は点検を回していないので記録が無い。</p>
+          <div id="c-req"></div>
+        </div>
+        <div class="chart">
+          <h3>2 時間あたりの帯域（GB）</h3>
+          <p class="cap">フォントと画像を R2 へ逃がし、text と JSON を gzip にした効果。</p>
+          <div id="c-gb"></div>
+        </div>
+        <div class="chart">
+          <h3>1 日の共有数</h3>
+          <p class="cap">R2 の実数（UTC の日ごと）。9/11 は障害で消した分が欠けている。9/20 は途中（09:00 JST 始まりで 161 件）。</p>
+          <div id="c-share"></div>
+        </div>
+        <div class="chart">
+          <h3>VocaDB へ聞いた回数（1 日換算）</h3>
+          <p class="cap">曲名だけで引く・表記をそろえる・控えを R2 に置く、を入れた前後。<strong>回数はアクセス量に比例する</strong>ので、9/20 昼の 1,464 はアクセスが戻ったぶん。1 分あたり 1.0 回で、先方の目安「1 分に 2 回」の半分。</p>
+          <div id="c-voca"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><h2>外へ出した要求（ホスト別）</h2><span class="count" id="out-count">—</span></div>
+    <div class="body">
+      <div class="bars" id="outbars"></div>
+      <div class="legend"><span><i style="background:#9d8ada"></i>画像の取得</span><span><i style="background:#008bc7"></i>API への問い合わせ</span></div>
+      <p class="sub" style="margin-top:10px"><strong>itunes.apple.com は 22 件</strong>（検索はブラウザから直接なので、うちの IP から出るのは URL を貼ったときの補完だけ）。hdslb は<strong>すでに並びに入っている bilibili の画像</strong>で、新しく取ることはもうない。</p>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><h2>外部サービスの使い方と上限</h2><span class="count">robots.txt は 7 サイト実取得で確認</span></div>
+    <div class="body scroll">
+      <table>
+        <thead><tr><th>相手</th><th>うちの使い方</th><th>公式の上限</th><th>実測（1 日）</th><th>状態</th></tr></thead>
+        <tbody>
+          <tr><td><span class="who">Apple iTunes Search</span><span class="note">検索・lookup</span></td><td>ブラウザから直接。サーバーは URL を貼ったときの補完・CLI・API だけ</td><td>約 20 回/分<span class="note">1 日の上限は明記なし・キャッシュ推奨</span></td><td class="nums">264</td><td><span class="pill ok">余裕</span></td></tr>
+          <tr><td><span class="who">MusicBrainz</span><span class="note">iTunes で 0 件のとき</span></td><td>サーバーは 1 req/秒の錠前。ブラウザ直は利用者ごとの IP</td><td>1 回/秒・IP ごと<span class="note">連絡先入り UA 必須・超過は 100% 拒否</span></td><td class="nums">0</td><td><span class="pill ok">守れている</span></td></tr>
+          <tr><td><span class="who">Cover Art Archive</span><span class="note">ジャケット</span></td><td>coverartarchive.org 経由のみ（転送先を直に叩かない）</td><td>「制限は無い」と明記</td><td class="nums">—</td><td><span class="pill ok">守れている</span></td></tr>
+          <tr><td><span class="who">VocaDB</span><span class="note">ボカロ検索・作者の補完</span></td><td>曲名だけで引く／表記をそろえる／控えを R2 に 6 日／同時 2 本・0.5 秒間隔</td><td>1 日数千件は事前の許可<span class="note">返答「1 分に 2 回なら問題ない。間隔を空けてほしい」</span></td><td class="nums">1,464<span class="note">1 分 1.0 回</span></td><td><span class="pill ok">確認済み</span></td></tr>
+          <tr><td><span class="who">otoDB / roxy</span><span class="note">音MAD・消えた動画</span></td><td>同時 3・1 リスト 24 件・結果を 1 日覚える</td><td>数字の明記なし<span class="note">開発者から「この量なら問題ない」と返答済み</span></td><td class="nums">1,668<span class="note">＋ 画像 864</span></td><td><span class="pill ok">確認済み</span></td></tr>
+          <tr><td><span class="who">YouTube</span><span class="note">単体は oEmbed／再生リスト</span></td><td>再生リストは Data API に移した（<code>playlistItems.list</code>）。鍵は 9/20 に投入済み</td><td>1 日 10,000 ユニット<span class="note">読み取りは 1 件 1 ユニット</span></td><td class="nums">192<span class="note">＋ 画像 3,852／API は 1 リスト 1〜10 ユニット</span></td><td><span class="pill ok">鍵あり</span></td></tr>
+          <tr><td><span class="who">ニコニコ動画</span><span class="note">getthumbinfo・マイリスト</span></td><td>人が貼ったときだけ 1 件。結果は 1 週間覚える</td><td>明記なし<span class="note">robots.txt の Disallow: /api/ が getthumbinfo を覆う</span></td><td class="nums">168<span class="note">＋ 画像 4,008</span></td><td><span class="pill">様子見</span></td></tr>
+          <tr><td><span class="who">Bandcamp</span><span class="note">曲・アルバムのページ</span></td><td>公開ページを 1 回・1 週間キャッシュ・名乗りは trackmento</td><td>明記なし<span class="note">AUP が scraper を名指しで禁止・公開 API 無し</span></td><td class="nums">0<span class="note">画像 240 のみ</span></td><td><span class="pill wait">返答待ち</span></td></tr>
+          <tr><td><span class="who">Spotify</span><span class="note">曲・アルバム</span></td><td>公式 oEmbed のみ（曲名とジャケット 300px。アーティスト名なし）</td><td>明記なし<span class="note">Web API は開発者登録に Premium が必須（2026-02〜）</span></td><td class="nums">0</td><td><span class="pill fix">縮小して対応</span></td></tr>
+          <tr><td><span class="who">SoundCloud</span><span class="note">曲</span></td><td>公式 oEmbed のみ。セットの展開はやめた</td><td>メタデータは明記なし<span class="note">§10 が scraping 禁止・§01 が client ID 必須</span></td><td class="nums">0<span class="note">画像 252 のみ</span></td><td><span class="pill fix">縮小して対応</span></td></tr>
+          <tr><td><span class="who">bilibili</span><span class="note">—</span></td><td>対応をやめた。手入力＋リンク先 URL で並べられる</td><td>事前の書面許可が必要<span class="note">api.bilibili.com は robots.txt で全面 Disallow</span></td><td class="nums">0<span class="note">画像 144 のみ</span></td><td><span class="pill stop">対応終了</span></td></tr>
+          <tr><td><span class="who">Discogs</span><span class="note">—</span></td><td>本番では未使用（トークン未設定）</td><td>認証あり 60 回/分<span class="note">画像は Restricted Data・6 時間ルール</span></td><td class="nums">0</td><td><span class="pill">未使用</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><h2>変更したら回すもの</h2><span class="count" id="chk-count">0 / 13</span></div>
+    <div class="body">
+      <ul class="list" id="checks"></ul>
+      <p class="savehint" id="chk-hint" style="margin:12px 0 0">作業の消し込み用。チェックはこのページに残る（次に開いても消えない）。</p>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><h2>待っていること・やること</h2><span class="count" id="todo-count">0 / 10</span></div>
+    <div class="body">
+      <ul class="list" id="todos"></ul>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><h2>セッションの進め方</h2><span class="count">2026-09-20 に決めた</span></div>
+    <div class="body">
+      <p class="sub" style="margin:0 0 14px">Claude は会話が伸びるほど過去のやり取りを読み直す。<strong>短いセッションを何本も</strong>のほうが、長い 1 本より安く、間違いも減る。</p>
+      <ol class="steps">
+        <li>
+          <span class="n">1</span>
+          <div>
+            <b>始めるとき — 1 タスク 1 セッション</b>
+            <span class="d">別の話題になったら <code>/clear</code>。続きは残してある記録から拾える（メモリ冒頭 → <code>CLAUDE.md</code> の核 → 索引から必要な <code>docs/*.md</code> を 1 枚）。<code>/compact</code> より新しいセッションのほうがよい（要約自体がトークンを食い、細部が落ちる）。</span>
+          </div>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <div>
+            <b>頼むとき — 何をしたいかだけ、短く</b>
+            <span class="d">「◯◯が××になってほしい」で足りる。手順や関連ファイルはこちらで索引から引く。画面の写真や共有 URL があれば、言葉で説明するより速い。</span>
+          </div>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <div>
+            <b>作業中 — 絵より数値、全文より抜粋</b>
+            <span class="d">割り付けの確認は <code>compare_layout.py</code>（数値 200 通り）を先に、画像は気になったものだけ。ログは <code>grep</code> や <code>--json</code> で絞ってから読む。スクリーンショットは高いので 1 回だけ。</span>
+          </div>
+        </li>
+        <li>
+          <span class="n">4</span>
+          <div>
+            <b>調べもの — まとめて別の担当に投げる</b>
+            <span class="d">規約調査のように広く読む仕事は subagent に出す。読んだページそのものは会話に入らず、要約だけ返る（9/20 の規約調査は 2 本で 33 万トークン使ったが、会話に乗ったのは要約だけ）。</span>
+          </div>
+        </li>
+        <li>
+          <span class="n">5</span>
+          <div>
+            <b>終わるとき — 残してから閉じる</b>
+            <span class="d">コミットと push →（利用者に見える変化なら）<code>/updates</code> に 1 行 → メモリの現状を更新 → <code>/clear</code>。次のセッションはここから始まる。</span>
+          </div>
+        </li>
+      </ol>
+      <div class="split">
+        <div>
+          <h3>モデルの使い分け</h3>
+          <dl class="kv">
+            <dt>Opus</dt><dd>割り付け・設計・文章の判断</dd>
+            <dt>Sonnet</dt><dd>置き換え・rename・定型の直し（<code>/model sonnet</code>）</dd>
+          </dl>
+        </div>
+        <div>
+          <h3>外の道具</h3>
+          <dl class="kv">
+            <dt>添削</dt><dd>Gemini 3.8 flash が枠切れなら回さず、下書きを手で通す</dd>
+            <dt>点検</dt><dd><code>gh workflow run render-check.yml</code>（2 時間おきに自動）</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><h2>文書の置き場所</h2><span class="count">毎セッションの土台 50,000 → 8,000 トークン</span></div>
+    <div class="body">
+      <p class="sub" style="margin:0 0 12px"><code>CLAUDE.md</code> は毎回まるごと読み込まれる。11 万字あったので、<strong>核と参照に分けた</strong>（2026-09-20、<code>9a11c39</code>）。中身は並べ替えず、そのまま移してある。</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>ファイル</th><th>中身</th><th>読むとき</th><th>推定</th></tr></thead>
+          <tbody>
+            <tr><td><code>CLAUDE.md</code></td><td>核。全体の仕組み・起動・CLI・変更したら回すもの・二重実装の一覧・索引</td><td>毎回</td><td class="nums">8.0k</td></tr>
+            <tr><td><code>docs/layout.md</code></td><td>割り付け（回り込み・柱と帯・曲名リスト）</td><td>render.py / renderShareCanvas を触るとき</td><td class="nums">10.2k</td></tr>
+            <tr><td><code>docs/ui.md</code></td><td>画面（スライダー・スクロールバー・パレット・日本語と英語）</td><td>index.html を触るとき</td><td class="nums">8.6k</td></tr>
+            <tr><td><code>docs/ops.md</code></td><td>本番・点検・引っ越し・画像の中継・過去の数字</td><td>デプロイや点検のとき</td><td class="nums">6.4k</td></tr>
+            <tr><td><code>docs/gotchas.md</code></td><td>一度引っかかった覚え書き</td><td>「前も同じ所でつまずいた気がする」とき</td><td class="nums">4.9k</td></tr>
+            <tr><td><code>docs/sources.md</code></td><td>取得元と画像の大きさ</td><td>sources/ を触るとき</td><td class="nums">4.2k</td></tr>
+            <tr><td><code>docs/services-terms.md</code></td><td>各サービスの規約・上限と問い合わせの記録</td><td>取得のしかたを変えるとき</td><td class="nums">2.0k</td></tr>
+            <tr><td><code>docs/history.md</code></td><td>経緯と保留していること</td><td>「なぜこうなっているのか」を知りたいとき</td><td class="nums">2.8k</td></tr>
+            <tr><td><code>docs/share.md</code> / <code>env.md</code> / <code>promo.md</code></td><td>共有・環境変数・記事の素材</td><td>その作業のとき</td><td class="nums">3.8k</td></tr>
+            <tr><td>メモリ（<code>MEMORY.md</code> ほか）</td><td>利用者の好み・進捗・引き継ぎ</td><td>毎回（索引のみ）</td><td class="nums">0.5k</td></tr>
+            <tr><td><code>metrics/series.jsonl</code></td><td>点検 1 回 1 行の記録。上の図の元</td><td>推移を見るとき</td><td class="nums">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="sub" style="margin-top:12px"><strong>書き足すときは核ではなく該当の <code>docs/*.md</code> へ</strong>。核に足してよいのは「毎回必要なこと」だけ（危ない操作・二重実装・手順の表・索引）。今の状況は核に書かず、メモリとこのボードが持つ。</p>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="bar"><h2>覚え書き</h2><span class="count">置き場所・お金・定期の仕事</span></div>
+    <div class="body">
+      <div class="notes">
+        <div class="note-block">
+          <h3>データの置き場所と保持</h3>
+          <dl>
+            <dt>共有画像</dt><dd>R2・30 日（<code class="cmd">r2_prune.py</code>）。24,328 件・24.9GB</dd>
+            <dt>画像キャッシュ</dt><dd>R2 7 日 ／ SQLite 6 日。131,585 件・5.0GB</dd>
+            <dt>検索結果の控え</dt><dd>R2 6 日（鍵は HMAC・語は残さない）。2,083 件</dd>
+            <dt>並び</dt><dd>ブラウザの localStorage が主・サーバーは控え</dd>
+            <dt>cache.sqlite3</dt><dd>デプロイのたびに消える</dd>
+          </dl>
+        </div>
+        <div class="note-block">
+          <h3>定期の仕事</h3>
+          <dl>
+            <dt>点検</dt><dd>2 時間おき（GitHub の cron は遅れる）</dd>
+            <dt>R2 の掃除</dt><dd>毎日 03:41 JST</dd>
+            <dt>依存の脆弱性</dt><dd>毎週月 10:00 JST</dd>
+            <dt>手で回す</dt><dd><code class="cmd">gh workflow run render-check.yml</code></dd>
+          </dl>
+        </div>
+        <div class="note-block">
+          <h3>お金</h3>
+          <dl>
+            <dt>Render</dt><dd>Standard 約 $25/月 ＋ 転送量 $25〜30</dd>
+            <dt>R2</dt><dd>10GB まで無料・超過 $0.015/GB。いま 30.3GB ＝ 月 $0.30</dd>
+            <dt>下げる判断</dt><dd>アクセスが落ち着いたら 1 段下げる</dd>
+          </dl>
+        </div>
+        <div class="note-block">
+          <h3>鍵の在りか</h3>
+          <dl>
+            <dt>本番</dt><dd>Render のダッシュボード（<code>sync: false</code>）</dd>
+            <dt>手元</dt><dd><code class="cmd">.env</code>（控えはリポジトリの外）</dd>
+            <dt>点検</dt><dd>GitHub Secrets の <code>RENDER_API_KEY</code></dd>
+            <dt>無くても動く</dt><dd>Discogs・Last.fm・Gemini</dd>
+            <dt>YouTube</dt><dd>入れてある（無いと再生リストのまとめ取りだけ止まる）</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    数字の出どころ: <code class="cmd">scripts/render_check.py</code>（<span id="foot-src">—</span>）、共有数と容量は R2 の実数（<span id="foot-r2">09-20 17:10 に一覧して数えた</span>）。
+    規約は各社の一次資料、robots.txt は 2026-09-20 に取得したもの。手順の元は <code class="cmd">CLAUDE.md</code>。
+  </footer>
+</div>
+
+<script>
+  /* ここから下の数字は「作り付けの控え」。ページを開くと db の board/metrics で上書きする
+     （scripts/board_data.py が metrics/series.jsonl から作り、ログ確認のたびに書き込む）。
+     db が読めないときはこの控えがそのまま出る。 */
+  let LATEST = {
+    jst: "2026-09-21 09:10", hours: 2, ng: 0, fivexx: 0,
+    rss: 312, rss_last: 273, rss_min: 246, cpu: 0.004, mem_mb: 207,
+    shares: null, out_total: 147, client: { mb_busy: 1 }, img: { hit: 495, miss: 50, put: 20 },
+    r2: { gb: 30.3, note: "無料 10GB ＋ 超過 20.3GB ＝ 月 $0.30" }
+  };
+  let SERIES = [["09-12 16:00",9771,0.0],["09-12 16:01",9615,0.83],["09-12 16:02",9514,0.84],["09-12 19:10",12303,1.17],["09-12 19:27",1266,3.33],["09-12 21:13",20647,1.88],["09-12 21:50",19920,2.56],["09-12 22:27",18827,2.17],["09-12 22:29",18804,2.19],["09-13 00:33",18020,2.09],["09-13 00:37",17930,2.11],["09-13 00:40",17800,2.13],["09-13 02:43",9480,1.24],["09-13 03:28",7994,0.91],["09-13 07:22",4114,0.29],["09-13 08:15",4028,0.32],["09-13 10:45",6016,0.52],["09-13 12:51",6531,0.42],["09-13 13:42",6867,0.3],["09-13 13:56",6797,0.32],["09-13 21:00",8017,0.27],["09-13 21:22",8150,0.39],["09-14 00:10",9706,0.42],["09-14 01:25",11392,0.63],["09-14 01:29",11376,0.64],["09-14 01:56",10628,0.86],["09-14 05:55",3843,0.2],["09-14 08:26",5287,0.22],["09-14 09:15",6297,0.21],["09-14 13:38",6790,0.26],["09-14 14:08",6950,0.16],["09-14 15:15",7936,0.29],["09-14 18:29",8865,0.42],["09-14 20:37",14650,0.66],["09-14 21:59",21275,1.11],["09-14 23:30",21300,1.21],["09-15 04:27",8821,0.46],["09-15 05:06",7858,0.25],["09-15 08:12",7455,0.21],["09-15 09:49",8749,0.33],["09-15 11:59",9085,0.39],["09-15 12:57",11738,0.44],["09-15 14:01",13733,0.44],["09-15 19:45",20157,1.14],["09-15 20:52",22733,1.37],["09-15 23:38",31339,1.58],["09-16 02:06",18590,0.79],["09-16 06:27",5721,0.22],["09-16 06:30",5715,0.22],["09-16 09:03",9064,0.28],["09-16 09:27",8892,0.38],["09-16 12:34",10580,0.39],["09-16 16:14",15782,0.57],["09-16 16:45",13383,0.78],["09-16 19:17",18965,0.62],["09-16 22:16",31444,1.05],["09-17 00:08",37029,0.99],["09-17 02:58",13645,0.63],["09-17 06:08",8237,0.12],["09-17 09:03",14241,0.3],["09-20 07:41",3323,0.07],["09-20 08:41",3664,0.06],["09-20 11:42",6384,0.106],["09-20 14:00",6000,0.07],["09-20 16:37",6538,0.123]];
+  let SHARES = [["09-11", 4287], ["09-12", 4184], ["09-13", 1773], ["09-14", 2560], ["09-15", 4387], ["09-16", 2806], ["09-17", 1995], ["09-18", 1428], ["09-19", 747]];
+  let OUT_HOSTS = [
+    ["nicovideo.cdn.nimg.jp", 334, "img"], ["i.ytimg.com", 321, "img"], ["otodb.net", 139, "api"],
+    ["vocadb.net", 122, "api"], ["cdn.otodb.net", 72, "img"], ["itunes.apple.com", 22, "api"],
+    ["i1.sndcdn.com", 21, "img"], ["f4.bcbits.com", 20, "img"], ["www.youtube.com", 16, "api"],
+    ["ext.nicovideo.jp", 14, "api"], ["i0 / i1.hdslb.com", 12, "img"]
+  ];
+  const INK = "#12171b", MUTED = "#6b7178", RULE = "#d8d7d3";
+  const SVGNS = "http://www.w3.org/2000/svg";
+
+  function el(name, attrs, text) {
+    const n = document.createElementNS(SVGNS, name);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function svgBox(w, h) {
+    const s = el("svg", { viewBox: "0 0 " + w + " " + h, role: "img" });
+    s.style.overflow = "visible";
+    return s;
+  }
+  function niceMax(v) {
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    return Math.ceil(v / p) * p;
+  }
+
+  /* 折れ線（面つき）。値の並びと、x 軸に出す目盛りの索引 */
+  function lineChart(node, values, labels, opt) {
+    const W = 560, H = 190, L = 44, R = 8, T = 12, B = 26;
+    const max = niceMax(Math.max.apply(null, values) || 1);
+    const x = i => L + (W - L - R) * (values.length < 2 ? 0.5 : i / (values.length - 1));
+    const y = v => T + (H - T - B) * (1 - v / max);
+    const s = svgBox(W, H);
+    for (let g = 0; g <= 2; g++) {
+      const v = max * g / 2;
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1 }));
+      const t = el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, opt.fmt(v));
+      s.appendChild(t);
+    }
+    const pts = values.map((v, i) => x(i) + "," + y(v));
+    s.appendChild(el("polygon", { points: x(0) + "," + y(0) + " " + pts.join(" ") + " " + x(values.length - 1) + "," + y(0), fill: opt.color, "fill-opacity": .13, stroke: "none" }));
+    s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: opt.color, "stroke-width": 2, "stroke-linejoin": "round" }));
+    const last = values.length - 1;
+    s.appendChild(el("circle", { cx: x(last), cy: y(values[last]), r: 4, fill: opt.color, stroke: "#fff", "stroke-width": 2 }));
+    if (opt.mark != null) {
+      s.appendChild(el("line", { x1: x(opt.mark), x2: x(opt.mark), y1: T, y2: H - B, stroke: opt.markColor || MUTED, "stroke-width": 1, "stroke-dasharray": "3 3" }));
+      s.appendChild(el("text", { x: x(opt.mark) + 4, y: T + 10, fill: opt.markColor || MUTED, "font-size": 10.5 }, opt.markText || ""));
+    }
+    s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
+    labels.forEach(([i, text]) => {
+      s.appendChild(el("text", { x: x(i), y: H - 8, "text-anchor": i === 0 ? "start" : (i === values.length - 1 ? "end" : "middle"), fill: MUTED, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, text));
+    });
+    node.appendChild(s);
+  }
+
+  function barChart(node, rows, opt) {
+    const W = 560, H = 190, L = 48, R = 8, T = 12, B = 30;
+    const max = niceMax(Math.max.apply(null, rows.map(r => r[1])) || 1);
+    const s = svgBox(W, H);
+    const bw = (W - L - R) / rows.length;
+    const y = v => T + (H - T - B) * (1 - v / max);
+    for (let g = 0; g <= 2; g++) {
+      const v = max * g / 2;
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1 }));
+      s.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, opt.fmt(v)));
+    }
+    rows.forEach((r, i) => {
+      const w = bw * 0.62, cx = L + bw * i + bw / 2;
+      s.appendChild(el("rect", { x: cx - w / 2, y: y(r[1]), width: w, height: y(0) - y(r[1]), fill: (r[2] || opt.color) }));
+      s.appendChild(el("text", { x: cx, y: y(r[1]) - 5, "text-anchor": "middle", fill: INK, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, opt.fmt(r[1])));
+      s.appendChild(el("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: MUTED, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, r[0]));
+    });
+    s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
+    node.appendChild(s);
+  }
+
+  function drawCharts() {
+    if (!SERIES.length) return;
+    ["c-req", "c-gb", "c-share", "c-voca"].forEach(id => { document.getElementById(id).textContent = ""; });
+    const req = SERIES.map(r => r[1]), gb = SERIES.map(r => r[2]);
+    const labels = [];
+    let seen = "";
+    SERIES.forEach((r, i) => { const d = r[0].slice(0, 5); if (d !== seen && (labels.length === 0 || i - labels[labels.length - 1][0] > 6)) { labels.push([i, d]); seen = d; } });
+    const k = v => v >= 1000 ? Math.round(v / 1000) + "k" : String(Math.round(v));
+    lineChart(document.getElementById("c-req"), req, labels, { color: "#008bc7", fmt: k });
+    let gzip = SERIES.findIndex(r => r[0] >= "09-16 06");
+    lineChart(document.getElementById("c-gb"), gb, labels, {
+      color: "#e6b731", fmt: v => v.toFixed(1), mark: gzip > 0 ? gzip : null, markColor: "#d93c22", markText: "gzip を入れた"
+    });
+    barChart(document.getElementById("c-share"), SHARES, { color: "#9d8ada", fmt: k });
+    barChart(document.getElementById("c-voca"), [["直す前", 2000, "#d93c22"], ["9/20 朝", 336, "#3fbd8b"], ["9/20 昼", 1464, "#3fbd8b"], ["目安", 2880, "#d8d7d3"]], { color: "#008bc7", fmt: k });
+  }
+
+  /* いまの状況のタイル。数字は LATEST（db の board/metrics で上書きされる）から組む。 */
+  const IMG_HOSTS = /ytimg|nimg|sndcdn|bcbits|hdslb|cdn\.otodb|coverartarchive|mzstatic|scdn|bcbits/;
+  const num = n => Number(n).toLocaleString("en-US");
+  function kvLine(o) {
+    return Object.entries(o || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + " " + v).join("・");
+  }
+  function tile(cls, k, v, unit, n) {
+    const d = document.createElement("div");
+    d.className = "tile " + cls;
+    const kk = document.createElement("div"); kk.className = "k"; kk.textContent = k;
+    const vv = document.createElement("div"); vv.className = "v"; vv.textContent = v;
+    if (unit) { const s = document.createElement("small"); s.textContent = unit; vv.appendChild(s); }
+    const nn = document.createElement("div"); nn.className = "n"; nn.textContent = n;
+    d.append(kk, vv, nn);
+    return d;
+  }
+  function drawTiles() {
+    const m = LATEST, box = document.getElementById("tiles");
+    box.textContent = "";
+    document.getElementById("now-when").textContent = (m.jst || "").slice(5) + " JST / 直近 " + (m.hours || 2) + " 時間";
+
+    const ngList = [];
+    if (m.fivexx) ngList.push("5xx " + m.fivexx + " 件");
+    box.appendChild(tile(m.ng ? "watch" : "ok", "判定", m.ng ? "要確認" : "正常",
+      "", ngList.length ? ngList.join("・") : "5xx 0 件・エラー行 0・lag 0・検索失敗 0"));
+
+    const rssNote = ["上限 2048MB"];
+    if (m.rss_last != null) rssNote.push("最新 " + m.rss_last);
+    if (m.rss_min != null) rssNote.push("最小 " + m.rss_min);
+    box.appendChild(tile(m.rss > 1600 ? "watch" : "ok", "メモリ rss", m.rss, "MB", rssNote.join("・")));
+
+    box.appendChild(tile(m.cpu > 0.8 ? "watch" : "ok", "CPU", Number(m.cpu).toFixed(3), "", "割当 1.0 vCPU。メトリクスの最大 " + (m.mem_mb || "—") + "MB"));
+
+    if (m.img && (m.img.hit || m.img.miss)) {
+      const rate = Math.round(m.img.hit / (m.img.hit + m.img.miss) * 100);
+      box.appendChild(tile(rate >= 42 ? "ok" : "watch", "画像キャッシュ", rate, "%",
+        "当たり " + num(m.img.hit) + "／外れ " + num(m.img.miss) + "。分岐点 42%" + (rate >= 42 ? " → 置き続けてよい" : " → 見直す")));
+    }
+
+    if (m.shares != null) box.appendChild(tile("ok", "本日の共有", num(m.shares), "", "1 日の上限なし・IP ごと 50"));
+
+    if (m.out_total) {
+      const perDay = Math.round(m.out_total * 24 / (m.hours || 2));
+      const img = OUT_HOSTS.filter(h => h[2] === "img").reduce((a, h) => a + h[1], 0);
+      const all = OUT_HOSTS.reduce((a, h) => a + h[1], 0) || 1;
+      box.appendChild(tile(perDay > 20000 ? "watch" : "ok", "外へ出した要求", num(perDay), "/日",
+        (m.hours || 2) + " 時間 " + num(m.out_total) + " 件の換算。" + Math.round(img / all * 10) + " 割が画像"));
+    }
+
+    const fails = Object.values(m.client || {}).reduce((a, b) => a + b, 0);
+    box.appendChild(tile(fails > 20 ? "watch" : "ok", "ブラウザ側の失敗", fails, "",
+      fails ? kvLine(m.client) : "なし"));
+
+    if (m.r2) box.appendChild(tile("watch", "R2 の使用量", m.r2.gb, "GB", m.r2.note || ""));
+  }
+
+  function drawOut() {
+    const box = document.getElementById("outbars");
+    box.textContent = "";
+    document.getElementById("out-count").textContent =
+      "合計 " + num(OUT_HOSTS.reduce((a, h) => a + h[1], 0)) + " 件 / " + (LATEST.hours || 2) + " 時間";
+    const max = Math.max.apply(null, OUT_HOSTS.map(h => h[1]));
+    OUT_HOSTS.forEach(([host, n, kind]) => {
+      const row = document.createElement("div");
+      row.className = "barrow";
+      const h = document.createElement("span");
+      h.className = "host";
+      h.textContent = host;
+      const track = document.createElement("span");
+      track.className = "track";
+      const fill = document.createElement("span");
+      fill.className = "fill" + (kind === "img" ? " img" : "");
+      fill.style.width = Math.max(2, Math.round(n / max * 100)) + "%";
+      track.appendChild(fill);
+      const v = document.createElement("span");
+      v.className = "val";
+      v.textContent = n;
+      row.append(h, track, v);
+      box.appendChild(row);
+    });
+  }
+
+  const CHECKS = [
+    { id: "fonts", t: "画面の固定文字を変えた", d: "build_fonts.py → upload_fonts_r2.py → check_i18n.py。サーバーも立て直す（古い断片名を差し込み続ける）" },
+    { id: "render", t: "描画を変えた（render.py / renderShareCanvas）", d: "compare_render.py（ぼかし後 3px で 1% 未満 か 6px で 0.3% 未満）と compare_layout.py 200（PUBLIC_MODE=1）" },
+    { id: "layout", t: "割り付けの規則を変えた", d: "layout_audit.py --render で 2,950 通り。1 つ直すと別が壊れる" },
+    { id: "cells", t: "マスの上限を変えた", d: "4 か所すべて: index.html の MAX_SIDE_CELLS と MAX_CELLS、grids.py の MAX_COLS / MAX_ROWS、config.py の max_cells()" },
+    { id: "color", t: "色の名前を足した", d: "5 か所: render.py の TOKENS、CSS 変数、TOKENS_RGB、grids.py の BG_KEYS、cli.py の --bg" },
+    { id: "copy", t: "Dockerfile に COPY を足した", d: "render.yaml の buildFilter にも足す（足さないとデプロイされない）" },
+    { id: "env", t: "Render のダッシュボードで環境変数を変えた", d: "render.yaml にも同じ値を書く（Blueprint が巻き戻す）" },
+    { id: "share", t: "テスト共有を作った", d: "R2 から消す（listed/ も）" },
+    { id: "public", t: "ブラウザで確かめる", d: "PUBLIC_MODE=1・ポート 8000（R2 の CORS がこのポートだけ）。付けないと利用者の grids/default.json を上書きする" },
+    { id: "updates", t: "利用者に見える変化を入れた", d: "backend/pages.py の CHANGES に 1 行（同じコミットで）。内部の直しは書かない" },
+    { id: "video", t: "紹介動画を書き出した", d: "譜割りエディタ（plan/main）に場面メモと全体メモを反映し、rev も更新する" },
+    { id: "consist", t: "機能を足した・やめた／文書を書いた", d: "check_consistency.py（手順は /consistency-check）。文書と画面に古い案内が残っていないか。参照先の実在・マスの上限 4 か所・数字の一致・最終更新の日付も見る" },
+    { id: "proof", t: "まとまった文章を書いた", d: "proofread.py で添削（README などは --doc、外部への英文は --letter）。直しは取捨して理由を残す" }
+  ];
+
+  const TODOS = [
+    { id: "vocadb", t: "VocaDB の CORS の連絡を待つ", d: "9/20 に返答あり（量は問題なし・間隔を空ける要望→対応済み）。CORS は「検討して後で連絡する」。許可されればブラウザ直引き＋プライバシーポリシーに 1 行", when: "連絡待ち" },
+    { id: "bandcamp", t: "Bandcamp の返事を待つ", d: "9/20 に問い合わせフォームから送付（1,270 字の短縮版）。駄目なら bilibili と同じ形にする", when: "返答待ち" },
+    { id: "filter", t: "フィルタ各社の分類を確認", d: "ネットスター・トレンドマイクロ・Cloudflare・Norton・McAfee。9/19 に申請済み", when: "9/22 ごろ" },
+    { id: "adsense", t: "AdSense の審査結果", d: "承認されても、CSP に script-src / frame-src を足さないと広告は出ない。出すかどうかは未決" },
+    { id: "video12", t: "紹介動画 v14 を公開するか決める", d: "v14（縦・日本語）まで書き出し済み。YouTube などに投稿するかは未決。英語・横は新しい撮り方でまだ撮っていない", when: "未決" },
+    { id: "nextcheck", t: "次の点検で見るもの", d: "R2 の検索結果の控えの当たり率（9/20 16:37 は VocaDB 10%・otoDB 3%。デプロイ直後で索引ができたばかりだった）・font_fail の増減・imgcache の件数" },
+    { id: "imgindex", t: "imgcache が 13 万件（上限 20 万の 66%）", d: "R2 は 131,585 件・5.00GB。7 日の掃除は効いている（8 日前のものは無い）が、IMAGE_INDEX_MAX 20 万を超えると索引が打ち切られて 302 に戻せなくなる。アクセスが増えたら上限を上げるか、索引を短い期限に絞る" },
+    { id: "fontfail", t: "font_fail 8 件 / 2 時間", d: "フォントを 25 秒待っても揃わずサーバー描画へ落ちた数（/share 8 件と一致）。CPU に余裕があるので実害は小さいが、増えるようなら断片の数か待ち方を見直す" },
+    { id: "plan", t: "インスタンスを下げる判断", d: "CPU 0.07 / メモリ 222MB（rss 最大 343MB）と余っている。共有は 1 日 4,287 → 747 件まで落ち着いた。下げるなら rss の最大（343MB）が収まるかを先に見る" }
+  ];
+
+  const state = { checks: {}, todos: {} };
+  let doc = null, saving = null;
+
+  function line(kind, item) {
+    const li = document.createElement("li");
+    const done = !!state[kind][item.id];
+    if (done) li.className = "done";
+    const label = document.createElement("label");
+    label.className = "row";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.className = "box";
+    box.id = kind + "-" + item.id;
+    box.checked = done;
+    box.addEventListener("change", () => {
+      state[kind][item.id] = box.checked;
+      li.classList.toggle("done", box.checked);
+      counts();
+      save();
+    });
+    const wrap = document.createElement("div");
+    wrap.className = "item";
+    const t = document.createElement("span");
+    t.className = "t";
+    t.textContent = item.t;
+    wrap.appendChild(t);
+    if (item.when) {
+      const w = document.createElement("span");
+      w.className = "when" + (item.when === "今日" ? " soon" : "");
+      w.textContent = item.when;
+      wrap.appendChild(w);
+    }
+    const d = document.createElement("span");
+    d.className = "d";
+    d.textContent = item.d;
+    wrap.appendChild(d);
+    label.append(box, wrap);
+    li.appendChild(label);
+    return li;
+  }
+
+  function counts() {
+    document.getElementById("chk-count").textContent = CHECKS.filter(i => state.checks[i.id]).length + " / " + CHECKS.length;
+    document.getElementById("todo-count").textContent = TODOS.filter(i => state.todos[i.id]).length + " / " + TODOS.length;
+  }
+
+  function draw() {
+    const cl = document.getElementById("checks"), tl = document.getElementById("todos");
+    cl.textContent = ""; tl.textContent = "";
+    CHECKS.forEach(i => cl.appendChild(line("checks", i)));
+    TODOS.forEach(i => tl.appendChild(line("todos", i)));
+    counts();
+  }
+
+  function save() {
+    if (!doc) return;
+    clearTimeout(saving);
+    saving = setTimeout(() => {
+      doc.set({ checks: state.checks, todos: state.todos, updatedAt: new Date().toISOString() })
+        .catch(() => { document.getElementById("chk-hint").textContent = "このページではチェックを残せません（読むだけの人として開いています）。"; });
+    }, 250);
+  }
+
+  /* db から来た数字を当てる。無い項目は作り付けの控えのまま。 */
+  function applyMetrics(m) {
+    if (!m) return;
+    if (m.latest) LATEST = Object.assign({}, LATEST, m.latest);
+    if (Array.isArray(m.series) && m.series.length) SERIES = m.series;
+    if (Array.isArray(m.shares) && m.shares.length) SHARES = m.shares;
+    if (Array.isArray(m.out) && m.out.length) OUT_HOSTS = m.out;
+    if (m.r2) LATEST.r2 = m.r2;
+    drawAll();
+  }
+
+  function drawAll() {
+    drawTiles();
+    drawCharts();
+    drawOut();
+    const n = SERIES.length;
+    document.getElementById("series-count").textContent =
+      "点検の記録 metrics/series.jsonl から（" + n + " 回ぶん）";
+    document.getElementById("foot-src").textContent =
+      n ? "推移は " + SERIES[0][0].slice(0, 5) + "〜" + SERIES[n - 1][0].slice(0, 5) + " の点検 " + n + " 回、現況は " + (LATEST.jst || "").slice(5) + " JST の " + (LATEST.hours || 2) + " 時間" : "—";
+    if (LATEST.r2 && LATEST.r2.counted) document.getElementById("foot-r2").textContent = LATEST.r2.counted;
+    document.getElementById("asof").textContent = (LATEST.jst || "").slice(0, 10);
+  }
+
+  drawAll();
+  draw();
+
+  (async () => {
+    try {
+      const db = await window.claude?.use?.("db");
+      if (!db) {
+        document.getElementById("chk-hint").textContent = "作業の消し込み用。いまはこの画面だけで、次に開くと戻ります。";
+        return;
+      }
+      /* 点検の数字（ログを見たあとに ArtifactData で書き込む）。読めなくても控えが出る。 */
+      try {
+        const mdoc = db.doc("board/metrics");
+        const mgot = await mdoc.get();
+        if (mgot && mgot.exists) applyMetrics(mgot.data());
+        mdoc.onSnapshot(snap => { if (snap && snap.exists) applyMetrics(snap.data()); }, () => {});
+      } catch (e) { /* 控えのまま */ }
+
+      doc = db.doc("board/state");
+      // data() は関数。data を値として読むと常に undefined になり、
+      // 保存直後の snapshot で状態が空に戻る（2026-09-20 に直した）
+      const got = await doc.get();
+      const first = got && got.exists ? got.data() : null;
+      if (first) {
+        Object.assign(state.checks, first.checks || {});
+        Object.assign(state.todos, first.todos || {});
+        draw();
+      }
+      doc.onSnapshot(snap => {
+        if (!snap || !snap.exists) return;
+        const d = snap.data();
+        if (!d) return;
+        state.checks = Object.assign({}, d.checks || {});
+        state.todos = Object.assign({}, d.todos || {});
+        draw();
+      }, () => {
+        document.getElementById("chk-hint").textContent = "チェックの同期が切れました。開き直すと直ります。";
+      });
+    } catch (e) {
+      document.getElementById("chk-hint").textContent = "作業の消し込み用。いまはこの画面だけで、次に開くと戻ります。";
+    }
+  })();
+</script>
+
+</body></html>

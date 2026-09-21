@@ -132,6 +132,26 @@
   あとから推移を描くにはここに残すしかない（`outputs/note/series.json` は手で集めていたので 09-17 で止まっていた）。
   `render_check.py --append metrics/series.jsonl` で足り、`render-check.yml` が 2 時間おきに commit する。
   **`metrics/` は `buildFilter` に無いので、この push でデプロイは走らない**。語や URL は入れない（ホスト名と件数だけ）
+
+- **ログを確認したら運用ボードも更新する**（2026-09-21、利用者の指定）。ボードは
+  https://claude.ai/artifact/F3TPV7qzZJKN4kpwFT6KSA 。**ページを出し直す必要はない**。数字はボードの
+  db（`board/metrics`）から読むようにしてあるので、そこへ 1 レコード書けば「いまの状況」「推移」
+  「外へ出した要求」が入れ替わる。手順は 3 つ:
+
+  ```bash
+  gh workflow run render-check.yml -f hours=2       # 点検（終わるまで gh run watch）
+  git pull --rebase                                  # metrics/series.jsonl に 1 行増える
+  PYTHONUTF8=1 .venv/Scripts/python scripts/board_data.py --out <どこか>/board.json
+  ```
+
+  最後に ArtifactData の `set` で `board/metrics` に `board.json` を入れる。R2 の使用量だけは
+  `series.jsonl` に無いので、数え直したときだけ `--r2-gb` / `--r2-note` / `--r2-counted` を足す
+  （渡さないとタイルが消えるので、前の値をそのまま渡す）。
+  - ボードの元は `scripts/board/index.html`。**db が読めないときのために作り付けの控えを持っている**ので、
+    見た目を直したときはそちらも一度は新しい数字にしておく（控えが古いと、読めなかったときだけ古い数字が出る）
+  - 文章（待っていること・外部サービスの表・手順）は db に入れていない。変えるときは
+    `scripts/board/index.html` を直して `Artifact` の publish で同じ URL に出し直す
+
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）
   - **`?src=…` でどこから来たかを数える**（2026-09-15）。投稿に貼るリンクへ `?src=x` のように付けると、
