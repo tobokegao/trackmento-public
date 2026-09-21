@@ -271,7 +271,7 @@
           <span class="n">5</span>
           <div>
             <b>終わるとき — 残してから閉じる</b>
-            <span class="d">コミットと push →（利用者に見える変化なら）<code>/updates</code> に 1 行 → メモリの現状を更新 → <code>/clear</code>。次のセッションはここから始まる。</span>
+            <span class="d">コミットと push →（利用者に見える変化なら）<code>/updates</code>（スキル）で 1 行 → メモリの現状を更新 → <code>/clear</code>。次のセッションはここから始まる。</span>
           </div>
         </li>
       </ol>
@@ -636,7 +636,7 @@
     { id: "env", t: "Render のダッシュボードで環境変数を変えた", d: "render.yaml にも同じ値を書く（Blueprint が巻き戻す）" },
     { id: "share", t: "テスト共有を作った", d: "R2 から消す（listed/ も）" },
     { id: "public", t: "ブラウザで確かめる", d: "PUBLIC_MODE=1・ポート 8000（R2 の CORS がこのポートだけ）。付けないと利用者の grids/default.json を上書きする" },
-    { id: "updates", t: "利用者に見える変化を入れた", d: "backend/pages.py の CHANGES に 1 行（同じコミットで）。内部の直しは書かない" },
+    { id: "updates", t: "利用者に見える変化を入れた", d: "手順は /updates。backend/pages.py の CHANGES に 1 行（同じコミットで）。内部の直しは書かない。最終更新の日付もそろえる" },
     { id: "video", t: "紹介動画を書き出した", d: "譜割りエディタ（plan/main）に場面メモと全体メモを反映し、rev も更新する" },
     { id: "consist", t: "機能を足した・やめた／文書を書いた", d: "check_consistency.py（手順は /consistency-check）。文書と画面に古い案内が残っていないか。参照先の実在・マスの上限 4 か所・数字の一致・最終更新の日付も見る" },
     { id: "proof", t: "まとまった文章を書いた", d: "proofread.py で添削（README などは --doc、外部への英文は --letter）。直しは取捨して理由を残す" }
