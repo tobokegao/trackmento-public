@@ -5,6 +5,31 @@
 
 （`CLAUDE.md` から分けたもの。2026-09-20。中身は当時のまま）
 
+## 曲名の刈り込みは割り付けの前（2026-09-21）
+
+曲名とアーティスト名から蛇足を外す（`backend/names.py` と frontend の `trimName`）。
+**割り付けを決める前に通す**。`layout()` と `render()` の入口で `_trimmed(doc)` を呼び、
+ブラウザ側は `layout()` と `renderShareCanvas` が `viewCells()` を読む。
+
+あとから刈っても意味がない。`_wrap_plan` は「出力での文字を `FLOW_MIN_FONT` に固定し、入る枠を
+いちばん小さくする」で決まるので、**文字を減らさないと枠が縮まない**。
+
+`layout()` と `render()` の両方で刈るので**二重に掛かる**。`names.trim` は掛け直しても結果が
+変わらない（`scripts/check_trim.py` が確かめる。みんなの並び 882 曲で差 0 件）。
+
+実測（利用者の 100 曲・10x10・16:9・出力 2000px）:
+
+| | 文字数 | 1 マス | 塊の面積比 | 組み方 |
+| --- | --- | --- | --- | --- |
+| 刈り前 | 5,421 字 | 64px | 18.5% | 回り込み |
+| 刈り後 | 3,859 字 | 102px | 46.5% | 流し込み（右） |
+
+突き合わせは `scripts/check_trim.py`（期待値の表と冪等性）と `scripts/compare_trim.py`
+（Python と Chromium の全件一致）。10x10・16:9・全マス埋めの絵は**差 0.00%**（2026-09-21）。
+
+**`scripts/compare_layout.py` は 120 通りで 25 件食い違うが、これは刈り込みの前からある**
+（両側で `trimNames` を切っても同じ 25 件。2026-09-21 に確認）。
+
 - 描画は 2 系統: Web は端末の Canvas で描いて `/share/upload` に送る（`frontend/index.html` の `renderShareCanvas`）。サーバー描画（`backend/render.py`）は CLI と、描けない端末のフォールバック（`/share`）。レイアウト・色・文字の省略規則は両方同じ式。**片方変更時は他方も変更**し、`scripts/compare_render.py` で両方の描画を突き合わせる（差は輪郭のみが正常）。
   手順はスクリプトの docstring。サーバーは `PUBLIC_MODE=1 SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0` で立てる（R2 が無料枠を超えていると 507、本番の共有数を復元して 1 日上限にも当たる）。
   **見るのは「ぼかし後の差 > 32」**。輪郭のズレはぼかすと消え、マスや文字の位置のズレだけが残る。

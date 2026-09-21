@@ -288,6 +288,7 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
 | `frontend/index.html` の固定文字 | `scripts/build_fonts.py` → `scripts/upload_fonts_r2.py` | **本番でフォントが 404**（断片名にハッシュが入るため） |
 | 同上 | `scripts/check_i18n.py` | 英語表示でそこだけ日本語のまま残る（警告は出ない） |
 | 描画（`render.py` か `renderShareCanvas`） | `scripts/compare_render.py` | サーバー描画とブラウザ描画がずれる（描けない端末だけ見た目が変わる） |
+| 曲名の刈り込み（`names.py` か `trimName`） | `scripts/check_trim.py` → `scripts/compare_trim.py` | 画面と書き出しで曲名が変わり、折り返しから割り付けが丸ごとずれる |
 | マスの上限 | 4 か所すべて（下記） | 並びが黙って潰れる |
 | 機能を足した・やめた | `scripts/check_consistency.py`（手順は `/consistency-check`） | 文書と画面に古い案内が残る |
 
@@ -354,6 +355,8 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
       実寸がちょうど .5 px になる字（IBM Plex の `e` / `r` / `-`）だけ Canvas の実数と丸めの向きが食い違い、
       その 1 字から先の折り返しが全部ずれる。**190 字中 3 字の差で、回り込みの突き合わせが
       6px のぼかしで 0.94% → 0.07% まで変わった**
+  - 曲名の刈り込み: `backend/names.py` と frontend の `trimName`（蛇足を外す規則）。**割り付けを決める前に通す**
+    → `scripts/check_trim.py`（期待値の表と冪等性）と `scripts/compare_trim.py`（Python と Chromium の全件一致）
   - 検索の絞り込み: `backend/sources/itunes.py` と frontend の `itunesSearch`（ブラウザから直接 iTunes を叩くため）
   - 描く前の文字の掃除: `render.py` の `_drawable`（フォントの cmap に無い字を落とす）と frontend の `oneLine`
     （`STRIP_RE` = 絵文字・私用領域・補助面を落とす）。**Chromium の `\p{Extended_Pictographic}` は ★ ♪ ♡ ♥ も
