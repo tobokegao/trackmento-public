@@ -1,5 +1,5 @@
 // **自動生成（promo/plan_gen.mjs）。手で直さない**。直すのは譜割りエディタの「場面」レーンの「動画の台本」。
-// エディタの版: rev oucfhxd（2026-09-21T14:58:14.942Z）
+// エディタの版: rev imx9xlr（2026-09-21T16:04:11.427Z）
 // 拍は 4 分音符・0 始まり（小節 n の頭 = (n - 1) * 4）。len も拍。off は印からの秒、speed は倍率
 export type PlanShot = { id: string; beat: number; len: number; ev: string; off: number; jp: string; en: string; speed?: number };
 export const PLAN_SHOTS: PlanShot[] = [
@@ -320,10 +320,11 @@ export const PLAN_SHOTS: PlanShot[] = [
   "id": "xc3oxx2",
   "beat": 196,
   "len": 4,
-  "ev": "find:share",
+  "ev": "find:app-tap",
   "off": -0.3,
-  "jp": "見つけた並びを開いて眺める",
-  "en": "Open and browse other people's grids"
+  "jp": "見つけた並びを、\nそのまま読み込める",
+  "en": "Load a grid you found,\nas is",
+  "speed": 1.24
  },
  {
   "id": "ntvo0x8",

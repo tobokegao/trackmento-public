@@ -333,7 +333,8 @@ const MAIN = [
     await hold(600);
     await center(page.locator("#list-seg")); await hold(300);
     // 3 択をぜんぶ押して見せ、最後は「マスに重ねる」に戻す（以後の共有はこの表示）
-    for (const [v, n] of [["side", "list:beside"], ["overlay", "list:overlay"], ["none", "list:none"], ["overlay", "list:overlay2"]]) {
+    // 最後の選択が書き出しの曲名リストになる。**縦（スマホ）は横に並べる**（できあがりの画を重ねない形に。2026-09-22、利用者の指定）
+    for (const [v, n] of [["side", "list:beside"], ["overlay", "list:overlay"], ["none", "list:none"], PC ? ["overlay", "list:overlay2"] : ["side", "list:beside2"]]) {
       await tap(`#list-seg input[value="${v}"] + span`, n); await hold(300);
     }
     await hold(600);
@@ -484,7 +485,23 @@ const FEATS = [
     await hold(150); mark("find:open");
     await goto(new URL(href, BASE).href);
     await hold(300); mark("find:share");
-    await hold(1800); await scrollBy(500, 500); await hold(1200);
+    await hold(1500);
+    // 「TRACKMENTO で開く（この並びを読み込む）」を押したあとの画面まで見せる（2026-09-22、利用者の指定）。
+    // リンクの先は PUBLIC_BASE_URL（本番）なので、押した印だけ付けて手元の同じ ID を開く。
+    // 開くと並びが置き換わるので、見せたあと**元の並びに戻してから**次の場面へ（io 以降の頭の状態を変えない）
+    const open = page.locator('a.btn[href*="?share="]').first();
+    await center(open); await hold(300);
+    const sid = new URL(await open.getAttribute("href")).searchParams.get("share");
+    const ob = await open.boundingBox();
+    await page.evaluate(([x, y]) => window.__tap(x, y), [ob.x + ob.width / 2, ob.y + ob.height / 2]);
+    await hold(150); mark("find:app-tap");
+    const keep = await page.evaluate(() => JSON.stringify(Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k)]))));
+    await goto(`${BASE}/?share=${sid}`);
+    await until(imagesLoaded, { label: "読み込んだ並び", timeout: 30000 }).catch(() => {});
+    await hold(200); mark("find:app");
+    await hold(2200);
+    await page.goto(`${BASE}/health`, { waitUntil: "domcontentloaded" });
+    await page.evaluate((ls) => { localStorage.clear(); for (const [k, v] of Object.entries(JSON.parse(ls))) localStorage.setItem(k, v); }, keep);
     await goto(`${BASE}/`);
   }],
   ["io", async () => {
@@ -579,6 +596,11 @@ const FEATS = [
     await hold(1000);
     await openSheet();
     await center(page.locator("#results")); await hold(300);
+    // 候補のサムネは loading="lazy"。時計を止めて撮るので、送っても読み込みが間に合わず空の四角が並んだ（2026-09-22）。
+    // 先に全部読ませてから撮る（待つあいだは撮らない）
+    await page.evaluate(() => { for (const i of document.querySelectorAll("#results img")) i.loading = "eager"; });
+    await until(() => page.evaluate(() => [...document.querySelectorAll("#results img")].every((i) => i.complete)), { label: "候補のサムネ", timeout: 60000 })   // 消えた動画の画像は読めずに終わるので、成否は問わない
+      .catch(() => console.log("   （候補のサムネが出そろわないまま進める）"));
     mark("pl:rest");
     await scrollBy(900, 700, PC ? null : ".sheet-body"); await scrollBy(900, 900, PC ? null : ".sheet-body");
     await closeSheet("pl-rest-close");

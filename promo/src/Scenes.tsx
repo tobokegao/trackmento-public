@@ -399,22 +399,53 @@ const Hook: React.FC<{ L: Layout }> = ({ L }) => {
       {(() => {
         const ar = after ? HOOK_AR.wide : HOOK_AR.square, H = box.height - (tall ? 60 : 50);
         const w = Math.min(box.width, H * ar), h = w / ar;
+        // **画面の中央に置く**（2026-09-22、利用者の指摘。上に寄せていて、縦では下半分が空いていた）。
+        // 縦は画面の真ん中、横は字幕の帯の下から下端までの真ん中。札は画像の右上のすぐ上
+        const cy = tall ? L.H / 2 : (box.top + L.H) / 2;
+        const top = Math.max(box.top + (tall ? 50 : 40), cy - h / 2), left = box.left + (box.width - w) / 2;
         return (
-          <div style={{ position: "absolute", left: box.left + (box.width - w) / 2, top: box.top + (tall ? 50 : 40), width: w, height: h,   // 上に寄せる（札のすぐ下）
-            transform: `scale(${0.92 + s * 0.08})`, opacity: Math.min(1, 0.4 + s), border: `6px solid ${C.ink}`, boxShadow: `14px 14px 0 ${C.ink}`, boxSizing: "content-box", overflow: "hidden" }}>
-            <Img src={staticFile(`stills/${after ? "hook-wide" : "hook-square"}.png`)} style={{ width: "100%", height: "100%", display: "block" }} />
-          </div>
+          <>
+            <div style={{ position: "absolute", left, top, width: w, height: h,
+              transform: `scale(${0.92 + s * 0.08})`, opacity: Math.min(1, 0.4 + s), border: `6px solid ${C.ink}`, boxShadow: `14px 14px 0 ${C.ink}`, boxSizing: "content-box", overflow: "hidden" }}>
+              <Img src={staticFile(`stills/${after ? "hook-wide" : "hook-square"}.png`)} style={{ width: "100%", height: "100%", display: "block" }} />
+            </div>
+            {/* 札: 前半は「正方形」（左右が切れる）、後半は「横長 16:9」 */}
+            <div style={{ position: "absolute", left, width: w + 12, top: top - (tall ? 64 : 54), display: "flex", justifyContent: "flex-end" }}>
+              <div style={{ background: after ? C.vermilion : C.muted, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700,
+                fontSize: tall ? 42 : 38, padding: "8px 24px", border: `4px solid ${C.ink}`, transform: `translateY(${(1 - s) * 20}px) scale(${0.85 + s * 0.15})`, opacity: s }}>
+                {after ? (ja ? "横長 16:9 のマス" : "16:9 cells") : (ja ? "正方形のマス（左右が切れる）" : "Square cells (sides cut)")}
+              </div>
+            </div>
+          </>
         );
       })()}
-      {/* 札: 前半は「正方形」（左右が切れる）、後半は「横長 16:9」 */}
-      <div style={{ position: "absolute", left: box.left, width: box.width, top: box.top - (tall ? 20 : 10), display: "flex", justifyContent: "flex-end" }}>
-        <div style={{ background: after ? C.vermilion : C.muted, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700,
-          fontSize: tall ? 42 : 38, padding: "8px 24px", border: `4px solid ${C.ink}`, transform: `translateY(${(1 - s) * 20}px) scale(${0.85 + s * 0.15})`, opacity: s }}>
-          {after ? (ja ? "横長 16:9 のマス" : "16:9 cells") : (ja ? "正方形のマス（左右が切れる）" : "Square cells (sides cut)")}
-        </div>
-      </div>
     </Paper>
   );
+};
+
+/** 3 つの特徴の背景のドット（2026-09-22、利用者の指定）。色は**3 行の四角に使っていない 3 色**（STRIPE の 1・3・5 番目）。
+    ドット（四角）は市松に 2 組へ分け、1 拍ごとに片方が大きく・もう片方が小さくなって入れ替わる */
+const PointsDots: React.FC<{ L: Layout }> = ({ L }) => {
+  const frame = useCurrentFrame();
+  const tall = L.kind === "tall";
+  const beatLen = beatFrame(POINTS_BEAT + 1) - beatFrame(POINTS_BEAT);
+  const b = frame / beatLen, k = b - Math.floor(b);
+  const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;   // 1 拍の中でなめらかに
+  const grow = Math.floor(b) % 2 === 0 ? e : 1 - e;            // 組 A の大きさ（0〜1）。組 B は逆
+  const COLORS = [STRIPE[1], STRIPE[3], STRIPE[5]];
+  const gap = tall ? 150 : 160, r0 = tall ? 7 : 7, r1 = tall ? 22 : 22;
+  const cols = Math.ceil(L.W / gap) + 1, rows = Math.ceil(L.H / gap) + 1;
+  const dots: React.ReactNode[] = [];
+  // **文字の塊のまわりは空ける**（ドットが英語の行に重なって読みづらかった）。縦は真ん中の帯、横は真ん中の四角
+  const clear = tall ? { x0: -1, x1: L.W + 1, y0: 600, y1: 1330 } : { x0: 320, x1: 1600, y0: 220, y1: 890 };
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const px = gap / 2 + x * gap, py = gap / 2 + y * gap;
+    if (px > clear.x0 && px < clear.x1 && py > clear.y0 && py < clear.y1) continue;
+    const a = (x + y) % 2 === 0, g = a ? grow : 1 - grow;
+    const r = r0 + (r1 - r0) * g;   // **四角**（2026-09-22、利用者の指定。ロゴの下線の四角と同じ形）。r は一辺の半分
+    dots.push(<rect key={`${x}-${y}`} x={px - r} y={py - r} width={r * 2} height={r * 2} fill={COLORS[(x + y * 2) % 3]} />);
+  }
+  return <svg width={L.W} height={L.H} style={{ position: "absolute", inset: 0 }}>{dots}</svg>;
 };
 
 // ---- 3 つの特徴（3 小節。作った画）: 見出しのあと、1 小節に 1 行ずつ ----
@@ -425,6 +456,7 @@ const Points: React.FC<{ L: Layout }> = ({ L }) => {
   const head = spring({ frame, fps, config: { damping: 13, stiffness: 160 } });
   return (
     <Paper>
+      <PointsDots L={L} />
       <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", flexDirection: "column", gap: tall ? 56 : 36 }}>
         <div style={{ fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 84 : 96, color: C.ink, letterSpacing: "0.06em", opacity: head, transform: `translateY(${(1 - head) * -30}px)` }}>TRACKMENTO</div>
