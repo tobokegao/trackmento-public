@@ -27,8 +27,17 @@
 突き合わせは `scripts/check_trim.py`（期待値の表と冪等性）と `scripts/compare_trim.py`
 （Python と Chromium の全件一致）。10x10・16:9・全マス埋めの絵は**差 0.00%**（2026-09-21）。
 
-**`scripts/compare_layout.py` は 120 通りで 25 件食い違うが、これは刈り込みの前からある**
-（両側で `trimNames` を切っても同じ 25 件。2026-09-21 に確認）。
+`scripts/compare_layout.py` は **200 通りで 0 件**（2026-09-21）。
+
+### 突き合わせの前にサーバーを立て直す（2026-09-21）
+
+`frontend/index.html` を直したあと、**サーバーを立てたまま**突き合わせると、ブラウザ側が
+**古い JS を読んで 25/120 食い違った**。`scripts/build_app.py` を回すと殻（`frontend/dist/index.html`）が
+新しい `app.<hash>.js` を指すが、それを `scripts/upload_app_r2.py` で R2 に上げるまでは取りに行けない。
+
+**画面側を直したら、突き合わせの前に `build_app.py` → `upload_app_r2.py` を済ませ、サーバーを立て直す。**
+食い違いが急に増えたときは、まず配られている JS を疑う（`curl http://127.0.0.1:8000/ | wc -c` が
+33 KB 前後なら殻、440 KB 前後なら 1 枚配信）。
 
 - 描画は 2 系統: Web は端末の Canvas で描いて `/share/upload` に送る（`frontend/index.html` の `renderShareCanvas`）。サーバー描画（`backend/render.py`）は CLI と、描けない端末のフォールバック（`/share`）。レイアウト・色・文字の省略規則は両方同じ式。**片方変更時は他方も変更**し、`scripts/compare_render.py` で両方の描画を突き合わせる（差は輪郭のみが正常）。
   手順はスクリプトの docstring。サーバーは `PUBLIC_MODE=1 SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0` で立てる（R2 が無料枠を超えていると 507、本番の共有数を復元して 1 日上限にも当たる）。

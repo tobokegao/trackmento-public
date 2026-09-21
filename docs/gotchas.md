@@ -136,6 +136,12 @@
   `fonts.<古いハッシュ>.css` が 404 になる。ブラウザは代替フォントで測ることになり、
   **`compare_layout.py` が 200 件中 98 件ずれる**（割り付けは正しいのに壊れて見える）。
   確かめ方は `curl -s http://127.0.0.1:8000/ | grep -o 'fonts\.[0-9a-f]*\.css'` と `ls fonts/split/fonts.*.css` の突き合わせ
+- **JS も同じ**（2026-09-21）。`build_app.py` を回すと殻（`frontend/dist/index.html`）が新しい
+  `app.<hash>.js` を指すが、`upload_app_r2.py` で R2 に上げるまでブラウザは取りに行けない。
+  立てたままだと**古い JS で突き合わせることになり、`compare_layout.py` が 120 通りで 25 件ずれた**
+  （上げて立て直したら 200 通りで 0 件）。**画面側を直したら `build_app.py` → `upload_app_r2.py` →
+  サーバーを立て直す**。確かめ方は `curl -s http://127.0.0.1:8000/ | wc -c`
+  （33 KB 前後なら殻、440 KB 前後なら 1 枚配信）
 - **フォントや CSS の検証では必ずハードリロード**（Ctrl+Shift+R）する。`fonts.<hash>.css` は `immutable` で 1 年キャッシュするうえ、CORS や CSP で失敗した結果もキャッシュされる。普通の再読み込みだと、直したのに古い失敗が残って「断片を 249 件読んでいる」のような誤った観測になる
 
 - **`scrollbar-color` / `scrollbar-width` を書くと、Chrome は `::-webkit-scrollbar-*` を丸ごと無視する**。
