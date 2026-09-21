@@ -372,7 +372,9 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
     **単独の濁点・半濁点（゛゜）は結合文字に置き換えてから NFKC**（「ハ゛」→「バ」。NFKC だけでは合成されない）
   - マスの上限: 4 か所（上の表）
   - 文言: 日本語の原文と `EN` 表 → `scripts/check_i18n.py`
-  - 色・比率・`CELL_PX` / `GAP_PX` / `MAX_SIDE`: `render.py` と `index.html`（2026-09-14 時点で一致を確認済み）
+  - 色・比率・`CELL_W` / `CELL_H_BY_RATIO` / `GAP_PX` / `MAX_SIDE`: `render.py` と `index.html`
+  - マスへの絵の入れ方: `render.py` の `_cover_blur_pad` / `blur_margin` と frontend の `coverBlurPad` / `blurMargin`。
+    **下地はマスより広く作ってから切り取る**（縁がにじんで四角の枠がぼやける）
 
 ## 覚え書き（核）
 

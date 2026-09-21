@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-21", "マスの形に「横長 16:9」を選べるようにしました。YouTube やニコニコ動画のサムネイルが、左右を切られずに並びます。正方形のジャケットが混ざるときは「絵の入れ方」で選べます（マスごとにも変えられます）。",
+     "You can now set the cell shape to “Wide 16:9”, so YouTube and niconico thumbnails are no longer cut off at the sides. When square covers are mixed in, “How covers fit” lets you choose, and you can also change it for a single cell."),
     ("2026-09-21", "曲名から「【東方Vocal】」「- Topic」のような、曲名ではない部分を外して出すようにしました。曲が多い並びでジャケットが大きく出ます。書き出しオプションの「曲名の蛇足を外す」で切れます。「すべての曲名を短くする」を押すと、曲名そのものを短くできます。",
      "Titles now leave out parts that are not the song name, such as “【東方Vocal】” or “- Topic”. Covers come out larger in grids with many tracks. You can turn it off with “Trim needless title text” in the output options, and “Shorten all titles” rewrites the stored titles."),
     ("2026-09-21", "「出力サイズ」に、実際にできる画像の大きさを出すようにしました。これまでは大きめの数字が出ていて、保存した画像と食い違っていました。",
