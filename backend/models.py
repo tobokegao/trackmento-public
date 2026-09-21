@@ -23,6 +23,24 @@ def _safe_ref(v: str) -> bool:
     return _is_http(v) or v == NO_COVER or (v.startswith("/uploads/") and "/" not in v[len("/uploads/"):] and len(v) <= 80)
 
 
+class Origin(BaseModel):
+    """この動画の**元になった動画**（転載元）。YouTube の概要欄に「転載」「本家」などと
+    書かれていたときだけ入る（`backend/sources/video.py`）。アーティスト名の候補として使う"""
+    kind: Literal["nicovideo", "youtube"]
+    id: str
+    artist: str = ""
+
+    @field_validator("id")
+    @classmethod
+    def _id(cls, v: str) -> str:
+        return str(v)[:32]
+
+    @field_validator("artist", mode="before")
+    @classmethod
+    def _artist(cls, v):
+        return " ".join(str(v).split())[:MAX_TEXT] if isinstance(v, str) else ""
+
+
 class Track(BaseModel):
     source: Source
     title: str
@@ -35,6 +53,8 @@ class Track(BaseModel):
     # "crop" は中央で切る、"blur" は切らずに左右をぼかした下地で埋める。**マスに置いたあとの見た目の話**なので
     # 検索結果には出ない（`backend/render.py` と frontend の `paintCover` が読む）
     fit: Optional[str] = None
+    # 転載元の動画（分かったときだけ）。アーティスト名の候補に使う
+    origin: Optional[Origin] = None
 
     @field_validator("fit")
     @classmethod

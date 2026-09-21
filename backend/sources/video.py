@@ -19,12 +19,16 @@ from xml.etree import ElementTree
 import httpx
 
 from backend import netguard
+from backend.logutil import brief
 
-from backend.models import Track
+from backend.models import Origin, Track
 from backend.sources import vocadb
 
 UA = "trackmento/0.1 (+https://trackmento.com)"
 YT_OEMBED = "https://www.youtube.com/oembed"
+YT_VIDEOS = "https://www.googleapis.com/youtube/v3/videos"
+# **`fields` で絞ること**。`part=snippet` を丸ごと受けると 1 件 5.7KB、絞れば 1.0KB
+YT_FIELDS = "items(id,snippet(title,channelTitle,description,publishedAt,thumbnails/medium))"
 NICO_THUMBINFO = "https://ext.nicovideo.jp/api/getthumbinfo/"
 _YT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 _NICO_ID_RE = re.compile(r"\b((?:sm|nm|so)\d+)\b")
@@ -138,19 +142,105 @@ async def _head_ok(client: httpx.AsyncClient, url: str) -> bool:
         return False
 
 
+# 概要欄で「元の動画」を指す語。**この語が同じ行か 1 つ前の行にあるときだけ**、その行の URL を元とみなす。
+# 絞らないと、自分の別の動画への誘導（「Niconico→ …」）まで転載元として拾ってしまう
+ORIGIN_MARK = re.compile(
+    r"転載|本家|原曲|元動画|元ネタ|再\s*up|re-?up(?:load)?|mirror|reprint|"
+    r"source|original|出典|引用元|さんの動画", re.I)
+ORIGIN_NICO = re.compile(r"(?:nicovideo\.jp/watch/|nico\.ms/)((?:sm|nm|so)\d+)", re.I)
+ORIGIN_YT = re.compile(r"(?:youtu\.be/|youtube\.com/watch\?v=|youtube\.com/shorts/)([A-Za-z0-9_-]{11})", re.I)
+
+
+def find_origin(desc: str, self_id: str = "") -> tuple[str, str] | None:
+    """概要欄から元動画を探す。見つかれば (種類, ID)。
+
+    実測（みんなの並びの YouTube 113 曲、2026-09-21）で**検出 1 件・誤検出 0 件**。
+    概要欄にニコニコの URL があるのは 4 件だが、3 件は転載ではなく自分の別動画への誘導で、
+    手がかりの語で絞ることで正しく外せている。**転載は珍しいが、当たったときは確実**。
+    """
+    lines = (desc or "").splitlines()
+    for i, line in enumerate(lines):
+        near = line + ("\n" + lines[i - 1] if i else "")   # 「ニコニコ動画より転載」の次の行に Source: … がある形
+        if not ORIGIN_MARK.search(near):
+            continue
+        for kind, rx in (("nicovideo", ORIGIN_NICO), ("youtube", ORIGIN_YT)):
+            m = rx.search(line)
+            if m and m.group(1) != self_id:
+                return kind, m.group(1)
+    return None
+
+
+async def _origin_of(client: httpx.AsyncClient, desc: str, self_id: str):
+    """概要欄から元動画を見つけ、その投稿者名まで引いて `Origin` にする。見つからなければ None。
+    **転載が見つかったときだけ 1 回だけ追加で問い合わせる**（実測で 113 件中 1 件）"""
+    got = find_origin(desc, self_id)
+    if not got:
+        return None
+    kind, oid = got
+    artist = ""
+    try:
+        if kind == "nicovideo":
+            r = await client.get(NICO_THUMBINFO + oid, headers={"User-Agent": UA})
+            if r.status_code == 200:
+                root = ElementTree.fromstring(r.text)
+                if root.get("status") == "ok":
+                    artist = (root.findtext(".//user_nickname") or root.findtext(".//ch_name") or "").strip()
+        else:
+            snip = await _yt_snippet(client, oid)
+            artist = (snip.get("channelTitle") or "").strip() if snip else ""
+    except Exception as e:
+        print(f"[youtube] 転載元の投稿者が引けませんでした（{kind} {oid}）: {brief(e)}")
+    return Origin(kind=kind, id=oid, artist=artist)
+
+
+async def _yt_snippet(client: httpx.AsyncClient, vid: str) -> dict | None:
+    """Data API（`videos.list`）で題・チャンネル名・概要欄を取る。鍵が無い・枠切れなら None。
+
+    **1 unit / 回**で、`id` は 50 件までまとめられる（無料枠は 10,000 units/日）。
+    再生リストの取得（`playlist.py` の `playlistItems.list`）と同じ枠を使うので、
+    **枠切れ（403）でも落とさず oEmbed に倒す**（再生リストを巻き添えにしない）。
+    `fields` で絞らないと 1 件 5.7KB、絞れば 1.0KB（2026-09-21 の実測）。
+    """
+    from backend.sources.playlist import youtube_key
+    key = youtube_key()
+    if not key:
+        return None
+    try:
+        r = await client.get(YT_VIDEOS, params={
+            "part": "snippet", "id": vid, "fields": YT_FIELDS, "key": key}, headers={"User-Agent": UA})
+        if r.status_code != 200:
+            print(f"[youtube] videos.list {r.status_code}（oEmbed に倒します）")
+            return None
+        items = r.json().get("items") or []
+        return items[0].get("snippet") if items else None
+    except Exception as e:
+        print(f"[youtube] videos.list 失敗（oEmbed に倒します）: {brief(e)}")
+        return None
+
+
 async def fetch_youtube(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
     vid = youtube_id(url)
     if not vid:
         raise ValueError("YouTube の動画 URL（watch?v=… / youtu.be/…）を貼ってください")
     own = client is None
     client = client or httpx.AsyncClient(timeout=15, follow_redirects=True)
+    origin = None
     try:
-        r = await client.get(YT_OEMBED, params={"url": f"https://www.youtube.com/watch?v={vid}", "format": "json"}, headers={"User-Agent": UA})
-        if r.status_code in (400, 401, 403, 404):  # 存在しない ID は 400 で返る
-            raise ValueError("YouTube にその動画がありません（非公開・削除・埋め込み不可の可能性）")
-        r.raise_for_status()
-        d = r.json()
-        image = d.get("thumbnail_url") or f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+        # **まず Data API**（概要欄が取れるので、転載元が分かる）。鍵が無ければ oEmbed
+        snip = await _yt_snippet(client, vid)
+        if snip:
+            title, author = (snip.get("title") or "").strip(), (snip.get("channelTitle") or "").strip()
+            thumb0 = ((snip.get("thumbnails") or {}).get("medium") or {}).get("url") or ""
+            origin = await _origin_of(client, snip.get("description") or "", vid)
+        else:
+            r = await client.get(YT_OEMBED, params={"url": f"https://www.youtube.com/watch?v={vid}", "format": "json"}, headers={"User-Agent": UA})
+            if r.status_code in (400, 401, 403, 404):  # 存在しない ID は 400 で返る
+                raise ValueError("YouTube にその動画がありません（非公開・削除・埋め込み不可の可能性）")
+            r.raise_for_status()
+            d = r.json()
+            title, author = (d.get("title") or "").strip(), (d.get("author_name") or "").strip()
+            thumb0 = d.get("thumbnail_url") or ""
+        image = thumb0 or f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
         for name in ("maxresdefault", "sddefault"):
             cand = f"https://i.ytimg.com/vi/{vid}/{name}.jpg"
             if await _head_ok(client, cand):
@@ -161,12 +251,13 @@ async def fetch_youtube(url: str, *, client: httpx.AsyncClient | None = None) ->
             await client.aclose()
     return Track(
         source="youtube",
-        title=(d.get("title") or "").strip() or url,
-        artist=(d.get("author_name") or "").strip(),
+        title=title or url,
+        artist=author,
         album=None,
         image=image,
-        thumb=d.get("thumbnail_url") or image,
+        thumb=thumb0 or image,
         external_url=f"https://www.youtube.com/watch?v={vid}",
+        origin=origin,
     )
 
 
