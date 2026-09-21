@@ -19,7 +19,7 @@ import io
 
 from PIL import Image
 
-from backend import render, shareindex, storage
+from backend import names, render, shareindex, storage
 from backend.config import public_mode, share_retention_days
 from backend.grids import GridDoc
 
@@ -488,11 +488,16 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
     og_title = title or "TRACKMENTO"
     og_desc = t(lang, "og_share", title=title) if title else t(lang, "og_share_untitled")
     heading = f"<h1>{title}</h1>" if title else ""
+    # **画像と同じ題を出す**。共有したときの `trimNames`（無い古い共有は入り）に従う
+    trim_names = ((snap.get("options") or {}).get("trimNames")) is not False
     rows = []
     for i, c in enumerate(snap.get("cells") or [], 1):
         if not c:
             continue
-        inner = f"<b>{html.escape(c.get('title') or '')}</b> <span class=a>{html.escape(c.get('artist') or '')}</span>"
+        c_title, c_artist = (c.get("title") or ""), (c.get("artist") or "")
+        if trim_names:
+            c_title, c_artist = names.trim(c_title, c_artist)
+        inner = f"<b>{html.escape(c_title)}</b> <span class=a>{html.escape(c_artist)}</span>"
         # 元のページ（YouTube・ニコニコ・Bandcamp など）へ飛べるようにする。
         # **URL は利用者のデータなので、http(s) だけを通す**（javascript: などを弾く）。
         # 外部へ出すリンクには noopener / noreferrer / nofollow を付ける

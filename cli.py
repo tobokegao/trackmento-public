@@ -32,7 +32,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / ".env")
 
-from backend import grids  # noqa: E402
+from backend import grids, names  # noqa: E402
 from backend.cache import cache  # noqa: E402
 from backend.grids import GridDoc, GridOptions  # noqa: E402
 from backend.merge import merge, norm_key  # noqa: E402
@@ -49,9 +49,11 @@ class CliError(Exception):
 
 
 # ---------- 表示 ----------
-def fmt_track(t: Track) -> str:
-    s = f"{t.title} / {t.artist}"
-    if t.album and norm_key(t.album, "") != norm_key(t.title, ""):
+def fmt_track(t: Track, trim: bool = False) -> str:
+    """1 曲ぶんの表示。`trim` は画面と同じ刈り込み（backend/names.py）を通すかどうか"""
+    title, artist = names.trim(t.title, t.artist) if trim else (t.title, t.artist)
+    s = f"{title} / {artist}"
+    if t.album and norm_key(t.album, "") != norm_key(title, ""):
         s += f"（{t.album}）"
     return f"{s} [{SOURCE_LABEL.get(t.source, t.source)}]"
 
@@ -59,8 +61,9 @@ def fmt_track(t: Track) -> str:
 def print_list(doc: GridDoc) -> None:
     placed = doc.placed()
     print(f"グリッド {doc.name}: {doc.cols}×{doc.rows}（{len(placed)}/{doc.size} 曲）" + (f" タイトル「{doc.title}」" if doc.title else ""))
+    trim = doc.options.trimNames        # 画面と同じ題を見せる（`--no-trim` で保存した並びは元のまま）
     for i, t in enumerate(doc.cells):
-        print(f"  {i + 1:02d}  {fmt_track(t) if t else '（空）'}")
+        print(f"  {i + 1:02d}  {fmt_track(t, trim) if t else '（空）'}")
     if doc.stash:
         print(f"  退避中: {len(doc.stash)} 曲（グリッドを広げると戻ります）")
 
@@ -297,6 +300,7 @@ def cmd_render(a: argparse.Namespace) -> int:
     opts = doc.options.model_dump()
     updates = {
         "ratio": a.ratio, "sidebar": a.sidebar, "overlay": a.overlay, "showTitle": a.show_title, "numbers": a.numbers,
+        "trimNames": a.trim_names,
         "bg": a.bg, "bgCustom": a.bg_custom, "margin": a.margin, "gap": a.gap,
     }
     if a.bg_custom and a.bg is None:
@@ -417,6 +421,8 @@ def _render_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--show-title", dest="show_title", action="store_true")
     sp.add_argument("--numbers", dest="numbers", action="store_true", default=None, help="番号バッジを付ける")
     sp.add_argument("--no-numbers", dest="numbers", action="store_false")
+    sp.add_argument("--trim", dest="trim_names", action="store_true", default=None, help="曲名の蛇足（【東方Vocal】・「- Topic」など）を外す（既定）")
+    sp.add_argument("--no-trim", dest="trim_names", action="store_false")
     sp.add_argument("--bg", choices=["paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink",
                              "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
                              "night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta"], help="背景色")
