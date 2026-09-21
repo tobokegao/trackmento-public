@@ -93,8 +93,84 @@ def build(data: list[dict], limit: int) -> dict:
         "out_total": sum((last.get("out") or {}).values()),
         "client": last.get("client") or {},
         "img": last.get("img") or {},
+        "srch": last.get("srch") or {},
     }
     return {"latest": latest, "series": series, "out": out}
+
+
+def img_index_max() -> int:
+    """`backend/main.py` の `IMAGE_INDEX_MAX` の既定値。
+
+    数字を 2 か所に書かないため、コードから読む（本番が環境変数で上書きしていれば実際はそちら。
+    上書きは今のところしていない）。読めなければ 0 を返し、呼び出し側が imgcache の行を出さない。
+    """
+    try:
+        src = (ROOT / "backend" / "main.py").read_text(encoding="utf-8")
+        m = re.search(r'IMAGE_INDEX_MAX",\s*"(\d+)"', src)
+        return int(m.group(1)) if m else 0
+    except OSError:
+        return 0
+
+
+def watch_items(latest: dict) -> list:
+    """点検の数字から組み立てる「見ているもの」。**手で書かない**（書いた数字は次の点検で古くなる）。
+
+    それぞれ {t: 見出し, d: 中身, level: "ok" か "watch"}。閾値を越えたものだけ watch にして、
+    平常時は黙っている。閾値はここが唯一の置き場所。
+    """
+    out = []
+
+    # 画像キャッシュの索引。上限を超えると索引が打ち切られ、302 に戻せなくなる
+    imax = img_index_max()
+    kinds = (rows(R2_PATH)[-1].get("kinds") if rows(R2_PATH) else None) or {}
+    icount = (kinds.get("imgcache/") or [0, 0])[0]
+    if imax and icount:
+        pct = icount / imax * 100
+        out.append({
+            "t": f"imgcache の索引: {icount:,} 件（上限 {imax:,} の {pct:.0f}%）",
+            "d": "上限を超えると索引が打ち切られ、R2 にある画像へ 302 で戻せなくなる。"
+                 "増えたら上限を上げるより、索引の期限を絞るほうが先",
+            "level": "watch" if pct >= 80 else "ok",
+        })
+
+    # フォントが間に合わずサーバー描画へ落ちた数
+    ff = (latest.get("client") or {}).get("font_fail", 0)
+    out.append({
+        "t": f"font_fail: {ff} 件 / {latest.get('hours', 2)} 時間",
+        "d": "フォントを 25 秒待っても揃わず、ブラウザ描画をあきらめてサーバー描画に落ちた数。"
+             "CPU に余裕があるうちは実害が小さいが、増えるなら断片の数か待ち方を見直す",
+        "level": "watch" if ff >= 20 else "ok",
+    })
+
+    # 検索結果の控え（R2）の当たり率。デプロイで cache.sqlite3 が消えたあとの効き目を見る
+    for src, label in (("vocadb", "VocaDB"), ("otodb", "otoDB")):
+        v = (latest.get("srch") or {}).get(src)
+        if not v or len(v) < 3:
+            continue
+        sq, r2c, net = v[0], v[1], v[2]
+        total = sq + r2c + net
+        if not total:
+            continue
+        out.append({
+            "t": f"{label} の控えの当たり率: {(sq + r2c) / total * 100:.0f}%（うち R2 の控え {r2c}）",
+            "d": f"{total} 回のうち覚えていた {sq + r2c}・外へ聞いた {net}。"
+                 "cache.sqlite3 はデプロイで消えるので、R2 の控えが効いているかはここで見る",
+            "level": "watch" if (sq + r2c) / total < 0.1 else "ok",
+        })
+
+    # インスタンスを下げる判断
+    rss, mem_limit = latest.get("rss"), 2048
+    if rss:
+        pct = rss / mem_limit * 100
+        out.append({
+            "t": f"メモリの使いみち: 最大 {rss}MB / {mem_limit}MB（{pct:.0f}%）",
+            "d": f"CPU は最大 {latest.get('cpu')}（割当 1.0）。"
+                 + ("上限に近い。下げてはいけない" if pct >= 80 else
+                    "余っている。1 段下げるなら、下の段のメモリに最大値が収まるかを先に見る"),
+            "level": "watch" if pct >= 80 else "ok",
+        })
+
+    return out
 
 
 def storage_series() -> list:
@@ -172,6 +248,7 @@ def main() -> None:
     storage = storage_series()
     if storage:
         doc["storage"] = storage
+    doc["watch"] = watch_items(doc["latest"])
 
     text = json.dumps(doc, ensure_ascii=False, indent=2)
     if args.out:

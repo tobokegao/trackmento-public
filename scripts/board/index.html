@@ -229,6 +229,7 @@
   <section class="win">
     <div class="bar"><h2>待っていること・やること</h2><span class="count" id="todo-count">0 / 10</span></div>
     <div class="body">
+      <div id="watch-list"></div>
       <ul class="list" id="todos"></ul>
     </div>
   </section>
@@ -641,20 +642,69 @@
     { id: "proof", t: "まとまった文章を書いた", d: "proofread.py で添削（README などは --doc、外部への英文は --letter）。直しは取捨して理由を残す" }
   ];
 
+  /* **ここは人が書く欄**（外からの返事待ち・決めていないこと）だけ。
+     点検の数字が根拠のものは書かない — 書いた数字は次の点検で古くなる。
+     あれは board_data.py が metrics から組み立てて db 経由で来る（下の WATCH）。
+     `when` は YYYY-MM-DD なら残り日数を自動で出す。それ以外の文字はそのまま出す。 */
   const TODOS = [
     { id: "vocadb", t: "VocaDB の CORS の連絡を待つ", d: "9/20 に返答あり（量は問題なし・間隔を空ける要望→対応済み）。CORS は「検討して後で連絡する」。許可されればブラウザ直引き＋プライバシーポリシーに 1 行", when: "連絡待ち" },
     { id: "bandcamp", t: "Bandcamp の返事を待つ", d: "9/20 に問い合わせフォームから送付（1,270 字の短縮版）。駄目なら bilibili と同じ形にする", when: "返答待ち" },
-    { id: "filter", t: "フィルタ各社の分類を確認", d: "ネットスター・トレンドマイクロ・Cloudflare・Norton・McAfee。9/19 に申請済み", when: "9/22 ごろ" },
+    { id: "filter", t: "フィルタ各社の分類を確認", d: "ネットスター・トレンドマイクロ・Cloudflare・Norton・McAfee。9/19 に申請済み", when: "2026-09-22" },
     { id: "adsense", t: "AdSense の審査結果", d: "承認されても、CSP に script-src / frame-src を足さないと広告は出ない。出すかどうかは未決" },
     { id: "video12", t: "紹介動画 v14 を公開するか決める", d: "v14（縦・日本語）まで書き出し済み。YouTube などに投稿するかは未決。英語・横は新しい撮り方でまだ撮っていない", when: "未決" },
-    { id: "nextcheck", t: "次の点検で見るもの", d: "R2 の検索結果の控えの当たり率（9/20 16:37 は VocaDB 10%・otoDB 3%。デプロイ直後で索引ができたばかりだった）・font_fail の増減・imgcache の件数" },
-    { id: "imgindex", t: "imgcache が 13.4 万件（上限 40 万の 33%）", d: "R2 は 133,621 件・4.72GB（09-21 09:40 に数えた）。いちばん古いものが 7 日前なので 14 日の掃除にはまだ当たっていない。IMAGE_INDEX_MAX 40 万を超えると索引が打ち切られて 302 に戻せなくなる。当たり率は 91% と高いので、増えたら上限を上げるより索引の期限を絞るほうが先" },
-    { id: "fontfail", t: "font_fail 8 件 / 2 時間", d: "フォントを 25 秒待っても揃わずサーバー描画へ落ちた数（/share 8 件と一致）。CPU に余裕があるので実害は小さいが、増えるようなら断片の数か待ち方を見直す" },
-    { id: "plan", t: "インスタンスを下げる判断", d: "CPU 0.07 / メモリ 222MB（rss 最大 343MB）と余っている。共有は 1 日 4,287 → 747 件まで落ち着いた。下げるなら rss の最大（343MB）が収まるかを先に見る" }
+    { id: "cftoken", t: "CLOUDFLARE_API_TOKEN を .env に入れる", d: "発行済み（Account Analytics Read）。入れたら scripts/r2_history.py で R2 の使用量の過去 31 日ぶんを埋められる", when: "手元の作業" }
   ];
+
+  let WATCH = [];   // 点検の数字から組み立てたもの（db の board/metrics から来る）
 
   const state = { checks: {}, todos: {} };
   let doc = null, saving = null;
+
+  /* `when` が YYYY-MM-DD なら残り日数にして返す。それ以外の文字（「返答待ち」など）はそのまま。
+     **ページが開かれるたびに計算する**ので、私（Claude）が更新しなくても期限切れは赤くなる。 */
+  function dueLabel(when) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(when || "");
+    if (!m) return { text: when, soon: when === "今日" };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(+m[1], +m[2] - 1, +m[3]);
+    const days = Math.round((due - today) / 86400000);
+    if (days < 0) return { text: `${-days} 日過ぎた`, soon: true };
+    if (days === 0) return { text: "今日", soon: true };
+    if (days === 1) return { text: "あす", soon: true };
+    return { text: `あと ${days} 日`, soon: days <= 3 };
+  }
+
+  /* 点検の数字から来る「見ているもの」。**チェックは付けない**（消しても次の点検でまた出るので、
+     消し込みの意味がない）。閾値を越えたものだけ黄色くする。 */
+  function drawWatch() {
+    const box = document.getElementById("watch-list");
+    box.textContent = "";
+    if (!WATCH.length) return;
+    const head = document.createElement("p");
+    head.className = "sub";
+    head.style.margin = "0 0 10px";
+    head.textContent = "点検の数字から出しているもの（手では直さない。ログを見るたび入れ替わる）";
+    box.appendChild(head);
+    const grid = document.createElement("div");
+    grid.className = "tiles";
+    grid.style.marginBottom = "18px";
+    WATCH.forEach(w => {
+      const d = document.createElement("div");
+      d.className = "tile " + (w.level === "watch" ? "watch" : "ok");
+      const t = document.createElement("div");
+      t.className = "item";
+      const tt = document.createElement("span");
+      tt.className = "t";
+      tt.textContent = w.t;
+      const dd = document.createElement("span");
+      dd.className = "d";
+      dd.textContent = w.d;
+      t.append(tt, dd);
+      d.appendChild(t);
+      grid.appendChild(d);
+    });
+    box.appendChild(grid);
+  }
 
   function line(kind, item) {
     const li = document.createElement("li");
@@ -681,8 +731,9 @@
     wrap.appendChild(t);
     if (item.when) {
       const w = document.createElement("span");
-      w.className = "when" + (item.when === "今日" ? " soon" : "");
-      w.textContent = item.when;
+      const d = dueLabel(item.when);
+      w.className = "when" + (d.soon ? " soon" : "");
+      w.textContent = d.text;
       wrap.appendChild(w);
     }
     const d = document.createElement("span");
@@ -724,12 +775,14 @@
     if (Array.isArray(m.shares) && m.shares.length) SHARES = m.shares;
     if (Array.isArray(m.out) && m.out.length) OUT_HOSTS = m.out;
     if (Array.isArray(m.storage)) STORAGE = m.storage;
+    if (Array.isArray(m.watch)) WATCH = m.watch;
     if (m.r2) LATEST.r2 = m.r2;
     drawAll();
   }
 
   function drawAll() {
     drawTiles();
+    drawWatch();
     drawCharts();
     drawStorage();
     drawOut();
