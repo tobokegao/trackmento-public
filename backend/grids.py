@@ -40,6 +40,9 @@ class GridOptions(BaseModel):
     # **重ねるときは sidebar を切って保存する**。この項目を知らない古いタブで開いても「曲名リストなし」になるだけで壊れない
     overlay: bool = False
     numbers: bool = False
+    # マスの形。"1:1"（正方形）か "16:9"（横長。動画サイトのサムネイルに合う）。
+    # **既定は正方形**（今ある並びと共有画像の見た目を変えないため）
+    cellRatio: str = "1:1"
     # 曲名とアーティスト名から蛇足（【東方Vocal】・「- Topic」など）を外して表示する（backend/names.py）。
     # **データは元のまま**で、表示のときだけ通す。この項目を知らない古いタブで開いても刈らないだけで壊れない
     trimNames: bool = True
@@ -52,6 +55,11 @@ class GridOptions(BaseModel):
     @classmethod
     def _bg(cls, v: str) -> str:
         return v if v in BG_KEYS else "paper"
+
+    @field_validator("cellRatio")
+    @classmethod
+    def _cell_ratio(cls, v: str) -> str:
+        return v if v in ("1:1", "16:9") else "1:1"
 
     @field_validator("margin", mode="before")
     @classmethod

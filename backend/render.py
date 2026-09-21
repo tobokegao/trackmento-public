@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from backend import imgtools, names, netguard, uploads
 from backend.cache import cache
@@ -31,7 +31,13 @@ ROOT = Path(__file__).resolve().parent.parent
 FONTS = ROOT / "fonts"
 OUTPUTS = ROOT / "outputs"
 
-CELL_PX = 600
+# マスの寸法（論理 px）。**形を変えても幅は変えない**ので、幅から決まる式（タイトルの大きさ・
+# 余白・サイドバーの幅）はそのまま効く。高さから決まる式（塊の高さ・曲名リストの段の送り）だけ
+# `cell_h()` を見る。どの式がどちらを見るかは docs/layout.md の表
+CELL_W = 600
+# 16:9 は 600×337.5 の小数を避けるための丸め（実比 16:9.01、誤差 0.15%。見た目には分からない）
+CELL_H_BY_RATIO = {"1:1": 600, "16:9": 338}
+CELL_PX = CELL_W          # 旧名。幅から決まる式が読む
 GAP_PX = 12
 MAX_SIDE = 8000
 RATIOS: dict[str, float | None] = {"1:1": 1.0, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, "free": None}
@@ -279,14 +285,14 @@ def fetch_image_bytes(url: str) -> bytes:
     return data
 
 
-def load_cover(t: Track, size: int = CELL_PX) -> Image.Image | None:
-    """ジャケットを取得し、マスの大きさ（CELL_PX 角）に切り抜いて返す。
+def load_cover(t: Track, w: int = CELL_W, h: int | None = None) -> Image.Image | None:
+    """ジャケットを取得し、マスの大きさ（w × h）に収めて返す。
     原寸の画像を持ち続けないこと（64 枚 × 数千 px で GB 単位になる）。JPEG は draft で縮小デコードする。
     高解像度（image）が取れないときはサムネイル（thumb）で代用する（Cover Art Archive の 500、YouTube の maxres 欠落など）。"""
     urls = [t.image] + ([t.thumb] if t.thumb and t.thumb != t.image else [])
     for url in urls:
         try:
-            return _load_cover_from(url, t, size)
+            return _load_cover_from(url, t, w, h if h is not None else w)
         except Exception as e:  # 1枚の失敗で全体を止めない
             timed_out = isinstance(e, httpx.TimeoutException)
             retry = url != urls[-1] and not timed_out   # 配信元が応答しないときはサムネイルも同じ配信元なので待たない
@@ -296,15 +302,18 @@ def load_cover(t: Track, size: int = CELL_PX) -> Image.Image | None:
     return None
 
 
-def _load_cover_from(url: str, t: Track, size: int) -> Image.Image:
+def _load_cover_from(url: str, t: Track, w: int, h: int) -> Image.Image:
     data = fetch_image_bytes(url)
     with Image.open(io.BytesIO(data)) as src:
         if src.format == "JPEG":
-            src.draft("RGB", (size, size))   # マスの大きさ以上で最も小さい 1/2・1/4・1/8 スケールでデコード（デコードが描画 CPU の大半）
+            src.draft("RGB", (w, h))   # マスの大きさ以上で最も小さい 1/2・1/4・1/8 スケールでデコード（デコードが描画 CPU の大半）
         im = src.convert("RGB")
     if imgtools.is_video_thumb(url) or t.source in ("youtube", "nicovideo", "bilibili", "otodb"):
         im = imgtools.trim_letterbox(im)   # 動画サムネイルの黒帯を落としてから切り抜く
-    fitted = _cover_fit(im, size, size)
+    # **正方形でないマスは、絵を切らずにぼかして埋める**。中央で切ると、アルバムアートは
+    # 中央に絵があるので損なう（正方形のマスは今までどおり中央で切る）
+    fitted = (_cover_blur_pad(im, w, h) if w != h and abs(im.width / im.height - w / h) > 0.01
+              else _cover_fit(im, w, h))
     im.close()
     return fitted
 
@@ -331,6 +340,23 @@ def _cover_fit(img: Image.Image, w: int, h: int) -> Image.Image:
     sw, sh = min(w / s, img.width), min(h / s, img.height)
     sx, sy = max((img.width - sw) / 2, 0.0), max((img.height - sh) / 2, 0.0)
     return img.resize((w, h), Image.LANCZOS, box=(sx, sy, sx + sw, sy + sh))
+
+
+BLUR_RADIUS = 0.06    # 下地のぼかし半径（マスの高さに対する比）。**論理 px ではなく出力 px の高さに掛ける**
+
+
+def _cover_blur_pad(img: Image.Image, w: int, h: int) -> Image.Image:
+    """**絵を切らずに**マスいっぱいに収める。余る側は、同じ絵を cover で広げてぼかした下地で埋める
+    （YouTube の再生画面と同じやり方）。**frontend の `coverBlurPad` と対で直すこと**。
+
+    16:9 のマスに正方形のジャケットが来たときに使う。中央で切ると、アルバムアートは
+    中央に絵があるので損なう。
+    """
+    base = _cover_fit(img, w, h).filter(ImageFilter.GaussianBlur(max(1.0, h * BLUR_RADIUS)))
+    f = min(w / img.width, h / img.height)                  # contain
+    fw, fh = max(1, round(img.width * f)), max(1, round(img.height * f))
+    base.paste(img.resize((fw, fh), Image.LANCZOS), ((w - fw) // 2, (h - fh) // 2))
+    return base
 
 
 # ---------- レイアウト ----------
@@ -447,9 +473,21 @@ OVERLAY_TEXT = (255, 255, 255)
 OVERLAY_SUB = (214, 218, 224)
 
 
-def overlay_ok(scale: float) -> bool:
-    """この縮尺で曲名を重ねて読めるか（frontend の overlayOk と同じ）"""
-    return rnd(CELL_PX * OVERLAY_TITLE * scale) >= OVERLAY_MIN_PX
+def cell_h(doc: GridDoc) -> int:
+    """マスの高さ（論理 px）。`cellRatio` から決まる。幅は `CELL_W` で固定"""
+    return CELL_H_BY_RATIO.get(doc.options.cellRatio, CELL_W)
+
+
+def cell_short(doc: GridDoc) -> int:
+    """マスの短いほうの辺。**帯や番号バッジを出すかの判定はこちらを見る**
+    （幅で見ると、16:9 のマスが実際より大きく見積もられて潰れた帯が出る）"""
+    return min(CELL_W, cell_h(doc))
+
+
+def overlay_ok(scale: float, short: int = CELL_W) -> bool:
+    """この縮尺で曲名を重ねて読めるか（frontend の overlayOk と同じ）。
+    **マスの短辺で見る**（16:9 は高さが短いので、幅で見ると潰れた帯が出る）"""
+    return rnd(short * OVERLAY_TITLE * scale) >= OVERLAY_MIN_PX
 
 
 def _split_feat(title: str) -> tuple[str, str]:
@@ -1080,7 +1118,7 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
             if rp is not None:
                 return rp
         inline = False
-    pitch = CELL_PX + doc.options.gap          # マスの段 1 つぶんの送り
+    pitch = cell_h(doc) + doc.options.gap      # マスの段 1 つぶんの送り（**高さ**で決まる）
     # **段の中で縦に積むか、横に並べるか**。縦に積むほうが 1 行が長く取れて読みやすいので既定。
     # ただし段が多いと 1 曲ぶんが薄くなりすぎるので（2x32 で出力 10.8px）、そのときは横に並べる
     # （マスと同じ「左から右へ、次の段へ」の順になる）
@@ -1348,7 +1386,7 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         font_s = fs if fs else max(18, rnd(target / scale))
         # **マスの送りの約数に寄せる**（塊の左右に流れる行が、ジャケットの段とそろう）。
         # ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
-        line_h = _snap_lead(rnd(font_s * 1.5), CELL_PX + doc.options.gap)
+        line_h = _snap_lead(rnd(font_s * 1.5), cell_h(doc) + doc.options.gap)   # マスの段にそろえる（高さ）
         pad = _mod_pad(max(m, rnd(min(W, H) * 0.035)), doc.options.gap)
         # **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む）。
         # 中央に置くと左右が両方とも「文字を流すには狭い」幅になり、両方とも使えず捨てになる。
@@ -1485,8 +1523,8 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         best = base
         # **余地があれば文字を大きくする**。**最初に見つけた大きさ**のマスから
         # WRAP_CELL_KEEP を割ったらそこで止める（1 段ずつ比べると少しずつ縮んで歯止めが効かない）
-        floor = base.scale * (WRAP_CELL_KEEP if CELL_PX * base.scale >= WRAP_CELL_OK
-                              else WRAP_CELL_KEEP_SMALL)
+        floor = base.scale * (WRAP_CELL_KEEP if cell_short(doc) * base.scale >= WRAP_CELL_OK
+                              else WRAP_CELL_KEEP_SMALL)   # **短辺**で見る
         # **塊が横いっぱいに入っているなら、それを崩してまで文字を大きくしない**。
         # 崩すと左右に使えない空白が残る（32x5 を 9:16 にすると塊が枠の 69% の幅になっていた）
         wide = _fills_width(base, gw)
@@ -1564,8 +1602,8 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
     n_tracks = max(1, sum(1 for t in doc.cells if t))   # 入っている曲の数（「消える曲」の割合を測る母数）
     title = _one_line(doc.title) if o.showTitle else ""
-    gw = cols * CELL_PX + (cols - 1) * g
-    gh = rows * CELL_PX + (rows - 1) * g
+    gw = cols * CELL_W + (cols - 1) * g
+    gh = rows * cell_h(doc) + (rows - 1) * g
     # `_title_px` は「曲名リストより十分大きく」するための組み直し（下の TITLE_MIN_SCALE を参照）
     title_size = _title_px or rnd(min(96, max(48, gw * 0.045)))
     title_h = rnd(title_size * 1.9) if title else 0
@@ -1597,7 +1635,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         w_est = rnd((title_top_h + gh + m * 2) * ratio)
         cap = max(LIST_MIN_COL, min(gw * 2, w_est - m * 2 - gw - sb_gap))
 
-    pitch = CELL_PX + doc.options.gap      # マスの段 1 つぶんの送り（行をこれの約数にそろえる）
+    pitch = cell_h(doc) + doc.options.gap  # マスの段 1 つぶんの送り（行をこれの約数にそろえる。**高さ**）
 
     def _sidebar(cols: int, rows_total: int) -> tuple[int, int, int]:
         """列数を決めたときの (行の高さ, 文字の大きさ, サイドバーの幅)。"""
@@ -2000,38 +2038,39 @@ def render(doc: GridDoc) -> Image.Image:
         y0 += L.title_h
 
     # グリッド（画像は並列に取得し、取得スレッドの中でマスの大きさに切り抜く。原寸を抱えない）
-    cell = sc(CELL_PX)
+    cw, ch = sc(CELL_W), sc(cell_h(doc))     # マスの幅と高さ（出力 px）
     num_px = max(8, sc(22))       # 番号の字の大きさ。**8px を下限にする**（ピクセルフォントはこれ以下で潰れる）
     num_font = font("pixel", num_px)
     from backend.config import public_mode
     with ThreadPoolExecutor(max_workers=2 if public_mode() else 6, initializer=lower_thread_priority) as ex:   # 公開時は控えめに（0.1 vCPU）
-        covers = list(ex.map(lambda t: load_cover(t, cell) if t else None, doc.cells))
-    ov = o.overlay and overlay_ok(S)
+        covers = list(ex.map(lambda t: load_cover(t, cw, ch) if t else None, doc.cells))
+    ov = o.overlay and overlay_ok(S, cell_short(doc))
     if ov:
         # 帯は全マス共通なので 1 回だけ作る。濃さは上端 0 → 下端 OVERLAY_ALPHA の直線（Canvas の線形グラデーションと同じ）
-        sh = max(1, rnd(cell * OVERLAY_SHADE))
+        cs = min(cw, ch)                      # 帯の文字は**短辺**から（16:9 は高さが短い）
+        sh = max(1, rnd(ch * OVERLAY_SHADE))
         shade_mask = Image.new("L", (1, sh))
         shade_mask.putdata([rnd(255 * OVERLAY_ALPHA * (j + 0.5) / sh) for j in range(sh)])
-        shade_mask = shade_mask.resize((cell, sh))
-        shade = Image.new("RGB", (cell, sh), (0, 0, 0))
-        ov_ts = max(8, rnd(cell * OVERLAY_TITLE))
-        ov_as = max(8, rnd(cell * OVERLAY_ARTIST))
+        shade_mask = shade_mask.resize((cw, sh))
+        shade = Image.new("RGB", (cw, sh), (0, 0, 0))
+        ov_ts = max(8, rnd(cs * OVERLAY_TITLE))
+        ov_as = max(8, rnd(cs * OVERLAY_ARTIST))
         f_ov_t, f_ov_a = font("bold", ov_ts), font("regular", ov_as)
-        ov_pad = rnd(cell * OVERLAY_PAD)
+        ov_pad = rnd(cs * OVERLAY_PAD)
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
-        x, y = sc(L.ox + c * (CELL_PX + o.gap)), sc(y0 + r * (CELL_PX + o.gap))
-        d.rectangle((x, y, x + cell - 1, y + cell - 1), fill=cell_bg)
+        x, y = sc(L.ox + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + o.gap))
+        d.rectangle((x, y, x + cw - 1, y + ch - 1), fill=cell_bg)
         if t:
             cover = covers[i]
             if cover:
                 im.paste(cover, (x, y))
                 covers[i] = None
             if ov:
-                im.paste(shade, (x, y + cell - sh), shade_mask)
-                max_w = cell - ov_pad * 2
+                im.paste(shade, (x, y + ch - sh), shade_mask)
+                max_w = cw - ov_pad * 2
                 title, artist = _one_line(t.title), _one_line(t.artist)
-                ab = y + cell - ov_pad                                    # アーティスト名のベースライン
+                ab = y + ch - ov_pad                                      # アーティスト名のベースライン
                 tb = ab - rnd(ov_as * OVERLAY_LEAD) if artist else ab     # 曲名のベースライン
                 ft = _shrink_font(d, title, f_ov_t, ov_ts, max_w)
                 d.text((x + ov_pad, tb), _ellipsize(d, title, ft, max_w), font=ft, fill=OVERLAY_TEXT, anchor="ls")
