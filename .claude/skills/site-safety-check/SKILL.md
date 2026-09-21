@@ -48,33 +48,43 @@ TRACKMENTO を公開したまま安全に保つための点検手順。月 1 回
 
    **(a) いまのリポジトリ（ここは必ず空であること）**
    ```bash
-   git ls-files | grep -iE "(^|/)\.env($|\.)|secret|credential|\.pem$|\.key$"   # .env.example だけ
-   git grep -nIE "(sk-[A-Za-z0-9_-]{16,}|rnd_[A-Za-z0-9]{16,}|AIza[0-9A-Za-z_-]{30,}|ghp_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)"
-   git grep -nIE "(API_KEY|SECRET|TOKEN|PASSWORD|ACCESS_KEY)[\"' ]*[:=][\"' ]*[A-Za-z0-9_/+-]{16,}" | grep -viE "example|your-|xxx|getenv|os\.environ|process\.env|secrets\."
+   sh scripts/scan_secrets.sh tree
    ```
-   `frontend/index.html`（ブラウザに配る）も同じ目で見る。
+   **判定はこのスクリプトにだけ置いてある**（`.githooks/pre-commit` と
+   `.github/workflows/secrets.yml` が同じものを呼ぶ）。見るもの: `.env` とその控え・`*.pem`・
+   SSH の秘密鍵といったファイル名と、発行元の分かる鍵の形・値の入った `SECRET=` の形。
+   誤検知だったら、スクリプトの `allow` に足す。**値は出力しない**（行番号と変数名だけ）
 
    **(b) 履歴（既知の 1 件を除いて、新しいものが無いこと）**
    ```bash
-   git log --all --oneline --diff-filter=A --name-only -- '.env' '.env.*' '*.env'
+   git log --all --oneline --diff-filter=A --name-only \
+     -- '.env' '.env.*' '*.env' ':(exclude).env.example' ':(exclude)*/.env.example'
    ```
    **2026-09-14 の `412582f` で入り 2026-09-19 の `3eec4d2` で消した `.env.bak-before-customdomain` は既知**
    （`docs/gotchas.md` に記録。R2 のキーと Discogs のトークンは失効・再発行済みで、古い鍵は Unauthorized を確認済み）。
-   **これ以外が出たら新しい漏洩**なので、その場で鍵を止めて入れ替える。
+   **これ以外が出たら新しい漏洩**なので、**まずその鍵を失効させる**。
    **履歴を書き換えて消そうとしない**（force-push は clone を壊し、GitHub は GC 前の blob を残す。
    鍵を失効させるほうが確実で早い）。`-S"R2_SECRET_ACCESS_KEY="` での検索は、この既知の 1 件のせいで
-   **必ず 4 件返る**ので判定に使わない。
+   **必ず 4 件返る**ので判定に使わない。`.env.example` を除かないと、雛形を作った回を毎回拾う。
+   この検査は `.github/workflows/secrets.yml` が push のたびに自動で回しているので、
+   ここでは**その run が緑かどうか**を見れば足りる:
+   ```bash
+   gh run list --workflow secrets.yml --limit 3
+   ```
 
    **(c) GitHub 側の守り**
    ```bash
    gh api repos/tobokegao/trackmento-public -q '.security_and_analysis | to_entries[] | "\(.key): \(.value.status)"'
+   gh api repos/tobokegao/trackmento-public/secret-scanning/alerts
    ```
-   `secret_scanning` と `secret_scanning_push_protection` が `enabled`。
-   **`secret_scanning_non_provider_patterns` も `enabled`** であること（R2 のキーは「ただの長い英数字」で
-   発行元が特定できず、これが無効だとプロバイダパターンをすり抜ける。今回の漏洩がまさにそれ）。
-   **この項目は API の PATCH が 200 を返しても反映されない**ので、変えるときは
-   Settings → Advanced Security → Secret Protection の画面で切り替える。
-   `gh api repos/tobokegao/trackmento-public/secret-scanning/alerts` が空であること
+   `secret_scanning` と `secret_scanning_push_protection` が `enabled`、アラートが空であること。
+   - **`secret_scanning_non_provider_patterns` は `disabled` のままでよい**（2026-09-21 に一次資料で確認）。
+     汎用パターンの検知は「Organization-owned repositories on GitHub Team with GitHub Secret Protection enabled」
+     だけが対象で、**個人アカウントの public リポジトリには購入経路が無い**（Organization ＋ Team $4/user/月 ＋
+     Secret Protection $19/active committer/月）。**API の PATCH が 200 を返しても反映されないのは仕様どおりで、
+     設定ミスではない。直そうとしない**
+   - その穴は `scripts/scan_secrets.sh`（コミット時のフックと push 時の CI）で自前に埋めてある。
+     **public を private にすると、無料の secret scanning ごと消える**ので、そのときは見直す
 5. **利用条件の変化**: README「各サービスの利用条件」の日付が 6 か月以上前なら、iTunes / MusicBrainz / YouTube（oEmbed と Data API）/ niconico / Spotify Web API / otoDB / VocaDB / Bandcamp / Apple Music の規約ページを見直すよう提案する（変更の確認は利用者が原文を読む）
 6. **外部の採点**: 利用者に https://securityheaders.com と https://observatory.mozilla.org に `https://trackmento.com` を入れてもらい、A 未満の項目があれば理由を調べる
 

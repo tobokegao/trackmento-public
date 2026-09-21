@@ -25,6 +25,13 @@
     手元の `.env` も本番（`render.yaml`）と同じ URL 形式にそろえた（2026-09-21）
   - **`git log -S"R2_SECRET_ACCESS_KEY=" --all` は、この 1 件のせいで必ず 4 件返る**。新しい漏洩の判定には
     使えないので、`/site-safety-check` の手順では「`.env` 系が追加されたコミット」を見て既知の 1 件を除く形にした
+  - **同じことが二度と起きないよう、自前で見るようにした**（2026-09-21）。判定は `scripts/scan_secrets.sh` の 1 本で、
+    `.githooks/pre-commit`（コミット時）と `.github/workflows/secrets.yml`（push 時）が同じものを呼ぶ。
+    **GitHub の push protection では止まらない**: 無料で付くのは発行元の分かる形（`sk-` `ghp_` `AIza` など）だけで、
+    R2 の鍵は 32／64 文字のただの英数字なのですり抜ける。汎用パターンの検知（non-provider patterns）は
+    **個人アカウントでは購入経路自体が無い**（Organization ＋ GitHub Team $4/user/月 ＋ Secret Protection
+    $19/active committer/月）。`secret_scanning_non_provider_patterns` が `disabled` のまま変えられないのは
+    仕様どおりで、**設定ミスではないので直そうとしない**
 
 - **9/17 より前のログの「本日の共有数」は共有の数ではない**（2026-09-17 に発覚）。`share.count_today()` が
   バケット全体の .jpg / .png を数えていて、**画像キャッシュ（`imgcache/`）とアップロード画像まで入っていた**。
