@@ -40,6 +40,14 @@
     - Norton Safe Web https://safeweb.norton.com/report/show?url=trackmento.com （フォームは https://safeweb.norton.com/ 。中身は JavaScript で描くので、取得ではなくブラウザで見る）
     - McAfee / Trellix Customer URL Ticketing https://sitelookup.mcafee.com/ （素の取得は 403。ブラウザで開く）
     - Cloudflare Radar https://radar.cloudflare.com/domains/domain/trackmento.com （同じく 403。ブラウザで開く）
+  - **2026-09-21 に 5 社を見た結果**（申請から 2 日）: 付いたのは Cloudflare だけ。
+    - Cloudflare Radar … **Music**（＋ Newly Seen Domains）。狙いどおりの分類
+    - Norton Safe Web … **安全**（コミュニティ評価は 0 件）
+    - ネットスター … **登録されていません**（通常版・for Kids 版とも）。au の「安心ネットフィルター」が使うのはここなので、報告者の環境に効くのはこの登録
+    - トレンドマイクロ … **Untested**（カテゴリも Untested）。問い合わせで「初めて調べるので今から確認する」と出た
+    - McAfee / Trellix … **Uncategorized URL・Trust: Unverified**
+    ネットスターとトレンドマイクロは数日〜数週間かかることがあるので、**次は 10 月頭にもう一度見る**。
+    それでも付かなければ、各社の「知らせる」「Reclassify Request」から再度出す
     報告してくれた利用者（au・自宅 Wi-Fi）には X で返信済み
 - 実測: 36 曲でフラグメント 1,558 文字、**256 曲でも URL 全体 6,188 文字**（gzip がよく効く）。
   上限は `HANDOFF_MAX`（120 万文字）で、超えるなら引き継がずに移動だけする
