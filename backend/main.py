@@ -1068,23 +1068,31 @@ async def artist_candidates(
     title: str = Query("", description="曲名", max_length=300),
     at: str = Query("", description="このマスの動画の投稿日（ISO）。これより新しい投稿は外す", max_length=40),
     self_id: str = Query("", description="このマスの動画 ID（結果から外す）", max_length=32),
+    url: str = Query("", description="このマスの動画の URL（ニコニコ / YouTube）。otoDB の作品を引く", max_length=300),
 ) -> dict:
-    """**転載の元になった投稿の候補**（ニコニコ動画）。
+    """**転載の元になった投稿の候補**（ニコニコ動画の同じ題の古い投稿と、otoDB の作品）。
 
     利用者が編集パネルで「元の投稿を探す」を押したときだけ呼ばれる。**自動では引かない**
-    （100 曲の並びで 100 リクエストになる）。古い順に最大 3 件。
+    （100 曲の並びで 100 リクエストになる）。ニコニコは古い順に最大 3 件。
+    otoDB は、マスの動画が登録済みの作品なら作者（Creator のタグ）と、作品に登録されたほかの投稿（2026-09-21）。
 
-    結果は覚えておく（`cache` の `nicosearch`、7 日）。**検索語は鍵にしない**
+    結果は覚えておく（`cache` の `nicosearch` / `otodb-origin`、7 日）。**検索語は鍵にしない**
     （`searchcache.py` と同じ決まり。プライバシーポリシーの「検索キーワードは恒常的に記録しない」）。
+    otoDB の鍵は動画の URL（公開の動画を指すだけで、利用者の入れた語ではない）。
     """
-    from backend.sources import nicosearch
-    key = f"{title}|{at}|{self_id}"
-    hit = cache.get_search("nicosearch", key, "")
-    if hit is not None:
-        return {"candidates": hit, "cached": True}
-    rows = await nicosearch.older_posts(title, before=at, self_id=self_id)
-    cache.set_search("nicosearch", key, "", rows)
-    return {"candidates": rows, "cached": False}
+    from backend.sources import nicosearch, otodb
+
+    async def nico() -> tuple[list, bool]:
+        key = f"{title}|{at}|{self_id}"
+        hit = cache.get_search("nicosearch", key, "")
+        if hit is not None:
+            return hit, True
+        rows = await nicosearch.older_posts(title, before=at, self_id=self_id)
+        cache.set_search("nicosearch", key, "", rows)
+        return rows, False
+
+    (rows, cached), work = await asyncio.gather(nico(), otodb.origin_by_video(url))
+    return {"candidates": rows, "otodb": work if work and work.get("artist") else None, "cached": cached}
 
 
 @app.get("/search")

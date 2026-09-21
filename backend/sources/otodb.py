@@ -173,3 +173,85 @@ async def roxy_fetch(query: str, *, client: httpx.AsyncClient | None = None, tim
     t = Track(source="otodb", title=title, artist=artist, album=None, image=thumb, thumb=thumb, external_url=url or None)
     await asyncio.to_thread(cache.set_search, ROXY_CACHE, ref, "", [t.model_dump()])
     return t
+
+
+# ---- 転載元の候補（2026-09-21）----
+# 動画（ニコニコ / YouTube）が otoDB に登録済みの作品なら、作品の作者（Creator のタグ）と、
+# 作品に登録されたほかの投稿（サイト・投稿日）が分かる。YouTube の転載でも、otoDB に元の作品が
+# あれば作者が引ける。roxy は登録済みの作品なら YouTube の URL でも otodb:<id> を返す（実測）。
+# 利用者が「元の投稿を探す」を押したときだけ呼ぶ（自動では引かない）
+WORK_SOURCES = "https://otodb.net/api/work/sources"
+ORIGIN_CACHE = "otodb-origin"     # 結果を置く擬似ソース名（見つからなかった分も空で覚える）
+PLATFORMS = {1: "youtube", 2: "nicovideo"}   # otoDB の platform（ほか 5 = X など。ここでは名前だけ使う）
+_NICO_RE = re.compile(r"(?:nicovideo\.jp/watch/|nico\.ms/)((?:sm|nm|so)\d+)")
+_YT_RE = re.compile(r"(?:youtube\.com/(?:watch\?(?:.*&)?v=|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})")
+
+
+def video_ref(url: str) -> str:
+    """マスの動画の URL から、roxy に渡す正規の URL を作る。ニコニコと YouTube 以外は空文字"""
+    u = (url or "").strip()
+    if m := _NICO_RE.search(u):
+        return f"https://www.nicovideo.jp/watch/{m.group(1)}"
+    if m := _YT_RE.search(u):
+        return f"https://www.youtube.com/watch?v={m.group(1)}"
+    return ""
+
+
+def _source_id(url: str) -> str:
+    ref = video_ref(url)
+    return ref.rsplit("/", 1)[-1].split("=", 1)[-1] if ref else ""
+
+
+async def origin_by_video(url: str, *, client: httpx.AsyncClient | None = None) -> dict | None:
+    """動画が otoDB に登録済みなら `{work, artist, title, posts: [{id, site, at}]}`、無ければ None。
+
+    posts は作品に登録された**ほかの**投稿を投稿日の古い順に（マス自身の動画は外す）。
+    **どれが本人の投稿かは決めない**（sources の work_origin がそれらしいが意味を確かめていない）。
+    作者は作品に付いた Creator のタグなので、転載した人ではなく作った人の名前になる
+    """
+    from backend.cache import cache   # roxy_fetch と同じく局所 import
+
+    ref = video_ref(url)
+    if not ref:
+        return None
+    hit = await asyncio.to_thread(cache.get_search, ORIGIN_CACHE, ref, "")
+    if hit is not None:
+        return hit[0] if hit else None
+    own = client is None
+    client = client or httpx.AsyncClient(timeout=15, follow_redirects=True)
+    try:
+        r = await client.get(ROXY, params={"q": ref}, headers={"User-Agent": UA}, timeout=15)
+        if r.status_code == 404:
+            await asyncio.to_thread(cache.set_search, ORIGIN_CACHE, ref, "", [])
+            return None
+        r.raise_for_status()
+        ident = (ElementTree.fromstring(r.text).findtext("identifier") or "").strip()
+        if not ident.startswith("otodb:"):
+            # 未登録（roxy がニコニコから直接取ってきたもの）。作者は分からない
+            await asyncio.to_thread(cache.set_search, ORIGIN_CACHE, ref, "", [])
+            return None
+        wid = ident.split(":", 1)[1]
+        w, s = await asyncio.gather(_get(client, WORK, {"work_id": wid}), _get(client, WORK_SOURCES, {"work_id": wid}))
+        w.raise_for_status()
+        work = w.json()
+        me = _source_id(ref)
+        posts = []
+        if s.status_code == 200:
+            for x in s.json() or []:
+                sid = str(x.get("source_id") or "")
+                if not sid or sid == me:
+                    continue
+                posts.append({"id": sid[:32], "site": PLATFORMS.get(x.get("platform"), "other"),
+                              "at": str(x.get("published_date") or "")[:10]})
+            posts.sort(key=lambda p: p["at"] or "9999")
+        out = {"work": str(wid), "artist": _creators(work.get("tags") or []),
+               "title": (work.get("title") or "").strip(), "posts": posts[:5]}
+    except (httpx.HTTPError, ElementTree.ParseError, ValueError) as e:
+        # 一時的な失敗は覚えない（次に押したときにもう一度聞く）
+        print(f"[otodb] 転載元を引けませんでした: {type(e).__name__}")
+        return None
+    finally:
+        if own:
+            await client.aclose()
+    await asyncio.to_thread(cache.set_search, ORIGIN_CACHE, ref, "", [out])
+    return out

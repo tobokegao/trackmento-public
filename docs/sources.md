@@ -13,6 +13,14 @@ YouTube の取得は **Data API（`videos.list`）**が主になった（概要�
 概要欄に何も書いていないものは、**ニコニコのスナップショット検索**（`backend/sources/nicosearch.py`）で
 同じ題の古い投稿を探せる。利用者が押したときだけ。詳しくは `docs/services-terms.md`。
 
+**otoDB の作品からも引く**（2026-09-21、`otodb.origin_by_video`）。マスの動画の URL を roxy に渡し、
+`identifier` が `otodb:<id>` なら（**登録済みの作品なら YouTube の URL でも返る**。未登録の YouTube は 404）
+`api/work/work` の Creator タグを作者に、`api/work/sources` を作品に登録されたほかの投稿（`platform` 1 = YouTube・2 = ニコニコ、`published_date`）にする。
+例: `T9Cb_iP5uNI`（YouTube）→ 作品 22373 → 作者「CB」、ほかの投稿 sm29308357（2016-07-24）。
+- **どれが本人の投稿かは決めない**。sources の `work_origin`（0 / 1）がそれらしいが意味を確かめていない（22373 では古いニコニコ側が 1 だった）
+- 押したときだけ。1 本につき roxy 1 回＋otoDB 2 回。結果は `cache` の `otodb-origin` に 7 日（見つからなかった分も空で覚える。一時的な失敗は覚えない）。鍵は動画の URL
+- ニコニコの検索と並行して引く（`asyncio.gather`）ので、待ち時間は増えない
+
 - ジャケットの取得サイズは書き出しのマス（600px = `CELL_PX`）に合わせる。それ以上の解像度は縮小されて捨てられるだけで、転送量（Render の課金対象）が増える。配信元ごとに `clamp_size()` を持ち、`/image-proxy` から呼んで保存済みのグリッドにも効かせる。**やっているのは URL の書き換えだけで、こちらで圧縮や再エンコードはしない**（配信元が用意している小さい版をそのまま返す。Bandcamp の `_16` で取ったものは配信元から直接取ったバイト列と完全に一致する＝画質の劣化なし）
   - iTunes `itunes.clamp_size` … `/1000x1000bb.jpg` → `/600x600bb.jpg`（171KB → 77KB）
   - Bandcamp `bandcamp.clamp_size` … 欲しい実寸を満たす最小のサイズコードを選ぶ（`_7` 150px/11KB → `_9` 210px/20KB →

@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-21", "「元の投稿を探す」で otoDB も引くようにしました。動画が otoDB に登録された作品なら、転載でも作品の作者がアーティスト名の候補に出ます。",
+     "“Find the original post” now also checks otoDB. If the video belongs to a work registered on otoDB, the work’s creator appears as an artist name suggestion, even for reuploads."),
     ("2026-09-21", "YouTube の転載動画を入れたとき、概要欄に元の動画が書かれていれば、元の投稿者をアーティスト名の候補に出すようにしました。マスを選ぶと出ます。「元の投稿を探す」でニコニコ動画の同じ題の古い投稿も探せます。",
      "When you add a reposted YouTube video whose description names the original, the original uploader now appears as an artist name suggestion when you select the cell. “Find the original post” also looks for older posts with the same title on niconico."),
     ("2026-09-21", "「マスを全部外す」を説明文の下に移しました。ほかのボタンと離れ、続けて押したときに当たりづらくなります。",

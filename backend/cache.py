@@ -29,7 +29,8 @@ IMAGE_TTL = 30 * 24 * 3600        # 画像は 30 日
 # 点検では R2 の控えに当たったのが 81 回中 9 回（19%）しかなく、6 日では足りていなかった。
 # 新しく登録された曲は最大 2 週間出てこないが、VocaDB は新曲より既存曲を引く使われ方が大半
 SEARCH_TTL_BY_SOURCE = {"discogs": 6 * 3600, "roxy": 24 * 3600, "vocadb": 14 * 24 * 3600,
-                        "nicosearch": 7 * 24 * 3600}   # 転載元の候補（backend/sources/nicosearch.py）
+                        "nicosearch": 7 * 24 * 3600,   # 転載元の候補（backend/sources/nicosearch.py）
+                        "otodb-origin": 7 * 24 * 3600}   # otoDB の作品から引いた転載元（otodb.origin_by_video）
 IMAGE_TTL_BY_HOST = {"discogs.com": 6 * 3600, "ytimg.com": 24 * 3600}
 
 

@@ -749,6 +749,8 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .origin-list .btn { display: block; width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 /* 注記（転載元の動画 ID と日付）は名前の下の行に、小さく */
 .origin-list .origin-note { display: block; font-size: .8em; color: var(--color-muted); margin-top: 2px; }
+/* 候補の出どころの見出し（otoDB / ニコニコ動画）。ボタンの並びの中に挟む */
+.origin-list .origin-cap { margin: 4px 0 0; font-size: .85em; color: var(--color-muted); }
 #e-origin-field .note { margin-bottom: 6px; }
 /* `hidden` を付けた段・注記を確実に隠す。`.seg { display: flex }` のような具体的な指定が
    `hidden` の既定（display: none）に勝つので、明示的に打ち消す */
@@ -1753,9 +1755,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "元の投稿を探す": "Find the original post",
         "アーティスト名を「{}」にしました。": "Set the artist name to “{0}”.",
         "チャンネル名の可能性があります。": "This may be a channel name.",
-        "ニコニコ動画で探しています…": "Searching niconico…",
+        "ニコニコ動画と otoDB で探しています…": "Searching niconico and otoDB…",
+        "otoDB に登録された作品の作者:": "Creator of the work registered on otoDB:",
         "ニコニコ動画で見つかった古い投稿（古い順）:": "Older posts found on niconico (oldest first):",
-        "同じ題の古い投稿は見つかりませんでした。": "No older post with the same title was found.",
+        "元の投稿の手がかりは見つかりませんでした。": "No clue to the original post was found.",
         "探せませんでした。しばらくしてからもう一度お試しください。": "The search failed. Please try again in a little while.",
         "転載元 {}": "Reposted from {0}",
         "マスの形": "Cell shape",
@@ -3116,17 +3119,27 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const t = selected !== null ? state.cells[selected] : null;
     if (!t) return;
     els.eOriginFind.disabled = true;
-    say(els.eOriginMsg, tr("ニコニコ動画で探しています…"));
+    say(els.eOriginMsg, tr("ニコニコ動画と otoDB で探しています…"));
     try {
-      const p = new URLSearchParams({ title: t.title || "" });
+      const p = new URLSearchParams({ title: t.title || "", url: t.external_url || "" });
       const r = await fetch(`/artist-candidates?${p}`);
       const d = await r.json();
-      const rows = d.candidates || [];
-      if (!rows.length) { say(els.eOriginMsg, tr("同じ題の古い投稿は見つかりませんでした。")); return; }
+      const rows = d.candidates || [], work = d.otodb;
+      if (!rows.length && !work) { say(els.eOriginMsg, tr("元の投稿の手がかりは見つかりませんでした。")); return; }
       els.eOriginMsg.textContent = "";
       els.eOriginNote.hidden = false;
-      els.eOriginNote.textContent = tr("ニコニコ動画で見つかった古い投稿（古い順）:");
-      for (const row of rows) els.eOriginSeg.append(originButton(row.artist, [row.id, (row.at || "").slice(0, 10)].join(" / ")));
+      els.eOriginNote.textContent = tr("アーティスト名の候補:");
+      const cap = (text) => { const c = document.createElement("p"); c.className = "origin-cap"; c.textContent = text; els.eOriginSeg.append(c); };
+      // **otoDB を先に出す**。作品に付いた作者のタグなので、題が似ているだけのニコニコの候補より確か（2026-09-21）
+      if (work) {
+        cap(tr("otoDB に登録された作品の作者:"));
+        const first = (work.posts || [])[0];
+        els.eOriginSeg.append(originButton(work.artist, [`otoDB ${work.work}`, first ? `${first.id} / ${first.at}` : ""].filter(Boolean).join(" / ")));
+      }
+      if (rows.length) {
+        cap(tr("ニコニコ動画で見つかった古い投稿（古い順）:"));
+        for (const row of rows) els.eOriginSeg.append(originButton(row.artist, [row.id, (row.at || "").slice(0, 10)].join(" / ")));
+      }
     } catch (e) {
       say(els.eOriginMsg, tr("探せませんでした。しばらくしてからもう一度お試しください。"));
     } finally { els.eOriginFind.disabled = false; }
