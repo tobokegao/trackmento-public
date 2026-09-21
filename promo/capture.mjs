@@ -24,7 +24,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-const CAPTURE_VERSION = 4;   // 撮り方（下の道具）を変えたら上げる。全部の場面が撮り直しになる
+const CAPTURE_VERSION = 5;   // 撮り方（下の道具）を変えたら上げる。全部の場面が撮り直しになる
 const FPS = 30;
 const BASE = process.env.TRACKMENTO_URL || "http://localhost:8000";
 const PC = process.env.MODE === "pc";
@@ -42,6 +42,8 @@ const START_TIME = new Date("2026-09-19T12:00:00+09:00");   // ページの時�
 
 const MYLIST = "https://www.nicovideo.jp/mylist/79113711";
 const REVIVE = "https://www.nicovideo.jp/watch/sm7889666";
+// 転載元の候補（2026-09-21）。YouTube の転載で、otoDB に作品が登録されている（作者「CB」が候補に出る）
+const REUPLOAD = "https://www.youtube.com/watch?v=T9Cb_iP5uNI";
 const AUTHOR = "https://www.nicovideo.jp/watch/sm17315575";
 const MULTI_URLS = [
   "https://www.youtube.com/watch?v=x2Uj_ILuNw0",
@@ -99,6 +101,24 @@ const visible = (sel) => () => page.locator(sel).first().isVisible();
 const attached = (sel) => async () => (await page.locator(sel).count()) > 0;
 const waitSel = (sel, o = {}) => until(o.state === "attached" ? attached(sel) : visible(sel), { label: sel, ...o });
 const mark = (name, extra = {}) => { events.push({ f: frames, name, ...extra }); console.log(`  ${(frames / FPS).toFixed(2)}s ${name}`); };
+/** 印に**画面の中の位置**を添える（2026-09-21）。動画の赤枠（Highlight）はこの位置から描く。
+    sels の要素をまとめた四角を、見えている範囲で切って 0〜1 の割合にする（スクロールしたあとの位置がそのまま入る） */
+async function markRect(name, sels) {
+  const rect = await page.evaluate((sels) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const s of sels) for (const el of document.querySelectorAll(s)) {
+      const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
+      x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
+    }
+    const W = innerWidth, H = innerHeight;
+    x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(H, y1);
+    if (!(x1 > x0 && y1 > y0)) return null;
+    const r4 = (v) => Math.round(v * 1e4) / 1e4;
+    return { x: r4(x0 / W), y: r4(y0 / H), w: r4((x1 - x0) / W), h: r4((y1 - y0) / H) };
+  }, sels);
+  if (!rect) throw new Error(`${name}: ${sels.join(", ")} が画面に見えていない`);
+  mark(name, { rect });
+}
 
 /** 見えるようにする。**画面に収まっているなら動かさない**（v9 で、押すたびに真ん中へ送ってページが下にずれ、
     グリッドの上が見切れていた）。収まっていないときだけ、スマホは真ん中・PC は近いほうの端へ送る */
@@ -147,7 +167,10 @@ async function scrollBy(dy, ms = 500, sel = null) {
 }
 async function goto(url) {
   await page.goto(url, { waitUntil: "domcontentloaded" });
-  await until(() => page.evaluate(() => document.readyState === "complete"), { label: url });
+  // 読み込みの完了（画像まで）を待つ。**30 秒で見切って進む**（2026-09-21、画像の中継が 1 枚だけ返ってこず、
+  // readyState が complete にならないまま 2 分待って止まった。マスの画像の出そろいは imagesLoaded で別に待つ）
+  await until(() => page.evaluate(() => document.readyState === "complete"), { label: url, timeout: 30000 })
+    .catch(() => console.log(`   （${url} の読み込みが終わりきらないまま進める）`));
   await page.addStyleTag({ content: "#wordmark-tag,#bar-status{visibility:hidden}" }).catch(() => {});
 }
 
@@ -211,60 +234,93 @@ const imagesLoaded = () => page.evaluate(() => [...document.querySelectorAll("#g
 const PREROLL = 1500;
 
 const MAIN = [
-  ["title", async () => {
+  // 画面の説明（2026-09-21）。上にタイトル → 真ん中にマス → 下に共有と検索 → 出力の設定。印ごとに赤枠の位置（rect）を持つ
+  ["tour", async () => {
     mark("start");
+    await hold(1000);
+    await markRect("tour:title", [".grid-head"]); await hold(1300);
+    await markRect("tour:grid", ["#grid-scroll"]); await hold(1300);
+    await center(page.locator(".grid-actions")); await hold(300);
+    await markRect("tour:buttons", [".grid-actions > .btn"]); await hold(1300);
+    if (PC) {   // PC では出力オプションは右に常に出ている
+      await markRect("tour:options", [".pane-options"]); await hold(1600);
+    } else {
+      // 出力オプションの窓が見えるところまで送り、開いて中を見せる（見えている部分を枠で囲む）
+      const y = await page.locator(".pane-options").evaluate((el) => el.getBoundingClientRect().top + scrollY - 90);
+      await scrollBy(y - (await page.evaluate(() => scrollY)), 700); await hold(300);
+      await tap(".pane-options .fold", "tour:options-open"); await hold(500);
+      // 開くと下に伸びるので、**開いてからもう一度送り**、窓の頭を画面の上寄りに置く（開く前だけだと窓の上の方しか入らなかった）
+      const y2 = await page.locator(".pane-options").evaluate((el) => el.getBoundingClientRect().top - 70);
+      await scrollBy(y2, 600); await hold(300);
+      await markRect("tour:options", [".pane-options"]); await hold(1600);
+      await tap(".pane-options .fold", "tour:options-close"); await hold(400);
+      await scrollBy(-(await page.evaluate(() => scrollY)), 700);
+    }
+    await hold(500);
+  }],
+  ["title", async () => {
     await tap("#title", "title-focus");
     await page.locator("#title").fill("");
     for (const ch of "私を構成する9選") { await page.keyboard.insertText(ch); await hold(90); }
     await hold(600); mark("title-done");
   }],
-  ["add-chikamichi", async () => {
+  // マスの形を横長 16:9 に（2026-09-21）。これより後の本編は全部 16:9 のマス
+  ["cellratio", async () => {
+    await openOptions("cellratio:open");
+    await center(page.locator("#cell-ratio-seg")); await hold(400);
+    await tap('#cell-ratio-seg input[value="16:9"] + span', "cellratio:16:9");
+    await hold(1500);
+    if (!PC) { await tap(".pane-options .fold", "cellratio:close"); await hold(400); }
+    await scrollBy(-(await page.evaluate(() => scrollY)), 600);
+    await hold(300);
+  }],
+  ["add-saishu", async () => {
     await tap(cell(1), "cell-tap");
     if (!PC) await waitSel("#sheet:not([hidden])");
     await hold(700);
-    // 検索ソースの切り替えを見せる（ほかの 3 つをオン → オフ）
+    // 検索ソースの切り替えを見せる（ほかの 3 つをオン → otoDB だけ残してオフ）
     for (const k of ["musicbrainz", "otodb", "vocadb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await hold(350); }
-    for (const k of ["musicbrainz", "otodb", "vocadb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src-off:${k}`); await hold(300); }
+    for (const k of ["musicbrainz", "vocadb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src-off:${k}`); await hold(300); }
     await hold(300);
-    await type("#q", "近道したい"); await type("#artist", "須賀響子");
-    await tap("#search-btn", "search:chikamichi");
-    await pickFirstResult("chikamichi");
-  }],
-  ["add-vagabond", async () => {
-    await openSheet();
-    await type("#q", "天才ヴァガボンド"); await type("#artist", "COIL");
-    await tap("#search-btn", "search:vagabond");
-    await pickFirstResult("vagabond", undefined, "天才ヴァガボンド - Single");
+    // 2026-09-21: 本編の 9 マスはニコニコ・YouTube・otoDB だけ（利用者の指定）。検索は otoDB の作品を引く
+    await type("#q", "最終鬼畜妹"); await page.locator("#artist").fill("");
+    await tap("#search-btn", "search:saishu");
+    await pickFirstResult("saishu", "otodb", "大丈夫か");
   }],
   ["add-talk", async () => { await pasteUrl("https://www.youtube.com/watch?v=x2Uj_ILuNw0", "url"); await tap("#bc-btn", "url:talk"); await pickFirstResult("talk", "youtube"); }],
   ["add-10-10-10", async () => { await pasteUrl("https://www.nicovideo.jp/watch/sm44887188", "url"); await tap("#bc-btn", "url:10-10-10"); await pickFirstResult("10-10-10", "nicovideo"); }],
-  ["add-mitsuami", async () => { await manualAdd("/uploads/ca3a841b8281ff38.jpg", "みつあみ引っ張って", "くま井ゆう子", "mitsuami"); }],
-  ["add-birdbrain", async () => { await pasteUrl("https://jamiepaige.bandcamp.com/track/birdbrain-with-ok-glass-2", "url"); await tap("#bc-btn", "url:birdbrain"); await pickFirstResult("birdbrain", "bandcamp"); }],
-  ["add-wws", async () => { await pasteUrl("https://on.soundcloud.com/QSnj7ttO5W4ErGhJ7U", "url"); await tap("#bc-btn", "url:worldwidesuperstar"); await pickFirstResult("worldwidesuperstar", "soundcloud"); }],
-  ["add-runaway", async () => { await manualAdd("/uploads/78b3b5f5be01fa10.jpg", "(tike)2 runaway", "サラダ", "runaway"); }],
-  ["add-ilovelove", async () => {
-    await openSheet();
-    const cb = page.locator('#sources input[value="musicbrainz"]');
-    if (!(await cb.isChecked())) await tap(page.locator('#sources input[value="musicbrainz"] + span'), "source:musicbrainz");
-    await type("#q", "I Love Love You"); await type("#artist", "Guitar Vader");
-    await tap("#search-btn", "search:ilovelove");
-    // MusicBrainz はブラウザから直接引くので、続けて撮るとレート制限で空が返ることがある。出なければ少し待って引き直す（撮らない）
-    for (let i = 0; ; i++) {
-      try { await pickFirstResult("ilovelove", "musicbrainz", "Remixes GVR", 45000); break; }
-      catch (e) {
-        if (i >= 3) { console.log(await page.locator("#results").innerText().catch(() => "")); throw e; }
-        console.log(`   ilovelove: 候補が出ないので引き直す（${i + 1} 回目）`);
-        await sleep(6000); await page.locator("#search-btn").click();
-      }
-    }
+  // 動画 ID だけ貼っても入る。組曲『ニコニコ動画』（しも、2007 年）は古い投稿でサムネが 4:3（「サムネの入れ方」の見せ場）
+  ["add-kumikyoku", async () => { await pasteUrl("sm500873", "url"); await tap("#bc-btn", "url:kumikyoku"); await pickFirstResult("kumikyoku", "nicovideo"); }],
+  // 2026-09-21: 16:9 のサムネが主役なので、残りの 5 マスはニコニコの動画（作者はみんな別。デモ用マイリストから選んだ）
+  ["add-babylinth", async () => { await pasteUrl("https://www.nicovideo.jp/watch/sm46340359", "url"); await tap("#bc-btn", "url:babylinth"); await pickFirstResult("babylinth", "nicovideo"); }],
+  ["add-rockclub", async () => { await pasteUrl("https://www.nicovideo.jp/watch/sm46323931", "url"); await tap("#bc-btn", "url:rockclub"); await pickFirstResult("rockclub", "nicovideo"); }],
+  ["add-cheerleader", async () => { await pasteUrl("https://www.nicovideo.jp/watch/sm46235071", "url"); await tap("#bc-btn", "url:cheerleader"); await pickFirstResult("cheerleader", "nicovideo"); }],
+  ["add-hakusen", async () => { await pasteUrl("https://www.nicovideo.jp/watch/sm46316572", "url"); await tap("#bc-btn", "url:hakusen"); await pickFirstResult("hakusen", "nicovideo"); }],
+  ["add-mahiro", async () => {
+    await pasteUrl("https://www.nicovideo.jp/watch/sm46313967", "url"); await tap("#bc-btn", "url:mahiro"); await pickFirstResult("mahiro", "nicovideo");
     await until(imagesLoaded, { label: "ジャケット" });
     mark("grid-full");
     await hold(800);
   }],
+  // サムネの入れ方（2026-09-21）。全体を「ぼかして埋める」→「切り抜く」に戻し、4:3 のサムネ（組曲）1 マスだけ「ぼかして埋める」
+  ["fit", async () => {
+    await openOptions("fit:open");
+    await center(page.locator("#cell-fit-seg")); await hold(400);
+    await tap('#cell-fit-seg input[value="blur"] + span', "fit:blur"); await hold(1600);
+    await tap('#cell-fit-seg input[value="crop"] + span', "fit:crop"); await hold(900);
+    if (!PC) { await tap(".pane-options .fold", "fit:close"); await hold(400); }
+    await scrollBy(-(await page.evaluate(() => scrollY)), 600); await hold(300);
+    await tap(cell(4), "fit:cell"); await hold(600);   // 4 番は組曲『ニコニコ動画』（4:3 のサムネ）
+    await center(page.locator("#e-fit-seg")); await hold(400);
+    await tap('#e-fit-seg input[value="blur"] + span', "fit:one"); await hold(1200);
+    if (!PC) { await scrollBy(-(await page.evaluate(() => scrollY)), 600); await hold(300); }
+    await markRect("fit:shown", ["#grid-scroll"]); await hold(1000);
+    await tap(cell(4), "fit:deselect"); await hold(600);
+  }],
   ["reorder", async () => {
-    // 今 1 近道 2 天才 3 Talk 4 10-10 5 みつあみ 6 BIRDBRAIN 7 wws 8 runaway 9 ILLY
-    // 目標 1 Talk 2 みつあみ 3 10-10 4 BIRDBRAIN 5 wws 6 runaway 7 近道 8 天才 9 ILLY
-    for (const [a, b] of [[1, 3], [2, 5], [3, 4], [4, 6], [5, 7], [6, 8], [7, 8]]) await swapCells(a, b);
+    // 今 1 最終鬼畜妹 2 Talk 3 10-10 4 組曲 5 バビリンス 6 Rock Club 7 CHEERLEADER 8 白線 9 まひろ
+    // 目標 1 CHEERLEADER 2 Talk 3 Rock Club 4 まひろ 5 10-10 6 白線 7 バビリンス 8 最終鬼畜妹 9 組曲
+    for (const [a, b] of [[1, 7], [3, 6], [4, 9], [5, 6], [6, 8], [7, 8]]) await swapCells(a, b);
     mark("reorder-done");
     await hold(800);
   }],
@@ -336,6 +392,14 @@ async function manualAdd(image, title, artist, label) {
 }
 
 const FEATS = [
+  // 新機能の録画も 16:9 のマスで撮る（2026-09-21）。印は使わない下ごしらえ
+  ["cells169", async () => {
+    await openOptions("setup:open");
+    await center(page.locator("#cell-ratio-seg")); await hold(200);
+    await tap('#cell-ratio-seg input[value="16:9"] + span', "setup:16:9"); await hold(300);
+    if (!PC) { await tap(".pane-options .fold", "setup:close"); await hold(300); }
+    await page.evaluate(() => window.scrollTo(0, 0)); await hold(300);
+  }],
   ["multi", async () => {
     mark("start");
     await pasteUrl(MULTI_URLS, "url-multi", 12);
@@ -369,6 +433,34 @@ const FEATS = [
     await waitSel("#sheet[hidden]", { state: "attached" }).catch(() => {});
     await hold(1200);
     await closeSheet("author-close");
+  }],
+  // 転載でも元の作者が分かる（2026-09-21）。YouTube の転載を入れ → マスを選び → 「元の投稿を探す」→ otoDB の候補を押す
+  ["origin", async () => {
+    // 題の頭の [병만로이드] は曲名の刈り込みで外れるので、題では探さない。**入れたマスの番号は案内文から読む**
+    // （「4 番に「…」を入れました。」。マスの描き直しは遅れることがあり、画像や title の有無では判定できなかった）
+    await pasteUrl(REUPLOAD, "url-origin");
+    await tap("#bc-btn", "origin:paste");
+    await pickFirstResult("origin", "youtube");
+    const n = Number(((await page.locator("#grid-msg").innerText()).match(/(\d+)/) || [])[1] || 0);
+    if (!n) throw new Error("転載の動画を入れたマスの番号が案内文から読めない");
+    await closeSheet("origin-close");
+    // PC は URL 欄まで送ったままだとグリッドも編集欄も画面の外（2026-09-21 の撮影で候補が映らなかった）。頭まで戻す
+    if (PC) await scrollBy(-(await page.evaluate(() => scrollY)), 500);
+    await center(page.locator(".pane-grid")); await hold(500);
+    await tap(cell(n), "origin:select"); await hold(700);
+    await center(page.locator("#e-origin-find")); await hold(400);
+    await tap("#e-origin-find", "origin:find");
+    await live(() => page.locator("#e-origin-seg .origin-cap").first().isVisible(), { timeout: 30000 });
+    await hold(300); mark("origin:cands");
+    // 候補の欄が画面の下で切れないように送る（なめらかに）
+    const dy = await page.locator("#e-origin-field").evaluate((el) => { const r = el.getBoundingClientRect(); return Math.max(0, r.bottom - innerHeight + 40); });
+    if (dy) await scrollBy(dy, 500);
+    await hold(200);
+    await markRect("origin:cands-rect", ["#e-origin-field"]);
+    await hold(1200);
+    await tap("#e-origin-seg .btn", "origin:pick"); await hold(1500);
+    await tap(cell(n), "origin:deselect"); await hold(500);
+    await page.evaluate(() => window.scrollTo(0, 0)); await hold(300);
   }],
   ["listed", async () => {
     await center(page.locator("#opt-listed")); await hold(400);

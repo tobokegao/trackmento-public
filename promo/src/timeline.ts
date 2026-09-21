@@ -39,7 +39,9 @@ export const sec = (s: number) => Math.round(s * FPS);
 export const bar = (n: number) => (n - 1) * BAR;
 
 // ---- 録画の操作時刻 ----
-type Ev = { t: number; v?: number; name: string };
+type Ev = { t: number; v?: number; name: string; rect?: Rect };
+/** 録画の中の四角（画面の幅・高さに対する割合）。capture.mjs の markRect が印に添える */
+export type Rect = { x: number; y: number; w: number; h: number };
 export type Kind = "tall" | "wide";        // 縦（スマホ表示）と横（PC 表示）
 export type Lang = "ja" | "en";
 export type Session = "main" | "feat";     // 本編と新機能
@@ -65,6 +67,12 @@ export const rate = (kind: Kind, lang: Lang, session: Session) => {
   const first = ev[0], last = [...ev].reverse().find((e) => e.v !== undefined && e.t > 10);
   return last ? (last.v! - (first.v ?? 0)) / (last.t - first.t) : 1;
 };
+/** 印に添えた四角（markRect）。無ければ例外（赤枠の位置が分からないまま描かない） */
+export const evRect = (kind: Kind, lang: Lang, session: Session, name: string): Rect => {
+  const e = RECORDINGS[kind][lang][session].events.find((x) => x.name === name);
+  if (!e || !e.rect) throw new Error(`${kind}/${lang}/${session} の events.json に ${name} の rect がない`);
+  return e.rect;
+};
 export const evTime = (kind: Kind, lang: Lang, session: Session, name: string) => {
   const e = RECORDINGS[kind][lang][session].events.find((x) => x.name === name);
   if (!e) throw new Error(`${kind}/${lang}/${session} の events.json に ${name} がない`);
@@ -84,11 +92,11 @@ export const evTime = (kind: Kind, lang: Lang, session: Session, name: string) =
 // 曲の区切りとキメは 2026-09-18 に聴き直して 1 小節後ろへ直した（A メロ 28–43、サビ 2 は 44 から、キメは 42 小節 4.5 拍〜43 小節）
 // **小節の割り付けは譜割りエディタから作る**（2026-09-20）。数字は src/plan.gen.ts（エディタの「場面」レーンの「動画の台本」）にだけ置き、
 // ここでは名前を付けるだけ。直すときはエディタで直して node plan_gen.mjs
-export const NEWURL_BEAT = PLAN_BEATS.newurl;       // 新しい URL（作った画）
-export const INTRO_END = NEWURL_BEAT;               // イントロはそこまで
-export const BANDWIDTH_BEAT = PLAN_BEATS.bandwidth; // さらに軽くなりました（作った画）
-export const FASTER_BEAT = PLAN_BEATS.faster;       // 共有がさらに速く（作った画）
-export const TIMELAPSE_BEAT = PLAN_BEATS.timelapse; // タイムラプス（キメの頭から）
+// 2026-09-21 の初見向け（16:9 のサムネ中心）: 作った画は hook（正方形 → 16:9 の見くらべ）・points（3 つの特徴）・showcase・エンドカード。
+// 新しい URL・さらに軽く・共有がさらに速く・タイムラプスは外した（利用者の判断）
+export const HOOK_BEAT = PLAN_BEATS.hook;           // つかみ: サムネを切らずに並べる（作った画）
+export const POINTS_BEAT = PLAN_BEATS.points;       // 3 つの特徴（作った画）
+export const INTRO_END = HOOK_BEAT;                 // イントロはそこまで
 export const SHOWCASE_BEAT = PLAN_BEATS.showcase;   // できあがり
 export const END_BEAT = PLAN_BEATS["end-logo"];     // エンドカード（ロゴ → URL → 無料）
 export const URL_BEAT = PLAN_BEATS["end-url"];
@@ -113,49 +121,62 @@ export type Shot = {
   capStill?: boolean;                                                                             // 字幕を動かさずに出したまま（前のショットから続けて見せる）
   scrap?: boolean;                                                                                // stills をスクラップブックのように角度・位置をばらして重ねていく（v6）
   sites?: boolean;                                                                                // 字幕の下に URL 対応サイトのバッジを 8 分音符 3 連で並べる（SITES）
+  hlEv?: string;                                                                                  // 赤枠: この印に添えた rect（capture.mjs の markRect）の位置を囲む。縦・横とも
+  kime?: number[];                                                                                // キメ（ショットの頭からの拍）で一段ずつ寄り、最後のキメから横に引き伸ばして白へ
   explorer?: { ev: string; beats?: [number, number, number]; hide?: number; file?: string };  // hide = 窓を引っ込める拍、file = 出すファイル名（録画に名前が無いとき）                                     // beats = ショットの頭からの拍（窓が出る・ファイルが入る・選択の青が点滅し始める）                                                                      // その操作の時刻に「ファイルが保存された」窓を重ねる（v6、パレットの保存）
 };
 
 /** 17 小節目の静止画 16 枚（promo/make_stills.py が作る）。16 分音符（0.25 拍）ずつ */
 const SMART = Array.from({ length: 16 }, (_, i) => `smart-${String(i + 1).padStart(2, "0")}`);
 
+/** 特徴の 3 行（6–8 小節の作った画。1 小節に 1 行ずつ出す） */
+export const POINTS: { jp: string; en: string }[] = [
+  { jp: "曲単位で並べる", en: "One cell per song" },
+  { jp: "ニコニコも YouTube も", en: "Niconico & YouTube too" },
+  { jp: "登録なし・無料", en: "Free, no sign-up" },
+];
+
 /** ショットの見せ方の細かい値（エディタの場面の ID ごと）。開始・長さ・字幕・印・ずらし・速さはエディタ（plan.gen.ts）から来る。
-    zoom = スマホ録画・zoomPc = PC 録画の拡大、hl = 枠線、fx = 演出、stills = 静止画、explorer = 保存の窓、capStill = 字幕を出したまま。
-    赤枠（hl）は 9/19 の録画で測った（1080x1920）。早回しとズーム（zoomPc）は v3 の値のまま */
+    zoom = スマホ録画・zoomPc = PC 録画の拡大、hlEv = 赤枠（その印の rect の位置）、fx = 演出、stills = 静止画、capStill = 字幕を出したまま、
+    kime = キメ（ショットの頭からの拍）で寄り、最後のキメから横に引き伸ばして白へ（タイムラプスから移した演出）。
+    2026-09-21 の初見向けの構成。**赤枠は録画の印の位置（capture.mjs の markRect）から描く**ので、撮り直しても枠がずれない */
 const SHOT_EXTRAS: Record<string, Partial<Shot>> = {
-  "q34g03l": {"zoom": {"x": 0.2, "y": 0.6, "s": 1.3}, "zoomPc": {"x": 0.6, "y": 0.9, "s": 1.5}},   // 「みんなのグリッド」に載せて共有
-  "97t4txw": {},   // 曲名で、みんなの並びを探せる
-  "3oaiopo": {"explorer": {"ev": "io:save", "beats": [0.5, 1, 2], "hide": 4, "file": "trackmento-grid-2026-09-19.json"}},   // 並びを保存/読み取るで復活
-  "qfvofd9": {},   // パレットで配色ごと切り替え
-  "ggrg1as": {"explorer": {"ev": "pal:saved", "beats": [1, 2, 3]}},   // 自作パレットは共有可能
-  "5nrfx8t": {"zoomPc": {"x": 0, "y": 0.4, "s": 1.6}},   // VocaDB でサブスクに無い曲も
-  "ntvo0x8": {"rec": "feat", "stills": SMART, "stillBeats": SMART.map((_, i) => i * 0.25), "scrap": true},   // 曲名リストが賢くなりました
   "mfejuzc": {},   // トップ画面はこれだけ
-  "lgd0qty": {"zoomPc": {"x": 0.6, "y": 0.35, "s": 1.35}, "hl": {"x": 0.056, "y": 0.138, "w": 0.889, "h": 0.5953, "pt": 11, "pb": 18}},   // 上にタイトル、真ん中にマス
-  "hx98afy": {"zoomPc": {"x": 0.6, "y": 0.85, "s": 1.5}, "hl": {"x": 0.056, "y": 0.751, "w": 0.889, "h": 0.1646, "pt": 12, "pb": 18}},   // 下に共有と検索、出力の設定
+  "lgd0qty": {"hlEv": "tour:title"},     // 上にタイトル
+  "1i5fh4b": {"hlEv": "tour:grid"},      // 真ん中にマス
+  "hx98afy": {"hlEv": "tour:buttons"},   // 下に共有と検索
+  "rk4o4sz": {"hlEv": "tour:options"},   // 出力の設定
   "380i9jk": {},   // まずはタイトル
+  "6g6osts": {"zoomPc": {"x": 1, "y": 0.55, "s": 1.6}},   // マスの形を「横長 16:9」に
   "37o6me6": {"zoomPc": {"x": 0.52, "y": 0.36, "s": 1.8}},   // 枠をタップ
-  "blgvply": {"zoomPc": {"x": 0, "y": 0.43, "s": 1.9}},   // 検索ソースは 4 種類
-  "d0fv045": {"zoomPc": {"x": 0, "y": 0.3, "s": 1.7}},   // 曲を探す
-  "dcj7rht": {"zoomPc": {"x": 0, "y": 0.74, "s": 1.7}, "sites": true},   // URL 検索も対応（対応サイトのバッジを出す）
+  "dcj7rht": {"zoomPc": {"x": 0, "y": 0.74, "s": 1.7}, "sites": true},   // 動画の URL を貼るだけ（対応サイトのバッジを出す）
   "eoqbxrm": {},   // 改行で区切って丸ごと挿入
-  "9mxejt1": {},   // Playlist の URL で一気に追加
+  "blgvply": {"zoomPc": {"x": 0, "y": 0.43, "s": 1.6}},   // 曲名でも探せる
+  "9mxejt1": {},   // マイリストの URL で一気に
   "zd9g3ak": {},   // 最大 500 曲がまとめて入る
-  "ilbkxxw": {},   // 消えた動画も
+  "ilbkxxw": {},   // 削除された動画も
   "xg15614": {},   // otoDB からよみがえる
-  "8gyp8m2": {"zoomPc": {"x": 0, "y": 1, "s": 1.7}},   // 手入力も可能
+  "ss0evau": {},   // 転載でも、元の作者が分かる
+  "5nrfx8t": {"zoomPc": {"x": 0, "y": 0.4, "s": 1.6}},   // VocaDB でサブスクに無い曲も
   "id60ky6": {},   // ボカロの作者名も VocaDB から
-  "zm32swp": {},   // 「大きく見る」で細長い並びも見やすく
+  "8gyp8m2": {"zoomPc": {"x": 0, "y": 1, "s": 1.7}},   // ジャケットが無ければ手入力
+  "2n7pkfo": {},   // 正方形が混ざったら「ぼかして埋める」
   "b03hory": {"zoomPc": {"x": 0.6, "y": 0.45, "s": 1.5}},   // 枠が全部埋まったら
   "vx9a2lo": {"zoomPc": {"x": 0.6, "y": 0.45, "s": 1.6}},   // タップで入れ替え
-  "kqv3bhm": {"zoomPc": {"x": 1, "y": 0.3, "s": 1.9}, "fx": "flashIn"},   // 解像度は 5 種類
-  "uwohvic": {"zoomPc": {"x": 1, "y": 0.5, "s": 1.8}},   // 曲名リストは 3 択（横・マスに重ねる・なし）
+  "zm32swp": {},   // 「大きく見る」で並べ替え
+  "kqv3bhm": {"zoomPc": {"x": 1, "y": 0.3, "s": 1.9}},   // 縦横の比率は 5 種類（冒頭の反転は利用者がキメのレーンから外した）
+  "uwohvic": {"zoomPc": {"x": 1, "y": 0.5, "s": 1.8}},   // 曲名リストは 3 択
   "10gxz2c": {"zoomPc": {"x": 1, "y": 0.62, "s": 1.9}},   // 背景色は 8 色
   "8h5qfvg": {"zoomPc": {"x": 1, "y": 0.67, "s": 2}},   // カスタム色はつまみで
-  "e179xpp": {"zoomPc": {"x": 0.55, "y": 0.7, "s": 1.6}},   // 共有すると、送信の進み具合が見える
+  "qfvofd9": {},   // パレットで配色ごと切り替え
+  // 共有: キメ（エディタの「キメ」のレーン 42.4.5・43.1.5・43.2.5・43.3.5）で寄り、最後のキメから横に引き伸ばして白へ
+  "e179xpp": {"zoomPc": {"x": 0.55, "y": 0.7, "s": 1.6}, "kime": [3.5, 4.5, 5.5, 6.5]},
+  "q34g03l": {"zoom": {"x": 0.2, "y": 0.6, "s": 1.3}, "zoomPc": {"x": 0.6, "y": 0.9, "s": 1.5}},   // 「みんなのグリッド」に載せて共有
   "j91wlyz": {"zoomPc": {"x": 0.6, "y": 0.5, "s": 1.3}},   // 画像と共有 URL
-  "4yu6dbf": {},   // 困ったら「更新情報」
-  "tail2yqnjh": {"capStill": true},   // 困ったら「使い方」
+  "97t4txw": {},   // 曲名で、みんなの並びを探せる
+  "xc3oxx2": {},   // 見つけた並びを開ける
+  "ntvo0x8": {"rec": "feat", "stills": SMART, "stillBeats": SMART.map((_, i) => i * 0.25), "scrap": true},   // 曲が多くても曲名がきれいに収まる
+  "tail2yqnjh": {},   // 困ったら「使い方」
 };
 /** 印がどちらの録画（本編・新機能）にあるか。縦・日本語の録画で探す（4 本とも同じ台本で撮るので同じ） */
 const sessionOf = (ev: string): Session =>
@@ -171,31 +192,7 @@ export const SHOTS: Shot[] = PLAN_SHOTS.map(toShot);
 /** エンドカードのあとの録画。音楽はフェードの途中 */
 export const TAIL_SHOTS: Shot[] = PLAN_TAIL.map(toShot);
 
-/** 8–9 小節「共有がさらに速く」（作った画）。2026-09-19 にスマホの共有画像を小さくした（最大辺 2000px・JPEG 0.78） */
-export const FASTER_ROWS: { jp: string; en: string; from: string; to: string }[] = [
-  { jp: "スマホの共有画像", en: "Share image on phones", from: "465KB", to: "327KB" },
-  { jp: "送信にかかる時間", en: "Upload time", from: "100%", to: "約 70%" },
-];
-
-/** タイムラプスの中のキメ（ショットの頭からの拍数）。1 つごとに寄り、最後の 1 つは横へも振る */
-export const TIMELAPSE_KIME = [0, 1, 2, 3];   // タイムラプスの頭からの拍（42.4.5 / 43.1.5 / 43.2.5 / 43.3.5）。最後の 1 つで横に引き伸ばす
-
 /** URL 検索の対応サイト（8 分音符 3 連で 1 つずつ出す） */
 // bilibili は 2026-09-20 に対応をやめた（利用者規約 4.2.11）ので外した
 export const SITES = ["YouTube", "ニコニコ", "Bandcamp", "SoundCloud", "Spotify", "Apple Music"];
 export const SITES_EN = ["YouTube", "Niconico", "Bandcamp", "SoundCloud", "Spotify", "Apple Music"];
-
-/** ⑥「さらに軽くなりました」で出す数字（録画ではなく作った画で見せる。v3 は 2026-09-16 の対策の数字） */
-export const BANDWIDTH_ROWS: { jp: string; en: string; from: string; to: string }[] = [
-  { jp: "1 アクセスあたりの転送量", en: "Data per request", from: "90KB", to: "27KB" },
-  { jp: "画面本体", en: "The page itself", from: "273KB", to: "82KB" },
-  { jp: "共有画像", en: "Shared image", from: "501KB", to: "413KB" },
-  { jp: "出来上がりの落とし直し", en: "Re-downloading the result", from: "毎回", to: "ゼロ" },
-];
-
-/** タイムラプス: 録画の始まりから PNG 完成までを 16 分割して 1 小節に詰める */
-export const TIMELAPSE_STEPS = 16;
-export const timelapseTimes = (kind: Kind, lang: Lang) => {
-  const a = evTime(kind, lang, "main", "start"), b = evTime(kind, lang, "main", "share-ready");
-  return Array.from({ length: TIMELAPSE_STEPS }, (_, i) => a + ((b - a) * i) / (TIMELAPSE_STEPS - 1));
-};

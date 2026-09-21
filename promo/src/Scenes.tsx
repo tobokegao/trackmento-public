@@ -5,8 +5,8 @@ import {
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
 import {
-  FPS, BAR, beatTime, beatFrame, sec, evTime, rate, RECORDINGS, SHOTS, TIMELAPSE_KIME, SITES, SITES_EN, BANDWIDTH_ROWS, Shot, Kind, Lang,
-  INTRO_END, TIMELAPSE_BEAT, SHOWCASE_BEAT, NEWURL_BEAT, BANDWIDTH_BEAT, FASTER_BEAT, FASTER_ROWS, TAIL_BEAT, TAIL_SHOTS, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM, timelapseTimes, TIMELAPSE_STEPS,
+  FPS, BAR, beatTime, beatFrame, sec, evTime, evRect, rate, RECORDINGS, SHOTS, SITES, SITES_EN, POINTS, Shot, Kind, Lang,
+  INTRO_END, HOOK_BEAT, POINTS_BEAT, SHOWCASE_BEAT, TAIL_BEAT, TAIL_SHOTS, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM,
 } from "./timeline";
 
 // ---- フォント（アプリと同じ OFL 同梱フォント） ----
@@ -186,48 +186,6 @@ const Phone: React.FC<{ L: Layout; fx?: Shot["fx"]; children: React.ReactNode }>
   );
 };
 
-/** ⑤ 見た目の見くらべ。前半 2 拍が v1 の画、後半が今の録画（スクロールバーはこちらで動く） */
-const BeforeAfter: React.FC<{ L: Layout; file: string; zoom?: Shot["zoom"]; children: React.ReactNode }> = ({ L, file, zoom, children }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const switchAt = beatFrame(BAR) - beatFrame(0);   // 1 小節で切り替える（BEFORE 4 拍 / NOW 4 拍）
-  const before = frame < switchAt;
-  const s = spring({ frame: frame - (before ? 0 : switchAt), fps, config: { damping: 13, stiffness: 220 } });
-  const tall = L.kind === "tall";
-  return (
-    <>
-      {before
-        ? <div style={{ width: "100%", height: "100%", transform: `scale(${zoom ? zoom.s : 1.03})`, transformOrigin: zoom ? `${zoom.x * 100}% ${zoom.y * 100}%` : "50% 50%" }}>
-            <Img src={staticFile(`${file}${tall ? "" : "-pc"}.png`)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          </div>
-        : children}
-
-    </>
-  );
-};
-
-/** ⑤ の見くらべで出す BEFORE / NOW の札。Phone は overflow: hidden なので枠の外に別に置く */
-const AbBadge: React.FC<{ L: Layout }> = ({ L }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const switchAt = beatFrame(BAR) - beatFrame(0);
-  const before = frame < switchAt;
-  const s = spring({ frame: frame - (before ? 0 : switchAt), fps, config: { damping: 13, stiffness: 220 } });
-  const tall = L.kind === "tall";
-  return (
-    // 字幕（日本語＋英語の 2 段）より下、録画の枠のすぐ上に置く。
-    // 字幕の裏に回しつつ、文字どうしが重ならない高さ
-    <div style={{ position: "absolute", left: L.phone.x, width: L.phone.w, top: L.phone.y - (tall ? 96 : 74),
-      display: "flex", justifyContent: "flex-end", pointerEvents: "none" }}>
-      <div style={{ background: before ? C.muted : C.vermilion, color: C.paper, fontFamily: "Mark", fontWeight: 700,
-        fontSize: tall ? 46 : 40, padding: "8px 26px", border: `4px solid ${C.ink}`,
-        transform: `translateY(${(1 - s) * 20}px) scale(${0.85 + s * 0.15})`, opacity: s }}>
-        {before ? "BEFORE" : "AFTER"}
-      </div>
-    </div>
-  );
-};
-
 /** 録画の一部を枠線で強調（拍で脈打つ） */
 const Highlight: React.FC<{ L: Layout; hl: NonNullable<Shot["hl"]>; clipScale?: number }> = ({ L, hl, clipScale = 1.03 }) => {
   const frame = useCurrentFrame();
@@ -359,52 +317,14 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
   );
 };
 
-// ---- タイムラプス（1 小節に 16 コマ） ----
-const Timelapse: React.FC<{ L: Layout }> = ({ L }) => {
-  const times = timelapseTimes(L.kind, L.lang);
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const total = beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT);   // できあがりまで（2 小節）
-  const per = total / TIMELAPSE_STEPS;
-  // キメ（エディタの「キメ」のレーン）ごとに一段ずつ寄る。最後の 1 つは**枠ごと**横に 2 倍まで引き伸ばす（v5、利用者の指定。v4 は横へ振っていた）
-  const hits = TIMELAPSE_KIME.map((b) => beatFrame(TIMELAPSE_BEAT + b) - beatFrame(TIMELAPSE_BEAT));
-  let zoom = 1, stretch = 0, white = 0;
-  hits.forEach((at, i) => {
-    const k = spring({ frame: frame - at, fps, config: { damping: 12, stiffness: 260 } });
-    zoom += k * 0.09;
-    // 最後のキメからシーンの終わりまで、最初が速い曲線で横に 3 倍まで伸ばし続ける（v7、利用者の指定）
-    // 白も同じ時刻・同じ曲線で被せていき、シーンの終わりで透けなくなる（v8、利用者の指定）
-    if (i === hits.length - 1) {
-      const k2 = interpolate(frame, [at, total], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
-      stretch = k2 * 2; white = k2;
-    }
-  });
-  return (
-    <>
-      <Caption L={L} jp="画像完成まで" en="Start to finish" />
-      <AbsoluteFill style={{ transform: `scaleX(${1 + stretch})`, transformOrigin: "50% 50%" }}>
-      <Phone L={L}>
-        <div style={{ width: "100%", height: "100%", transform: `scale(${zoom})`, transformOrigin: "50% 45%" }}>
-        {times.map((t, i) => (
-          <Sequence key={i} from={Math.round(i * per)} durationInFrames={Math.ceil(per) + 1} layout="none">
-            <OffthreadVideo src={staticFile(RECORDINGS[L.kind][L.lang].main.src)} startFrom={sec(t)} playbackRate={rate(L.kind, L.lang, "main")} muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.03)" }} />
-          </Sequence>
-        ))}
-        </div>
-      </Phone>
-      </AbsoluteFill>
-      <AbsoluteFill style={{ background: "#ffffff", opacity: white }} />
-    </>
-  );
-};
-
 // ---- できあがり（2 小節）。本編の録画で作った 1 枚をそのまま見せる（v4、エディタで 4 枚の切り替えをやめた） ----
 const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const { pulse, beat } = useBeatPulse(0.7);
   const s = spring({ frame, fps, config: { damping: 13, stiffness: 90 } });
-  const drift = interpolate(frame, [0, beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)], [1.0, 1.05]);
+  const { durationInFrames } = useVideoConfig();
+  const drift = interpolate(frame, [0, durationInFrames], [1.0, 1.05], { extrapolateRight: "clamp" });
   const color = STRIPE[Math.max(0, beat) % 6];
   const img = L.kind === "tall"
     ? { left: 90, top: 200, width: 900, height: 1600 }
@@ -459,138 +379,98 @@ const EndCard: React.FC<{ L: Layout }> = ({ L }) => {
   );
 };
 
-// ---- 新しい URL（2 小節。録画ではなく作った画。Playwright の録画にはアドレス欄が映らないため） ----
-// 1 小節目: 古い URL が出て 2 拍目で取り消し線、3 拍目から矢印と新しい URL
-// 2 小節目: 「並びもそのまま引っ越し」を 8 分音符で点滅させる
-const NewUrl: React.FC<{ L: Layout }> = ({ L }) => {
+// ---- つかみ（2 小節。作った画）: 同じ 9 本の動画を、正方形のマス（左右が切れる）4 拍 → 横長 16:9 のマス（全部見える）4 拍 ----
+// 画は promo/make_stills.py --hook が本編の並びから作る（public/stills/hook-square.png・hook-wide.png。サーバー描画）
+/** つかみの 2 枚の縦横比（make_stills.py --hook の出力。正方形のマス 3×3 と 16:9 のマス 3×3、余白込み） */
+const HOOK_AR = { square: 1, wide: 1600 / 967 };
+const Hook: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const beatLen = beatFrame(1) - beatFrame(0);
-  const tall = L.kind === "tall";
-  const ja = L.lang === "ja";
-  const sOld = spring({ frame, fps, config: { damping: 13, stiffness: 160 } });
-  const strike = interpolate(frame, [beatLen, beatLen * 1.5], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
-  const sNew = spring({ frame: frame - beatLen * 2, fps, config: { damping: 11, stiffness: 150 } });
-  const eighth = beatLen / 2;
-  const blinkFrom = beatLen * 4 + eighth;
-  const blinkOn = frame >= blinkFrom && Math.floor((frame - blinkFrom) / eighth) % 2 === 0;
-  const urlBox = (dark: boolean): React.CSSProperties => ({
-    fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 50 : 60, letterSpacing: "0.04em", padding: "14px 34px",
-    background: dark ? C.ink : "transparent", color: dark ? C.paper : C.muted, border: `4px solid ${dark ? C.ink : C.muted}`, whiteSpace: "nowrap",
-  });
+  const switchAt = beatFrame(HOOK_BEAT + BAR) - beatFrame(HOOK_BEAT);
+  const after = frame >= switchAt;
+  const s = spring({ frame: frame - (after ? switchAt : 0), fps, config: { damping: 13, stiffness: 200 } });
+  const tall = L.kind === "tall", ja = L.lang === "ja";
+  const box = tall ? { left: 60, top: 380, width: 960, height: 1400 } : { left: 260, top: 200, width: 1400, height: 840 };
   return (
     <Paper>
       <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
-      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", flexDirection: "column", gap: tall ? 44 : 30 }}>
-        <div style={{ background: C.ink, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 58 : 60, padding: "12px 30px", opacity: sOld, transform: `translateY(${(1 - sOld) * -30}px)` }}>
-          {ja ? "新しい URL になりました" : "We have a new address"}
+      <Caption L={L} jp={"動画のサムネを、\n切らずに並べる"} en={"Video thumbnails,\nuncropped"} />
+      {/* **画像の大きさは枠いっぱいに計算して決める**（max-width 任せだと小さく縮んでいた。2026-09-21 の確認で後半の 16:9 が枠の半分ほどだった） */}
+      {(() => {
+        const ar = after ? HOOK_AR.wide : HOOK_AR.square, H = box.height - (tall ? 60 : 50);
+        const w = Math.min(box.width, H * ar), h = w / ar;
+        return (
+          <div style={{ position: "absolute", left: box.left + (box.width - w) / 2, top: box.top + (tall ? 50 : 40), width: w, height: h,   // 上に寄せる（札のすぐ下）
+            transform: `scale(${0.92 + s * 0.08})`, opacity: Math.min(1, 0.4 + s), border: `6px solid ${C.ink}`, boxShadow: `14px 14px 0 ${C.ink}`, boxSizing: "content-box", overflow: "hidden" }}>
+            <Img src={staticFile(`stills/${after ? "hook-wide" : "hook-square"}.png`)} style={{ width: "100%", height: "100%", display: "block" }} />
+          </div>
+        );
+      })()}
+      {/* 札: 前半は「正方形」（左右が切れる）、後半は「横長 16:9」 */}
+      <div style={{ position: "absolute", left: box.left, width: box.width, top: box.top - (tall ? 20 : 10), display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ background: after ? C.vermilion : C.muted, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700,
+          fontSize: tall ? 42 : 38, padding: "8px 24px", border: `4px solid ${C.ink}`, transform: `translateY(${(1 - s) * 20}px) scale(${0.85 + s * 0.15})`, opacity: s }}>
+          {after ? (ja ? "横長 16:9 のマス" : "16:9 cells") : (ja ? "正方形のマス（左右が切れる）" : "Square cells (sides cut)")}
         </div>
-        <div style={{ position: "relative", opacity: sOld }}>
-          <div style={{ ...urlBox(false), fontSize: tall ? 40 : 56, padding: tall ? "12px 26px" : "14px 34px" }}>trackmento.onrender.com</div>
-          <div style={{ position: "absolute", left: 20, right: 20, top: "50%", height: 6, marginTop: -3, background: C.vermilion, transformOrigin: "0 50%", transform: `scaleX(${strike})` }} />
-        </div>
-        <div style={{ fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 70 : 64, color: C.ink, opacity: sNew, transform: `translateY(${(1 - sNew) * -20}px)` }}>↓</div>
-        <div style={{ ...urlBox(true), fontSize: tall ? 64 : 76, boxShadow: `10px 10px 0 ${C.mustard}`, opacity: sNew, transform: `scale(${0.8 + sNew * 0.2})` }}>trackmento.com</div>
-        <div style={{ marginTop: tall ? 20 : 8, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 40 : 40, color: C.ink, opacity: blinkOn ? 1 : 0 }}>
-          {ja ? "前の URL から開いても、並びごと引っ越し" : "Old links still work — your grids move with you"}
-        </div>
-      </AbsoluteFill>
+      </div>
     </Paper>
   );
 };
 
-// ---- ⑥「動作が軽くなりました」（2 小節。録画ではなく数字を出す） ----
-// 1 小節目: 画面いっぱいの見出しを 2 拍で中央まで縮め、残り 2 拍で見出しが上がりつつ 4 行が出る
-// 2 小節目: 「画質はそのまま」を 8 分音符で点滅させ続ける
-type NumRow = { jp: string; en: string; from: string; to: string };
-/** 場面の切り替えで横へ流す長さ（v9。6–7 → 8–9 の切り替え）。半拍 */
-const PAN_BEATS = 0.5;
-const Bandwidth: React.FC<{ L: Layout; title?: [string, string]; rows?: NumRow[]; blink?: [string, string]; slideIn?: boolean; slideOutAt?: number }> = ({ L, title = ["さらに軽くなりました", "Even lighter now"], rows = BANDWIDTH_ROWS, blink = ["画質はそのまま", "Same image quality"], slideIn, slideOutAt }) => {
+// ---- 3 つの特徴（3 小節。作った画）: 見出しのあと、1 小節に 1 行ずつ ----
+const Points: React.FC<{ L: Layout }> = ({ L }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const beatLen = beatFrame(1) - beatFrame(0);
-  const tall = L.kind === "tall";
-  const ja = L.lang === "ja";
-
-  // 右から入るときは、画面いっぱいの見出しから縮める演出はしない（横に流れてくる）
-  const shrink = slideIn ? 1 : interpolate(frame, [0, Math.round(beatLen * 1.1)], [3, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.exp) });
-  const panLen = Math.round(beatLen * PAN_BEATS);
-  const panIn = slideIn ? interpolate(frame, [0, panLen], [L.W, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }) : 0;
-  const panOut = slideOutAt !== undefined ? interpolate(frame, [slideOutAt, slideOutAt + panLen], [0, -L.W], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }) : 0;
-  const rise = spring({ frame: frame - beatLen * 2, fps, config: { damping: 14, stiffness: 110 } });
-  const eighth = beatLen / 2;
-  const blinkFrom = beatLen * 4 + eighth;                          // 2 小節目の裏拍から
-  const blinkOn = frame >= blinkFrom && Math.floor((frame - blinkFrom) / eighth) % 2 === 0;
-
+  const tall = L.kind === "tall", ja = L.lang === "ja";
+  const head = spring({ frame, fps, config: { damping: 13, stiffness: 160 } });
   return (
-    <div style={{ position: "absolute", inset: 0, transform: `translateX(${panIn + panOut}px)` }}>
     <Paper>
       <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
-      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: tall ? "0 60px" : "0 200px" }}>
-        <div style={{ background: C.ink, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700,
-          fontSize: tall ? 58 : 60, padding: "12px 30px", whiteSpace: "nowrap",
-          transform: `translateY(${-rise * (tall ? 300 : 190)}px) scale(${shrink})` }}>
-          {ja ? title[0] : title[1]}
-        </div>
-        <div style={{ position: "absolute", left: tall ? 60 : 200, right: tall ? 60 : 200, top: "46%",
-          display: "flex", flexDirection: "column", gap: tall ? 18 : 14, opacity: rise }}>
-          {rows.map((r, i) => {
-            const k = spring({ frame: frame - beatLen * 2 - Math.round(eighth * i), fps, config: { damping: 12, stiffness: 220 } });
+      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", flexDirection: "column", gap: tall ? 56 : 36 }}>
+        <div style={{ fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 84 : 96, color: C.ink, letterSpacing: "0.06em", opacity: head, transform: `translateY(${(1 - head) * -30}px)` }}>TRACKMENTO</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: tall ? 30 : 22, alignItems: "stretch", minWidth: tall ? 820 : 980 }}>
+          {POINTS.map((p, i) => {
+            const at = beatFrame(POINTS_BEAT + BAR * i) - beatFrame(POINTS_BEAT);
+            const k = spring({ frame: frame - at, fps, config: { damping: 12, stiffness: 200 } });
             return (
-              <div key={r.jp} style={{ display: "flex", alignItems: "baseline", gap: tall ? 16 : 24, transform: `translateX(${(1 - k) * -30}px)`, opacity: k }}>
-                <div style={{ fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 34 : 36, color: C.ink, flex: 1 }}>{ja ? r.jp : r.en}</div>
-                <div style={{ fontFamily: "Mark", fontWeight: 700, fontSize: tall ? 30 : 32, color: C.muted, textDecoration: "line-through" }}>{r.from}</div>
-                <div style={{ fontFamily: ja ? "Plex" : "Silk", fontWeight: 700, fontSize: tall ? 32 : 34, color: C.paper, background: STRIPE[i % 6], padding: "2px 12px", border: `3px solid ${C.ink}` }}>{r.to}</div>
+              <div key={p.jp} style={{ display: "flex", alignItems: "center", gap: 24, opacity: k, transform: `translateX(${(1 - k) * -60}px)` }}>
+                <div style={{ width: tall ? 54 : 58, height: tall ? 54 : 58, flex: "none", background: STRIPE[(i * 2) % 6], border: `4px solid ${C.ink}`, fontFamily: "Silk", fontWeight: 700, fontSize: tall ? 30 : 32, display: "flex", alignItems: "center", justifyContent: "center", color: C.ink }}>{i + 1}</div>
+                <div style={{ background: C.ink, color: C.paper, fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: tall ? 60 : 62, padding: tall ? "10px 28px" : "10px 32px", flex: 1 }}>{ja ? p.jp : p.en}</div>
               </div>
             );
           })}
-          {/* 点滅する一言は数字の塊のすぐ下（4–5「新しい URL」の URL と一言の間と同じくらい。v7、利用者の指定） */}
-          <div style={{ marginTop: tall ? 46 : 26, textAlign: "center",
-            fontFamily: ja ? "Plex" : "Dot", fontWeight: 700, fontSize: 40, color: C.ink,
-            opacity: blinkOn ? 1 : 0 }}>
-            {ja ? blink[0] : blink[1]}
-          </div>
         </div>
+        {ja && <div style={{ fontFamily: "Dot", fontSize: tall ? 34 : 36, color: C.muted, opacity: head }}>{POINTS.map((p) => p.en).join(" / ")}</div>}
       </AbsoluteFill>
     </Paper>
-    </div>
   );
 };
-
 
 // ---- 本体 ----
 export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, lang = "ja" }) => {
   const L: Layout = { ...LAYOUTS[layout], lang };
-  const flowEnd = beatFrame(TIMELAPSE_BEAT);
+  // 2026-09-21: 録画のショットはエンドカードの前まで続く（できあがりの後にも録画がある）。作った画はその上に重ねる
+  const walkFrom = SHOTS[0].beat;
+  const afterShowcase = SHOTS.find((s) => s.beat >= SHOWCASE_BEAT)?.beat ?? END_BEAT;
   return (
     <AbsoluteFill style={{ background: C.paper }}>
       {/* 音源そのものが大きく、そのまま入れると割れる（とくに頭）。全体を下げてから、
           エンドカードの頭でフェードアウトする */}
       <Audio src={staticFile("sherbet.mp3")} volume={(f) => 0.55 * interpolate(f, [beatFrame(FADE_FROM), beatFrame(LAST_BEAT)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
       <Sequence from={0} durationInFrames={beatFrame(INTRO_END)} name="Intro"><Paper><Intro L={L} /></Paper></Sequence>
+      <Sequence from={beatFrame(HOOK_BEAT)} durationInFrames={beatFrame(POINTS_BEAT) - beatFrame(HOOK_BEAT)} name="Hook"><Hook L={L} /></Sequence>
+      <Sequence from={beatFrame(POINTS_BEAT)} durationInFrames={beatFrame(walkFrom) - beatFrame(POINTS_BEAT)} name="Points"><Points L={L} /></Sequence>
 
-      <Sequence from={beatFrame(INTRO_END)} durationInFrames={flowEnd - beatFrame(INTRO_END)} name="Walkthrough">
+      <Sequence from={beatFrame(walkFrom)} durationInFrames={beatFrame(END_BEAT) - beatFrame(walkFrom)} name="Walkthrough">
         <Paper>
           <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
-          {SHOTS.map((s, i) => shotSeq(L, s, SHOTS[i + 1]?.beat ?? TIMELAPSE_BEAT, INTRO_END))}
+          {SHOTS.map((s, i) => shotSeq(L, s, Math.min(SHOTS[i + 1]?.beat ?? END_BEAT, s.beat + s.len), walkFrom))}
         </Paper>
       </Sequence>
 
-      <Sequence from={beatFrame(NEWURL_BEAT)} durationInFrames={beatFrame(NEWURL_BEAT + BAR * 2) - beatFrame(NEWURL_BEAT)} name="NewUrl"><NewUrl L={L} /></Sequence>
-      {/* 6–7 は 8 小節の頭で左へ流れて見切れる（そのぶん半拍だけ長く出す）。8–9 は同時に右から入る（v9） */}
-      <Sequence from={beatFrame(BANDWIDTH_BEAT)} durationInFrames={beatFrame(FASTER_BEAT + PAN_BEATS) - beatFrame(BANDWIDTH_BEAT)} name="Bandwidth">
-        <Bandwidth L={L} slideOutAt={beatFrame(FASTER_BEAT) - beatFrame(BANDWIDTH_BEAT)} />
-      </Sequence>
-      <Sequence from={beatFrame(FASTER_BEAT)} durationInFrames={beatFrame(FASTER_BEAT + BAR * 2) - beatFrame(FASTER_BEAT)} name="Faster">
-        <Bandwidth L={L} slideIn title={["共有がさらに速く", "Sharing is faster"]} rows={FASTER_ROWS} blink={["SNS上での画質はほぼそのまま", "Image quality holds up on social media"]} />
-      </Sequence>
-
-      <Sequence from={beatFrame(TIMELAPSE_BEAT)} durationInFrames={beatFrame(SHOWCASE_BEAT) - beatFrame(TIMELAPSE_BEAT)} name="Timelapse">
-        <Paper><div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div><Timelapse L={L} /></Paper>
-      </Sequence>
-      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(END_BEAT) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
+      <Sequence from={beatFrame(SHOWCASE_BEAT)} durationInFrames={beatFrame(afterShowcase) - beatFrame(SHOWCASE_BEAT)} name="Showcase"><Showcase L={L} /></Sequence>
       <Sequence from={beatFrame(END_BEAT)} durationInFrames={beatFrame(TAIL_BEAT) - beatFrame(END_BEAT)} name="End"><EndCard L={L} /></Sequence>
-      {/* v5: エンドカードのあとに「困ったら更新情報と使い方」（録画） */}
+      {/* エンドカードのあとに「困ったら使い方」（録画） */}
       <Sequence from={beatFrame(TAIL_BEAT)} name="Tail">
         <Paper>
           <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
@@ -601,27 +481,54 @@ export const Promo: React.FC<{ layout: LayoutKind; lang?: Lang }> = ({ layout, l
   );
 };
 
+/** キメで寄り、最後のキメから横へ引き伸ばして白へ（2026-09-21、タイムラプスから共有の場面へ移した演出）。
+    frame はショットの頭から。kime はショットの頭からの拍 */
+function kimeFx(s: Shot, frame: number, fps: number, total: number) {
+  let zoom = 1, stretch = 0, white = 0;
+  if (!s.kime) return { zoom, stretch, white };
+  const hits = s.kime.map((b) => beatFrame(s.beat + b) - beatFrame(s.beat));
+  hits.forEach((at, i) => {
+    const k = spring({ frame: frame - at, fps, config: { damping: 12, stiffness: 260 } });
+    zoom += k * 0.09;
+    // 最後のキメから場面の終わりまで、最初が速い曲線で横に 3 倍まで伸ばし続け、白も同じ曲線で被せる（v7・v8 の利用者の指定）
+    if (i === hits.length - 1) {
+      const k2 = interpolate(frame, [at, total], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+      stretch = k2 * 2; white = k2;
+    }
+  });
+  return { zoom, stretch, white };
+}
+const KimeWrap: React.FC<{ s: Shot; children?: React.ReactNode; phase: "stretch" | "white" }> = ({ s, children, phase }) => {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const { zoom, stretch, white } = kimeFx(s, frame, fps, durationInFrames);
+  if (phase === "white") return <AbsoluteFill style={{ background: "#ffffff", opacity: white, pointerEvents: "none" }} />;
+  return <AbsoluteFill style={{ transform: `scaleX(${1 + stretch}) scale(${zoom})`, transformOrigin: "50% 50%" }}>{children}</AbsoluteFill>;
+};
+
 /** 録画（または静止画）のショット 1 つ。base = 親の Sequence の頭の拍 */
 function shotSeq(L: Layout, s: Shot, next: number, base: number) {
   return (
               <Sequence key={s.beat} from={beatFrame(s.beat) - beatFrame(base)} durationInFrames={beatFrame(next) - beatFrame(s.beat)} name={s.jp || "countdown"}>
                 {s.scrap && <Stills L={L} shot={s} />}
-                {/* 札はタイトルの裏に回す（先に描くと字幕が上に来る） */}
-                {s.ab && <AbBadge L={L} />}
                 {s.scrap && <div style={{ position: "absolute", inset: 0, zIndex: 2 }}><Caption L={L} jp={s.jp} en={s.en} /></div>}
-                {!s.scrap && <Caption L={L} jp={s.jp} en={s.en} still={s.capStill} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.sites && <SiteBadges L={L} startBeat={s.beat} />}</Caption>}
-                {!s.scrap && <Phone L={L} fx={s.fx}>
-                  {s.stills ? (
-                    <Stills L={L} shot={s} />
-                  ) : s.ab ? (
-                    <BeforeAfter L={L} file={s.ab} zoom={L.kind === "wide" ? s.zoomPc : s.zoom}>
-                      <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
-                    </BeforeAfter>
-                  ) : (
-                    <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
-                  )}
-                  {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
-                </Phone>}
+                {/* キメで寄るショットは録画が字幕の上に被るので、字幕を前に出す（2026-09-21） */}
+                {!s.scrap && <div style={{ position: "absolute", inset: 0, zIndex: s.kime ? 2 : undefined, pointerEvents: "none" }}><Caption L={L} jp={s.jp} en={s.en} still={s.capStill} delay={s.fx === "flashIn" ? beatFrame(s.beat + 1) - beatFrame(s.beat) : 0}>{s.sites && <SiteBadges L={L} startBeat={s.beat} />}</Caption></div>}
+                {!s.scrap && (() => {
+                  const phone = (
+                    <Phone L={L} fx={s.fx}>
+                      {s.stills ? (
+                        <Stills L={L} shot={s} />
+                      ) : (
+                        <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
+                      )}
+                      {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
+                      {/* 赤枠は録画の印の位置（markRect）から。縦・横とも。ズームしているショットには付けない（位置がずれる） */}
+                      {s.hlEv && <Highlight L={L} hl={evRect(L.kind, L.lang, s.rec ?? "main", s.hlEv)} />}
+                    </Phone>
+                  );
+                  return s.kime ? <><KimeWrap s={s} phase="stretch">{phone}</KimeWrap><div style={{ position: "absolute", inset: 0, zIndex: 3 }}><KimeWrap s={s} phase="white" /></div></> : phone;
+                })()}
                 {s.fx === "flashIn" && <FlashIn />}
                 {s.explorer && (() => {
                   // 録画の中で保存した時刻 → このショットの何コマ目か（Clip の再生速度で割る）

@@ -11,6 +11,11 @@
     PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python promo/make_stills.py --fetch-only  # 曲を集めるだけ（描かない）
 
 曲は iTunes の検索で集め、promo/stills-tracks.json に控える（2 回目からは検索しない）。
+
+2026-09-21（初見向け・16:9 のサムネ中心）から:
+- smart は**横長 16:9 のマス**で、曲は**デモ用マイリストのニコニコ動画**（promo/stills-tracks-nico.json）で作る
+- `--hook` … 4–5 小節のつかみ（hook-square / hook-wide）。本編の録画の並び（takes/tall-main-ja/reorder/end.json）を
+  正方形のマスと 16:9 のマスで描く。**録画を撮り直したら作り直す**
 縦（tall）と横（wide）の動画で同じ画を使う（`<名前>.png` と `<名前>-pc.png` に同じものを置く。Scenes.tsx がこの名前で読む）。
 割り付けの規則を直したら作り直す。
 """
@@ -33,6 +38,11 @@ from backend.grids import GridDoc  # noqa: E402
 
 OUT = ROOT / "promo" / "public" / "stills"
 TRACKS = ROOT / "promo" / "stills-tracks.json"
+NICO_TRACKS = ROOT / "promo" / "stills-tracks-nico.json"
+MYLIST = "https://www.nicovideo.jp/mylist/79113711"
+# 題に出ると困る語（動画の中で曲名リストとして読めてしまう）。消えた動画も外す
+NG = ("エロ", "エ口", "ローション", "熟女", "えっち", "注意", "しにたく", "死", "殺", "非公開", "削除", "葬")
+REORDER_END = ROOT / "promo" / "public" / "takes" / "tall-main-ja" / "reorder" / "end.json"
 MAX_OUT = 1600   # 動画の中では 1080px の辺に収まるので、これ以上は重いだけ
 
 # 集める曲（曲名, アーティスト）。iTunes の日本のストアで引く
@@ -82,14 +92,53 @@ def fetch_tracks() -> list[dict]:
     return out
 
 
-def make(name: str, spec: tuple, tracks: list[dict], i: int) -> None:
+def fetch_nico() -> list[dict]:
+    """デモ用マイリストの動画（16:9 のサムネ）。作者（投稿者）の違うものを優先し、題に NG の語を含むものは外す"""
+    import asyncio
+
+    import httpx
+
+    from backend.sources import playlist
+
+    async def go():
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as c:
+            return await playlist._nicovideo(MYLIST, c)
+    out, seen = [], set()
+    for t in asyncio.run(go()):
+        if not t.artist or not t.image or any(w in t.title for w in NG) or t.artist in seen:
+            continue
+        seen.add(t.artist)
+        out.append({"source": t.source, "title": t.title, "artist": t.artist, "image": t.image, "thumb": t.thumb, "external_url": t.external_url})
+    print(f"  ニコニコ {len(out)} 本（作者ごとに 1 本）")
+    return out
+
+
+def hook() -> None:
+    """4–5 小節のつかみ。本編の並びを正方形のマスと 16:9 のマスで（タイトル・曲名リストなし）"""
+    st = json.loads(REORDER_END.read_text(encoding="utf-8"))
+    grid = json.loads(st["ls"]["trackmento:grid:default"])
+    cells = grid["cells"][:9]
+    OUT.mkdir(parents=True, exist_ok=True)
+    for name, cr in (("hook-square", "1:1"), ("hook-wide", "16:9")):
+        doc = GridDoc(name="stills", cols=3, rows=3, cells=cells, stash=[], title="",
+                      options={"ratio": "free", "showTitle": False, "sidebar": False, "overlay": False, "numbers": False,
+                               "bg": "paper", "margin": 16, "gap": 16, "cellRatio": cr, "cellFit": "crop"})
+        im = R.render(doc).convert("RGB")
+        k = MAX_OUT / max(im.size)
+        if k < 1:
+            im = im.resize((round(im.width * k), round(im.height * k)))
+        im.save(OUT / f"{name}.png", optimize=True)
+        print(f"  {name}: {im.size}")
+
+
+def make(name: str, spec: tuple, tracks: list[dict], i: int, cell_ratio: str = "1:1") -> None:
     _, cols, rows, ratio, mode, *rest = spec
     n = cols * rows
     cells = [tracks[(i * 7 + k) % len(tracks)] for k in range(n)]   # 画ごとに並びをずらす（同じ並びが続かないように）
     title = f"私を構成する{n}曲"
     doc = GridDoc(name="stills", cols=cols, rows=rows, cells=cells, stash=[], title=title,
                   options={"ratio": ratio, "showTitle": True, "sidebar": mode == "side", "overlay": mode == "overlay",
-                           "numbers": False, "bg": BG[i % len(BG)], "margin": 16, "gap": 16})
+                           "numbers": False, "bg": BG[i % len(BG)], "margin": 16, "gap": 16, "cellRatio": cell_ratio})
     im = R.render(doc).convert("RGB")
     k = MAX_OUT / max(im.size)
     if k < 1:
@@ -107,10 +156,16 @@ def main() -> int:
         TRACKS.write_text(json.dumps(tracks, ensure_ascii=False, indent=1), encoding="utf-8")
     tracks = json.loads(TRACKS.read_text(encoding="utf-8"))
     print(f"曲 {len(tracks)} 曲")
+    if "--refetch" in sys.argv or not NICO_TRACKS.exists():
+        NICO_TRACKS.write_text(json.dumps(fetch_nico(), ensure_ascii=False, indent=1), encoding="utf-8")
+    nico = json.loads(NICO_TRACKS.read_text(encoding="utf-8"))
     if "--fetch-only" in sys.argv:   # 撮影中など、重い描画を後回しにしたいとき
         return 0
+    if "--hook" in sys.argv:
+        hook()
+        return 0
     for i, spec in enumerate(SMART):
-        make(f"smart-{i + 1:02d}", spec, tracks, i)
+        make(f"smart-{i + 1:02d}", spec, nico, i, "16:9")
     for i, spec in enumerate(SHOW):
         make(f"show-{i + 1}", spec, tracks, i + 3)
     return 0

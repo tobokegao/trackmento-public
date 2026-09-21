@@ -34,7 +34,7 @@ for (const it of items) {
   if (BEATS[it.kind] !== undefined) errs.push(`種類「${it.kind}」の場面が 2 つある`);
   BEATS[it.kind] = beat(it.t);
 }
-for (const k of ["intro", "newurl", "bandwidth", "faster", "timelapse", "showcase", "end-logo", "end-url", "end-free"]) if (BEATS[k] === undefined) errs.push(`種類「${k}」の場面が無い`);
+for (const k of ["intro", "hook", "points", "showcase", "end-logo", "end-url", "end-free"]) if (BEATS[k] === undefined) errs.push(`種類「${k}」の場面が無い`);
 const last = Math.max(...items.filter((i) => i.kind).map((i) => beat(i.t + i.len)));
 const tailBeat = TAIL.length ? Math.min(...TAIL.map((s) => s.beat)) : last;
 if (errs.length) { console.log("エディタの台本に足りないものがある:\n  " + errs.join("\n  ")); process.exit(1); }
