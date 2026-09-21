@@ -34,7 +34,12 @@
   - **2026-09-19 にフィルタ各社へドメインの評価（カテゴリ登録）を申請した**（利用者の操作）: ネットスター（au の「安心ネットフィルター」が
     使うデータベース。いちばん当たっている見込み）・トレンドマイクロ Site Safety Center・Cloudflare Radar・Norton Safe Web・McAfee。
     デジタルアーツ（i-FILTER）は一般向けの窓口が無く、未分類の URL は自動で調べられるので出していない。
-    **数日後に各社の確認ページで分類が付いたかを見る**（ネットスター https://category.netstar-inc.com/check/index.html など）。
+    **数日後に各社の確認ページで分類が付いたかを見る**（確認先は次の 5 つ。2026-09-21 に URL を確かめた）:
+    - ネットスター https://category.netstar-inc.com/check/index.html （URL を入れて「調べる」。**トップではなく確認したいページの URL** を入れる）
+    - トレンドマイクロ Site Safety Center https://global.sitesafety.trendmicro.com/ （Safe / Dangerous / Suspicious / Untested とカテゴリが出る）
+    - Norton Safe Web https://safeweb.norton.com/report/show?url=trackmento.com （フォームは https://safeweb.norton.com/ 。中身は JavaScript で描くので、取得ではなくブラウザで見る）
+    - McAfee / Trellix Customer URL Ticketing https://sitelookup.mcafee.com/ （素の取得は 403。ブラウザで開く）
+    - Cloudflare Radar https://radar.cloudflare.com/domains/domain/trackmento.com （同じく 403。ブラウザで開く）
     報告してくれた利用者（au・自宅 Wi-Fi）には X で返信済み
 - 実測: 36 曲でフラグメント 1,558 文字、**256 曲でも URL 全体 6,188 文字**（gzip がよく効く）。
   上限は `HANDOFF_MAX`（120 万文字）で、超えるなら引き継がずに移動だけする
