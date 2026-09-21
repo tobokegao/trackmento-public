@@ -11,7 +11,8 @@
   両立させるため。結果そのものは各サービスの公開情報
 - 起動後に `searchcache/` を一覧して索引をメモリに作る（`imgcache/` と同じやり方）。索引に無ければ R2 を
   見に行かないので、外れのたびに R2 へ 1 往復することはない
-- 期限は 6 日（`TTL`）。`scripts/r2_prune.py` が 7 日で消すので、それより短くしておく（画像と同じ関係）
+- 期限の上限は 14 日（`TTL`）。実際の期限はソースごとで、呼ぶ側が渡す ttl（`cache._search_ttl`）との短いほう。
+  `scripts/r2_prune.py` が 15 日で消すので、それより短くしておく（画像と同じ関係）
 - 書き込みは応答の後ろに回す（待たない）。落としても次に引き直すだけ
 """
 from __future__ import annotations
@@ -27,7 +28,7 @@ from typing import Any
 from backend import storage
 
 PREFIX = "searchcache/"
-TTL = 6 * 24 * 3600
+TTL = 14 * 24 * 3600         # 上限。ソースごとの期限は呼ぶ側の ttl（VocaDB だけ 14 日、ほかは 7 日）
 INDEX_MAX = 200_000          # 1 件 100B ほど。20 万件で 20MB
 TASKS_MAX = 32
 _INDEX: dict[str, float] = {}   # 鍵 → 書いた時刻

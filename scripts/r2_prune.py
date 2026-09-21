@@ -75,8 +75,8 @@ def main() -> int:
     ap.add_argument("--image-cache-hours", type=float, default=336.0,
                     help=f"{', '.join(IMAGE_PREFIXES)} を消すまでの時間数（既定 336 = 14 日）。"
                          "cache.R2_IMAGE_TTL（13 日）より長くしておく")
-    ap.add_argument("--search-cache-hours", type=float, default=168.0,
-                    help=f"{', '.join(SEARCH_PREFIXES)} を消すまでの時間数（既定 168 = 7 日）。索引の 6 日より長くしておく")
+    ap.add_argument("--search-cache-hours", type=float, default=360.0,
+                    help=f"{', '.join(SEARCH_PREFIXES)} を消すまでの時間数（既定 360 = 15 日）。索引の上限（14 日）より長くしておく")
     ap.add_argument("--apply", action="store_true", help="実際に削除する（無ければ数えるだけ）")
     ap.add_argument("--append", type=Path,
                     help="種類ごとの件数と容量を JSONL に 1 行足す（既定 metrics/r2.jsonl。運用ボードの元）")

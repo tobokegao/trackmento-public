@@ -220,7 +220,7 @@ _pv_cache: dict[tuple[str, str], tuple[float, str]] = {}   # (サービス, 動�
 # 検索結果と同じ仕組み（`searchcache`。鍵は HMAC で、中身に動画 ID や題は入らない）に、
 # 擬似ソース `vocadb-pv` / `vocadb-title` として置く。**見つからなかった分（空文字）も覚える**
 # （転載や未登録の動画のほうが多く、そちらこそ聞き直さない意味がある）
-R2_TTL = 6 * 24 * 3600
+R2_TTL = 14 * 24 * 3600   # 動画 ID と作者の対応は変わりにくいので、検索結果と同じ 14 日にした（2026-09-21）
 
 
 async def _remembered(kind: str, key: str) -> str | None:

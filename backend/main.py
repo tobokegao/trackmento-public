@@ -967,17 +967,30 @@ async def ads_txt() -> Response:
     return Response(body, media_type="text/plain", headers={"Cache-Control": "public, max-age=86400"})
 
 
+_ROBOTS_DISALLOW = ("/search", "/from-url", "/from-playlist", "/image-proxy", "/grids", "/shares",
+                    "/uploads", "/outputs", "/health", "/render", "/upload", "/share")
+# 共有ページ（`/s/<id>`）を名指しの相手にだけ断る（2026-09-21）。ページ自体は前から `noindex` なので
+# 検索結果には出ていないが、確かめるためのクロールは来続けていた（点検の 2 時間で検索ボットが 102 件、
+# `/s/` への要求の 70% が人以外）。30 日で消えるページなので索引される値打ちがそもそも無い。
+# **`User-agent: *` には入れない**。X などがリンクカードを作るための取得まで止まってしまう
+_ROBOTS_SHARE_DENY = "/s/"
+# 断る相手は、ログの UA 種別（`_UA_KINDS`）の「AI」「検索」と同じ顔ぶれにする（名前を 2 か所に書かない）。
+# ただし applebot は iMessage などのリンクカードにも使われるので外す（`applebot-extended` は AI 学習用なので残す）
+_ROBOTS_KEEP = ("applebot",)
+_ROBOTS_DENY_AGENTS = tuple(t for kind, tokens in _UA_KINDS if kind in ("AI", "検索")
+                            for t in tokens if t not in _ROBOTS_KEEP)
+
+
 @app.get("/robots.txt")
 async def robots(request: Request) -> Response:
     """トップは索引してよい。API・画像・共有の中身はクロール対象から外す"""
-    body = "\n".join([
-        "User-agent: *",
-        "Allow: /$",
-        "Disallow: /search", "Disallow: /from-url", "Disallow: /from-playlist", "Disallow: /image-proxy", "Disallow: /grids", "Disallow: /shares",
-        "Disallow: /uploads", "Disallow: /outputs", "Disallow: /health", "Disallow: /render", "Disallow: /upload", "Disallow: /share",
-        f"Sitemap: {base_url_for(request)}/sitemap.xml", "",
-    ])
-    return Response(body, media_type="text/plain", headers={"Cache-Control": "public, max-age=86400"})
+    common = [f"Disallow: {p}" for p in _ROBOTS_DISALLOW]
+    lines = ["User-agent: *", "Allow: /$", *common, ""]
+    # 名指しの相手は `*` のグループを見ないので、共通の分もここへ書き写す（robots.txt の決まり）
+    lines += [f"User-agent: {name}" for name in _ROBOTS_DENY_AGENTS]
+    lines += ["Allow: /$", *common, f"Disallow: {_ROBOTS_SHARE_DENY}", ""]
+    lines += [f"Sitemap: {base_url_for(request)}/sitemap.xml", ""]
+    return Response("\n".join(lines), media_type="text/plain", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/sitemap.xml")

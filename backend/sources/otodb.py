@@ -32,9 +32,29 @@ MAX_PAGES = 8   # ページングの頭打ち。240 件あればマスの上限�
 ROXY_CACHE = "roxy"
 _ID_RE = re.compile(r"^(?:(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$")
 
+# 配信元（Cloudflare）の一時的な不調は 1 回だけ引き直す（2026-09-21）。
+# 点検の 2 時間で 64 回中 5 回が 503 / 521 で落ち、そのたび検索結果から otoDB が丸ごと抜けていた。
+# 521 は「配信元が応答しない」の意味で、数百ミリ秒で戻ることが多い。長く粘ると利用者の待ちが伸びるので 1 回だけ
+RETRY_STATUS = frozenset({502, 503, 504, 521, 522, 524})
+RETRY_WAIT = 0.5
+
 # otoDB の CDN。URL に大きさを指定する仕組みが無く、常に 1280x720 / 約 245KB を返す。
 # 他の配信元のような clamp_size（URL の書き換え）ができないので、/image-proxy でサーバー側で縮める
 IMAGE_HOSTS = ("otodb.net",)
+
+
+async def _get(client: httpx.AsyncClient, url: str, params: dict) -> httpx.Response:
+    """otoDB の API への GET。`RETRY_STATUS` が返ったときだけ 1 回引き直す。
+
+    roxy（`roxy_fetch`）はここを通さない。プレイリストの穴埋めで 24 件まとめて呼ぶので、
+    配信元が落ちているときに要求を倍にしたくないのと、全体 10 秒で打ち切る側の待ちを増やさないため。
+    """
+    kw: dict = {"params": params, "headers": {"User-Agent": UA, "Accept": "application/json"}}
+    r = await client.get(url, **kw)
+    if r.status_code in RETRY_STATUS:
+        await asyncio.sleep(RETRY_WAIT)
+        r = await client.get(url, **kw)
+    return r
 
 
 def is_otodb_image(url: str) -> bool:
@@ -90,7 +110,7 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE, client: httpx.A
             params = {"query": query, "limit": PAGE}
             if page:
                 params["offset"] = page * PAGE
-            r = await client.get(SEARCH, params=params, headers={"User-Agent": UA, "Accept": "application/json"})
+            r = await _get(client, SEARCH, params)
             r.raise_for_status()
             body = r.json()
             got = body.get("items") or []
