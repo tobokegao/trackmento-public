@@ -1259,6 +1259,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
                  英語は語順が変わる（Add to everyone's grids）ので、前の空の span に applyI18n が "Add to " を入れる -->
             <div class="check check-sep"><input type="checkbox" id="opt-listed" aria-labelledby="listed-text"><span id="listed-text"><span id="listed-pre"></span><a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッド</a>に載せる</span></div>
           </div>
+          <button class="btn" type="button" id="trim-all-btn" title="曲名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">すべての曲名を短くする</button>
           <button class="btn" type="button" id="clear-btn" title="マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる">マスを全部外す</button>
         </div>
       </div>
@@ -1680,6 +1681,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "この並びだとマスが小さく、重ねた曲名が読めない大きさになるので、曲名は出しません。マスを減らすか、横に並べてください。": "The covers are too small in this layout for readable titles on top, so no titles will be drawn. Use fewer cells or put the list beside the grid.",
         "番号バッジ": "Number badges",
         "曲名の蛇足を外す": "Trim needless title text",
+        "すべての曲名を短くする": "Shorten all titles",
+        "曲名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
+        "短くする": "Shorten",
+        "短くできる曲名はありませんでした。": "No titles needed shortening.",
+        "{} マスの曲名・{} マスのアーティスト名を短くします。よろしいですか？": "This shortens {0} track names and {1} artist names. Are you sure?",
+        "{} マスの曲名・{} マスのアーティスト名を短くしました。": "Shortened {0} track names and {1} artist names.",
         "背景色": "Background",
         "カスタムカラー": "Custom colour",
         "色相": "Hue",
@@ -2104,7 +2111,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"),
-    ratioMsg: $("#ratio-msg"), optTitle: $("#opt-title"), listSeg: $("#list-seg"), listMsg: $("#list-msg"), optNumbers: $("#opt-numbers"), optTrim: $("#opt-trim"),
+    ratioMsg: $("#ratio-msg"), optTitle: $("#opt-title"), listSeg: $("#list-seg"), listMsg: $("#list-msg"), optNumbers: $("#opt-numbers"), optTrim: $("#opt-trim"), trimAllBtn: $("#trim-all-btn"),
     swatches: $("#swatches"), bgCustomBtn: $("#bg-custom-btn"), bgCustomPanel: $("#bg-custom-panel"), palImport: $("#pal-import"),
     hsvH: $("#hsv-h"), hsvS: $("#hsv-s"), hsvV: $("#hsv-v"), hsvHOut: $("#hsv-h-out"), hsvSOut: $("#hsv-s-out"), hsvVOut: $("#hsv-v-out"), hsvHex: $("#hsv-hex"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"), specMargin: $("#spec-margin"),
@@ -3087,14 +3094,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 外した直後のメッセージに「元に戻す」を付ける。次のメッセージで消える（＝そこまでは戻せる）
   // **取り消せない操作は確認してから**（利用者の要望、2026-09-17）。押したあとの「元に戻す」も残す
   const confirmModal = $("#confirm-modal");
-  let confirmYes = null;
-  function openConfirm(onYes) {
-    confirmYes = onYes; confirmModal.hidden = false; lockScroll();
+  let confirmYes = null, confirmBack = null;
+  /* 文言と「はい」の札を差し替えて使い回す（「マスを全部外す」と「すべての曲名を短くする」）。
+     閉じたあとは開いたボタンへフォーカスを戻す。**既定の文言は tr() の中に直接書く**
+     （定数に逃がすと scripts/check_i18n.py が「包み忘れ」と読む） */
+  function openConfirm(onYes, msg = null, yesLabel = null, back = null) {
+    $("#confirm-msg").textContent = msg || tr("マスとストックの曲を全部外します。よろしいですか？");
+    $("#confirm-yes").textContent = yesLabel || tr("全部外す");
+    confirmYes = onYes; confirmBack = back || els.clearBtn; confirmModal.hidden = false; lockScroll();
     $("#confirm-no").focus({ preventScroll: true });
   }
   function closeConfirm() {
     confirmYes = null; confirmModal.hidden = true; if (!sheetOpen()) unlockScroll();
-    els.clearBtn.focus({ preventScroll: true });
+    (confirmBack || els.clearBtn).focus({ preventScroll: true });
   }
   $("#confirm-no").addEventListener("click", closeConfirm);
   $("#confirm-backdrop").addEventListener("click", closeConfirm);
@@ -3112,6 +3124,33 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
     undo.addEventListener("click", () => {
       state.cells = before.cells; state.stash = before.stash; selected = null; target = null; renderGrid();
+      say(els.gridMsg, tr("戻しました。"));
+    });
+    els.gridMsg.append(" ", undo);
+  }
+  /* **刈った題をデータに書き戻す**（trimNames は表示だけを変えるので、手で直したい人のための操作）。
+     書き戻しておくと、編集パネルの入力欄が短い題になり、そこから直せる */
+  els.trimAllBtn.addEventListener("click", () => {
+    const next = state.cells.map((t) => {
+      if (!t) return t;
+      const [title, artist] = trimName(t.title || "", t.artist || "");
+      return title === t.title && artist === t.artist ? t : { ...t, title, artist };
+    });
+    const nT = next.filter((t, i) => t && t !== state.cells[i] && t.title !== state.cells[i].title).length;
+    const nA = next.filter((t, i) => t && t !== state.cells[i] && t.artist !== state.cells[i].artist).length;
+    if (!nT && !nA) { say(els.gridMsg, tr("短くできる曲名はありませんでした。")); return; }
+    openConfirm(() => trimAll(next, nT, nA),
+                tr`${nT} マスの曲名・${nA} マスのアーティスト名を短くします。よろしいですか？`,
+                tr("短くする"), els.trimAllBtn);
+  });
+  function trimAll(next, nT, nA) {
+    const before = state.cells.slice();
+    state.cells = next; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
+    say(els.gridMsg, tr`${nT} マスの曲名・${nA} マスのアーティスト名を短くしました。`);
+    const undo = document.createElement("button");
+    undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
+    undo.addEventListener("click", () => {
+      state.cells = before; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
       say(els.gridMsg, tr("戻しました。"));
     });
     els.gridMsg.append(" ", undo);
