@@ -176,6 +176,12 @@
           <p class="cap">曲名だけで引く・表記をそろえる・控えを R2 に置く、を入れた前後。<strong>回数はアクセス量に比例する</strong>ので、9/20 昼の 1,464 はアクセスが戻ったぶん。1 分あたり 1.0 回で、先方の目安「1 分に 2 回」の半分。</p>
           <div id="c-voca"></div>
         </div>
+        <div class="chart" id="storage-wrap" hidden>
+          <h3>R2 の使用量（GB）</h3>
+          <p class="cap">点線が無料枠の 10GB。<strong>種類の内訳が出るのは 09-21 から</strong>（毎日の掃除が数えた日）。それより前は Cloudflare の記録から引いた合計だけで、灰色の帯で出る。</p>
+          <div id="c-storage"></div>
+          <div class="legend" id="storage-legend"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -374,6 +380,8 @@
     shares: null, out_total: 147, client: { mb_busy: 1 }, img: { hit: 495, miss: 50, put: 20 },
     r2: { gb: 28.5, note: "無料 10GB ＋ 超過 18.5GB ＝ 月 $0.28", counted: "09-21 09:40 に一覧して数えた" }
   };
+  const FREE_GB = 10;              // R2 の無料枠。使用量の図に点線で出す
+  let STORAGE = [];                // [日付, 合計 GB, {種類: GB} または null]。db から来る
   let SERIES = [["09-12 16:00",9771,0.0],["09-12 16:01",9615,0.83],["09-12 16:02",9514,0.84],["09-12 19:10",12303,1.17],["09-12 19:27",1266,3.33],["09-12 21:13",20647,1.88],["09-12 21:50",19920,2.56],["09-12 22:27",18827,2.17],["09-12 22:29",18804,2.19],["09-13 00:33",18020,2.09],["09-13 00:37",17930,2.11],["09-13 00:40",17800,2.13],["09-13 02:43",9480,1.24],["09-13 03:28",7994,0.91],["09-13 07:22",4114,0.29],["09-13 08:15",4028,0.32],["09-13 10:45",6016,0.52],["09-13 12:51",6531,0.42],["09-13 13:42",6867,0.3],["09-13 13:56",6797,0.32],["09-13 21:00",8017,0.27],["09-13 21:22",8150,0.39],["09-14 00:10",9706,0.42],["09-14 01:25",11392,0.63],["09-14 01:29",11376,0.64],["09-14 01:56",10628,0.86],["09-14 05:55",3843,0.2],["09-14 08:26",5287,0.22],["09-14 09:15",6297,0.21],["09-14 13:38",6790,0.26],["09-14 14:08",6950,0.16],["09-14 15:15",7936,0.29],["09-14 18:29",8865,0.42],["09-14 20:37",14650,0.66],["09-14 21:59",21275,1.11],["09-14 23:30",21300,1.21],["09-15 04:27",8821,0.46],["09-15 05:06",7858,0.25],["09-15 08:12",7455,0.21],["09-15 09:49",8749,0.33],["09-15 11:59",9085,0.39],["09-15 12:57",11738,0.44],["09-15 14:01",13733,0.44],["09-15 19:45",20157,1.14],["09-15 20:52",22733,1.37],["09-15 23:38",31339,1.58],["09-16 02:06",18590,0.79],["09-16 06:27",5721,0.22],["09-16 06:30",5715,0.22],["09-16 09:03",9064,0.28],["09-16 09:27",8892,0.38],["09-16 12:34",10580,0.39],["09-16 16:14",15782,0.57],["09-16 16:45",13383,0.78],["09-16 19:17",18965,0.62],["09-16 22:16",31444,1.05],["09-17 00:08",37029,0.99],["09-17 02:58",13645,0.63],["09-17 06:08",8237,0.12],["09-17 09:03",14241,0.3],["09-20 07:41",3323,0.07],["09-20 08:41",3664,0.06],["09-20 11:42",6384,0.106],["09-20 14:00",6000,0.07],["09-20 16:37",6538,0.123]];
   let SHARES = [["09-11", 4287], ["09-12", 4184], ["09-13", 1773], ["09-14", 2560], ["09-15", 4387], ["09-16", 2806], ["09-17", 1995], ["09-18", 1428], ["09-19", 747]];
   let OUT_HOSTS = [
@@ -449,6 +457,69 @@
     });
     s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
     node.appendChild(s);
+  }
+
+  /* 積み上げの棒。rows = [[日付, 合計 GB, {種類: GB} または null], …]。
+     内訳が無い日（Cloudflare から引いた合計だけの日）は 1 本の灰色で描く。 */
+  const STACK_COLORS = { "共有": "#9d8ada", "画像キャッシュ": "#008bc7", "アップロード": "#e6b731", "その他": "#3fbd8b" };
+  const STACK_UNKNOWN = "#c9c8c4";
+  function stackChart(node, rows, opt) {
+    const W = 560, H = 190, L = 44, R = 8, T = 12, B = 30;
+    const max = niceMax(Math.max.apply(null, rows.map(r => r[1])) || 1);
+    const s = svgBox(W, H);
+    const bw = (W - L - R) / rows.length;
+    const y = v => T + (H - T - B) * (1 - v / max);
+    for (let g = 0; g <= 2; g++) {
+      const v = max * g / 2;
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1 }));
+      s.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, opt.fmt(v)));
+    }
+    const seen = new Set();
+    rows.forEach((r, i) => {
+      const w = Math.max(3, bw * 0.62), cx = L + bw * i + bw / 2;
+      const kinds = r[2];
+      let base = 0;
+      const parts = kinds
+        ? Object.keys(STACK_COLORS).filter(k => kinds[k]).map(k => [k, kinds[k]])
+        : [["記録のみ", r[1]]];
+      parts.forEach(([k, v]) => {
+        const top = base + v;
+        s.appendChild(el("rect", { x: cx - w / 2, y: y(top), width: w, height: Math.max(1, y(base) - y(top)), fill: STACK_COLORS[k] || STACK_UNKNOWN }));
+        base = top;
+        seen.add(k);
+      });
+    });
+    // 無料枠の線
+    if (opt.free && opt.free < max) {
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(opt.free), y2: y(opt.free), stroke: "#d93c22", "stroke-width": 1, "stroke-dasharray": "3 3" }));
+      s.appendChild(el("text", { x: W - R, y: y(opt.free) - 4, "text-anchor": "end", fill: "#d93c22", "font-size": 10.5 }, "無料枠 " + opt.free + "GB"));
+    }
+    s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
+    // 目盛りは詰まらない数だけ
+    const step = Math.max(1, Math.ceil(rows.length / 7));
+    rows.forEach((r, i) => {
+      if (i % step && i !== rows.length - 1) return;
+      const cx = L + bw * i + bw / 2;
+      s.appendChild(el("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: MUTED, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, r[0]));
+    });
+    node.appendChild(s);
+    return seen;
+  }
+
+  function drawStorage() {
+    const wrap = document.getElementById("storage-wrap");
+    if (!STORAGE.length) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    const box = document.getElementById("c-storage"), leg = document.getElementById("storage-legend");
+    box.textContent = ""; leg.textContent = "";
+    const seen = stackChart(box, STORAGE, { fmt: v => v.toFixed(0), free: FREE_GB });
+    seen.forEach(k => {
+      const sp = document.createElement("span");
+      const i = document.createElement("i");
+      i.style.background = STACK_COLORS[k] || STACK_UNKNOWN;
+      sp.append(i, document.createTextNode(k));
+      leg.appendChild(sp);
+    });
   }
 
   function drawCharts() {
@@ -648,6 +719,7 @@
     if (Array.isArray(m.series) && m.series.length) SERIES = m.series;
     if (Array.isArray(m.shares) && m.shares.length) SHARES = m.shares;
     if (Array.isArray(m.out) && m.out.length) OUT_HOSTS = m.out;
+    if (Array.isArray(m.storage)) STORAGE = m.storage;
     if (m.r2) LATEST.r2 = m.r2;
     drawAll();
   }
@@ -655,6 +727,7 @@
   function drawAll() {
     drawTiles();
     drawCharts();
+    drawStorage();
     drawOut();
     const n = SERIES.length;
     document.getElementById("series-count").textContent =

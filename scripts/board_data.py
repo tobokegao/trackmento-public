@@ -23,7 +23,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SERIES_PATH = ROOT / "metrics" / "series.jsonl"
-R2_PATH = ROOT / "metrics" / "r2.jsonl"      # 毎日の掃除（r2_prune.py --append）が書く
+R2_PATH = ROOT / "metrics" / "r2.jsonl"              # 毎日の掃除（r2_prune.py --append）が書く。種類ごとの内訳つき
+R2_HISTORY_PATH = ROOT / "metrics" / "r2_history.jsonl"   # scripts/r2_history.py が GraphQL から引く合計だけの履歴
+
+# 推移の図で使う種類のまとめ方。9 種類そのままだと帯が細かすぎて読めない
+KIND_GROUPS = [
+    ("共有", ("共有（本体画像）", "共有（カード用）", "共有（並び）")),
+    ("画像キャッシュ", ("imgcache/",)),
+    ("アップロード", ("uploads/",)),
+    ("その他", ("fonts/", "searchcache/", "listed/", "app/")),
+]
 
 FREE_GB = 10.0      # R2 の無料枠
 PER_GB = 0.015      # 超過 1GB あたりの月額（USD）
@@ -36,6 +45,8 @@ IMG_HOST = re.compile(
 
 def rows(path: Path) -> list[dict]:
     out = []
+    if not path.exists():
+        return out   # まだ 1 度も書かれていない記録（r2_history.jsonl など）は空として扱う
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -86,6 +97,36 @@ def build(data: list[dict], limit: int) -> dict:
     return {"latest": latest, "series": series, "out": out}
 
 
+def storage_series() -> list:
+    """R2 の使用量の推移。1 日 1 点で [日付, 合計 GB, {まとめた種類: GB} または None]。
+
+    元が 2 つある:
+      - `metrics/r2_history.jsonl` … GraphQL から引いた**合計だけ**の履歴（過去 31 日ぶん）
+      - `metrics/r2.jsonl` … 毎日の掃除が残す**種類ごとの内訳**（2026-09-21 から）
+    同じ日に両方あれば内訳のほうを採る（内訳の合計＝合計なので食い違わない）。
+    """
+    by_date: dict[str, tuple[float, dict | None]] = {}
+
+    for r in rows(R2_HISTORY_PATH):
+        d = str(r.get("date", ""))[:10]
+        if d:
+            by_date[d] = (r.get("bytes", 0) / 1024**3, None)
+
+    for r in rows(R2_PATH):
+        d = str(r.get("jst", ""))[:10]
+        if not d:
+            continue
+        kinds = r.get("kinds") or {}
+        grouped = {}
+        for label, members in KIND_GROUPS:
+            b = sum((kinds.get(m) or [0, 0])[1] for m in members)
+            if b:
+                grouped[label] = round(b / 1024**3, 3)
+        by_date[d] = (r.get("total_bytes", 0) / 1024**3, grouped or None)
+
+    return [[d[5:], round(gb, 2), kinds] for d, (gb, kinds) in sorted(by_date.items())]
+
+
 def r2_from_prune() -> dict | None:
     """毎日の掃除が残した `metrics/r2.jsonl` の最後の行から、R2 の使用量タイルを組む。
 
@@ -124,6 +165,9 @@ def main() -> None:
         r2 = {"gb": args.r2_gb, "note": args.r2_note, "counted": args.r2_counted}
     if r2:
         doc["r2"] = r2
+    storage = storage_series()
+    if storage:
+        doc["storage"] = storage
 
     text = json.dumps(doc, ensure_ascii=False, indent=2)
     if args.out:
