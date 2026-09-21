@@ -23,6 +23,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SERIES_PATH = ROOT / "metrics" / "series.jsonl"
+R2_PATH = ROOT / "metrics" / "r2.jsonl"      # 毎日の掃除（r2_prune.py --append）が書く
+
+FREE_GB = 10.0      # R2 の無料枠
+PER_GB = 0.015      # 超過 1GB あたりの月額（USD）
 
 # 画像を取りに行くホスト。ここに当たらないものは API への問い合わせ扱いにする。
 IMG_HOST = re.compile(
@@ -82,6 +86,29 @@ def build(data: list[dict], limit: int) -> dict:
     return {"latest": latest, "series": series, "out": out}
 
 
+def r2_from_prune() -> dict | None:
+    """毎日の掃除が残した `metrics/r2.jsonl` の最後の行から、R2 の使用量タイルを組む。
+
+    掃除はどのみちバケット全体を一覧するので、ここに相乗りすれば数え直しに Class A を足さずに済む。
+    ファイルがまだ無いとき（初回）は None を返し、呼び出し側が `--r2-gb` で渡す。
+    """
+    if not R2_PATH.exists():
+        return None
+    data = rows(R2_PATH)
+    if not data:
+        return None
+    last = data[-1]
+    gb = last.get("total_bytes", 0) / 1024**3
+    over = max(0.0, gb - FREE_GB)
+    kinds = last.get("kinds") or {}
+    shares = (kinds.get("共有（並び）") or [0])[0]       # 共有は .json を数える（画像は本体とカード用で 2 倍になる）
+    return {
+        "gb": round(gb, 1),
+        "note": f"無料 {FREE_GB:.0f}GB ＋ 超過 {over:.1f}GB ＝ 月 ${over * PER_GB:.2f}",
+        "counted": f"{last.get('jst', '')} JST の掃除で数えた（共有 {shares:,} 件）",
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, help="書き出し先。省略すると標準出力")
@@ -92,8 +119,11 @@ def main() -> None:
     args = ap.parse_args()
 
     doc = build(rows(SERIES_PATH), args.limit)
-    if args.r2_gb is not None:
-        doc["r2"] = {"gb": args.r2_gb, "note": args.r2_note, "counted": args.r2_counted}
+    r2 = r2_from_prune()
+    if args.r2_gb is not None:      # 手で渡したほうが強い
+        r2 = {"gb": args.r2_gb, "note": args.r2_note, "counted": args.r2_counted}
+    if r2:
+        doc["r2"] = r2
 
     text = json.dumps(doc, ensure_ascii=False, indent=2)
     if args.out:

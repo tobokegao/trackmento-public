@@ -21,7 +21,7 @@ on:
         default: "true"
 
 permissions:
-  contents: read
+  contents: write   # 種類ごとの件数を metrics/r2.jsonl に書き足すため
 
 jobs:
   prune:
@@ -43,8 +43,26 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           hours="${{ inputs.hours || '720' }}"
+          # --append で種類ごとの件数と容量を 1 行残す。掃除はどのみち全件を一覧するので、
+          # ここに相乗りすれば運用ボードの「R2 の使用量」に追加の Class A を払わずに済む
           if [ "${{ inputs.apply || 'true' }}" = "true" ]; then
-            python scripts/r2_prune.py --older-than-hours "$hours" --apply | tee -a "$GITHUB_STEP_SUMMARY"
+            python scripts/r2_prune.py --older-than-hours "$hours" --apply --append metrics/r2.jsonl | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            python scripts/r2_prune.py --older-than-hours "$hours" | tee -a "$GITHUB_STEP_SUMMARY"
+            python scripts/r2_prune.py --older-than-hours "$hours" --append metrics/r2.jsonl | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+
+      # 記録を残す（render-check.yml と同じやり方。metrics/ は buildFilter に無いのでデプロイは走らない）
+      - name: 記録を足す
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          test -s metrics/r2.jsonl || exit 0
+          git add metrics/r2.jsonl
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(metrics): R2 の内訳を 1 行足す [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase --autostash && git push && exit 0
+            sleep 5
+          done
+          echo "記録を push できなかった（次の掃除でまとめて入る）"
