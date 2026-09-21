@@ -173,7 +173,7 @@
         </div>
         <div class="chart">
           <h3>VocaDB へ聞いた回数（1 日換算）</h3>
-          <p class="cap">曲名だけで引く・表記をそろえる・控えを R2 に置く、を入れた前後。<strong>回数はアクセス量に比例する</strong>ので、9/20 昼の 1,464 はアクセスが戻ったぶん。1 分あたり 1.0 回で、先方の目安「1 分に 2 回」の半分。</p>
+          <p class="cap">曲名だけで引く・表記をそろえる・控えを R2 に置く、を入れた前後。<strong>回数はアクセス量に比例する</strong>ので、山はアクセスが戻ったぶん。多い日でも 1 分あたり 1.2 回で、先方の目安「1 分に 2 回」の内側。</p>
           <div id="c-voca"></div>
         </div>
         <div class="chart" id="storage-wrap" hidden>
@@ -196,23 +196,23 @@
   </section>
 
   <section class="win">
-    <div class="bar"><h2>外部サービスの使い方と上限</h2><span class="count">robots.txt は 7 サイト実取得で確認</span></div>
+    <div class="bar"><h2>外部サービスの使い方と上限</h2><span class="count" id="svc-src">robots.txt は 7 サイト実取得で確認</span></div>
     <div class="body scroll">
       <table>
-        <thead><tr><th>相手</th><th>うちの使い方</th><th>公式の上限</th><th>実測（1 日）</th><th>状態</th></tr></thead>
+        <thead><tr><th>相手</th><th>うちの使い方</th><th>公式の上限</th><th>実測（1 日・多い日）</th><th>状態</th></tr></thead>
         <tbody>
-          <tr><td><span class="who">Apple iTunes Search</span><span class="note">検索・lookup</span></td><td>ブラウザから直接。サーバーは URL を貼ったときの補完・CLI・API だけ</td><td>約 20 回/分<span class="note">1 日の上限は明記なし・キャッシュ推奨</span></td><td class="nums">264</td><td><span class="pill ok">余裕</span></td></tr>
-          <tr><td><span class="who">MusicBrainz</span><span class="note">iTunes で 0 件のとき</span></td><td>サーバーは 1 req/秒の錠前。ブラウザ直は利用者ごとの IP</td><td>1 回/秒・IP ごと<span class="note">連絡先入り UA 必須・超過は 100% 拒否</span></td><td class="nums">0</td><td><span class="pill ok">守れている</span></td></tr>
-          <tr><td><span class="who">Cover Art Archive</span><span class="note">ジャケット</span></td><td>coverartarchive.org 経由のみ（転送先を直に叩かない）</td><td>「制限は無い」と明記</td><td class="nums">—</td><td><span class="pill ok">守れている</span></td></tr>
-          <tr><td><span class="who">VocaDB</span><span class="note">ボカロ検索・作者の補完</span></td><td>曲名だけで引く／表記をそろえる／控えを R2 に 6 日／同時 2 本・0.5 秒間隔</td><td>1 日数千件は事前の許可<span class="note">返答「1 分に 2 回なら問題ない。間隔を空けてほしい」</span></td><td class="nums">1,464<span class="note">1 分 1.0 回</span></td><td><span class="pill ok">確認済み</span></td></tr>
-          <tr><td><span class="who">otoDB / roxy</span><span class="note">音MAD・消えた動画</span></td><td>同時 3・1 リスト 24 件・結果を 1 日覚える</td><td>数字の明記なし<span class="note">開発者から「この量なら問題ない」と返答済み</span></td><td class="nums">1,668<span class="note">＋ 画像 864</span></td><td><span class="pill ok">確認済み</span></td></tr>
-          <tr><td><span class="who">YouTube</span><span class="note">単体は oEmbed／再生リスト</span></td><td>再生リストは Data API に移した（<code>playlistItems.list</code>）。鍵は 9/20 に投入済み</td><td>1 日 10,000 ユニット<span class="note">読み取りは 1 件 1 ユニット</span></td><td class="nums">192<span class="note">＋ 画像 3,852／API は 1 リスト 1〜10 ユニット</span></td><td><span class="pill ok">鍵あり</span></td></tr>
-          <tr><td><span class="who">ニコニコ動画</span><span class="note">getthumbinfo・マイリスト</span></td><td>人が貼ったときだけ 1 件。結果は 1 週間覚える</td><td>明記なし<span class="note">robots.txt の Disallow: /api/ が getthumbinfo を覆う</span></td><td class="nums">168<span class="note">＋ 画像 4,008</span></td><td><span class="pill">様子見</span></td></tr>
-          <tr><td><span class="who">Bandcamp</span><span class="note">曲・アルバムのページ</span></td><td>公開ページを 1 回・1 週間キャッシュ・名乗りは trackmento</td><td>明記なし<span class="note">AUP が scraper を名指しで禁止・公開 API 無し</span></td><td class="nums">0<span class="note">画像 240 のみ</span></td><td><span class="pill wait">返答待ち</span></td></tr>
-          <tr><td><span class="who">Spotify</span><span class="note">曲・アルバム</span></td><td>公式 oEmbed のみ（曲名とジャケット 300px。アーティスト名なし）</td><td>明記なし<span class="note">Web API は開発者登録に Premium が必須（2026-02〜）</span></td><td class="nums">0</td><td><span class="pill fix">縮小して対応</span></td></tr>
-          <tr><td><span class="who">SoundCloud</span><span class="note">曲</span></td><td>公式 oEmbed のみ。セットの展開はやめた</td><td>メタデータは明記なし<span class="note">§10 が scraping 禁止・§01 が client ID 必須</span></td><td class="nums">0<span class="note">画像 252 のみ</span></td><td><span class="pill fix">縮小して対応</span></td></tr>
-          <tr><td><span class="who">bilibili</span><span class="note">—</span></td><td>対応をやめた。手入力＋リンク先 URL で並べられる</td><td>事前の書面許可が必要<span class="note">api.bilibili.com は robots.txt で全面 Disallow</span></td><td class="nums">0<span class="note">画像 144 のみ</span></td><td><span class="pill stop">対応終了</span></td></tr>
-          <tr><td><span class="who">Discogs</span><span class="note">—</span></td><td>本番では未使用（トークン未設定）</td><td>認証あり 60 回/分<span class="note">画像は Restricted Data・6 時間ルール</span></td><td class="nums">0</td><td><span class="pill">未使用</span></td></tr>
+          <tr><td><span class="who">Apple iTunes Search</span><span class="note">検索・lookup</span></td><td>ブラウザから直接。サーバーは URL を貼ったときの補完・CLI・API だけ</td><td>約 20 回/分<span class="note">1 日の上限は明記なし・キャッシュ推奨</span></td><td class="nums" data-svc="itunes" data-svc-note="ブラウザ直は数えない">264</td><td><span class="pill ok">余裕</span></td></tr>
+          <tr><td><span class="who">MusicBrainz</span><span class="note">iTunes で 0 件のとき</span></td><td>サーバーは 1 req/秒の錠前。ブラウザ直は利用者ごとの IP</td><td>1 回/秒・IP ごと<span class="note">連絡先入り UA 必須・超過は 100% 拒否</span></td><td class="nums" data-svc="musicbrainz" data-svc-note="ブラウザ直は数えない">0</td><td><span class="pill ok">守れている</span></td></tr>
+          <tr><td><span class="who">Cover Art Archive</span><span class="note">ジャケット</span></td><td>coverartarchive.org 経由のみ（転送先を直に叩かない）</td><td>「制限は無い」と明記</td><td class="nums" data-svc="coverart">0</td><td><span class="pill ok">守れている</span></td></tr>
+          <tr><td><span class="who">VocaDB</span><span class="note">ボカロ検索・作者の補完</span></td><td>曲名だけで引く／表記をそろえる／控えを R2 に 14 日／同時 2 本・0.5 秒間隔</td><td>1 日数千件は事前の許可<span class="note">返答「1 分に 2 回なら問題ない。間隔を空けてほしい」</span></td><td class="nums" data-svc="vocadb" data-svc-rate="1">1,728</td><td><span class="pill ok">確認済み</span></td></tr>
+          <tr><td><span class="who">otoDB / roxy</span><span class="note">音MAD・消えた動画</span></td><td>同時 3・1 リスト 24 件・結果を 1 日覚える</td><td>数字の明記なし<span class="note">開発者から「この量なら問題ない」と返答済み</span></td><td class="nums" data-svc="otodb">1,668</td><td><span class="pill ok">確認済み</span></td></tr>
+          <tr><td><span class="who">YouTube</span><span class="note">単体は oEmbed／再生リスト</span></td><td>再生リストは Data API に移した（<code>playlistItems.list</code>）。鍵は 9/20 に投入済み</td><td>1 日 10,000 ユニット<span class="note">読み取りは 1 件 1 ユニット</span></td><td class="nums" data-svc="youtube" data-svc-note="API は 1 リスト 1〜10 ユニット">2,496</td><td><span class="pill ok">鍵あり</span></td></tr>
+          <tr><td><span class="who">ニコニコ動画</span><span class="note">getthumbinfo・マイリスト</span></td><td>人が貼ったときだけ 1 件。結果は 1 週間覚える</td><td>明記なし<span class="note">robots.txt の Disallow: /api/ が getthumbinfo を覆う</span></td><td class="nums" data-svc="niconico">384</td><td><span class="pill">様子見</span></td></tr>
+          <tr><td><span class="who">Bandcamp</span><span class="note">曲・アルバムのページ</span></td><td>公開ページを 1 回・1 週間キャッシュ・名乗りは trackmento</td><td>明記なし<span class="note">AUP が scraper を名指しで禁止・公開 API 無し</span></td><td class="nums" data-svc="bandcamp">0</td><td><span class="pill wait">返答待ち</span></td></tr>
+          <tr><td><span class="who">Spotify</span><span class="note">曲・アルバム</span></td><td>公式 oEmbed のみ（曲名とジャケット 300px。アーティスト名なし）</td><td>明記なし<span class="note">Web API は開発者登録に Premium が必須（2026-02〜）</span></td><td class="nums" data-svc="spotify">432</td><td><span class="pill fix">縮小して対応</span></td></tr>
+          <tr><td><span class="who">SoundCloud</span><span class="note">曲</span></td><td>公式 oEmbed のみ。セットの展開はやめた</td><td>メタデータは明記なし<span class="note">§10 が scraping 禁止・§01 が client ID 必須</span></td><td class="nums" data-svc="soundcloud">108</td><td><span class="pill fix">縮小して対応</span></td></tr>
+          <tr><td><span class="who">bilibili</span><span class="note">—</span></td><td>対応をやめた。手入力＋リンク先 URL で並べられる</td><td>事前の書面許可が必要<span class="note">api.bilibili.com は robots.txt で全面 Disallow</span></td><td class="nums" data-svc="bilibili">0</td><td><span class="pill stop">対応終了</span></td></tr>
+          <tr><td><span class="who">Discogs</span><span class="note">—</span></td><td>本番では未使用（トークン未設定）</td><td>認証あり 60 回/分<span class="note">画像は Restricted Data・6 時間ルール</span></td><td class="nums" data-svc="discogs">0</td><td><span class="pill">未使用</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -329,7 +329,7 @@
           <dl>
             <dt>共有画像</dt><dd>R2・30 日（<code class="cmd">r2_prune.py</code>）。24,649 件・23.2GB（本体 20.0 ＋ カード用 3.2）</dd>
             <dt>画像キャッシュ</dt><dd>R2 14 日 ／ SQLite の索引 13 日。133,621 件・4.7GB</dd>
-            <dt>検索結果の控え</dt><dd>R2 7 日・索引は 6 日（鍵は HMAC・語は残さない）。2,685 件</dd>
+            <dt>検索結果の控え</dt><dd>R2 15 日・期限は VocaDB だけ 14 日、ほかは 7 日（鍵は HMAC・語は残さない）。2,685 件</dd>
             <dt>並び</dt><dd>ブラウザの localStorage が主・サーバーは控え</dd>
             <dt>cache.sqlite3</dt><dd>デプロイのたびに消える</dd>
           </dl>
@@ -385,6 +385,15 @@
   let STORAGE = [];                // [日付, 合計 GB, {種類: GB} または null]。db から来る
   let SERIES = [["09-12 16:00",9771,0.0],["09-12 16:01",9615,0.83],["09-12 16:02",9514,0.84],["09-12 19:10",12303,1.17],["09-12 19:27",1266,3.33],["09-12 21:13",20647,1.88],["09-12 21:50",19920,2.56],["09-12 22:27",18827,2.17],["09-12 22:29",18804,2.19],["09-13 00:33",18020,2.09],["09-13 00:37",17930,2.11],["09-13 00:40",17800,2.13],["09-13 02:43",9480,1.24],["09-13 03:28",7994,0.91],["09-13 07:22",4114,0.29],["09-13 08:15",4028,0.32],["09-13 10:45",6016,0.52],["09-13 12:51",6531,0.42],["09-13 13:42",6867,0.3],["09-13 13:56",6797,0.32],["09-13 21:00",8017,0.27],["09-13 21:22",8150,0.39],["09-14 00:10",9706,0.42],["09-14 01:25",11392,0.63],["09-14 01:29",11376,0.64],["09-14 01:56",10628,0.86],["09-14 05:55",3843,0.2],["09-14 08:26",5287,0.22],["09-14 09:15",6297,0.21],["09-14 13:38",6790,0.26],["09-14 14:08",6950,0.16],["09-14 15:15",7936,0.29],["09-14 18:29",8865,0.42],["09-14 20:37",14650,0.66],["09-14 21:59",21275,1.11],["09-14 23:30",21300,1.21],["09-15 04:27",8821,0.46],["09-15 05:06",7858,0.25],["09-15 08:12",7455,0.21],["09-15 09:49",8749,0.33],["09-15 11:59",9085,0.39],["09-15 12:57",11738,0.44],["09-15 14:01",13733,0.44],["09-15 19:45",20157,1.14],["09-15 20:52",22733,1.37],["09-15 23:38",31339,1.58],["09-16 02:06",18590,0.79],["09-16 06:27",5721,0.22],["09-16 06:30",5715,0.22],["09-16 09:03",9064,0.28],["09-16 09:27",8892,0.38],["09-16 12:34",10580,0.39],["09-16 16:14",15782,0.57],["09-16 16:45",13383,0.78],["09-16 19:17",18965,0.62],["09-16 22:16",31444,1.05],["09-17 00:08",37029,0.99],["09-17 02:58",13645,0.63],["09-17 06:08",8237,0.12],["09-17 09:03",14241,0.3],["09-20 07:41",3323,0.07],["09-20 08:41",3664,0.06],["09-20 11:42",6384,0.106],["09-20 14:00",6000,0.07],["09-20 16:37",6538,0.123]];
   let SHARES = [["09-11", 4287], ["09-12", 4184], ["09-13", 1773], ["09-14", 2560], ["09-15", 4387], ["09-16", 2806], ["09-17", 1995], ["09-18", 1428], ["09-19", 747]];
+  /* 外部サービスの表の実測。board_data.py の services がそのまま入る（相手ごと・1 日換算の多い日の値）。
+     数字を手で書くと、いつの値か分からなくなる（iTunes の 264 は 14 回の点検のうち 1 回だけ出た値だった）。 */
+  let SERVICES = { of: 14, from: "09-20 08:41", to: "09-21 12:22", peak: {
+    itunes: { api: 264, img: 0, seen: 1 }, vocadb: { api: 1728, img: 0, seen: 14 },
+    otodb: { api: 1668, img: 864, seen: 14 }, youtube: { api: 2496, img: 9696, seen: 14 },
+    niconico: { api: 384, img: 4008, seen: 14 }, bandcamp: { api: 0, img: 240, seen: 6 },
+    spotify: { api: 432, img: 1452, seen: 6 }, soundcloud: { api: 108, img: 372, seen: 14 },
+    bilibili: { api: 0, img: 264, seen: 12 }
+  } };
   let OUT_HOSTS = [
     ["nicovideo.cdn.nimg.jp", 334, "img"], ["i.ytimg.com", 321, "img"], ["otodb.net", 139, "api"],
     ["vocadb.net", 122, "api"], ["cdn.otodb.net", 72, "img"], ["itunes.apple.com", 22, "api"],
@@ -537,7 +546,9 @@
       color: "#e6b731", fmt: v => v.toFixed(1), mark: gzip > 0 ? gzip : null, markColor: "#d93c22", markText: "gzip を入れた"
     });
     barChart(document.getElementById("c-share"), SHARES, { color: "#9d8ada", fmt: k });
-    barChart(document.getElementById("c-voca"), [["直す前", 2000, "#d93c22"], ["9/20 朝", 336, "#3fbd8b"], ["9/20 昼", 1464, "#3fbd8b"], ["目安", 2880, "#d8d7d3"]], { color: "#008bc7", fmt: k });
+    /* いまの棒だけ db の実測（多い日）から取る。手で書くと、次の点検で古くなる */
+    const vocaNow = ((SERVICES.peak || {}).vocadb || {}).api || 0;
+    barChart(document.getElementById("c-voca"), [["直す前", 2000, "#d93c22"], ["9/20 朝", 336, "#3fbd8b"], ["いま", vocaNow, "#3fbd8b"], ["目安", 2880, "#d8d7d3"]], { color: "#008bc7", fmt: k });
   }
 
   /* いまの状況のタイル。数字は LATEST（db の board/metrics で上書きされる）から組む。 */
@@ -662,6 +673,32 @@
 
   /* `when` が YYYY-MM-DD なら残り日数にして返す。それ以外の文字（「返答待ち」など）はそのまま。
      **ページが開かれるたびに計算する**ので、私（Claude）が更新しなくても期限切れは赤くなる。 */
+  /* 外部サービスの表の実測列。数字は db（board/metrics の services）から来る。
+     一度も出ていない相手（MusicBrainz・Cover Art Archive・Discogs）は 0 のまま。
+     **MusicBrainz と iTunes はブラウザから直接引く**ので、ここに出るのはサーバーから出たぶんだけ。 */
+  function drawServices() {
+    const peak = (SERVICES && SERVICES.peak) || {};
+    document.querySelectorAll("td[data-svc]").forEach(function (td) {
+      const got = peak[td.dataset.svc] || { api: 0, img: 0, seen: 0 };
+      const notes = [];
+      if (got.img) notes.push("＋ 画像 " + got.img.toLocaleString());
+      if (td.dataset.svcRate && got.api) notes.push("1 分 " + (got.api / 1440).toFixed(1) + " 回");
+      if (td.dataset.svcNote) notes.push(td.dataset.svcNote);
+      td.textContent = got.api.toLocaleString();
+      if (notes.length) {
+        const n = document.createElement("span");
+        n.className = "note";
+        n.textContent = notes.join("・");
+        td.appendChild(n);
+      }
+    });
+    const src = document.getElementById("svc-src");
+    if (src && SERVICES && SERVICES.of) {
+      src.textContent = "実測は点検 " + SERVICES.of + " 回（" + SERVICES.from.slice(0, 5) + "〜"
+        + SERVICES.to.slice(0, 5) + "）のうち多い日・サーバーから出たぶんだけ";
+    }
+  }
+
   function dueLabel(when) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(when || "");
     if (!m) return { text: when, soon: when === "今日" };
@@ -774,6 +811,7 @@
     if (Array.isArray(m.series) && m.series.length) SERIES = m.series;
     if (Array.isArray(m.shares) && m.shares.length) SHARES = m.shares;
     if (Array.isArray(m.out) && m.out.length) OUT_HOSTS = m.out;
+    if (m.services && m.services.peak) SERVICES = m.services;
     if (Array.isArray(m.storage)) STORAGE = m.storage;
     if (Array.isArray(m.watch)) WATCH = m.watch;
     if (m.r2) LATEST.r2 = m.r2;
@@ -786,6 +824,7 @@
     drawCharts();
     drawStorage();
     drawOut();
+    drawServices();
     const n = SERIES.length;
     document.getElementById("series-count").textContent =
       "点検の記録 metrics/series.jsonl から（" + n + " 回ぶん）";

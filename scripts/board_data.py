@@ -12,6 +12,7 @@
   latest … いちばん新しい点検 1 回ぶん（タイルの元）
   series … 推移の図の元。窓の長さが違う回は 2 時間に直す
   out    … 外へ出した要求のホスト別。画像かどうかで色を分ける
+  services … 相手ごとの「1 日に直すと何回か」（多い日の値）。外部サービスの表の実測列
   r2     … R2 の使用量。--r2-gb を渡したときだけ入れる（series.jsonl には無いので手で数える）
 """
 from __future__ import annotations
@@ -41,6 +42,25 @@ PER_GB = 0.015      # 超過 1GB あたりの月額（USD）
 IMG_HOST = re.compile(
     r"ytimg|nimg\.jp|sndcdn|bcbits|hdslb|cdn\.otodb|coverartarchive|mzstatic|scdn\.co|i\.scdn"
 )
+
+# 「外部サービスの使い方と上限」の表に出す実測。相手ごとにドメインをまとめる（2026-09-21）。
+# 以前は表の数字を手で書いていて、いつの値か分からなくなっていた（iTunes の 264 は
+# 14 回の点検のうち 1 回だけ出た値だった）。ここから db に入れて、表はそれを読む。
+# 画像か API かは `IMG_HOST` が分ける（cdn.otodb.net と otodb.net のように同じ相手で分かれる）
+SERVICE_DOMAINS = {
+    "itunes": ("itunes.apple.com", "mzstatic.com"),
+    "musicbrainz": ("musicbrainz.org",),
+    "coverart": ("coverartarchive.org",),
+    "vocadb": ("vocadb.net",),
+    "otodb": ("otodb.net",),
+    "youtube": ("youtube.com", "ytimg.com", "googleapis.com"),
+    "niconico": ("nicovideo.jp", "nimg.jp"),
+    "bandcamp": ("bandcamp.com", "bcbits.com"),
+    "spotify": ("spotify.com", "scdn.co", "spotifycdn.com"),
+    "soundcloud": ("soundcloud.com", "sndcdn.com"),
+    "bilibili": ("bilibili.com", "hdslb.com"),
+    "discogs": ("discogs.com",),
+}
 
 
 def rows(path: Path) -> list[dict]:
@@ -96,6 +116,52 @@ def build(data: list[dict], limit: int) -> dict:
         "srch": last.get("srch") or {},
     }
     return {"latest": latest, "series": series, "out": out}
+
+
+def _service_of(host: str) -> str | None:
+    """ホスト名から相手を決める。いちばん長く一致したドメインを採る
+    （`cdn.otodb.net` は `otodb.net` に、`i.ytimg.com` は `ytimg.com` に当たる）。"""
+    h = host.lower()
+    best: tuple[str, int] | None = None
+    for name, domains in SERVICE_DOMAINS.items():
+        for d in domains:
+            if (h == d or h.endswith("." + d)) and (best is None or len(d) > best[1]):
+                best = (name, len(d))
+    return best[0] if best else None
+
+
+def services(data: list[dict]) -> dict | None:
+    """相手ごとの「1 日に直すと何回か」。表の実測列に出す。
+
+    **多い日の値（最大）を出す。** 上限を守れているかを見る表なので、平均ではなくピークで比べる。
+    `out`（外へ出した要求）は 2026-09-20 に入った記録なので、それが空の回は数に入れない。
+    """
+    seen = [r for r in data if r.get("out")]
+    if not seen:
+        return None
+    peak: dict[str, dict[str, float]] = {}
+    for r in seen:
+        per_day = 24 / float(r.get("hours") or 2)
+        here: dict[str, dict[str, float]] = {}
+        for host, n in r["out"].items():
+            name = _service_of(host)
+            if not name:
+                continue
+            kind = "img" if IMG_HOST.search(host) else "api"
+            here.setdefault(name, {"api": 0.0, "img": 0.0})[kind] += n * per_day
+        for name, got in here.items():
+            cur = peak.setdefault(name, {"api": 0.0, "img": 0.0, "seen": 0})
+            cur["api"] = max(cur["api"], got["api"])
+            cur["img"] = max(cur["img"], got["img"])
+            if got["api"] or got["img"]:
+                cur["seen"] += 1
+    return {
+        "of": len(seen),
+        "from": str(seen[0].get("jst", ""))[5:],
+        "to": str(seen[-1].get("jst", ""))[5:],
+        "peak": {k: {"api": round(v["api"]), "img": round(v["img"]), "seen": int(v["seen"])}
+                 for k, v in sorted(peak.items())},
+    }
 
 
 def img_index_max() -> int:
@@ -248,6 +314,9 @@ def main() -> None:
     storage = storage_series()
     if storage:
         doc["storage"] = storage
+    svc = services(rows(SERIES_PATH))
+    if svc:
+        doc["services"] = svc
     doc["watch"] = watch_items(doc["latest"])
 
     text = json.dumps(doc, ensure_ascii=False, indent=2)

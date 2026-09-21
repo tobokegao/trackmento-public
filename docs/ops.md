@@ -220,7 +220,14 @@
     （公式 SDK の一覧にも無い）
   - ボードの元は `scripts/board/index.html`。**db が読めないときのために作り付けの控えを持っている**ので、
     見た目を直したときはそちらも一度は新しい数字にしておく（控えが古いと、読めなかったときだけ古い数字が出る）
-  - 文章（待っていること・外部サービスの表・手順）は db に入れていない。変えるときは
+  - **外部サービスの表の実測列は db から来る**（2026-09-21、`board_data.py` の `services` / `SERVICE_DOMAINS` と
+    ボード側の `drawServices`）。相手ごとに 1 日換算の**多い日の値**（上限を守れているかを見る表なので平均ではなくピーク）。
+    以前は手で書いていて、いつの値か分からなくなっていた（iTunes の「264」は 14 回の点検のうち 1 回だけ出た値だった）。
+    表の行には `data-svc` を付けてあり、名前は `SERVICE_DOMAINS` の鍵と合わせる。
+    **`out` の記録は 2026-09-20 に入った**ので、それ以前の点検（`series.jsonl` の 61 行）は `out` が空。数に入れない。
+    **`musicbrainz.org` と `coverartarchive.org` は 1 度も出ない**。MusicBrainz はブラウザから直接引く（利用者の IP から出る）ので、
+    サーバーのログに出ないのが正しい。iTunes も大半はブラウザ直で、ここに出るのは URL を貼ったときの補完・CLI・API だけ
+  - 文章（待っていること・手順）は db に入れていない。変えるときは
     `scripts/board/index.html` を直して `Artifact` の publish で同じ URL に出し直す
 
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
