@@ -743,6 +743,11 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   min-width: min(100%, 16rem);
 }
 .grid[data-numbers="off"] .num { display: none; }
+/* アーティスト名の候補は縦に積む。**名前が長いので横並びにしない**（編集パネルの幅から
+   はみ出して右が切れる）。ボタンの中でも折り返す */
+#e-origin-seg { display: flex; flex-direction: column; gap: 6px; }
+#e-origin-seg .btn { width: 100%; text-align: left; white-space: normal; word-break: break-word; }
+#e-origin-field .note { margin-bottom: 6px; }
 /* `hidden` を付けた段・注記を確実に隠す。`.seg { display: flex }` のような具体的な指定が
    `hidden` の既定（display: none）に勝つので、明示的に打ち消す */
 .seg[hidden], .note[hidden], .field[hidden] { display: none; }
@@ -1174,6 +1179,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <div class="field"><label for="e-artist">アーティスト名</label><input class="input" id="e-artist" type="text" autocomplete="off" maxlength="120"></div>
         </div>
         <p class="editor-meta" id="editor-meta"></p>
+        <div class="field" id="e-origin-field" hidden>
+          <!-- 転載元（概要欄から分かったとき）と、ニコニコで探した古い投稿の候補 -->
+          <p class="note" id="e-origin-note"></p>
+          <div class="seg" id="e-origin-seg" role="group" aria-label="アーティスト名の候補"></div>
+          <button class="btn" type="button" id="e-origin-find">元の投稿を探す</button>
+          <p class="msg" id="e-origin-msg" role="status" aria-live="polite"></p>
+        </div>
         <div class="field" id="e-fit-field" hidden>
           <label>このマスの絵の入れ方</label>
           <div class="seg" id="e-fit-seg" role="radiogroup" aria-label="このマスの絵の入れ方">
@@ -1723,6 +1735,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "この並びだとマスが小さく、重ねた曲名が読めない大きさになるので、曲名は出しません。マスを減らすか、横に並べてください。": "The covers are too small in this layout for readable titles on top, so no titles will be drawn. Use fewer cells or put the list beside the grid.",
         "番号バッジ": "Number badges",
         "曲名の蛇足を外す": "Trim needless title text",
+        "アーティスト名の候補": "Artist name suggestions",
+        "アーティスト名の候補:": "Artist name suggestions:",
+        "元の投稿を探す": "Find the original post",
+        "アーティスト名を「{}」にしました。": "Set the artist name to “{0}”.",
+        "チャンネル名の可能性があります。": "This may be a channel name.",
+        "ニコニコ動画で探しています…": "Searching niconico…",
+        "ニコニコ動画で見つかった古い投稿（古い順）:": "Older posts found on niconico (oldest first):",
+        "同じ題の古い投稿は見つかりませんでした。": "No older post with the same title was found.",
+        "探せませんでした。しばらくしてからもう一度お試しください。": "The search failed. Please try again in a little while.",
+        "転載元 {}": "Reposted from {0}",
         "マスの形": "Cell shape",
         "正方形": "Square",
         "横長 16:9": "Wide 16:9",
@@ -2171,6 +2193,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     ratioSeg: $("#ratio-seg"),
     ratioMsg: $("#ratio-msg"), optTitle: $("#opt-title"), listSeg: $("#list-seg"), listMsg: $("#list-msg"), optNumbers: $("#opt-numbers"), optTrim: $("#opt-trim"), trimAllBtn: $("#trim-all-btn"), cellRatioSeg: $("#cell-ratio-seg"), cellFitSeg: $("#cell-fit-seg"),
     cellFitNote: $("#cell-fit-note"), eFitField: $("#e-fit-field"), eFitSeg: $("#e-fit-seg"),
+    eOriginField: $("#e-origin-field"), eOriginNote: $("#e-origin-note"), eOriginSeg: $("#e-origin-seg"),
+    eOriginFind: $("#e-origin-find"), eOriginMsg: $("#e-origin-msg"),
     swatches: $("#swatches"), bgCustomBtn: $("#bg-custom-btn"), bgCustomPanel: $("#bg-custom-panel"), palImport: $("#pal-import"),
     hsvH: $("#hsv-h"), hsvS: $("#hsv-s"), hsvV: $("#hsv-v"), hsvHOut: $("#hsv-h-out"), hsvSOut: $("#hsv-s-out"), hsvVOut: $("#hsv-v-out"), hsvHex: $("#hsv-hex"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"), specMargin: $("#spec-margin"),
@@ -3004,6 +3028,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (document.activeElement !== els.eTitleIn) els.eTitleIn.value = t.title;
     if (document.activeElement !== els.eArtistIn) els.eArtistIn.value = t.artist;
     setSeg(els.eFitSeg, t.fit || "");   // このマスだけの入れ方（空なら全体に従う）
+    renderOriginBox(t);
     els.eMeta.innerHTML = "";
     const parts = [];
     if (t.album) parts.push(tr`アルバム: ${t.album}`);
@@ -3014,6 +3039,80 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
     if (!parts.length && !t.external_url) els.eMeta.textContent = tr("曲名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。");
   }
+  /* ---- アーティスト名の候補（転載元） ---- */
+  /* **チャンネル名っぽいか**。宣伝の文句か「公式チャンネル」などを含むときだけ、題からの候補も出す。
+     絞らないと【魂音泉】（サークル名）や【ハルトマンの妖怪少女】（原曲名）が全マスで候補に出る */
+  const CHANNELISH = /公式|Official|Channel|チャンネル/i;
+  const looksChannel = (a) => CHANNELISH.test(a || "") || TRIM_PROMO.test(a || "");
+
+  /* 題の中の名前（「/」区切りと【】の中身）を候補にする。刈り込みを通したもの */
+  function titleCandidates(t) {
+    const out = [];
+    const push = (v) => { const x = trimEdge(trimName(v, "")[0]); if (trimOk(x) && nkey(x) !== nkey(t.artist) && !out.includes(x)) out.push(x); };
+    for (const [st, en, inner] of trimSpans(t.title || "", TRIM_BR)) push(inner);
+    const bits = splitOutside(t.title || "");
+    for (let i = 0; i < bits.length; i += 2) if (i) push(bits[i]);
+    return out.slice(0, 4);
+  }
+
+  function originButton(name, note) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn";
+    b.textContent = note ? `${name}（${note}）` : name;
+    b.addEventListener("click", () => {
+      const t = selected !== null ? state.cells[selected] : null;
+      if (!t) return;
+      const before = t.artist;
+      t.artist = name; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
+      say(els.eOriginMsg, tr`アーティスト名を「${name}」にしました。`);
+      const undo = document.createElement("button");
+      undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
+      undo.addEventListener("click", () => {
+        t.artist = before; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
+        say(els.eOriginMsg, tr("戻しました。"));
+      });
+      els.eOriginMsg.append(" ", undo);
+    });
+    return b;
+  }
+
+  function renderOriginBox(t) {
+    els.eOriginSeg.innerHTML = ""; els.eOriginMsg.textContent = "";
+    const isVideo = t.source === "youtube" || t.source === "nicovideo";
+    els.eOriginField.hidden = !isVideo;          // 探せるのは動画サイトの曲だけ
+    els.eOriginFind.hidden = t.source !== "youtube" && t.source !== "nicovideo";
+    if (!isVideo) return;
+    const names = [];
+    if (t.origin && t.origin.artist && nkey(t.origin.artist) !== nkey(t.artist)) {
+      names.push([t.origin.artist, tr`転載元 ${t.origin.id}`]);
+    }
+    if (looksChannel(t.artist)) for (const n of titleCandidates(t)) names.push([n, ""]);
+    els.eOriginNote.textContent = names.length ? tr("アーティスト名の候補:")
+      : looksChannel(t.artist) ? tr("チャンネル名の可能性があります。") : "";
+    els.eOriginNote.hidden = !els.eOriginNote.textContent;
+    for (const [n, note] of names) els.eOriginSeg.append(originButton(n, note));
+  }
+
+  els.eOriginFind.addEventListener("click", async () => {
+    const t = selected !== null ? state.cells[selected] : null;
+    if (!t) return;
+    els.eOriginFind.disabled = true;
+    say(els.eOriginMsg, tr("ニコニコ動画で探しています…"));
+    try {
+      const p = new URLSearchParams({ title: t.title || "" });
+      const r = await fetch(`/artist-candidates?${p}`);
+      const d = await r.json();
+      const rows = d.candidates || [];
+      if (!rows.length) { say(els.eOriginMsg, tr("同じ題の古い投稿は見つかりませんでした。")); return; }
+      els.eOriginMsg.textContent = "";
+      els.eOriginNote.hidden = false;
+      els.eOriginNote.textContent = tr("ニコニコ動画で見つかった古い投稿（古い順）:");
+      for (const row of rows) els.eOriginSeg.append(originButton(row.artist, [row.id, (row.at || "").slice(0, 10)].join(" / ")));
+    } catch (e) {
+      say(els.eOriginMsg, tr("探せませんでした。しばらくしてからもう一度お試しください。"));
+    } finally { els.eOriginFind.disabled = false; }
+  });
+
   els.eTitleIn.addEventListener("input", () => {
     const t = selected !== null && state.cells[selected]; if (!t) return;
     t.title = els.eTitleIn.value; renderGrid();

@@ -34,7 +34,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.3f5b4f37.css">
+<link rel="stylesheet" href="app/app.108ec0a7.css">
 </head>
 <body>
 
@@ -68,6 +68,13 @@
           <div class="field"><label for="e-artist">アーティスト名</label><input class="input" id="e-artist" type="text" autocomplete="off" maxlength="120"></div>
         </div>
         <p class="editor-meta" id="editor-meta"></p>
+        <div class="field" id="e-origin-field" hidden>
+          <!-- 転載元（概要欄から分かったとき）と、ニコニコで探した古い投稿の候補 -->
+          <p class="note" id="e-origin-note"></p>
+          <div class="seg" id="e-origin-seg" role="group" aria-label="アーティスト名の候補"></div>
+          <button class="btn" type="button" id="e-origin-find">元の投稿を探す</button>
+          <p class="msg" id="e-origin-msg" role="status" aria-live="polite"></p>
+        </div>
         <div class="field" id="e-fit-field" hidden>
           <label>このマスの絵の入れ方</label>
           <div class="seg" id="e-fit-seg" role="radiogroup" aria-label="このマスの絵の入れ方">
@@ -438,6 +445,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.cd158f54.js"></script>
+<script id="app-js" src="app/app.572521c0.js"></script>
 </body>
 </html>

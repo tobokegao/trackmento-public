@@ -1063,6 +1063,30 @@ async def health() -> dict:
     }
 
 
+@app.get("/artist-candidates")
+async def artist_candidates(
+    title: str = Query("", description="曲名", max_length=300),
+    at: str = Query("", description="このマスの動画の投稿日（ISO）。これより新しい投稿は外す", max_length=40),
+    self_id: str = Query("", description="このマスの動画 ID（結果から外す）", max_length=32),
+) -> dict:
+    """**転載の元になった投稿の候補**（ニコニコ動画）。
+
+    利用者が編集パネルで「元の投稿を探す」を押したときだけ呼ばれる。**自動では引かない**
+    （100 曲の並びで 100 リクエストになる）。古い順に最大 3 件。
+
+    結果は覚えておく（`cache` の `nicosearch`、7 日）。**検索語は鍵にしない**
+    （`searchcache.py` と同じ決まり。プライバシーポリシーの「検索キーワードは恒常的に記録しない」）。
+    """
+    from backend.sources import nicosearch
+    key = f"{title}|{at}|{self_id}"
+    hit = cache.get_search("nicosearch", key, "")
+    if hit is not None:
+        return {"candidates": hit, "cached": True}
+    rows = await nicosearch.older_posts(title, before=at, self_id=self_id)
+    cache.set_search("nicosearch", key, "", rows)
+    return {"candidates": rows, "cached": False}
+
+
 @app.get("/search")
 async def search(
     q: str = Query("", description="曲名", max_length=200),
