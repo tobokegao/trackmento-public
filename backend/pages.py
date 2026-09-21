@@ -478,6 +478,11 @@ h3 {{ font-size: .95rem; margin: 12px 0 4px; }}
 h2 {{ font-size: 1.05rem; margin: 20px 0 4px; padding-bottom: 2px; border-bottom: 2px solid #12171b; }}
 p, dd {{ margin: 0; }}
 main a {{ color: #12171b; }}
+/* 外へ出るリンクに印を付ける（2026-09-21）。本文のリンクは下線だけで色を変えていない（OS 9 風の
+   見た目に青が浮くため）ので、そのままだとサイト内の移動と区別が付かない。`target="_blank"` を
+   付けているのは外部リンクだけなので、それを目印にする。文字は離さない（行末で折れて印だけ次の行に
+   残るのを防ぐ）*/
+main a[target="_blank"]::after {{ content: "\\2197"; font-size: .85em; margin-left: 2px; }}
 ul, ol.steps {{ margin: 0; padding-left: 1.4em; display: grid; gap: 6px; }}
 ol.steps {{ list-style: decimal; }}
 ol.steps li, ul li {{ display: list-item; }}
