@@ -13,6 +13,24 @@ DARK_MAX = 40      # かつ最大値もこれ未満なら「帯」とみなす�
 MAX_FRAC = 0.25    # 各辺で切り落とす最大割合（誤検出で画像が消えないように）
 
 
+def sniff_image_type(data: bytes) -> str | None:
+    """中身の先頭から画像の種類を見分ける。分からなければ None。
+
+    Content-Type を付けずに返す配信元があるため（otoDB の CDN が実際にそう）。ヘッダを信じずに実データで確かめる。
+    `/image-proxy`（main.py）とサーバー描画（render.py の fetch_image_bytes）の両方で使う（2026-09-21 に main.py から移した。
+    描画の側に無く、Canvas の使えない端末の共有で otoDB のサムネだけ抜けていた）。
+    """
+    if data[:3] == bytes((0xFF, 0xD8, 0xFF)):
+        return "image/jpeg"
+    if data[:8] == bytes((0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)):
+        return "image/png"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 def is_video_thumb(url: str) -> bool:
     from urllib.parse import urlparse
     try:

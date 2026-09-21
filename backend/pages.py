@@ -23,7 +23,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "プライバシーポリシー", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "Privacy policy", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年9月21日", "en": "Last updated: September 21, 2026"}
+UPDATED = {"ja": "最終更新: 2026年9月22日", "en": "Last updated: September 22, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
 
@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-22", "一部の端末で「トラックを共有」したとき、otoDB から入れた曲のサムネイルが画像に出ないことがあったのを直しました。",
+     "Fixed otoDB thumbnails sometimes missing from the image when using “Share track” on some devices."),
     ("2026-09-21", "正方形のマスでも「ぼかして埋める」を選べるようにしました。動画のサムネイルを、左右を切らずに入れられます。マスごとの設定は「このマスのサムネの入れ方」に名前を変えました。",
      "“Blur to fill” now works with square cells too, so video thumbnails go in without their sides cut off. The per-cell setting is now called “How this thumbnail fits”."),
     ("2026-09-21", "「元の投稿を探す」で otoDB も引くようにしました。動画が otoDB に登録された作品なら、転載でも作品の作者がアーティスト名の候補に出ます。",

@@ -274,6 +274,9 @@ def fetch_image_bytes(url: str) -> bytes:
     r = netguard.safe_get_sync(url, allowlist=IMAGE_HOSTS, timeout=12, headers={"User-Agent": UA, "Accept": "image/*,*/*;q=0.8"})
     r.raise_for_status()
     ctype = r.headers.get("content-type", "").split(";")[0].strip()
+    if not ctype.startswith("image/"):
+        # Content-Type を付けない配信元がある（otoDB の CDN）。中身の先頭で確かめる（/image-proxy と同じ）
+        ctype = imgtools.sniff_image_type(r.content) or ctype
     if not ctype.startswith("image/") or len(r.content) > IMAGE_MAX_BYTES:
         raise ValueError(f"画像として扱えません: {ctype} {len(r.content)} bytes")
     data = r.content

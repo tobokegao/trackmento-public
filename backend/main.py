@@ -1738,22 +1738,6 @@ def _remember_missing(ckey: str, status: int = 404) -> None:
     _IMG_MISSING[ckey] = (time.time() + ttl, status)
 
 
-def _sniff_image_type(data: bytes) -> str | None:
-    """中身の先頭から画像の種類を見分ける。分からなければ None。
-
-    Content-Type を付けずに返す配信元があるため（otoDB の CDN が実際にそう）。ヘッダを信じずに実データで確かめる。
-    """
-    if data[:3] == bytes((0xFF, 0xD8, 0xFF)):
-        return "image/jpeg"
-    if data[:8] == bytes((0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)):
-        return "image/png"
-    if data[:6] in (b"GIF87a", b"GIF89a"):
-        return "image/gif"
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "image/webp"
-    return None
-
-
 def _host_of(url: str) -> str:
     """ログに添えるホスト名（URL 全体は利用者のデータなので出さない）。"""
     try:
@@ -1786,7 +1770,7 @@ async def fetch_image(url: str) -> tuple[str, bytes]:
         # Content-Type を付けずに返す配信元がある（otoDB の CDN が実際にそう。
         # 200 で中身も画像なのにヘッダが無く、ヘッダだけ見ていると全部 415 で弾いてしまう）。
         # 中身の先頭を見て画像だと分かるなら、その型として通す
-        ctype = _sniff_image_type(r.content) or ""
+        ctype = imgtools.sniff_image_type(r.content) or ""
         if not ctype:
             raise HTTPException(415, f"画像ではありません: {r.headers.get('content-type', '(型なし)')}")
     if len(r.content) > IMAGE_MAX_BYTES:
