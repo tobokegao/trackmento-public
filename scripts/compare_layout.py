@@ -9,10 +9,16 @@
 
 **曲の中身をそろえること**が肝心（曲名の長さで折り返しの行数が変わり、そこから文字の大きさが決まる）。
 ここでは `grids/default.json` の曲を両方に渡す。
+
+**出力の大きさもそろえること**（`MAX_SIDE`）。組み方は「出力での文字の大きさ」で決まるので、
+片方が 2400px・片方が 8000px だと**別の組み方になって当然**で、突き合わせの意味が無くなる
+（`.env` に `PUBLIC_MODE` が無いと `max_side()` が 8000 を返し、ブラウザ側の 2400 と食い違って
+191/200 が「ずれ」と出ていた。2026-09-21）。ここで両方に同じ値を渡して揃える。
 """
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import random
 import subprocess
@@ -25,6 +31,11 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / ".env")
+
+# 突き合わせに使う出力の最大辺。**`backend` を読み込む前に立てること**（`max_side()` が起動時に見る）。
+# 同じ値を `promo/dump_layouts.mjs` にも渡すので、ここを変えれば両方が変わる
+MAX_SIDE = int(os.getenv("COMPARE_MAX_SIDE", "2400"))
+os.environ["MAX_SIDE"] = str(MAX_SIDE)
 
 from backend import render as R  # noqa: E402
 from backend.grids import GridDoc  # noqa: E402
@@ -57,7 +68,7 @@ def main() -> int:
     (tmp / "combos.json").write_text(json.dumps(combos), encoding="utf-8")
     (tmp / "tracks.json").write_text(json.dumps(tracks, ensure_ascii=False), encoding="utf-8")
     r = subprocess.run(["node", str(ROOT / "promo" / "dump_layouts.mjs"), str(tmp / "js.json"),
-                        str(tmp / "combos.json"), str(tmp / "tracks.json")],
+                        str(tmp / "combos.json"), str(tmp / "tracks.json"), str(MAX_SIDE)],
                        cwd=ROOT, capture_output=True, text=True)
     if r.returncode:
         print(r.stdout, r.stderr)

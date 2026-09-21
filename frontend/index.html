@@ -3407,7 +3407,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   // 読み込み直後の layout() はまだ代替フォントで測るため、そのまま残すとサーバー描画と
   // 折り返しがずれる（16x16・16:9 の突き合わせで 0.26% → 3.69% になっていた）
   const CHAR_W = new Map();
-  if (document.fonts) document.fonts.addEventListener("loadingdone", () => CHAR_W.clear());
+  // 字幅が変われば折り返しも組み方も変わるので、共有画像の大きさの見込み（`sharePlan`）も一緒に捨てる
+  if (document.fonts) document.fonts.addEventListener("loadingdone", () => { CHAR_W.clear(); clearSharePlan(); });
   const FLOW_FONT_STEPS = [132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18];
   // 右に置くときは出力での大きさ（px）で選ぶ（枠が先に決まるので）
   const FLOW_TARGET_PX = [56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12];
@@ -4476,7 +4477,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
     }
     // **流し込みに落ちるくらいなら、1 曲 1 行を残す**（backend/render.py と同じ）。1 曲 1 行が FLOW_KEEP_FONT 以上なら戻す
-    if (sbFlow && keep[4] * keep[7] >= FLOW_KEEP_FONT) { [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH] = keep; sbFlow = false; }
+    // `keepFont` は「1 曲 1 行に戻したときの出力での字の大きさ」。**画面側だけが持つ**（`shareRenderPlan` が
+    // 「画像を大きくすれば流し込みを脱せるか」を、割り付けを組み直さずに見積もるのに使う。サーバー側には要らない）
+    const keepFont = keep[4] * keep[7];
+    if (sbFlow && keepFont >= FLOW_KEEP_FONT) { [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH] = keep; sbFlow = false; }
     // **曲名リストの下端をマスの下端にそろえる**（backend/render.py と同じ）。1 行に満たない余りを行の高さに均等に配る
     if (side === "right" && titleH && !sbFlow && !sbInline && lineH > 0) {
       const rowsNow = sbPlan.length ? planRows(sbPlan, sbCols) : baseRows;
@@ -4493,7 +4497,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const want = Math.round(fontS * TITLE_MIN_SCALE);
       if (want > titleSize) return layout(maxSide, want, depth + 1);
     }
-    return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow,
+    return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow, keepFont,
              sbPlan: sbFlow ? [] : sbPlan, sbARows: sbFlow ? [] : sbARows, sbInline: sbInline && !sbFlow, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [], wrapRows: false };
   }
   // **ジャケットが極端に小さくなるときは知らせる**（選択は塞がない）。並びの形と枠の比率が
@@ -4511,8 +4515,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   window.__layoutFor = (q, ms) => { const b = state.ratio; state.ratio = q; try { return layout(ms); } finally { state.ratio = b; } };
   window.__layout = layout;   // 突き合わせ（scripts/compare_render.py）から割り付けを覗くため
   window.__shareSide = (base, coarse) => shareRenderSide(base, coarse);   // 共有画像を実際に描く大きさ（流し込みを避けて上げた結果）を覗くため
+  window.__sharePlan = (base, coarse) => shareRenderPlan(base, coarse);   // 同上。割り付けごと覗く（「出力サイズ」の表示と同じもの）
   window.__loadShareFonts = () => loadShareFonts();   // 割り付けを測る前に Web フォントを読む（promo/dump_layouts.mjs）
-  window.__clearCharW = () => CHAR_W.clear();
+  window.__clearCharW = () => { CHAR_W.clear(); clearSharePlan(); };
   // 並びを差し替えて割り付けだけ見るための口（promo/dump_layouts.mjs）。マスは曲で埋める
   window.__setGrid = (c, r, opt = {}, base = null) => {
     Object.assign(state, opt);
@@ -4539,6 +4544,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function updateSpec() {
     syncPreview();
     save();
+    clearSharePlan();   // 並びか設定が変わった。共有画像の大きさの見込みは組み直す
     clearTimeout(specTimer);
     specTimer = setTimeout(updateSpecNow, 180);
   }
@@ -4549,14 +4555,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     try { return layout(shareMaxSide()).scale; } finally { [state.sidebar, state.overlay] = keep; }
   }
   function updateSpecNow() {
-    const L = layout();
+    // **「トラックを共有」で実際にできる画像の大きさを出す**（2026-09-21）。それまでは論理上の最大辺
+    // （8000px）で測っていて、5x5・16:9 で「5995 × 3372 px」と出ていたのに、出来上がる画像は
+    // 2000 × 1125 だった。縮尺もそこから出るので、マスの大きさ・余白・「マスが小さい」の知らせまで
+    // 実物と食い違っていた。**共有と同じ `shareRenderPlan()` の割り付けを使う**（計算は 1 回で済む）
+    const L = sharePlan().L;
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
     els.specCell.textContent = `${Math.round(CELL_PX * L.scale)} px`;
     els.specMargin.textContent = tr`上下 ${Math.round(L.oy * L.scale)} / 左右 ${Math.round(L.ox * L.scale)} px`;
     noteSmallCell(Math.round(CELL_PX * L.scale));
     // 重ねた曲名が読めない大きさになる並びでは、選べなくする（今選んでいるなら、出さないことを知らせる）
-    // **判定は共有画像を描く大きさで行う**（shareMaxSide = 2000〜2400px）。上の出力サイズの表示は最大辺が大きいので、
-    // それで測ると「読める」と出たのに、共有画像では字が小さすぎて曲名が出ない、ということが起きる
+    // **判定は共有画像を描く大きさで行う**。重ねる組み方には曲名リストが無く、流し込みに落ちることも
+    // ないので、上げる前の `shareMaxSide()` で測れば足りる（`overlayScale` が使う）
     const ovOk = overlayOk(overlayScale()), ovRadio = els.listSeg.querySelector('input[value="overlay"]');
     ovRadio.disabled = !ovOk && !state.overlay;
     els.listMsg.hidden = ovOk || !state.overlay;
@@ -5139,16 +5149,32 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      **大きくしても流し込みのままなら、いちばん軽い大きさで描く**（曲が多い並びは何 px にしても
      字が下限に届かない。実測では 26 曲以上の並びがそれに当たる） */
   const SHARE_SIDE_STEPS = [2400, 2800, 3200];
-  function shareRenderSide(base = shareMaxSide(), coarse = window.matchMedia("(pointer: coarse)").matches) {
-    const mem = navigator.deviceMemory;
-    if (mem !== undefined && mem <= 2) return base;
+  /* 共有画像を描く大きさと、その大きさで組んだ割り付けを返す。**割り付けも返すのは、
+     画面の「出力サイズ」がこれと同じものを出すため**（同じ計算を 2 回しない）。
+     **曲が多い並びでは、何 px にしても字が下限に届かないので試さない**（`keepFont` で先に見積もる）。
+     割り付けの計算は 16x16 で 1 回 1.4 秒かかるので、試すだけ無駄な並びで 2〜4 回回すと
+     「もたつく」がそのまま戻る（実測で 12x12 が 2.6 秒・16x16 が 3.2 秒かかっていた） */
+  function shareRenderPlan(base = shareMaxSide(), coarse = window.matchMedia("(pointer: coarse)").matches) {
+    const L0 = layout(base), mem = navigator.deviceMemory;
+    if (!L0.sbFlow || (mem !== undefined && mem <= 2)) return { side: base, L: L0 };
     const cap = coarse ? 2400 : 3200;
-    if (!layout(base).sbFlow) return base;
+    // 字の大きさは出力の大きさに比例するので、上限まで上げたときの見込みを割り付けなしで出せる
+    if (!(L0.keepFont > 0) || L0.keepFont * (cap / base) < FLOW_KEEP_FONT) return { side: base, L: L0 };
     for (const s of SHARE_SIDE_STEPS) {
       if (s <= base || s > cap) continue;
-      if (!layout(s).sbFlow) return s;
+      const L = layout(s);
+      if (!L.sbFlow) return { side: s, L };
     }
-    return base;
+    return { side: base, L: L0 };
+  }
+  const shareRenderSide = (base, coarse) => shareRenderPlan(base, coarse).side;
+  /* **並びが変わるまで使い回す**。「出力サイズ」の表示（操作が落ち着いた 180ms 後）と
+     「トラックを共有」を押したときの両方が同じものを要るので、押すたびに組み直さない */
+  let sharePlanCache = null;
+  const clearSharePlan = () => { sharePlanCache = null; };
+  function sharePlan() {
+    if (!sharePlanCache) sharePlanCache = shareRenderPlan();
+    return sharePlanCache;
   }
   const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent) || location.hash === "#inapp";
   /* アプリ内ブラウザなら外部ブラウザを勧める帯を出す（「閉じる」でそのタブの間は出さない） */
@@ -5637,7 +5663,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!("createImageBitmap" in window) || !document.fonts) throw new Error("unsupported");   // アプリ内ブラウザでもまず試し、失敗ならサーバー描画へ
     await loadShareFonts();
     say(els.gridMsg, tr("画像を作成中…"));
-    const { canvas, bg } = await renderShareCanvas(shareRenderSide(), (i, n) => say(els.gridMsg, tr`画像を作成中… ${i}/${n}`));
+    // **字幅の控えは Web フォントが効いてから取り直す**（`renderShareCanvas` の先頭と同じ理由）。
+    // 大きさの見込みも字幅から出るので、ここで捨ててから組む
+    CHAR_W.clear(); clearSharePlan();
+    const { canvas, bg } = await renderShareCanvas(sharePlan().side, (i, n) => say(els.gridMsg, tr`画像を作成中… ${i}/${n}`));
     const enc = await encodeShare(canvas, bg);
     say(els.gridMsg, tr`アップロード中…（${(enc.png.size / 1e6).toFixed(1)} MB）`);
     const fd = new FormData();

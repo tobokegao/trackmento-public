@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-21", "「出力サイズ」に、実際にできる画像の大きさを出すようにしました。これまでは大きめの数字が出ていて、保存した画像と食い違っていました。",
+     "“Output size” now shows the size of the image you actually get. It used to show a larger number that did not match the saved image."),
     ("2026-09-21", "曲が多いときの曲名リストが、文章のようにつながって見えることがあったのを直しました。曲が 1 つずつ行に分かれて並びます。",
      "Fixed the track list running together like a paragraph when there were many tracks. Each track now sits on its own line."),
     ("2026-09-21", "VocaDB で見つけた曲を覚えておく期間を 2 週間に伸ばしました。一度誰かが調べた曲は、次からすぐ出ます。",
