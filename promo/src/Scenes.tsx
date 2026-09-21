@@ -5,7 +5,7 @@ import {
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
 import {
-  FPS, BAR, beatTime, beatFrame, sec, evTime, evRect, rate, RECORDINGS, SHOTS, SITES, SITES_EN, POINTS, Shot, Kind, Lang,
+  FPS, BAR, beatTime, beatFrame, sec, evTime, evRect, evRects, rate, RECORDINGS, SHOTS, SITES, SITES_EN, POINTS, Shot, Kind, Lang,
   INTRO_END, HOOK_BEAT, POINTS_BEAT, SHOWCASE_BEAT, TAIL_BEAT, TAIL_SHOTS, END_BEAT, URL_BEAT, FREE_BEAT, LAST_BEAT, FADE_FROM,
 } from "./timeline";
 
@@ -213,12 +213,43 @@ const Highlight: React.FC<{ L: Layout; hl: NonNullable<Shot["hl"]>; clipScale?: 
   );
 };
 
-const Clip: React.FC<{ kind: Kind; lang: Lang; session: "main" | "feat"; from: number; speed?: number; zoom?: Shot["zoom"]; still?: boolean }> = ({ kind, lang, session, from, speed = 1, zoom, still }) => {
+/** カメラの 1 点（録画の時刻 t 秒に、画面の割合 (x, y) を中心に s 倍で見る） */
+type CamKey = { t: number; x: number; y: number; s: number };
+/** 印の四角からカメラの点を作る。四角を 1.5 倍に広げ、画面の 45% より小さくはしない（寄りすぎない）。倍率は 1〜2 倍 */
+const camKey = (t: number, r: { x: number; y: number; w: number; h: number }): CamKey => {
+  const w = Math.max(r.w * 1.5, 0.45), h = Math.max(r.h * 1.5, 0.45);
+  return { t, x: r.x + r.w / 2, y: r.y + r.h / 2, s: Math.max(1, Math.min(2, 1 / w, 1 / h)) };
+};
+/** 横の録画のカメラ（2026-09-22、利用者の指摘）。**操作した場所（押したボタン・打った欄）を順に追って寄る**。
+    以前は場面ごとに手で決めた寄り先（zoomPc）で、スクロール位置が変わると操作と関係ない所を映していた。
+    ショットの頭より前の最後の操作から始め（「入力欄の場所から」始まる）、次の操作の少し前（LEAD）から動き出して間に合わせる */
+const CAM_LEAD = 0.35, CAM_MOVE = 0.45;   // 録画の秒
+function camAt(keys: CamKey[], vt: number): CamKey | null {
+  if (!keys.length) return null;
+  let i = -1;
+  for (let k = 0; k < keys.length; k++) if (keys[k].t <= vt + CAM_LEAD) i = k;
+  if (i < 0) return keys[0];
+  const cur = keys[i], prev = keys[Math.max(0, i - 1)];
+  const p = Easing.inOut(Easing.cubic)(Math.max(0, Math.min(1, (vt + CAM_LEAD - cur.t) / CAM_MOVE)));
+  return { t: vt, x: prev.x + (cur.x - prev.x) * p, y: prev.y + (cur.y - prev.y) * p, s: prev.s + (cur.s - prev.s) * p };
+}
+const Clip: React.FC<{ kind: Kind; lang: Lang; session: "main" | "feat"; from: number; speed?: number; zoom?: Shot["zoom"]; still?: boolean; cam?: CamKey[] }> = ({ kind, lang, session, from, speed = 1, zoom, still, cam }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const r = rate(kind, lang, session) * speed;
+  const video = <OffthreadVideo src={staticFile(RECORDINGS[kind][lang][session].src)} startFrom={sec(from)} playbackRate={r} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
+  const c = cam && !still ? camAt(cam, from + (frame / fps) * r) : null;
+  if (c) {
+    // 中心 (x, y) を画面の真ん中に持ってくる。端の外が見えないように中心を寄せる
+    const s = c.s * 1.03, x = Math.max(0.5 / s, Math.min(1 - 0.5 / s, c.x)), y = Math.max(0.5 / s, Math.min(1 - 0.5 / s, c.y));
+    return (
+      <div style={{ width: "100%", height: "100%", transform: `translate(${(0.5 - x) * s * 100}%, ${(0.5 - y) * s * 100}%) scale(${s})`, transformOrigin: "50% 50%" }}>
+        {video}
+      </div>
+    );
+  }
   const z = zoom ? interpolate(frame, [0, fps * 0.5], [1.03, zoom.s], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }) : 1.03;
   const origin = zoom ? `${zoom.x * 100}% ${zoom.y * 100}%` : "50% 50%";
-  const video = <OffthreadVideo src={staticFile(RECORDINGS[kind][lang][session].src)} startFrom={sec(from)} playbackRate={rate(kind, lang, session) * speed} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
   return (
     <div style={{ width: "100%", height: "100%", transform: `scale(${z})`, transformOrigin: origin }}>
       {still ? <Freeze frame={0}>{video}</Freeze> : video}
@@ -538,6 +569,16 @@ const KimeWrap: React.FC<{ s: Shot; children?: React.ReactNode; phase: "stretch"
   return <AbsoluteFill style={{ transform: `scaleX(${1 + stretch}) scale(${zoom})`, transformOrigin: "50% 50%" }}>{children}</AbsoluteFill>;
 };
 
+/** 横のショットのカメラの点。ショットの頭より前の最後の操作 ＋ ショットのあいだの操作 */
+function shotCam(L: Layout, s: Shot, next: number): CamKey[] {
+  const sess = s.rec ?? "main", r = rate(L.kind, L.lang, sess) * (s.speed ?? 1);
+  const from = evTime(L.kind, L.lang, sess, s.ev) + s.off * rate(L.kind, L.lang, sess);
+  const to = from + (beatTime(next) - beatTime(s.beat)) * r;
+  const all = evRects(L.kind, L.lang, sess);
+  const before = all.filter((e) => e.t <= from).slice(-1), inside = all.filter((e) => e.t > from && e.t <= to + CAM_LEAD);
+  return [...before, ...inside].map((e) => camKey(e.t, e.rect));
+}
+
 /** 録画（または静止画）のショット 1 つ。base = 親の Sequence の頭の拍 */
 function shotSeq(L: Layout, s: Shot, next: number, base: number) {
   return (
@@ -552,7 +593,8 @@ function shotSeq(L: Layout, s: Shot, next: number, base: number) {
                       {s.stills ? (
                         <Stills L={L} shot={s} />
                       ) : (
-                        <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still} />
+                        <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still}
+                          cam={L.kind === "wide" && !s.hlEv ? shotCam(L, s, next) : undefined} />
                       )}
                       {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
                       {/* 赤枠は録画の印の位置（markRect）から。縦・横とも。ズームしているショットには付けない（位置がずれる） */}

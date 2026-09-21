@@ -73,6 +73,9 @@ export const evRect = (kind: Kind, lang: Lang, session: Session, name: string): 
   if (!e || !e.rect) throw new Error(`${kind}/${lang}/${session} の events.json に ${name} の rect がない`);
   return e.rect;
 };
+/** 四角の付いた印を時刻の順に（横の動画のカメラが追う先。capture.mjs の tap / type / markRect が添える） */
+export const evRects = (kind: Kind, lang: Lang, session: Session): { t: number; rect: Rect }[] =>
+  RECORDINGS[kind][lang][session].events.filter((e) => e.rect).map((e) => ({ t: e.v ?? e.t, rect: e.rect! })).sort((a, b) => a.t - b.t);
 export const evTime = (kind: Kind, lang: Lang, session: Session, name: string) => {
   const e = RECORDINGS[kind][lang][session].events.find((x) => x.name === name);
   if (!e) throw new Error(`${kind}/${lang}/${session} の events.json に ${name} がない`);
@@ -137,7 +140,7 @@ export const POINTS: { jp: string; en: string }[] = [
 ];
 
 /** ショットの見せ方の細かい値（エディタの場面の ID ごと）。開始・長さ・字幕・印・ずらし・速さはエディタ（plan.gen.ts）から来る。
-    zoom = スマホ録画・zoomPc = PC 録画の拡大、hlEv = 赤枠（その印の rect の位置）、fx = 演出、stills = 静止画、capStill = 字幕を出したまま、
+    zoom = スマホ録画の拡大（**横の録画は手で決めず、操作した場所をカメラが追う**。2026-09-22、利用者の指摘で手書きの zoomPc をやめた）、hlEv = 赤枠（その印の rect の位置）、fx = 演出、stills = 静止画、capStill = 字幕を出したまま、
     kime = キメ（ショットの頭からの拍）で寄り、最後のキメから横に引き伸ばして白へ（タイムラプスから移した演出）。
     2026-09-21 の初見向けの構成。**赤枠は録画の印の位置（capture.mjs の markRect）から描く**ので、撮り直しても枠がずれない */
 const SHOT_EXTRAS: Record<string, Partial<Shot>> = {
@@ -147,32 +150,32 @@ const SHOT_EXTRAS: Record<string, Partial<Shot>> = {
   "hx98afy": {"hlEv": "tour:buttons"},   // 下に共有と検索
   "rk4o4sz": {"hlEv": "tour:options"},   // 出力の設定
   "380i9jk": {},   // まずはタイトル
-  "6g6osts": {"zoomPc": {"x": 1, "y": 0.55, "s": 1.6}},   // マスの形を「横長 16:9」に
-  "37o6me6": {"zoomPc": {"x": 0.52, "y": 0.36, "s": 1.8}},   // 枠をタップ
-  "dcj7rht": {"zoomPc": {"x": 0, "y": 0.74, "s": 1.7}, "sites": true},   // 動画の URL を貼るだけ（対応サイトのバッジを出す）
+  "6g6osts": {},   // マスの形を「横長 16:9」に
+  "37o6me6": {},   // 枠をタップ
+  "dcj7rht": {"sites": true},   // 動画の URL を貼るだけ（対応サイトのバッジを出す）
   "eoqbxrm": {},   // 改行で区切って丸ごと挿入
-  "blgvply": {"zoomPc": {"x": 0, "y": 0.43, "s": 1.6}},   // 曲名でも探せる
+  "blgvply": {},   // 曲名でも探せる
   "9mxejt1": {},   // マイリストの URL で一気に
   "zd9g3ak": {},   // 最大 500 曲がまとめて入る
   "ilbkxxw": {},   // 削除された動画も
   "xg15614": {},   // otoDB からよみがえる
   "ss0evau": {},   // 転載でも、元の作者が分かる
-  "5nrfx8t": {"zoomPc": {"x": 0, "y": 0.4, "s": 1.6}},   // VocaDB でサブスクに無い曲も
+  "5nrfx8t": {},   // VocaDB でサブスクに無い曲も
   "id60ky6": {},   // ボカロの作者名も VocaDB から
-  "8gyp8m2": {"zoomPc": {"x": 0, "y": 1, "s": 1.7}},   // ジャケットが無ければ手入力
+  "8gyp8m2": {},   // ジャケットが無ければ手入力
   "2n7pkfo": {},   // 正方形が混ざったら「ぼかして埋める」
-  "b03hory": {"zoomPc": {"x": 0.6, "y": 0.45, "s": 1.5}},   // 枠が全部埋まったら
-  "vx9a2lo": {"zoomPc": {"x": 0.6, "y": 0.45, "s": 1.6}},   // タップで入れ替え
+  "b03hory": {},   // 枠が全部埋まったら
+  "vx9a2lo": {},   // タップで入れ替え
   "zm32swp": {},   // 「大きく見る」で並べ替え
-  "kqv3bhm": {"zoomPc": {"x": 1, "y": 0.3, "s": 1.9}},   // 縦横の比率は 5 種類（冒頭の反転は利用者がキメのレーンから外した）
-  "uwohvic": {"zoomPc": {"x": 1, "y": 0.5, "s": 1.8}},   // 曲名リストは 3 択
-  "10gxz2c": {"zoomPc": {"x": 1, "y": 0.62, "s": 1.9}},   // 背景色は 8 色
-  "8h5qfvg": {"zoomPc": {"x": 1, "y": 0.67, "s": 2}},   // カスタム色はつまみで
+  "kqv3bhm": {},   // 縦横の比率は 5 種類（冒頭の反転は利用者がキメのレーンから外した）
+  "uwohvic": {},   // 曲名リストは 3 択
+  "10gxz2c": {},   // 背景色は 8 色
+  "8h5qfvg": {},   // カスタム色はつまみで
   "qfvofd9": {},   // パレットで配色ごと切り替え
   // 共有: キメ（エディタの「キメ」のレーン 42.4.5・43.1.5・43.2.5・43.3.5）で寄り、最後のキメから横に引き伸ばして白へ
-  "e179xpp": {"zoomPc": {"x": 0.55, "y": 0.7, "s": 1.6}, "kime": [3.5, 4.5, 5.5, 6.5]},
-  "q34g03l": {"zoom": {"x": 0.2, "y": 0.6, "s": 1.3}, "zoomPc": {"x": 0.6, "y": 0.9, "s": 1.5}},   // 「みんなのグリッド」に載せて共有
-  "j91wlyz": {"zoomPc": {"x": 0.6, "y": 0.5, "s": 1.3}},   // 画像と共有 URL
+  "e179xpp": {"kime": [3.5, 4.5, 5.5, 6.5]},
+  "q34g03l": {"zoom": {"x": 0.2, "y": 0.6, "s": 1.3}},   // 「みんなのグリッド」に載せて共有
+  "j91wlyz": {},   // 画像と共有 URL
   "97t4txw": {},   // 曲名で、みんなの並びを探せる
   "xc3oxx2": {},   // 見つけた並びを開ける
   "ntvo0x8": {"rec": "feat", "stills": SMART, "stillBeats": SMART.map((_, i) => i * 0.25), "scrap": true},   // 曲が多くても曲名がきれいに収まる

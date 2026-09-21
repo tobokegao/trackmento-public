@@ -120,6 +120,15 @@ async function markRect(name, sels) {
   mark(name, { rect });
 }
 
+/** 要素の四角（見えている範囲で切った 0〜1 の割合）。横の動画のカメラはこれを順に追って寄る（2026-09-22） */
+async function rectOf(loc) {
+  const b = await loc.boundingBox().catch(() => null);
+  if (!b) return undefined;
+  const vp = page.viewportSize(), r4 = (v) => Math.round(v * 1e4) / 1e4;
+  const x0 = Math.max(0, b.x), y0 = Math.max(0, b.y), x1 = Math.min(vp.width, b.x + b.width), y1 = Math.min(vp.height, b.y + b.height);
+  if (!(x1 > x0 && y1 > y0)) return undefined;
+  return { x: r4(x0 / vp.width), y: r4(y0 / vp.height), w: r4((x1 - x0) / vp.width), h: r4((y1 - y0) / vp.height) };
+}
 /** 見えるようにする。**画面に収まっているなら動かさない**（v9 で、押すたびに真ん中へ送ってページが下にずれ、
     グリッドの上が見切れていた）。収まっていないときだけ、スマホは真ん中・PC は近いほうの端へ送る */
 async function center(loc) {
@@ -144,7 +153,7 @@ async function tap(sel, name) {
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
   await page.evaluate(([x, y]) => window.__tap(x, y), [x, y]);
   await hold(120);
-  mark(name || `tap ${sel}`);
+  mark(name || `tap ${sel}`, { rect: await rectOf(loc) });
   await page.mouse.click(x, y);
   await frame();
 }
@@ -152,6 +161,7 @@ async function tap(sel, name) {
 async function type(sel, text, ms = 55) {
   const loc = page.locator(sel).first();
   await center(loc);
+  mark(`type:${sel}`, { rect: await rectOf(loc) });   // 打ち始める欄（カメラが寄る先）
   await loc.click(); await loc.fill("");
   for (const ch of text) { await page.keyboard.insertText(ch); await hold(ms); }
 }
@@ -602,7 +612,10 @@ const FEATS = [
     await until(() => page.evaluate(() => [...document.querySelectorAll("#results img")].every((i) => i.complete)), { label: "候補のサムネ", timeout: 60000 })   // 消えた動画の画像は読めずに終わるので、成否は問わない
       .catch(() => console.log("   （候補のサムネが出そろわないまま進める）"));
     mark("pl:rest");
-    await scrollBy(900, 700, PC ? null : ".sheet-body"); await scrollBy(900, 900, PC ? null : ".sheet-body");
+    // 候補の窓の**中**を送る（2026-09-22、横でページ全体が動いていた）。#results の送れる入れ物を探して印を付ける
+    await page.evaluate(() => { let p = document.querySelector("#results"); while (p && p !== document.body && !(/(auto|scroll)/.test(getComputedStyle(p).overflowY) && p.scrollHeight > p.clientHeight)) p = p.parentElement; if (p && p !== document.body) p.dataset.capScroll = "1"; });
+    const box = (await page.locator("[data-cap-scroll]").count()) ? "[data-cap-scroll]" : (PC ? null : ".sheet-body");
+    await scrollBy(900, 700, box); await scrollBy(900, 900, box);
     await closeSheet("pl-rest-close");
     await hold(500);
   }],
@@ -628,7 +641,18 @@ const FEATS = [
     const slot = await page.locator(".zoom-slot .grid-scroll, #zoom-slot").first().boundingBox();
     const sx = slot.x + slot.width / 2, sy0 = slot.y + slot.height * 0.8;
     mark("zoom32:swipe");
-    if (PC) await scrollBy(1080, 900, ".zoom-slot .grid-scroll");
+    if (PC) {
+      // Ctrl＋ホイールで拡大（アプリの「大きく見る」はこれで拡大する）。少しずつ回して 1 コマずつ撮る。そのあと中を送る
+      const g = await page.locator("#grid-scroll").boundingBox();
+      await page.mouse.move(g.x + g.width / 2, g.y + g.height * 0.3);
+      await page.evaluate(([x, y]) => window.__tap(x, y), [g.x + g.width / 2, g.y + g.height * 0.3]);
+      mark("zoom32:wheel", { rect: await rectOf(page.locator("#grid-scroll")) });
+      await page.keyboard.down("Control");
+      for (let i = 0; i < 16; i++) { await page.mouse.wheel(0, -60); await frame(); }
+      await page.keyboard.up("Control");
+      await hold(400);
+      await scrollBy(700, 900, "#grid-scroll");
+    }
     else {
       // 指で 2 回送る。離す前に止めて、はじいた勢い（実時間で動く）を残さない
       const cdp = await ctx.newCDPSession(page);
@@ -792,6 +816,6 @@ execFileSync(FF, ["-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", list,
 fs.rmSync(list, { force: true });
 for (const f of fs.readdirSync(OUT)) if (f.endsWith(".webm")) fs.rmSync(path.join(OUT, f));
 fs.writeFileSync(path.join(OUT, "events.json"), JSON.stringify(all, null, 1));
-const names = all.map((e) => e.name), dup = names.filter((n, i) => names.indexOf(n) !== i && !n.startsWith("take:") && n !== "start" && n !== "end");
+const names = all.map((e) => e.name), dup = names.filter((n, i) => names.indexOf(n) !== i && !n.startsWith("take:") && !n.startsWith("type:") && n !== "start" && n !== "end");
 if (dup.length) console.log(`!! 同じ名前の印が 2 つ以上ある（Remotion は最初のものを使う）: ${[...new Set(dup)].join(", ")}`);
 console.log(`done ${VARIANT}: ${off} コマ（${(off / FPS).toFixed(1)} 秒）→ ${OUT}`);
