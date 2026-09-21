@@ -1,0 +1,74 @@
+#!/bin/sh
+# 鍵を含みそうなものがコミットに入るのを、その場で止める。
+#
+# 入れ方（クローンごとに 1 回）:
+#   git config core.hooksPath .githooks
+#
+# なぜ要るか:
+#   2026-09-14 に `.env.bak-before-customdomain`（R2 の鍵と Discogs のトークン）を
+#   公開リポジトリへ入れてしまい、5 日間そのままだった（docs/gotchas.md）。
+#   `.gitignore` は `.env` しか見ておらず、控えのファイル名が素通りした。
+#   GitHub の push protection は「発行元が分かる形」（sk-… や ghp_… ）しか止められず、
+#   R2 の鍵はただの 32／64 文字の英数字なのですり抜ける。汎用パターンの検知
+#   （non-provider patterns）は有料の Secret Protection でしか使えない。
+#   そこで、手元で・オフラインで・無料で止める。
+#
+# わざと入れたいとき（例示用の見本など）は `git commit --no-verify`。
+
+# 置こうとしているファイルだけを見る（削除は除く）
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+ng=""
+
+# ---- 1. ファイル名で止める ----
+# .env / .env.bak-* / *.pem / *.key / id_rsa など。`.env.example` だけは見本なので通す
+for f in $staged; do
+  case "$f" in
+    .env.example|*/.env.example) continue ;;
+    .env|.env.*|*/.env|*/.env.*) ng="$ng\n  $f（.env またはその控え）" ;;
+    *.pem|*.p12|*.pfx|*.jks) ng="$ng\n  $f（証明書・鍵束）" ;;
+    id_rsa|*/id_rsa|id_ed25519|*/id_ed25519) ng="$ng\n  $f（SSH の秘密鍵）" ;;
+  esac
+done
+
+# ---- 2. 中身で止める ----
+# 発行元が分かる形（sk-… ghp_… AIza… AKIA… rnd_… PEM）と、
+# 代入の形で 16 文字以上の値が入っているもの。見本・環境変数の読み出しは除く。
+known='(sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{50,}|AIza[0-9A-Za-z_-]{30,}|AKIA[0-9A-Z]{16}|rnd_[A-Za-z0-9]{16,}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'
+assign='(API_KEY|APIKEY|SECRET|SECRET_KEY|TOKEN|PASSWORD|PASSWD|ACCESS_KEY|PRIVATE_KEY)["'"'"' ]*[:=]["'"'"' ]*[A-Za-z0-9_/+-]{16,}'
+# 見本・テンプレート・コードからの読み出しは鍵ではない
+allow='example|sample|your-|your_|xxxx|placeholder|dummy|<[A-Za-z_]+>|\$\{|getenv|os\.environ|process\.env|secrets\.|inputs\.|vars\.|st\.secrets|ENV\['
+
+for f in $staged; do
+  case "$f" in
+    .env.example|*/.env.example|*/pre-commit|.githooks/*) continue ;;   # 見本と、このフック自身
+  esac
+  git show ":$f" 2>/dev/null | head -c 2000000 > /tmp/_pc_blob 2>/dev/null || continue
+  # テキストでないものは見ない
+  grep -qI . /tmp/_pc_blob 2>/dev/null || continue
+  # **値そのものは出さない**（端末の履歴やスクロールバックに鍵が残らないよう、行番号と変数名だけ見せる）
+  # **値そのものは出さない**。区切りは半角にする（tr はバイト単位なので全角を渡すと壊れる）
+  hit=$(grep -nEi "$known" /tmp/_pc_blob 2>/dev/null | cut -d: -f1 | head -3 | tr '\n' ',' | sed 's/,$//')
+  [ -n "$hit" ] && ng="$ng\n  $f（発行元の分かる鍵の形）… $hit 行目"
+  hit=$(grep -nE "$assign" /tmp/_pc_blob 2>/dev/null | grep -viE "$allow" \
+        | sed -E 's/^([0-9]+):.*(API_KEY|APIKEY|SECRET_KEY|SECRET|TOKEN|PASSWORD|PASSWD|ACCESS_KEY|PRIVATE_KEY).*/\1:\2/' \
+        | head -3 | tr '\n' ',' | sed 's/,$//')
+  [ -n "$hit" ] && ng="$ng\n  $f（値の入った鍵らしい代入）… $hit（行番号:変数名）"
+done
+rm -f /tmp/_pc_blob
+
+[ -z "$ng" ] && exit 0
+
+printf '\n\033[31m✖ 鍵を含むかもしれないものを止めました:\033[0m'
+printf "$ng\n"
+cat <<'MSG'
+
+どうするか:
+  - 鍵なら: リポジトリの外に出す（控えは .env.bak-* ではなく、別のフォルダへ）
+  - 見本なら: 値を消して .env.example に書く
+  - 誤検知なら: git commit --no-verify
+
+経緯は docs/gotchas.md の「鍵の入った .env の控えを公開リポジトリに入れてしまった」。
+MSG
+exit 1

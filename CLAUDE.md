@@ -121,7 +121,18 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
    PUBLIC_BASE_URL=auto
    ```
 
-3. **起動**
+3. **コミットの見張りを入れる**（クローンごとに 1 回）
+
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+
+   `.githooks/pre-commit` が、鍵を含みそうなもの（`.env` とその控え・`*.pem`・値の入った
+   `SECRET=` の形）をコミットの瞬間に止める。**2026-09-14 に `.env` の控えを公開リポジトリへ
+   入れてしまった**ため（`docs/gotchas.md`）。GitHub の push protection は発行元の分かる形しか
+   止められず、R2 の鍵のような「ただの英数字」はすり抜ける。
+
+4. **起動**
 
    ```bash
    PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
@@ -129,7 +140,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 
    `PYTHONUTF8=1` は必須に近い。付けないと Windows の既定が cp932 で、日本語のタイトルを扱うときに落ちる。
 
-4. **確認**。http://localhost:8000/ を開き、適当なアーティストで検索 → マスに入る →「トラックを共有」で
+5. **確認**。http://localhost:8000/ を開き、適当なアーティストで検索 → マスに入る →「トラックを共有」で
    画像ができれば一通り動いている。起動ログの `[public] PNG の URL は …` が、返ってくる URL のベース。
 
 - **動画（`promo/`）を触るときだけ** Node と `npm install` が要る。Remotion（React で動画を書く）と
