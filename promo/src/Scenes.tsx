@@ -123,16 +123,32 @@ const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.Re
     ? { position: "absolute" as const, left: 60, right: 60, top: 70, display: "flex", flexDirection: "column" as const, alignItems: "flex-start" }
     : { position: "absolute" as const, left: 222, right: 222, top: 36, display: "flex", flexDirection: "column" as const, alignItems: "flex-start" };
   const tall = L.kind === "tall";
-  // **横で見出しが 2 行のときは、英語を見出しの右に置く**（2026-09-22、利用者の指摘）。下に置くと録画の枠（上端 215px）に重なって隠れた
-  const beside = !tall && head.includes("\n");
-  return (
-    <div style={{ ...box, flexDirection: tall ? "column" : "row", alignItems: tall ? "flex-start" : "flex-end", gap: tall ? 0 : 40 }}>
-      <div style={{ display: "flex", flexDirection: beside ? "row" : "column", alignItems: beside ? "flex-end" : "flex-start", gap: beside ? 32 : 0 }}>
-        {head && <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: L.lang === "ja" ? L.jp : L.jp * 0.82, lineHeight: 1.15, padding: tall ? "10px 26px" : "12px 34px", whiteSpace: "pre-line", flex: "none", transform: slide, opacity: s }}>{head}</div>}
-        {sub && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: beside ? 0 : 14, letterSpacing: "0.03em", transform: slide, opacity: s,
-          // 右に置くときは紙の地を敷く（スクラップブックのように後ろに絵がある場面で読めなかった。2026-09-22、利用者の指摘）
-          ...(beside ? { background: C.paper, padding: "4px 14px", marginBottom: 2, border: `3px solid ${C.ink}`, whiteSpace: "nowrap" as const } : {}) }}>{sub}</div>}
+  // **横は英語をいつも見出しの右に置く**（2026-09-22、利用者の指摘）。見出しの下に置くと録画の枠（上端 215px）に重なって隠れ、
+  // 見出しが 1 行か 2 行かで置き場所を変えると見た目がそろわなかった。右の列は録画の枠の右端（1698px）までで折り返し、
+  // サイトのバッジも同じ列に積む（見出しの横に並べると、あふれた段が枠の裏に隠れた）
+  if (!tall) {
+    // 長い英語は真ん中に近い空白で 2 行に割る（右の列の幅で成り行きに折ると「(4 / sources)」のように尻尾だけ落ちた）
+    const en2 = sub.includes("\n") || sub.length <= 26 ? sub : (() => {
+      const mid = sub.length / 2;
+      const at = [...sub].map((c, i) => c === " " ? i : -1).filter((i) => i > 0).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid))[0];
+      return at === undefined ? sub : sub.slice(0, at) + "\n" + sub.slice(at + 1);
+    })();
+    return (
+      <div style={{ ...box, flexDirection: "row", alignItems: "flex-end", gap: 32 }}>
+        {head && <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: L.lang === "ja" ? L.jp : L.jp * 0.82, lineHeight: 1.15, padding: "12px 34px", whiteSpace: "pre", flex: "none", transform: slide, opacity: s }}>{head}</div>}
+        {(sub || children) && <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10, marginBottom: 2 }}>
+          {children}
+          {sub && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, letterSpacing: "0.03em", lineHeight: 1.25, transform: slide, opacity: s,
+            // 紙の地を敷く（スクラップブックのように後ろに絵がある場面で読めなかった）
+            background: C.paper, padding: "4px 14px", border: `3px solid ${C.ink}`, whiteSpace: "pre" }}>{en2}</div>}
+        </div>}
       </div>
+    );
+  }
+  return (
+    <div style={{ ...box }}>
+      {head && <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: L.lang === "ja" ? L.jp : L.jp * 0.82, lineHeight: 1.15, padding: "10px 26px", whiteSpace: "pre-line", transform: slide, opacity: s }}>{head}</div>}
+      {sub && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: 14, letterSpacing: "0.03em", transform: slide, opacity: s }}>{sub}</div>}
       {children}
     </div>
   );
@@ -145,13 +161,13 @@ const SiteBadges: React.FC<{ L: Layout; startBeat: number }> = ({ L, startBeat }
   const { fps } = useVideoConfig();
   const step = (beatTime(startBeat + 1) - beatTime(startBeat)) / 3;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: L.kind === "tall" ? 16 : 0, marginBottom: L.kind === "tall" ? 0 : 6, maxWidth: L.kind === "tall" ? 960 : 1000 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: L.kind === "tall" ? 16 : 0, marginBottom: L.kind === "tall" ? 0 : 6, maxWidth: L.kind === "tall" ? 960 : "100%" }}>
       {sites.map((name, i) => {
         const at = Math.round(step * i * fps);   // Sequence 内の相対フレーム
         const s = spring({ frame: frame - at, fps, config: { damping: 9, stiffness: 260 } });
         // Apple Music だけはクリーム地に黒文字（本家の見た目に寄せる）
         const bg = name === "Apple Music" ? C.paper : STRIPE[i % 6];
-        return <span key={name} style={{ fontFamily: "Plex", fontWeight: 700, fontSize: L.kind === "tall" ? 23 : 26, color: C.ink, border: `3px solid ${C.ink}`, background: bg, padding: "2px 10px", display: "inline-block", transform: `scale(${s})`, opacity: s }}>{name}</span>;
+        return <span key={name} style={{ fontFamily: "Plex", fontWeight: 700, fontSize: L.kind === "tall" ? 23 : 21, color: C.ink, border: `3px solid ${C.ink}`, background: bg, padding: L.kind === "tall" ? "2px 10px" : "1px 6px", display: "inline-block", transform: `scale(${s})`, opacity: s }}>{name}</span>;
       })}
     </div>
   );
