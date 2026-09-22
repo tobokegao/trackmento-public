@@ -1,4 +1,6 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+
+
 <title>TRACKMENTO 運用ボード</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
@@ -168,7 +170,7 @@
         </div>
         <div class="chart">
           <h3>1 日の共有数</h3>
-          <p class="cap">R2 の実数（UTC の日ごと）。9/11 は障害で消した分が欠けている。9/20 は途中（09:00 JST 始まりで 161 件）。</p>
+          <p class="cap">R2 の実数（UTC の日ごと）。9/11 は障害で消した分が欠けている。<strong>09-19 で止まっている</strong>のは、起動時の全件一覧をやめて日ごとに数えなくなったため（09-21）。いまは掃除が数えた総数を「いまの状況」に出している。</p>
           <div id="c-share"></div>
         </div>
         <div class="chart">
@@ -191,7 +193,7 @@
     <div class="body">
       <div class="bars" id="outbars"></div>
       <div class="legend"><span><i style="background:#9d8ada"></i>画像の取得</span><span><i style="background:#008bc7"></i>API への問い合わせ</span></div>
-      <p class="sub" style="margin-top:10px"><strong>itunes.apple.com は 22 件</strong>（検索はブラウザから直接なので、うちの IP から出るのは URL を貼ったときの補完だけ）。hdslb は<strong>すでに並びに入っている bilibili の画像</strong>で、新しく取ることはもうない。</p>
+      <p class="sub" style="margin-top:10px"><strong>itunes.apple.com がほとんど出てこない</strong>のは、検索がブラウザから直接だから（弊サイトの IP から出るのは URL を貼ったときの補完だけ）。www.googleapis.com は YouTube の Data API。hdslb は<strong>すでに並びに入っている bilibili の画像</strong>で、新しく取ることはもうない。</p>
     </div>
   </section>
 
@@ -199,7 +201,7 @@
     <div class="bar"><h2>外部サービスの使い方と上限</h2><span class="count" id="svc-src">robots.txt は 7 サイト実取得で確認</span></div>
     <div class="body scroll">
       <table>
-        <thead><tr><th>相手</th><th>うちの使い方</th><th>公式の上限</th><th>実測（1 日・多い日）</th><th>状態</th></tr></thead>
+        <thead><tr><th>相手</th><th>弊サイトでの使い方</th><th>公式の上限</th><th>実測（1 日・多い日）</th><th>状態</th></tr></thead>
         <tbody>
           <tr><td><span class="who">Apple iTunes Search</span><span class="note">検索・lookup</span></td><td>ブラウザから直接。サーバーは URL を貼ったときの補完・CLI・API だけ</td><td>約 20 回/分<span class="note">1 日の上限は明記なし・キャッシュ推奨</span></td><td class="nums" data-svc="itunes" data-svc-note="ブラウザ直は数えない">264</td><td><span class="pill ok">余裕</span></td></tr>
           <tr><td><span class="who">MusicBrainz</span><span class="note">iTunes で 0 件のとき</span></td><td>サーバーは 1 req/秒の錠前。ブラウザ直は利用者ごとの IP</td><td>1 回/秒・IP ごと<span class="note">連絡先入り UA 必須・超過は 100% 拒否</span></td><td class="nums" data-svc="musicbrainz" data-svc-note="ブラウザ直は数えない">0</td><td><span class="pill ok">守れている</span></td></tr>
@@ -327,9 +329,9 @@
         <div class="note-block">
           <h3>データの置き場所と保持</h3>
           <dl>
-            <dt>共有画像</dt><dd>R2・30 日（<code class="cmd">r2_prune.py</code>）。24,649 件・23.2GB（本体 20.0 ＋ カード用 3.2）</dd>
-            <dt>画像キャッシュ</dt><dd>R2 14 日 ／ SQLite の索引 13 日。133,621 件・4.7GB</dd>
-            <dt>検索結果の控え</dt><dd>R2 15 日・期限は VocaDB だけ 14 日、ほかは 7 日（鍵は HMAC・語は残さない）。2,685 件</dd>
+            <dt>共有画像</dt><dd>R2・30 日（<code class="cmd">r2_prune.py</code>）。25,061 件・23.6GB（カード用込み。09-22 の掃除で数えた）</dd>
+            <dt>画像キャッシュ</dt><dd>R2 14 日 ／ SQLite の索引 13 日。137,961 件・4.8GB（09-22）</dd>
+            <dt>検索結果の控え</dt><dd>R2 15 日・期限は VocaDB だけ 14 日、ほかは 7 日（鍵は HMAC・語は残さない）。2,685 件（09-20 時点）</dd>
             <dt>並び</dt><dd>ブラウザの localStorage が主・サーバーは控え</dd>
             <dt>cache.sqlite3</dt><dd>デプロイのたびに消える</dd>
           </dl>
@@ -347,7 +349,7 @@
           <h3>お金</h3>
           <dl>
             <dt>Render</dt><dd>Standard 約 $25/月 ＋ 転送量 $25〜30</dd>
-            <dt>R2</dt><dd>10GB まで無料・超過 $0.015/GB。いま 28.5GB ＝ 月 $0.28</dd>
+            <dt>R2</dt><dd>10GB まで無料・超過 $0.015/GB。いま 28.9GB ＝ 月 $0.28</dd>
             <dt>下げる判断</dt><dd>アクセスが落ち着いたら 1 段下げる</dd>
           </dl>
         </div>
@@ -660,9 +662,9 @@
   const TODOS = [
     { id: "vocadb", t: "VocaDB の CORS の連絡を待つ", d: "9/20 に返答あり（量は問題なし・間隔を空ける要望→対応済み）。CORS は「検討して後で連絡する」。許可されればブラウザ直引き＋プライバシーポリシーに 1 行", when: "連絡待ち" },
     { id: "bandcamp", t: "Bandcamp の返事を待つ", d: "9/20 に問い合わせフォームから送付（1,270 字の短縮版）。駄目なら bilibili と同じ形にする", when: "返答待ち" },
-    { id: "filter", t: "フィルタ各社の分類を確認", d: "ネットスター・トレンドマイクロ・Cloudflare・Norton・McAfee。9/19 に申請済み", when: "2026-09-22" },
+    { id: "filter", t: "フィルタ各社の分類をもう一度見る", d: "9/21 に 5 社を確認: Cloudflare は Music、Norton は安全。ネットスター・トレンドマイクロ・McAfee はまだ未分類（au のフィルタに効くのはネットスター）。確認先の URL は docs/ops.md", when: "2026-10-01" },
     { id: "adsense", t: "AdSense の審査結果", d: "承認されても、CSP に script-src / frame-src を足さないと広告は出ない。出すかどうかは未決" },
-    { id: "video12", t: "紹介動画 v14 を公開するか決める", d: "v14（縦・日本語）まで書き出し済み。YouTube などに投稿するかは未決。英語・横は新しい撮り方でまだ撮っていない", when: "未決" },
+    { id: "video12", t: "紹介動画を公開するか決める", d: "横は v20（promo/out/v20-wide-ja.mp4）で完成（09-22）。縦は v16 のままで「また今度作る」（録画を全部撮り直す・4 番の動画をどうするかも決める）。投稿先と英語版は未決", when: "未決" },
     { id: "prune30", t: "10-09 に共有の 30 日掃除が初めて効く", d: "09-09 の公開から一度も消えていない。その日 R2 の使用量が初めて減る（はず）。減らなければ r2-prune.yml が効いていない。09-23 の imgcache（14 日）も同じ目で見る", when: "2026-10-09" }
   ];
 
