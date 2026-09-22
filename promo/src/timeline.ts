@@ -182,10 +182,12 @@ const SHOT_EXTRAS: Record<string, Partial<Shot>> = {
   "ntvo0x8": {"rec": "feat", "stills": SMART, "stillBeats": SMART.map((_, i) => i * 0.25), "scrap": true},   // 曲が多くても曲名がきれいに収まる
   "tail2yqnjh": {"noCam": true},   // 困ったら「使い方」（寄らない。前の場面の操作の位置へずれていた。2026-09-22）
 };
-/** 印がどちらの録画（本編・新機能）にあるか。縦・日本語の録画で探す（4 本とも同じ台本で撮るので同じ） */
+/** 印がどちらの録画（本編・新機能）にあるか。縦・日本語の録画で探し、無ければ横で探す
+    （同じ台本で撮るので同じ。**横だけ撮り直した直後は、新しい印が横にしか無い**。2026-09-22 の share:output） */
+const has = (s: Session, ev: string) => (["tall", "wide"] as const).some((k) => RECORDINGS[k].ja[s].events.some((e) => e.name === ev));
 const sessionOf = (ev: string): Session =>
-  RECORDINGS.tall.ja.main.events.some((e) => e.name === ev) ? "main"
-    : RECORDINGS.tall.ja.feat.events.some((e) => e.name === ev) ? "feat"
+  has("main", ev) ? "main"
+    : has("feat", ev) ? "feat"
     : (() => { throw new Error(`印「${ev}」がどちらの録画にも無い（capture.mjs の台本か、エディタの「録画の印」を見直す）`); })();
 const toShot = (p: PlanShot): Shot => {
   const { id, ...rest } = p;
