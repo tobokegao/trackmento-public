@@ -332,13 +332,10 @@ img { max-width: 100%; display: block; }
 ::-webkit-scrollbar-button:horizontal:end:increment {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M7.5 4.5 2 8V1z' fill='%23232a33'/%3E%3C/svg%3E");
 }
-/* 縦と横が交わる角。OS 9 のサイズボックスと同じ斜めの線を入れる */
-::-webkit-scrollbar-corner {
-  background:
-    repeating-linear-gradient(-45deg, var(--color-bar-dark) 0 1px, transparent 1px 4px) center / 12px 12px no-repeat,
-    var(--color-bar);
-  box-shadow: inset 1px 1px 0 var(--color-paper), inset -1px -1px 0 var(--color-bar-dark);
-}
+/* 縦と横が交わる角は**無地**（2026-09-22）。斜めの線はサイズボックス（窓の大きさを変える所）の印で、
+   Mac OS 8/9 でも窓の右下にしか出ない（Inside Macintosh の図）。ここは大きさを変えられないので、
+   線を入れると押せそうに見えるうえ、面取りと線が画素に丸められて崩れて見えた（スマホで報告） */
+::-webkit-scrollbar-corner { background: var(--color-bar); }
 
 /* ---------- panes ---------- */
 .workbench {

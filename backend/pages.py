@@ -247,8 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-22", "スマホで画面を拡大したとき、スライダーとスクロールバーのつまみの枠線がずれたり二重に見えたりしていたのを直しました。つまみの縞の太さが 1 本だけ違って見えるのと、横のスクロールバーのつまみの縞が 1 本しか出ていなかったのも直しています。",
-     "Fixed slider and scrollbar thumbs whose outline could look misaligned or doubled when you zoomed in on a phone. Grip lines of uneven thickness, and horizontal scrollbar thumbs that showed only one grip line, are fixed too."),
+    ("2026-09-22", "スマホで画面を拡大したとき、スライダーとスクロールバーのつまみの枠線がずれたり二重に見えたりしていたのを直しました。つまみの縞の太さが 1 本だけ違って見えるのと、横のスクロールバーのつまみの縞が 1 本しか出ていなかったのも直しています。縦と横のスクロールバーが交わる角の斜め線はやめ、無地にしました。",
+     "Fixed slider and scrollbar thumbs whose outline could look misaligned or doubled when you zoomed in on a phone. Grip lines of uneven thickness, and horizontal scrollbar thumbs that showed only one grip line, are fixed too. The corner where the two scrollbars meet is now plain, without the diagonal lines."),
     ("2026-09-22", "共有ページの下に「問題のある内容を報告する」を置きました。メモや画像に問題があるときは、共有 ID を添えてお知らせください。",
      "Share pages now have a “Report inappropriate content” link at the bottom. If a note or image is a problem, let us know with the share ID."),
     ("2026-09-22", "マスを選ぶと、その曲に「メモ」を書けるようになりました（選んだ理由など。200 字・3 行まで）。メモは共有ページの曲名リストに出ます。書き出す画像には入りません。",
