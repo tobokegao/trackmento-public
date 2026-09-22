@@ -2101,6 +2101,7 @@ async def share_page(request: Request, sid: str) -> HTMLResponse:
     # Render のヘルスチェック（5 秒）に落ちて再起動される
     snap = await run_in_threadpool(share.load, sid)
     if not snap:
+        shareindex.forget(sid)   # 期限より前に消した共有（scripts/delete_share.py）を「みんなのグリッド」から外す
         # JSON の 404 だと X から開いた人に何が起きたか伝わらない。案内ページ（期限切れ・作り直し）を返す
         return HTMLResponse(share.expired_html(sid, base_url_for(request), app_url_for(request), _lang_for(request)), status_code=410)   # 消えた共有は 410（Gone）
     return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request)))

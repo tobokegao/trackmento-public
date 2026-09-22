@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-22", "共有ページの下に「問題のある内容を報告する」を置きました。メモや画像に問題があるときは、共有 ID を添えてお知らせください。",
+     "Share pages now have a “Report inappropriate content” link at the bottom. If a note or image is a problem, let us know with the share ID."),
     ("2026-09-22", "マスを選ぶと、その曲に「メモ」を書けるようになりました（選んだ理由など。200 字・3 行まで）。メモは共有ページの曲名リストに出ます。書き出す画像には入りません。",
      "When you select a cell, you can now write a “Note” for that track (why you picked it, for example; up to 200 characters and 3 lines). Notes appear in the track list on the share page, not in the exported image."),
     ("2026-09-22", "マスが縦 1 列の並びで、曲名が 2 行に折れると次の曲の名前に重なることがあったのを直しました。曲と曲のあいだも少し広げています。",

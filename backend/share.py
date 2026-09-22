@@ -241,6 +241,8 @@ TEXT = {
         "open_btn": "TRACKMENTO を開く",
         "contact": "連絡先",
         "contact_form": "お問い合わせフォーム",
+        "report": "問題のある内容を報告する",
+        "report_note": "（共有 ID {sid} を添えてください）",
         "about_url": "https://tobokegao.github.io/ja/about/",
         "nf_title": "ページが見つかりません",
         "nf_note": "URL が間違っているか、期限切れで消えたページです。共有 URL や画像は作成から {days} 日で消えます。",
@@ -281,6 +283,8 @@ TEXT = {
         "open_btn": "Open TRACKMENTO",
         "contact": "Contact",
         "contact_form": "Contact form",
+        "report": "Report inappropriate content",
+        "report_note": " (please include the share ID {sid})",
         "about_url": "https://tobokegao.github.io/about/",
         "nf_title": "Page not found",
         "nf_note": "The URL is wrong, or the page has expired. Share URLs and images disappear {days} days after they are made.",
@@ -533,7 +537,8 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
   <ol>{''.join(rows)}</ol>
   <p class="meta">{t(lang, 'tracks', n=n)} · {snap.get('cols')}×{snap.get('rows')} · {t(lang, 'share_id')} {sid} · {html.escape(snap.get('createdAt') or '')}</p>
   <p class="meta">{t(lang, 'this_url')}: {base}/s/{sid} · {_expires_text(snap.get('createdAt'), lang)} · {t(lang, 'keep')}</p>
-  <p class="meta"><a href="{CONTACT_FORM}" target="_blank" rel="noopener noreferrer">{t(lang, "contact_form")}</a></p>
+  <p class="meta"><a href="{CONTACT_FORM}" target="_blank" rel="noopener noreferrer">{t(lang, "contact_form")}</a>
+    · <a href="{CONTACT_FORM}" target="_blank" rel="noopener noreferrer">{t(lang, "report")}</a>{t(lang, "report_note", sid=sid)}</p>
 </main>
 </body></html>"""
 

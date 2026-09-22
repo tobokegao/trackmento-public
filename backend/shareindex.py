@@ -81,6 +81,16 @@ def _push(e: dict) -> None:
             _ids.discard(_entries.pop(0)["id"])
 
 
+def forget(sid: str) -> None:
+    """消えた共有を索引から外す。**期限より前に消したもの**（`scripts/delete_share.py`）は
+    `_alive_after` の日付では外れないので、共有ページが 410 を返したときに呼ぶ"""
+    with _lock:
+        if sid not in _ids:
+            return
+        _ids.discard(sid)
+        _entries[:] = [e for e in _entries if e["id"] != sid]
+
+
 def add(snap: dict) -> None:
     """共有 1 件を索引に載せる（R2 にも小さな控えを置く）。**失敗しても共有そのものは壊さない**。"""
     e = _entry(snap)
