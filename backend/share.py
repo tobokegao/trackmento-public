@@ -362,8 +362,10 @@ def _page_css(base: str) -> str:
 body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.55; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
 /* ワードマークは本体（frontend/index.html の .wordmark .mark）と同じ規則: Silkscreen 25px、行送り 16px（大文字のインク高）、
-   インクの 3px 下にリソ 6 色の太線（5px）、線の頭に離して 5px 角の四角。色も本体の oklch トークンと同値 */
+   インクの 3px 下にリソ 6 色の太線（5px）、線の頭に離して 5px 角の四角。色も本体の oklch トークンと同値。
+   押すと編集画面（トップ）へ戻る。リンクだが色と下線は付けない（ロゴの見た目を変えない） */
 .mark {{ font-family: "TrackmentoMark", "Silkscreen", "DotGothic16", monospace; font-weight: 700; font-size: 1.5625rem; letter-spacing: .04em; white-space: nowrap;
+  color: inherit; text-decoration: none;
   display: inline-block; line-height: 16px; margin-top: -2px; padding-bottom: 10px;
   margin-left: -10px; padding-left: 10px; margin-right: -3px; padding-right: 3px;
   background:
@@ -429,7 +431,7 @@ def expired_html(sid: str, base: str, app_url: str | None = None, lang: str = "j
 <meta property="og:description" content="{t(lang, "expired_og")}"><meta name="twitter:card" content="summary_large_image">
 <style>{_page_css(base)}</style></head>
 <body>
-<header><span class="mark">TRACKMENTO</span></header>
+<header><a class="mark" href="{app_url}/">TRACKMENTO</a></header>
 <main>
   <h1>{t(lang, "expired_title")}</h1>
   <p class="note">{t(lang, "expired_note", days=days)}</p>
@@ -460,7 +462,7 @@ def notice_html(status: int, base: str, app_url: str | None = None, detail: str 
 <meta name="robots" content="noindex">
 <style>{_page_css(base)}</style></head>
 <body>
-<header><span class="mark">TRACKMENTO</span></header>
+<header><a class="mark" href="{app_url}/">TRACKMENTO</a></header>
 <main>
   <h1>{title}</h1>
   <p class="note">{note}</p>{extra}
@@ -526,7 +528,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
 <meta property="og:description" content="{og_desc}"><meta name="twitter:card" content="summary_large_image">
 <style>{_page_css(base)}</style></head>
 <body>
-<header><span class="mark">TRACKMENTO</span></header>
+<header><a class="mark" href="{app_url}/">TRACKMENTO</a></header>
 <main>
   {heading}
   <img src="{img_url}" alt="{title}">
@@ -579,7 +581,7 @@ form.find input {{ flex: 1 1 14rem; min-width: 0; font: inherit; padding: 10px 1
   border: 2px solid var(--ink); background: var(--paper); color: var(--ink); }}
 </style></head>
 <body>
-<header><span class="mark">TRACKMENTO</span></header>
+<header><a class="mark" href="{app_url}/">TRACKMENTO</a></header>
 <main>
   <h1>{t(lang, "find_title")}</h1>
   <p class="note">{t(lang, "find_note")}</p>

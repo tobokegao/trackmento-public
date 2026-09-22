@@ -23,7 +23,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "プライバシーポリシー", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "Privacy policy", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年9月22日", "en": "Last updated: September 22, 2026"}
+UPDATED = {"ja": "最終更新: 2026年9月23日", "en": "Last updated: September 23, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
 
@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-23", "共有ページの左上の「TRACKMENTO」を押すと、編集画面に戻れるようになりました。",
+     "Tapping “TRACKMENTO” at the top left of a share page now takes you back to the editor."),
     ("2026-09-22", "スライダーとスクロールバーのつまみを描き直し、スマホで枠線がずれたり縞の太さがそろわなかったりしたのを直しました。縦と横のスクロールバーが交わる角は、斜め線をやめて無地にしています。",
      "Slider and scrollbar thumbs are redrawn, so on phones their outlines no longer shift and their grip lines keep an even thickness. The corner where the two scrollbars meet is now plain, without diagonal lines."),
     ("2026-09-22", "共有ページの下に「問題のある内容を報告する」を置きました。メモや画像に問題があるときは、共有 ID を添えてお知らせください。",
