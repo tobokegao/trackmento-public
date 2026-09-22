@@ -8,6 +8,10 @@ Source = Literal["itunes", "musicbrainz", "discogs", "bandcamp", "soundcloud", "
 
 MAX_TEXT = 300
 MAX_URL = 2048
+# 曲ごとのメモ（選んだ理由など）。**共有ページの曲名リストにだけ出す**（書き出し画像には描かない）。
+# 200 字・3 行まで（frontend の `NOTE_MAX` / `NOTE_LINES` と同じ）
+MAX_NOTE = 200
+MAX_NOTE_LINES = 3
 
 
 def _is_http(v: str) -> bool:
@@ -55,11 +59,23 @@ class Track(BaseModel):
     fit: Optional[str] = None
     # 転載元の動画（分かったときだけ）。アーティスト名の候補に使う
     origin: Optional[Origin] = None
+    # 作った人のメモ。共有ページ（`share.page_html`）が曲名の下に出す。「みんなのグリッドを探す」の索引には入れない
+    note: Optional[str] = None
 
     @field_validator("fit")
     @classmethod
     def _fit(cls, v):
         return v if v in ("crop", "blur") else None
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def _note(cls, v):
+        # 行ごとに空白を詰め、空行を落として 3 行・200 字まで。何も残らなければ None
+        if not isinstance(v, str):
+            return None
+        lines = [" ".join(x.split()) for x in v.splitlines()]
+        v = "\n".join([x for x in lines if x][:MAX_NOTE_LINES])[:MAX_NOTE].strip()
+        return v or None
 
     @field_validator("title", "artist", "album", mode="before")
     @classmethod

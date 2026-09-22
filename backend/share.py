@@ -385,6 +385,8 @@ li {{ display: flex; gap: 10px; align-items: baseline; }}
 .t {{ min-width: 0; overflow-wrap: anywhere; }}
 .n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
 .a {{ color: #53595f; }}
+/* 曲ごとのメモ。曲名の下に、左の縦線で「この曲への書き込み」と分かるようにする */
+.memo {{ display: block; margin: 2px 0 6px; padding-left: 8px; border-left: 2px solid #12171b; font-size: .9rem; white-space: pre-line; }}
 /* 曲名から元のページへ。**リンクだと一目で分かるようにする**（触れるまで分からないと気付かれない）。
    色は変えず、曲名に点線の下線と外部リンクの印を付ける。リンクの無い曲と並んでも一覧が騒がしくならない */
 .t a {{ color: inherit; text-decoration: none; }}
@@ -505,6 +507,10 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
         if url[:7].lower() == "http://" or url[:8].lower() == "https://":
             inner = (f'<a href="{html.escape(url, quote=True)}" target="_blank" '
                      f'rel="noopener noreferrer nofollow">{inner}</a>')
+        # 作った人のメモ（選んだ理由など）。改行は CSS の pre-line で残す。リンクの外に置く（押せる範囲を広げない）
+        note = (c.get("note") or "").strip()
+        if note:
+            inner += f"<span class=memo>{html.escape(note)}</span>"
         rows.append(f"<li><span class=n>{i:02d}</span><span class=t>{inner}</span></li>")
     n = len(rows)
     return f"""<!doctype html>

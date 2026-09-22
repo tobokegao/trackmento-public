@@ -1214,6 +1214,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <div class="field"><label for="e-title">曲名</label><input class="input" id="e-title" type="text" autocomplete="off" maxlength="120"></div>
           <div class="field"><label for="e-artist">アーティスト名</label><input class="input" id="e-artist" type="text" autocomplete="off" maxlength="120"></div>
         </div>
+        <div class="field">
+          <label for="e-note">メモ（共有ページの曲名リストに出ます）</label>
+          <textarea class="input" id="e-note" rows="3" maxlength="200" autocomplete="off" placeholder="この曲を選んだ理由など"></textarea>
+        </div>
         <p class="editor-meta" id="editor-meta"></p>
         <div class="field" id="e-origin-field" hidden>
           <!-- 転載元（概要欄から分かったとき）と、ニコニコで探した古い投稿の候補 -->
@@ -1801,6 +1805,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "切り抜く": "Crop",
         "ぼかして埋める": "Blur to fill",
         "このマスのサムネの入れ方": "How this thumbnail fits",
+        "メモ（共有ページの曲名リストに出ます）": "Note (shown in the track list on the share page)",
+        "この曲を選んだ理由など": "Why you picked this track, etc.",
         "全体に従う": "Follow the setting",
         "マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。": "How to fit thumbnails whose shape differs from the cell (for example, video thumbnails in square cells or square covers in 16:9 cells). Choose “Blur to fill” to fit them in without cutting. You can also change it for a single cell.",
         "全曲名を短縮する": "Shorten all titles",
@@ -2275,7 +2281,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
     clearBtn: $("#clear-btn"), jsonExport: $("#json-export"), jsonImport: $("#json-import"), jsonFile: $("#json-file"),
     optListed: $("#opt-listed"), findLink: $("#find-link"),
-    editor: $("#editor"), eNum: $("#editor-num"), eTitle: $("#editor-title"), eSource: $("#editor-source"), eTitleIn: $("#e-title"), eArtistIn: $("#e-artist"), eMeta: $("#editor-meta"), eRemove: $("#e-remove"), eClose: $("#e-close"),
+    editor: $("#editor"), eNum: $("#editor-num"), eTitle: $("#editor-title"), eSource: $("#editor-source"), eTitleIn: $("#e-title"), eArtistIn: $("#e-artist"), eNoteIn: $("#e-note"), eMeta: $("#editor-meta"), eRemove: $("#e-remove"), eClose: $("#e-close"),
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
     gridScroll: $("#grid-scroll"), cols: $("#cols"), rows: $("#rows"),
     ratioSeg: $("#ratio-seg"),
@@ -3125,6 +3131,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.eSource.textContent = tr(SOURCE_LABEL[t.source] || t.source); els.eSource.dataset.source = t.source;
     if (document.activeElement !== els.eTitleIn) els.eTitleIn.value = t.title;
     if (document.activeElement !== els.eArtistIn) els.eArtistIn.value = t.artist;
+    if (document.activeElement !== els.eNoteIn) els.eNoteIn.value = t.note || "";
     setSeg(els.eFitSeg, t.fit || "");   // このマスだけの入れ方（空なら全体に従う）
     renderOriginBox(t);
     els.eMeta.innerHTML = "";
@@ -3234,6 +3241,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.eArtistIn.addEventListener("input", () => {
     const t = selected !== null && state.cells[selected]; if (!t) return;
     t.artist = els.eArtistIn.value; renderGrid();
+  });
+  /* 曲ごとのメモ。**共有ページにだけ出す**（画像には描かないので renderGrid は要らない）。
+     整えるのはサーバー（`Track._note`: 3 行・200 字、空なら消す）。ここでは 3 行までに抑えるだけ */
+  els.eNoteIn.addEventListener("input", () => {
+    const t = selected !== null && state.cells[selected]; if (!t) return;
+    const v = els.eNoteIn.value.split("\n").slice(0, 3).join("\n");
+    if (v !== els.eNoteIn.value) els.eNoteIn.value = v;
+    t.note = v.trim() ? v : null; save();
   });
   els.eRemove.addEventListener("click", () => { if (selected !== null) removeAt(selected); });
   els.eClose.addEventListener("click", () => { clearSelection(); say(els.gridMsg, tr("選択を解除しました。")); });

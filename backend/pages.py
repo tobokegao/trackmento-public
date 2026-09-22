@@ -135,7 +135,7 @@ def _privacy(lang: str, days: int) -> str:
 <li><b>Grid editing data:</b> The tracks placed in cells, the title and the display/output settings are saved in your browser
 (local storage). To let you restore your session, a temporary backup is also kept on the server, linked to a random ID issued for
 each browser. It contains no personally identifying information such as your name or email address.</li>
-<li><b>Shared images and share pages:</b> When you share, the image data and layout data are stored on Cloudflare R2. This data is
+<li><b>Shared images and share pages:</b> When you share, the image data and layout data (including any notes you wrote for each track) are stored on Cloudflare R2. Notes are shown on the share page to anyone with its URL. This data is
 permanently deleted automatically {days} days after it is created.</li>
 <li><b>Images uploaded from your device:</b> These are resized appropriately and stored after removing metadata such as location
 information (Exif).</li>
@@ -179,7 +179,7 @@ The latest version is always published on this page.</p>
 <h2>1. 当サイトが保存する情報</h2>
 <ul>
 <li><b>グリッドの編集データ：</b>マスに配置した曲、タイトル、表示・出力設定は、お使いのブラウザ（ローカルストレージ）に保存されます。また、セッションを復元できるようにするため、ブラウザごとに発行されるランダムなIDと紐づけてサーバーにも一時バックアップを保持します。氏名、メールアドレス等の個人を特定する情報は一切含みません。</li>
-<li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データをCloudflare R2に保存します。これらのデータは生成から{days}日後に自動で完全削除されます。</li>
+<li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データ（曲ごとに書いたメモを含みます）をCloudflare R2に保存します。メモは共有ページで、URL を知っている人が見られます。これらのデータは生成から{days}日後に自動で完全削除されます。</li>
 <li><b>端末からアップロードされた画像：</b>適切なサイズへのリサイズを行い、位置情報などのメタデータ（Exif）を削除したうえで保存します。</li>
 <li><b>みんなのグリッド：</b>共有時に掲載を許可（オプトイン）されたデータに限り、当サイト内の検索対象として公開・保存されます。</li>
 </ul>
@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-22", "マスを選ぶと、その曲に「メモ」を書けるようになりました（選んだ理由など。200 字・3 行まで）。メモは共有ページの曲名リストに出ます。書き出す画像には入りません。",
+     "When you select a cell, you can now write a “Note” for that track (why you picked it, for example; up to 200 characters and 3 lines). Notes appear in the track list on the share page, not in the exported image."),
     ("2026-09-22", "マスが縦 1 列の並びで、曲名が 2 行に折れると次の曲の名前に重なることがあったのを直しました。曲と曲のあいだも少し広げています。",
      "In a single-column grid, a track title that wrapped onto two lines could overlap the next track. Fixed, and there is a little more space between tracks."),
     ("2026-09-22", "検索のソース・比率・マスの形・サムネの入れ方・曲名リストを、1 つだけ選ぶラジオボタンにしました。ソースは同時に 1 つだけ選ぶ形になります。",
