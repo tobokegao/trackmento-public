@@ -63,6 +63,10 @@
      同じ濃さの線が並んで**濃いグレーが 2 本に見える**（実機で「影が二重」と報告。画素で確認した）。
      地（--color-bar 91%）と外枠（66%）の中間にすると、2 段の面取りとして読める */
   --color-bevel:   oklch(78% 0.012 250);
+  /* つまみのドット絵の 1 マス（2026-09-22）。**端末の画素のちょうど整数倍にする**（JS の setDotUnit が
+     round(画素密度) / 画素密度 px を入れる。2.625 倍の端末なら 3 画素 = 1.143px）。1px のままだと 1 マスが
+     2.625 画素になり、同じ太さのはずの縞が位置によって 2 画素と 3 画素にばらつく（真ん中だけ太い、と報告） */
+  --u: 1px;
   /* スライダーのつまみ（19×18 のドット絵）。**色は上の --color-bar-dark / --color-bevel / --color-hl-dim の写し**
      （SVG の中からは CSS 変数が読めない）。上の色を変えたら、ここと暗い地の組の同じ行も直す */
   --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(78%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
@@ -295,13 +299,13 @@ img { max-width: 100%; display: block; }
    面は透かしてあり、地の色は background-color が出す（:hover / :active の色替えがそのまま効く） */
 ::-webkit-scrollbar-thumb {
   background-color: var(--color-bar);
-  border: 2px solid transparent;
-  border-image: var(--sb-frame) 2 / 2px;
+  border: calc(2 * var(--u)) solid transparent;
+  border-image: var(--sb-frame) 2 / calc(2 * var(--u));
   background-repeat: no-repeat;
   background-position: center;
 }
-::-webkit-scrollbar-thumb:vertical { min-height: 28px; background-image: var(--sb-grip-v); background-size: 9px 16px; }
-::-webkit-scrollbar-thumb:horizontal { min-width: 28px; background-image: var(--sb-grip-h); background-size: 16px 9px; }
+::-webkit-scrollbar-thumb:vertical { min-height: 28px; background-image: var(--sb-grip-v); background-size: calc(9 * var(--u)) calc(16 * var(--u)); }
+::-webkit-scrollbar-thumb:horizontal { min-width: 28px; background-image: var(--sb-grip-h); background-size: calc(16 * var(--u)) calc(9 * var(--u)); }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--color-paper-2); }
 ::-webkit-scrollbar-thumb:active { background-color: var(--color-rule-2); }
 ::-webkit-scrollbar-button { display: none; }
@@ -963,8 +967,8 @@ body.sheet-open { overflow: hidden; }
   /* 見た目は ::-webkit-scrollbar-thumb:vertical と同じ絵（枠は border-image、縞は真ん中の 1 枚） */
   .tsb-thumb { position: absolute; left: 0; width: 100%; min-height: 44px; box-sizing: border-box;
     background-color: var(--color-bar);
-    border: 2px solid transparent; border-image: var(--sb-frame) 2 / 2px;
-    background-image: var(--sb-grip-v); background-size: 9px 16px;
+    border: calc(2 * var(--u)) solid transparent; border-image: var(--sb-frame) 2 / calc(2 * var(--u));
+    background-image: var(--sb-grip-v); background-size: calc(9 * var(--u)) calc(16 * var(--u));
     background-position: center; background-repeat: no-repeat; }
   .tsb-thumb:active { background-color: var(--color-rule-2); }
 }
@@ -1030,7 +1034,7 @@ body.sheet-open { overflow: hidden; }
   border: 1px solid var(--color-bar-dark);
   box-shadow: inset 0 1px 0 rgb(0 0 0 / 0.16);
 }
-.hsv input[type="range"]::-webkit-slider-thumb { margin-top: -4px; }   /* (12 - 18) / 2 から 1px 上へ。帯の凹みの中で少し浮いて見せる */
+.hsv input[type="range"]::-webkit-slider-thumb { margin-top: calc(5px - 9 * var(--u)); }   /* (12 - 18) / 2 から 1px 上へ。帯の凹みの中で少し浮いて見せる */
 .hsv .hex { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: right; font-variant-numeric: tabular-nums; }
 /* つまみと溝は Mac OS 9 の作り。スクロールバー（上）と同じ言葉づかいにそろえる。
    **溝は凹み**（左上が濃く右下が白）、**つまみは出っぱり**（左上が白く右下が濃い）＋ 真ん中に握りの縞 */
@@ -1045,7 +1049,7 @@ input[type="range"]::-webkit-slider-runnable-track {
   box-shadow: inset 0 1px 0 rgb(0 0 0 / 0.16);
 }
 input[type="range"]::-webkit-slider-thumb {
-  appearance: none; width: 19px; height: 18px; margin-top: -6px; box-sizing: border-box;
+  appearance: none; width: calc(19 * var(--u)); height: calc(18 * var(--u)); margin-top: calc(3px - 9 * var(--u)); box-sizing: border-box;   /* 1 マス = --u（上の :root） */
   background-color: var(--color-bar);
   /* **線は全部 1 枚のドット絵（--range-thumb）に描く**（2026-09-22）。Inside Macintosh の図と同じ作り。
      以前は外枠・面取り・握りの縞を 13 枚の背景に分けて重ねていたが、背景は 1 枚ずつ端末の画素へ
@@ -1556,6 +1560,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
+
+  /* つまみのドット絵の 1 マス（CSS の --u）を、端末の画素のちょうど整数倍にする。
+     画素密度が変わったら（ブラウザの拡大縮小・別の画面への移動）入れ直す */
+  const dotUnit = () => { const d = window.devicePixelRatio || 1; return Math.max(1, Math.round(d)) / d; };
+  (function setDotUnit() {
+    const d = window.devicePixelRatio || 1;
+    document.documentElement.style.setProperty("--u", dotUnit() + "px");
+    try { matchMedia(`(resolution: ${d}dppx)`).addEventListener("change", setDotUnit, { once: true }); } catch (_) {}
+  })();
 
   /* ---------- ドメインの引っ越し（旧ドメイン → 新ドメイン） ----------
      **並びはブラウザの localStorage が主**なので、サーバーの 301 では持っていけない
@@ -3655,17 +3668,17 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
        - 指の太さぶんの遊び（±8px）を足していたので、真横の溝でも動いてしまう
      の 2 つが残っていた。キーボード（矢印キー）はこれまでどおり効く */
   function thumbOnly(el) {
-    const THUMB = 19;   // CSS の ::-webkit-slider-thumb と同じ幅
+    const thumbW = () => 19 * dotUnit();   // CSS の ::-webkit-slider-thumb と同じ幅（19 マス）。画素密度で変わるので毎回測る
     const thumbCenter = () => {
       const r = el.getBoundingClientRect();
       const min = Number(el.min || 0), max = Number(el.max || 100), v = Number(el.value);
       const t = max > min ? (v - min) / (max - min) : 0;
-      return r.left + THUMB / 2 + t * (r.width - THUMB);
+      return r.left + thumbW() / 2 + t * (r.width - thumbW());
     };
     const valueAt = (clientX) => {
       const r = el.getBoundingClientRect();
       const min = Number(el.min || 0), max = Number(el.max || 100), step = Number(el.step || 1) || 1;
-      const t = (clientX - r.left - THUMB / 2) / Math.max(1, r.width - THUMB);
+      const t = (clientX - r.left - thumbW() / 2) / Math.max(1, r.width - thumbW());
       const v = min + Math.min(1, Math.max(0, t)) * (max - min);
       return Math.min(max, Math.max(min, Math.round(v / step) * step));
     };
@@ -3680,7 +3693,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     let dragging = false, grabDX = 0;
     pad.addEventListener("pointerdown", (e) => {
       e.preventDefault(); e.stopPropagation();
-      if (Math.abs(e.clientX - thumbCenter()) > THUMB / 2) return;   // つまみの上でなければ何もしない
+      if (Math.abs(e.clientX - thumbCenter()) > thumbW() / 2) return;   // つまみの上でなければ何もしない
       dragging = true;
       grabDX = e.clientX - thumbCenter();
       try { pad.setPointerCapture(e.pointerId); } catch { /* 古いブラウザ */ }
