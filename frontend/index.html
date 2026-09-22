@@ -63,6 +63,9 @@
      同じ濃さの線が並んで**濃いグレーが 2 本に見える**（実機で「影が二重」と報告。画素で確認した）。
      地（--color-bar 91%）と外枠（66%）の中間にすると、2 段の面取りとして読める */
   --color-bevel:   oklch(78% 0.012 250);
+  /* スライダーのつまみ（19×18 のドット絵）。**色は上の --color-bar-dark / --color-bevel / --color-hl-dim の写し**
+     （SVG の中からは CSS 変数が読めない）。上の色を変えたら、ここと暗い地の組の同じ行も直す */
+  --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(78%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
   /* ラジオボタンのドット絵だけで使う灰色（Mac OS 8 の図の灰色の段に合わせた。2026-09-22） */
   --color-radio-mid:  oklch(63% 0.008 250);
   --color-radio-deep: oklch(57% 0.008 250);
@@ -181,6 +184,7 @@ img { max-width: 100%; display: block; }
   --color-hl:       oklch(74% 0.010 250);
   --color-hl-dim:   oklch(58% 0.010 250);
   --color-bevel:    oklch(29% 0.012 250);   /* 地 38% と外枠 20% の中間 */
+  --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
   /* **暗い地では「地より明るい中間のグレー」**。地より暗い色にすると、地がもう十分暗いので
      影がまったく見えない（実機で報告）。中間のグレーなら、暗い面の縁に落ちた影として読める。
      **34% では「見えづらい」と 2 度報告があった**ので 58% まで上げた（地 24% との差が 34%）。
@@ -1080,40 +1084,17 @@ input[type="range"]::-webkit-slider-runnable-track {
 input[type="range"]::-webkit-slider-thumb {
   appearance: none; width: 19px; height: 18px; margin-top: -6px; box-sizing: border-box;
   background-color: var(--color-bar);
-  /* **外枠も `border` ではなく背景で描く**。枠と背景は別々に端末の画素へ丸められるので、
-     画素密度が整数でない端末（実機は 2.625 倍）では**外枠と面取りの間に 1 デバイス画素の
-     すきまが開く**（つまみの位置によって開いたり開かなかったりする。実機で報告）。
-     全部を 1 枚の背景にすれば同じ丸めで描かれ、線どうしが必ず接する。
-     **面取りを box-shadow で描かない**理由も同じ（内側の影は背景より上に乗るので角の 1px を塗り分けられない）。
-     上に重なる順で:
-       ① 右上・左下の角の 1px … 暗い白（白い輪郭が回り込んだ所を落ち着かせる）
-       ② 握りの縞 … 白線 1px（上端 1px だけ明るい白、以下は暗い白）＋ **隙間を開けず右隣に**濃いグレー線。
-          グレーは線の太さ（1px）ぶん下にずらし、白線の下から 1px はみ出す。3 本を真ん中に置く
-       ③ 面取り … 上辺・左辺が白、下辺・右辺は**中間のグレー**（`--color-bevel`。外枠の 1px 内側）。
-          **外枠と同じ濃さにしてはいけない**。同じ濃さの線が 2 本並んで「影が二重」に見える
-       ④ 外枠 … 四辺とも濃いグレー */
-  background-image:
-    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
-    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
-    repeating-linear-gradient(to right, #fff 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(to right, var(--color-hl-dim) 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(to right, var(--color-bar-dark) 0 1px, transparent 1px 4px),
-    linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
-    linear-gradient(var(--color-bevel), var(--color-bevel)), linear-gradient(var(--color-bevel), var(--color-bevel)),
-    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark)),
-    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
-  background-size:
-    1px 1px, 1px 1px,
-    10px 1px, 10px 7px, 10px 8px,
-    calc(100% - 2px) 1px, 1px calc(100% - 2px),
-    calc(100% - 2px) 1px, 1px calc(100% - 2px),
-    100% 1px, 100% 1px, 1px 100%, 1px 100%;
-  background-position:
-    right 1px top 1px, left 1px bottom 1px,
-    left 4px top 4px, left 4px top 5px, left 5px top 5px,
-    left 1px top 1px, left 1px top 1px,
-    left 1px bottom 1px, right 1px top 1px,
-    left 0 top 0, left 0 bottom 0, left 0 top 0, right 0 top 0;
+  /* **線は全部 1 枚のドット絵（--range-thumb）に描く**（2026-09-22）。Inside Macintosh の図と同じ作り。
+     以前は外枠・面取り・握りの縞を 13 枚の背景に分けて重ねていたが、背景は 1 枚ずつ端末の画素へ
+     丸められるので、画素密度が整数でない端末（実機は 2.625 倍）や**指で拡大したとき**に 1 枚だけずれ、
+     下辺の下に地色の帯・右辺の外に白い筋・縞の太さの不ぞろいが出た（実機で報告）。
+     1 枚の絵なら中の線は同じ丸めで描かれ、互いにずれない。面は透かしてあり、地の色は
+     background-color が出す（掴んでいる間の色 `.is-grabbed` もそのまま効く）。
+     絵の中身: 外枠は四辺とも濃いグレー、面取りは上・左が白で下・右が中間のグレー
+     （外枠と同じ濃さにすると影が二重に見える）、右上と左下の角の 1px は暗い白、
+     握りの縞は白線（上端 1px だけ明るい白）の右隣に 1px 下へずらした濃いグレー線を 3 組 */
+  background-image: var(--range-thumb);
+  background-size: 100% 100%;
   background-repeat: no-repeat;
 }
 
