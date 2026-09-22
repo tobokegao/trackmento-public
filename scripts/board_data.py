@@ -296,6 +296,47 @@ def r2_from_prune() -> dict | None:
     }
 
 
+def shares_series() -> list:
+    """1 日の共有数。毎日の掃除が残す `shares_by_day`（残っている共有を作られた日ごとに数えたもの）の
+    いちばん新しい行から [MM-DD, 件数] を作る。共有は 30 日残るので、1 行で 30 日ぶんが揃う（2026-09-22）。
+    最後の日はその日の途中までなので、呼び出し側（ボード）で断り書きを出す。"""
+    for r in reversed(rows(R2_PATH)):
+        by_day = r.get("shares_by_day")
+        if by_day:
+            return [[d[5:], n] for d, n in sorted(by_day.items())]
+    return []
+
+
+# 「文書の置き場所」の表の推定トークン数。字数 × この比で見積もる。
+# 2026-09-20 に分けたとき CLAUDE.md が 17,980 字で 8.0k と見積もった比（日本語が主なので 1 字 ≒ 0.44 トークン）
+TOKENS_PER_CHAR = 8000 / 17980
+DOC_FILES = {
+    "claude": ("CLAUDE.md",),
+    "layout": ("docs/layout.md",),
+    "ui": ("docs/ui.md",),
+    "ops": ("docs/ops.md",),
+    "gotchas": ("docs/gotchas.md",),
+    "sources": ("docs/sources.md",),
+    "terms": ("docs/services-terms.md",),
+    "history": ("docs/history.md",),
+    "misc": ("docs/share.md", "docs/env.md", "docs/promo.md"),
+}
+# メモリの索引はリポジトリの外。手元で回したときだけ数える
+MEMORY_INDEX = Path.home() / ".claude" / "projects" / "C--Users-amisi-musicgrid-local" / "memory" / "MEMORY.md"
+
+
+def doc_sizes() -> dict:
+    """文書ごとの推定トークン数（千単位）。毎セッション読み込まれる土台＝CLAUDE.md ＋ メモリの索引。"""
+    def k(paths):
+        chars = sum(len(p.read_text(encoding="utf-8")) for p in paths if p.exists())
+        return round(chars * TOKENS_PER_CHAR / 1000, 1)
+    out = {key: k([ROOT / f for f in files]) for key, files in DOC_FILES.items()}
+    if MEMORY_INDEX.exists():
+        out["memory"] = k([MEMORY_INDEX])
+    out["base"] = round(out["claude"] + out.get("memory", 0), 1)
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, help="書き出し先。省略すると標準出力")
@@ -318,6 +359,10 @@ def main() -> None:
     if svc:
         doc["services"] = svc
     doc["watch"] = watch_items(doc["latest"])
+    shares = shares_series()
+    if shares:
+        doc["shares"] = shares
+    doc["docs"] = doc_sizes()
 
     text = json.dumps(doc, ensure_ascii=False, indent=2)
     if args.out:

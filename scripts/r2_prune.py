@@ -42,7 +42,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from r2_count import bucket_of  # noqa: E402  種類分けはここだけに持つ（数え方が 2 つあるとずれる）
 
 
-def write_line(path: Path, left_n, left_bytes, *, deleted: int, applied: bool) -> None:
+def write_line(path: Path, left_n, left_bytes, *, deleted: int, applied: bool, shares_by_day=None) -> None:
     """種類ごとの件数と容量を JSONL に 1 行足す。掃除の一覧に相乗りするので、追加の Class A は要らない。"""
     from datetime import datetime as _dt
 
@@ -55,6 +55,10 @@ def write_line(path: Path, left_n, left_bytes, *, deleted: int, applied: bool) -
         "total_bytes": sum(left_bytes.values()),
         "kinds": {k: [left_n[k], left_bytes[k]] for k in sorted(left_n)},
     }
+    if shares_by_day:
+        # 残っている共有（並びの .json）を作られた日（UTC）ごとに。30 日ぶんが 1 行で揃うので、
+        # 運用ボードの「1 日の共有数」はいちばん新しい行だけで描ける（2026-09-22）
+        row["shares_by_day"] = dict(sorted(shares_by_day.items()))
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -92,6 +96,7 @@ def main() -> int:
     # 残るものを種類ごとに数える（この一覧に相乗りする。別に数えると Class A をもう一度払う）
     left_n: Counter[str] = Counter()
     left_bytes: Counter[str] = Counter()
+    shares_by_day: Counter[str] = Counter()
     for key, size, modified in st.list_objects():
         if key.startswith(KEEP_PREFIXES):
             kept_n += 1
@@ -113,6 +118,8 @@ def main() -> int:
             keep_bytes += size
             left_n[bucket_of(key)] += 1
             left_bytes[bucket_of(key)] += size
+            if bucket_of(key) == "共有（並び）":
+                shares_by_day[modified.astimezone(timezone.utc).strftime("%Y-%m-%d")] += 1
     print(f"保存先: {st.name}  基準: {cutoff:%Y-%m-%d %H:%M} UTC より古いもの"
           f"（{', '.join(IMAGE_PREFIXES)} は {cutoff_img:%Y-%m-%d %H:%M} UTC、"
           f"{', '.join(SEARCH_PREFIXES)} は {cutoff_srch:%Y-%m-%d %H:%M} UTC）")
@@ -125,7 +132,7 @@ def main() -> int:
     if not a.apply:
         print("（数えただけ。削除するには --apply を付ける）")
         if a.append:
-            write_line(a.append, left_n, left_bytes, deleted=0, applied=False)
+            write_line(a.append, left_n, left_bytes, deleted=0, applied=False, shares_by_day=shares_by_day)
         return 0
     deleted = st.delete_many(victims)
     print(f"削除: {deleted} 件")
@@ -133,7 +140,7 @@ def main() -> int:
     # 21 万件ぶんの Class A をもう一度払うことになる（2026-09-21 に気付いて直した）
     print(f"使用量: {sum(left_bytes.values()) / 1024**3:.2f} GB（消したあと。一覧は取り直さない）")
     if a.append:
-        write_line(a.append, left_n, left_bytes, deleted=deleted, applied=True)
+        write_line(a.append, left_n, left_bytes, deleted=deleted, applied=True, shares_by_day=shares_by_day)
     return 0
 
 
