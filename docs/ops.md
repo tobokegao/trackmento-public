@@ -240,8 +240,18 @@
     **`out` の記録は 2026-09-20 に入った**ので、それ以前の点検（`series.jsonl` の 61 行）は `out` が空。数に入れない。
     **`musicbrainz.org` と `coverartarchive.org` は 1 度も出ない**。MusicBrainz はブラウザから直接引く（利用者の IP から出る）ので、
     サーバーのログに出ないのが正しい。iTunes も大半はブラウザ直で、ここに出るのは URL を貼ったときの補完・CLI・API だけ
-  - 文章（待っていること・手順）は db に入れていない。変えるときは
-    `scripts/board/index.html` を直して `Artifact` の publish で同じ URL に出し直す
+  - **ボードに出るものは、決まった手順（上の 3 つ）で全部入れ替わる**（2026-09-22。手で書いた欄が古いまま残っていた
+    ——投稿済みの紹介動画が「公開するか決める」のまま、共有数の図が 09-19 で止まったまま、VocaDB の「いま」が最大値のまま、
+    文書のトークン数が分けた日のまま）。どこから来るか:
+    - 点検の記録（`series.jsonl`）… いまの状況・推移・外へ出した要求（見出しに時刻）・外部サービスの実測・VocaDB の図の「多い日」と「直近」
+    - 毎日の掃除（`r2.jsonl`）… R2 のタイルと使用量の図・**1 日の共有数**（`shares_by_day`。残っている共有を作られた日ごとに数える）・
+      覚え書きの件数と容量と料金・「まだ一度も掃除で減っていない」の出し分け
+    - リポジトリの字数 … 文書の置き場所の推定トークン数（字数 × 8000/17980。分けた日の見積もりと同じ比）
+    - **`scripts/board/status.json`** … **人しか知らない状況**（やること・外部サービスの状態）。記録からは出せないので、
+      項目ごとに `reviewed`（見直した日）を持たせ、**3 日より古いか期限を過ぎていると `board_data.py` が `!` で警告する**。
+      警告が出たら、メモリの進捗（`project-status-tasks-done`）と突き合わせて直し、`reviewed` を今日にする
+  - ページに残る手書きは、見た目と手順の説明（変更したら回すもの・セッションの進め方・過去の経緯の注記）だけ。
+    それを変えるときは `scripts/board/index.html` を直して `Artifact` の publish で同じ URL に出し直す
 
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）

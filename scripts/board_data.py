@@ -26,6 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent
 SERIES_PATH = ROOT / "metrics" / "series.jsonl"
 R2_PATH = ROOT / "metrics" / "r2.jsonl"              # 毎日の掃除（r2_prune.py --append）が書く。種類ごとの内訳つき
 R2_HISTORY_PATH = ROOT / "metrics" / "r2_history.jsonl"   # scripts/r2_history.py が GraphQL から引く合計だけの履歴
+STATUS_PATH = ROOT / "scripts" / "board" / "status.json"  # 人が書く欄（やること・外部サービスの状態）
+STALE_DAYS = 3      # 人が書く欄をこれより長く見直していなければ警告する
 
 # 推移の図で使う種類のまとめ方。9 種類そのままだと帯が細かすぎて読めない
 KIND_GROUPS = [
@@ -285,6 +287,10 @@ def r2_from_prune() -> dict | None:
     over = max(0.0, gb - FREE_GB)
     kinds = last.get("kinds") or {}
     shares = (kinds.get("共有（並び）") or [0])[0]       # 共有は .json を数える（画像は本体とカード用で 2 倍になる）
+    share_gb = sum((kinds.get(k) or [0, 0])[1] for k in ("共有（本体画像）", "共有（カード用）", "共有（並び）")) / 1024**3
+    # 掃除で実際に消えた記録。「まだ一度も減っていない」の注記をボードが自分で出し分ける
+    applied = [r for r in data if r.get("applied")]
+    first_del = next((r.get("jst", "")[:10] for r in applied if r.get("deleted")), None)
     return {
         "gb": round(gb, 1),
         "note": f"無料 {FREE_GB:.0f}GB ＋ 超過 {over:.1f}GB ＝ 月 ${over * PER_GB:.2f}",
@@ -293,6 +299,14 @@ def r2_from_prune() -> dict | None:
         # 全体の上限を使っていないとその数はどこにも使われないので 2026-09-21 にやめた（Class A 214 回／起動）
         "shares": shares,
         "kept_days": 30,
+        # 覚え書きの「データの置き場所」と「お金」の欄（以前は手で書いていて古くなった。2026-09-22）
+        "share_gb": round(share_gb, 1),
+        "img_n": (kinds.get("imgcache/") or [0])[0],
+        "img_gb": round((kinds.get("imgcache/") or [0, 0])[1] / 1024**3, 1),
+        "search_n": (kinds.get("searchcache/") or [0])[0],
+        "cost": round(over * PER_GB, 2),
+        "deleted_total": sum(r.get("deleted", 0) for r in applied),
+        "first_deleted": first_del,
     }
 
 
@@ -337,6 +351,33 @@ def doc_sizes() -> dict:
     return out
 
 
+def load_status(today) -> tuple[dict, list[str]]:
+    """人が書く欄（scripts/board/status.json）を読み、古くなっていそうなものを挙げる。
+
+    点検の記録からは出せない状況（外からの返事・投稿したもの）はここにしか無い。
+    2026-09-22 に「紹介動画を公開するか」が投稿後も残っていたので、見直した日を持たせて警告する。"""
+    from datetime import date
+    if not STATUS_PATH.exists():
+        return {}, [f"{STATUS_PATH.name} が無い"]
+    st = json.loads(STATUS_PATH.read_text(encoding="utf-8"))
+    warn = []
+    def age(d):
+        try:
+            return (today - date.fromisoformat(d)).days
+        except (TypeError, ValueError):
+            return 999
+    for t in st.get("todos", []):
+        if age(t.get("reviewed")) > STALE_DAYS:
+            warn.append(f"やること「{t['t']}」: {age(t.get('reviewed'))} 日見直していない")
+        w = t.get("when") or ""
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", w) and age(w) >= 0:
+            warn.append(f"やること「{t['t']}」: 期限 {w} を過ぎた（今日を含む）")
+    svc = st.get("services", {})
+    if age(svc.get("reviewed")) > STALE_DAYS:
+        warn.append(f"外部サービスの状態: {age(svc.get('reviewed'))} 日見直していない")
+    return {"todos": st.get("todos", []), "services": {k: v for k, v in svc.items() if not k.startswith("_")}}, warn
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, help="書き出し先。省略すると標準出力")
@@ -363,6 +404,17 @@ def main() -> None:
     if shares:
         doc["shares"] = shares
     doc["docs"] = doc_sizes()
+    from datetime import datetime, timedelta, timezone
+    today = datetime.now(timezone(timedelta(hours=9))).date()
+    status, warn = load_status(today)
+    if status:
+        doc["status"] = status
+
+    # 人が書く欄は自動では新しくならない。毎回ここで見直す合図を出す（stderr なので --out なしでも JSON を汚さない）
+    import sys
+    print(f"[人が書く欄] {STATUS_PATH.relative_to(ROOT)} をメモリの進捗（project-status-tasks-done）と突き合わせる", file=sys.stderr)
+    for w in warn:
+        print(f"  ! {w}", file=sys.stderr)
 
     text = json.dumps(doc, ensure_ascii=False, indent=2)
     if args.out:
