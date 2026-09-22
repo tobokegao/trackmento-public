@@ -24,7 +24,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-const CAPTURE_VERSION = 5;   // 撮り方（下の道具）を変えたら上げる。全部の場面が撮り直しになる
+const CAPTURE_VERSION = 6;   // 撮り方（下の道具）を変えたら上げる。全部の場面が撮り直しになる
 const FPS = 30;
 const BASE = process.env.TRACKMENTO_URL || "http://localhost:8000";
 const PC = process.env.MODE === "pc";
@@ -120,9 +120,12 @@ async function markRect(name, sels) {
   mark(name, { rect });
 }
 
-/** 要素の四角（見えている範囲で切った 0〜1 の割合）。横の動画のカメラはこれを順に追って寄る（2026-09-22） */
+/** 要素の四角（見えている範囲で切った 0〜1 の割合）。横の動画のカメラはこれを順に追って寄る（2026-09-22）。
+    **ラジオの組・色見本の中の 1 つを押したときは、組ぜんぶの四角**にする（2026-09-22、利用者の指摘。押した 1 つに寄ると
+    「曲名リストは 3 択」のような場面で、選べるものの全体が映らなかった） */
 async function rectOf(loc) {
-  const b = await loc.boundingBox().catch(() => null);
+  const group = await loc.evaluateHandle((el) => el.closest(".seg, #swatches") || el).catch(() => null);
+  const b = await (group ? group.asElement() : loc).boundingBox().catch(() => null);
   if (!b) return undefined;
   const vp = page.viewportSize(), r4 = (v) => Math.round(v * 1e4) / 1e4;
   const x0 = Math.max(0, b.x), y0 = Math.max(0, b.y), x1 = Math.min(vp.width, b.x + b.width), y1 = Math.min(vp.height, b.y + b.height);
@@ -142,6 +145,31 @@ async function center(loc) {
     el.scrollIntoView({ block: pc ? "nearest" : "center", inline: "nearest" });
   }, PC);
 }
+/** **PC だけ**: 要素（か、そのラジオの組）を、入れ物の縦の真ん中まで**なめらかに**送る（2026-09-22、利用者の指摘）。
+    横の動画はカメラが操作した所に寄るが、要素が画面の下の端にあると、カメラは録画の外を映せないので真ん中に持ってこられなかった */
+async function bring(sel, ms = 450) {
+  if (!PC) return;
+  const loc = typeof sel === "string" ? page.locator(sel).first() : sel;
+  const info = await loc.evaluate((el) => {
+    const g = el.closest(".seg, #swatches") || el;
+    let p = g.parentElement;
+    while (p && p !== document.body && !(/(auto|scroll)/.test(getComputedStyle(p).overflowY) && p.scrollHeight > p.clientHeight)) p = p.parentElement;
+    const inBox = p && p !== document.body;
+    const box = inBox ? p.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+    const r = g.getBoundingClientRect();
+    const top = Math.max(0, box.top), bottom = Math.min(innerHeight, box.bottom);
+    let dy = Math.round((r.top + r.bottom) / 2 - (top + bottom) / 2);
+    // 送れる範囲で止める（端より先は動かない）
+    const cur = inBox ? p.scrollTop : scrollY, max = inBox ? p.scrollHeight - p.clientHeight : document.documentElement.scrollHeight - innerHeight;
+    dy = Math.max(-cur, Math.min(max - cur, dy));
+    if (inBox) p.dataset.capBring = "1";
+    return { dy, box: inBox };
+  });
+  if (Math.abs(info.dy) >= 40) await scrollBy(info.dy, ms, info.box ? "[data-cap-bring]" : null);
+  await page.evaluate(() => { for (const el of document.querySelectorAll("[data-cap-bring]")) delete el.dataset.capBring; });
+}
+/** 引きの印（画面全体）。窓が重なって出たときなど、横の動画のカメラを寄りから引きに戻す（2026-09-22、利用者の指定） */
+const markWide = (name) => mark(name, { rect: { x: 0, y: 0, w: 1, h: 1 } });
 /** 押す。波紋（とカーソル）を出してから押す。押した瞬間が印の時刻 */
 async function tap(sel, name) {
   const loc = typeof sel === "string" ? page.locator(sel).first() : sel;
@@ -235,6 +263,12 @@ async function setSize(c, r, name) {
   await type("#cols", String(c)); await type("#rows", String(r));
   await page.locator("#rows").press("Enter");
 }
+/** ページの画像を全部読ませてから進む（撮らずに待つ）。loading="lazy" は時計を止めて撮ると読み込みが間に合わない */
+async function imgsReady() {
+  await page.evaluate(() => { for (const i of document.querySelectorAll("img")) i.loading = "eager"; });
+  await until(() => page.evaluate(() => [...document.querySelectorAll("img")].every((i) => i.complete)), { label: "ページの画像", timeout: 30000 })
+    .catch(() => console.log("   （画像が出そろわないまま進める）"));
+}
 /** マスの画像が出そろうまで撮りながら待つ */
 const imagesLoaded = () => page.evaluate(() => [...document.querySelectorAll("#grid .cell img")].every((i) => i.complete));
 
@@ -277,7 +311,7 @@ const MAIN = [
   // マスの形を横長 16:9 に（2026-09-21）。これより後の本編は全部 16:9 のマス
   ["cellratio", async () => {
     await openOptions("cellratio:open");
-    await center(page.locator("#cell-ratio-seg")); await hold(400);
+    await center(page.locator("#cell-ratio-seg")); await bring("#cell-ratio-seg"); await hold(400);
     await tap('#cell-ratio-seg input[value="16:9"] + span', "cellratio:16:9");
     await hold(1500);
     if (!PC) { await tap(".pane-options .fold", "cellratio:close"); await hold(400); }
@@ -288,9 +322,8 @@ const MAIN = [
     await tap(cell(1), "cell-tap");
     if (!PC) await waitSel("#sheet:not([hidden])");
     await hold(700);
-    // 検索ソースの切り替えを見せる（ほかの 3 つをオン → otoDB だけ残してオフ）
-    for (const k of ["musicbrainz", "otodb", "vocadb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await hold(350); }
-    for (const k of ["musicbrainz", "vocadb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src-off:${k}`); await hold(300); }
+    // 検索ソースの切り替えを見せる。**ソースは 1 つだけ選ぶ**（2026-09-22 からラジオボタン）ので、順に選んで最後に otoDB
+    for (const k of ["musicbrainz", "vocadb", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await hold(450); }
     await hold(300);
     // 2026-09-21: 本編の 9 マスはニコニコ・YouTube・otoDB だけ（利用者の指定）。検索は otoDB の作品を引く
     await type("#q", "最終鬼畜妹"); await page.locator("#artist").fill("");
@@ -299,8 +332,11 @@ const MAIN = [
   }],
   ["add-talk", async () => { await pasteUrl("https://www.youtube.com/watch?v=x2Uj_ILuNw0", "url"); await tap("#bc-btn", "url:talk"); await pickFirstResult("talk", "youtube"); }],
   ["add-10-10-10", async () => { await pasteUrl("https://www.nicovideo.jp/watch/sm44887188", "url"); await tap("#bc-btn", "url:10-10-10"); await pickFirstResult("10-10-10", "nicovideo"); }],
-  // 動画 ID だけ貼っても入る。組曲『ニコニコ動画』（しも、2007 年）は古い投稿でサムネが 4:3（「サムネの入れ方」の見せ場）
-  ["add-kumikyoku", async () => { await pasteUrl("sm500873", "url"); await tap("#bc-btn", "url:kumikyoku"); await pickFirstResult("kumikyoku", "nicovideo"); }],
+  // 動画 ID だけ貼っても入る。古い投稿はサムネが 4:3（「サムネの入れ方」の見せ場）。
+  // **ダッシュウパニック（sm9821748、2010 年）**: 左右の端までピンクの柄なので、ぼかすと色がにじんで分かる。
+  // 2026-09-22 まで使っていた組曲『ニコニコ動画』（sm500873）は地が黒く、ぼかしても黒い帯と見分けがつかなかった（利用者の指摘）。
+  // 場面と印の名前（kumikyoku）は譜割りエディタが指しているのでそのまま
+  ["add-kumikyoku", async () => { await pasteUrl("sm9821748", "url"); await tap("#bc-btn", "url:kumikyoku"); await pickFirstResult("kumikyoku", "nicovideo"); }],
   // 2026-09-21: 16:9 のサムネが主役なので、残りの 5 マスはニコニコの動画（作者はみんな別。デモ用マイリストから選んだ）
   ["add-babylinth", async () => { await pasteUrl("https://www.nicovideo.jp/watch/sm46340359", "url"); await tap("#bc-btn", "url:babylinth"); await pickFirstResult("babylinth", "nicovideo"); }],
   ["add-rockclub", async () => { await pasteUrl("https://www.nicovideo.jp/watch/sm46323931", "url"); await tap("#bc-btn", "url:rockclub"); await pickFirstResult("rockclub", "nicovideo"); }],
@@ -315,12 +351,12 @@ const MAIN = [
   // サムネの入れ方（2026-09-21）。全体を「ぼかして埋める」→「切り抜く」に戻し、4:3 のサムネ（組曲）1 マスだけ「ぼかして埋める」
   ["fit", async () => {
     await openOptions("fit:open");
-    await center(page.locator("#cell-fit-seg")); await hold(400);
+    await center(page.locator("#cell-fit-seg")); await bring("#cell-fit-seg"); await hold(400);
     await tap('#cell-fit-seg input[value="blur"] + span', "fit:blur"); await hold(1600);
     await tap('#cell-fit-seg input[value="crop"] + span', "fit:crop"); await hold(900);
     if (!PC) { await tap(".pane-options .fold", "fit:close"); await hold(400); }
     await scrollBy(-(await page.evaluate(() => scrollY)), 600); await hold(300);
-    await tap(cell(4), "fit:cell"); await hold(600);   // 4 番は組曲『ニコニコ動画』（4:3 のサムネ）
+    await tap(cell(4), "fit:cell"); await hold(600);   // 4 番はダッシュウパニック（4:3 のサムネ）
     await center(page.locator("#e-fit-seg")); await hold(400);
     await tap('#e-fit-seg input[value="blur"] + span', "fit:one"); await hold(1200);
     if (!PC) { await scrollBy(-(await page.evaluate(() => scrollY)), 600); await hold(300); }
@@ -341,19 +377,24 @@ const MAIN = [
       await hold(120); mark("open-options");
     } else await tap(".pane-options .fold", "open-options");
     await hold(600);
-    await center(page.locator("#list-seg")); await hold(300);
+    await center(page.locator("#list-seg")); await bring("#list-seg"); await hold(300);
     // 3 択をぜんぶ押して見せ、最後は「マスに重ねる」に戻す（以後の共有はこの表示）
     // 最後の選択が書き出しの曲名リストになる。**縦（スマホ）は横に並べる**（できあがりの画を重ねない形に。2026-09-22、利用者の指定）
     for (const [v, n] of [["side", "list:beside"], ["overlay", "list:overlay"], ["none", "list:none"], PC ? ["overlay", "list:overlay2"] : ["side", "list:beside2"]]) {
       await tap(`#list-seg input[value="${v}"] + span`, n); await hold(300);
     }
     await hold(600);
+    await bring("#ratio-seg");
     for (const r of (PC ? ["9:16", "16:9", "free", "16:9"] : ["16:9", "9:16", "free", "9:16"])) { await tap(`#ratio-seg input[value="${r}"] + span`, `ratio:${r}`); await hold(380); }
     await hold(400);
+    await center(page.locator("#swatches")); await bring("#swatches");
     for (const c of ["cerulean", "pink", "mustard"]) { await tap(`#swatches input[value="${c}"]`, `bg:${c}`); await hold(450); }
     await hold(400);
     await tap("#bg-custom-btn", "bg:custom");
     await waitSel("#bg-custom-panel:not([hidden])");
+    // つまみの窓ぜんぶが映るように送り、窓ぜんぶに寄る（2026-09-22、利用者の指摘。押したボタンに寄ったままで窓が見切れていた）
+    await center(page.locator("#bg-custom-panel")); await bring("#bg-custom-panel");
+    await markRect("bg:panel", ["#bg-custom-panel"]);
     await hold(500);
     for (const [h, sat, v] of [[262, 64, 100], [16, 65, 90]]) {
       for (const [id, val] of [["hsv-h", h], ["hsv-s", sat], ["hsv-v", v]]) {
@@ -374,10 +415,12 @@ const MAIN = [
     await net.send("Network.enable");
     await net.send("Network.emulateNetworkConditions", { offline: false, latency: 40, downloadThroughput: -1, uploadThroughput: 80 * 1024 });
     await tap("#share-btn", "share");
+    markWide("share:wide");   // 送信の窓が重なって出るので、横の動画は引きに戻す（2026-09-22、利用者の指定）
     await live(() => page.evaluate(() => { const o = document.querySelector("#output"), i = document.querySelector("#output-img"); return o && !o.hidden && i && i.complete && i.naturalWidth > 0; }), { timeout: 180000 });
     mark("share-ready");
     await net.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
-    await center(page.locator("#output-img"));
+    await center(page.locator("#output-img")); await bring("#output");
+    await markRect("share:output", ["#output"]);   // 出来上がりの窓ぜんぶ（2026-09-22、利用者の指摘。窓の上の方だけに寄っていた）
     await hold(1800);
     const shareUrl = await page.locator("#share-url").inputValue();
     mark("share-url", { url: shareUrl });
@@ -478,10 +521,12 @@ const FEATS = [
     await tap("#opt-listed", "listed:check");
     await hold(900);
     await tap("#share-btn", "listed:share");
+    markWide("listed:wide");   // 送信の窓が出たら引き（share と同じ）
     await live(() => page.evaluate(() => { const i = document.querySelector("#output-img"); return !document.querySelector("#output").hidden && i && i.complete && i.naturalWidth > 0; }), { timeout: 120000 });
     await hold(1200); mark("listed:shared", { url: await page.locator("#share-url").inputValue().catch(() => "") });
     await hold(800);
     await goto(`${BASE}/find?q=${encodeURIComponent("グルメレース")}`);
+    await imgsReady();
     mark("find:page");
     await hold(2200);
     await scrollBy(300, 400); await hold(900);
@@ -494,6 +539,7 @@ const FEATS = [
     if (b) await page.evaluate(([x, y]) => window.__tap(x, y), [b.x + b.width / 2, b.y + b.height / 2]);
     await hold(150); mark("find:open");
     await goto(new URL(href, BASE).href);
+    await imgsReady();   // 共有ページのサムネが灰色のまま映っていた（2026-09-22）
     await hold(300); mark("find:share");
     await hold(1500);
     // 「TRACKMENTO で開く（この並びを読み込む）」を押したあとの画面まで見せる（2026-09-22、利用者の指定）。
@@ -578,7 +624,8 @@ const FEATS = [
     await waitSel('#results .result:has(.badge[data-source="vocadb"])', { timeout: 60000 }).catch(() => console.log("   （VocaDB の候補が出なかった）"));
     await hold(1800); mark("vocadb:got");
     await hold(600);
-    await tap(page.locator('#sources input[value="vocadb"] + span'), "source-off:vocadb");
+    // ソースは 1 つだけ選ぶので、iTunes を選んで戻す（あとの場面の検索が VocaDB のままにならないように）
+    await tap(page.locator('#sources input[value="itunes"] + span'), "source-off:vocadb");
     await hold(300);
     await tap('#results .result:has(.badge[data-source="vocadb"])', "add:vocadb");
     await waitSel("#sheet[hidden]", { state: "attached" }).catch(() => {});
@@ -647,8 +694,15 @@ const FEATS = [
       await page.mouse.move(g.x + g.width / 2, g.y + g.height * 0.3);
       await page.evaluate(([x, y]) => window.__tap(x, y), [g.x + g.width / 2, g.y + g.height * 0.3]);
       mark("zoom32:wheel", { rect: await rectOf(page.locator("#grid-scroll")) });
+      // **8 列がちょうど窓の幅に収まる大きさまで**拡大する（2026-09-22、利用者の指摘。16 回 × 60 で 11 倍になり、2 列しか見えなかった）。
+      // 見積もって回すと外れた（窓・グリッドの幅の取り方で 1.5 倍ずれた）ので、**1 回ずつ回して、グリッドの右端が窓に届いたら止める**
+      const fits = () => page.evaluate(() => { const sc = document.querySelector("#grid-scroll"); return sc.scrollWidth <= sc.clientWidth + 1; });
       await page.keyboard.down("Control");
-      for (let i = 0; i < 16; i++) { await page.mouse.wheel(0, -60); await frame(); }
+      for (let i = 0; i < 40; i++) {
+        await page.mouse.wheel(0, -25); await frame();
+        if (!(await fits())) { await page.mouse.wheel(0, 25); await frame(); break; }   // はみ出したら 1 回ぶん戻す
+      }
+      await page.evaluate(() => { document.querySelector("#grid-scroll").scrollLeft = 0; });
       await page.keyboard.up("Control");
       await hold(400);
       await scrollBy(700, 900, "#grid-scroll");

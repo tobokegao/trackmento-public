@@ -15,7 +15,8 @@
 2026-09-21（初見向け・16:9 のサムネ中心）から:
 - smart は**横長 16:9 のマス**で、曲は**デモ用マイリストのニコニコ動画**（promo/stills-tracks-nico.json）で作る
 - `--hook` … 4–5 小節のつかみ（hook-square / hook-wide）。本編の録画の並び（takes/tall-main-ja/reorder/end.json）を
-  正方形のマスと 16:9 のマスで描く。**録画を撮り直したら作り直す**
+  正方形のマスと 16:9 のマスで描く。**録画を撮り直したら作り直す**。`--hook --pc` は横の録画（takes/pc-main-ja）から
+  `hook-*-pc.png` を作る（2026-09-22 から横だけ 4 番の動画が違う）
 縦（tall）と横（wide）の動画で同じ画を使う（`<名前>.png` と `<名前>-pc.png` に同じものを置く。Scenes.tsx がこの名前で読む）。
 割り付けの規則を直したら作り直す。
 """
@@ -113,9 +114,11 @@ def fetch_nico() -> list[dict]:
     return out
 
 
-def hook() -> None:
-    """4–5 小節のつかみ。本編の並びを正方形のマスと 16:9 のマスで（タイトル・曲名リストなし）"""
-    st = json.loads(REORDER_END.read_text(encoding="utf-8"))
+def hook(pc: bool = False) -> None:
+    """4–5 小節のつかみ。本編の並びを正方形のマスと 16:9 のマスで（タイトル・曲名リストなし）。
+    pc = 横の録画の並び（takes/pc-main-ja）から `-pc` の名前で作る（2026-09-22。横だけ 4 番の動画を差し替えたため）"""
+    src = REORDER_END.parent.parent.parent / "pc-main-ja" / "reorder" / "end.json" if pc else REORDER_END
+    st = json.loads(src.read_text(encoding="utf-8"))
     grid = json.loads(st["ls"]["trackmento:grid:default"])
     cells = grid["cells"][:9]
     OUT.mkdir(parents=True, exist_ok=True)
@@ -127,8 +130,8 @@ def hook() -> None:
         k = MAX_OUT / max(im.size)
         if k < 1:
             im = im.resize((round(im.width * k), round(im.height * k)))
-        im.save(OUT / f"{name}.png", optimize=True)
-        print(f"  {name}: {im.size}")
+        im.save(OUT / f"{name}{'-pc' if pc else ''}.png", optimize=True)
+        print(f"  {name}{'-pc' if pc else ''}: {im.size}")
 
 
 def make(name: str, spec: tuple, tracks: list[dict], i: int, cell_ratio: str = "1:1") -> None:
@@ -162,7 +165,7 @@ def main() -> int:
     if "--fetch-only" in sys.argv:   # 撮影中など、重い描画を後回しにしたいとき
         return 0
     if "--hook" in sys.argv:
-        hook()
+        hook("--pc" in sys.argv)
         return 0
     for i, spec in enumerate(SMART):
         make(f"smart-{i + 1:02d}", spec, nico, i, "16:9")

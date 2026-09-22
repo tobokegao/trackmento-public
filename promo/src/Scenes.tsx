@@ -123,11 +123,13 @@ const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.Re
     ? { position: "absolute" as const, left: 60, right: 60, top: 70, display: "flex", flexDirection: "column" as const, alignItems: "flex-start" }
     : { position: "absolute" as const, left: 222, right: 222, top: 36, display: "flex", flexDirection: "column" as const, alignItems: "flex-start" };
   const tall = L.kind === "tall";
+  // **横で見出しが 2 行のときは、英語を見出しの右に置く**（2026-09-22、利用者の指摘）。下に置くと録画の枠（上端 215px）に重なって隠れた
+  const beside = !tall && head.includes("\n");
   return (
     <div style={{ ...box, flexDirection: tall ? "column" : "row", alignItems: tall ? "flex-start" : "flex-end", gap: tall ? 0 : 40 }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-        {head && <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: L.lang === "ja" ? L.jp : L.jp * 0.82, lineHeight: 1.15, padding: tall ? "10px 26px" : "12px 34px", whiteSpace: "pre-line", transform: slide, opacity: s }}>{head}</div>}
-        {sub && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: 14, letterSpacing: "0.03em", transform: slide, opacity: s }}>{sub}</div>}
+      <div style={{ display: "flex", flexDirection: beside ? "row" : "column", alignItems: beside ? "flex-end" : "flex-start", gap: beside ? 32 : 0 }}>
+        {head && <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: L.lang === "ja" ? L.jp : L.jp * 0.82, lineHeight: 1.15, padding: tall ? "10px 26px" : "12px 34px", whiteSpace: "pre-line", flex: "none", transform: slide, opacity: s }}>{head}</div>}
+        {sub && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: beside ? 0 : 14, paddingBottom: beside ? 6 : 0, letterSpacing: "0.03em", transform: slide, opacity: s }}>{sub}</div>}
       </div>
       {children}
     </div>
@@ -240,8 +242,10 @@ const Clip: React.FC<{ kind: Kind; lang: Lang; session: "main" | "feat"; from: n
   const video = <OffthreadVideo src={staticFile(RECORDINGS[kind][lang][session].src)} startFrom={sec(from)} playbackRate={r} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
   const c = cam && !still ? camAt(cam, from + (frame / fps) * r) : null;
   if (c) {
-    // 中心 (x, y) を画面の真ん中に持ってくる。端の外が見えないように中心を寄せる
-    const s = c.s * 1.03, x = Math.max(0.5 / s, Math.min(1 - 0.5 / s, c.x)), y = Math.max(0.5 / s, Math.min(1 - 0.5 / s, c.y));
+    // 中心 (x, y) を画面の真ん中に持ってくる。**録画の端の外は、枠の 4 分の 1 まで見せてよい**（2026-09-22、利用者の指摘）。
+    // 端の外を見せないように止めていたときは、画面の右端にある出力の設定を押しても、押した所が枠の右寄りのままだった。
+    // 外は枠の地（紙の色）で、アプリの地とほぼ同じ色なので目立たない
+    const s = c.s * 1.03, m = 0.25 / s, x = Math.max(m, Math.min(1 - m, c.x)), y = Math.max(m, Math.min(1 - m, c.y));
     return (
       <div style={{ width: "100%", height: "100%", transform: `translate(${(0.5 - x) * s * 100}%, ${(0.5 - y) * s * 100}%) scale(${s})`, transformOrigin: "50% 50%" }}>
         {video}
@@ -319,7 +323,9 @@ const Stills: React.FC<{ L: Layout; shot: Shot }> = ({ L, shot }) => {
           const SLOTS = [0, 15, 5, 10, 3, 11, 6, 9, 1, 14, 7, 8, 2, 13, 4, 12];
           const slot = SLOTS[i % 16], gx = (slot % 4) / 3 - 0.5, gy = Math.floor(slot / 4) / 3 - 0.5;
           const rot = (rnd(i, 1) - 0.5) * 30;
-          const dx = gx * (tall ? 80 : 150) + (rnd(i, 2) - 0.5) * (tall ? 18 : 30);
+          // 横は最後の 1 枚を左の端に寄せる（2026-09-22、利用者の指定）。カードの左の辺が枠の左端から 2% ほどの所
+          const lastWide = !tall && i === names.length - 1;
+          const dx = lastWide ? -(50 - 2 - 17) / 34 * 100 : gx * (tall ? 80 : 150) + (rnd(i, 2) - 0.5) * (tall ? 18 : 30);
           const dy = gy * (tall ? 170 : 100) + (rnd(i, 3) - 0.5) * (tall ? 20 : 16) + (tall ? 10 : 6);
           return (
             <div key={n} style={{ position: "absolute", left: "50%", top: "50%", width: tall ? "62%" : "34%", transform: `translate(-50%, -50%) translate(${dx}%, ${dy}%) rotate(${rot}deg) scale(${1.25 - k * 0.25})`, opacity: Math.min(1, k * 1.6) }}>
@@ -366,7 +372,8 @@ const Showcase: React.FC<{ L: Layout }> = ({ L }) => {
     <AbsoluteFill style={{ background: color }}>
       <AbsoluteFill style={{ backgroundImage: `radial-gradient(${C.ink}22 1.2px, transparent 1.3px)`, backgroundSize: "14px 14px" }} />
       <div style={{ position: "absolute", ...img, border: `6px solid ${C.ink}`, boxShadow: `16px 16px 0 ${C.ink}`, overflow: "hidden", background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", transform: `scale(${s * (drift + pulse * 0.01) * (0.97 + hit * 0.03)})`, transformOrigin: "50% 50%" }}>
-        <Img src={staticFile(src)} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+        {/* **枠いっぱいに敷く**（2026-09-22、利用者の指摘）。contain だと、比が同じでも 1px 未満の差で左右に地の白い線が出た */}
+        <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
       {L.kind === "tall" ? (
         <>
@@ -421,7 +428,8 @@ const Hook: React.FC<{ L: Layout }> = ({ L }) => {
   const after = frame >= switchAt;
   const s = spring({ frame: frame - (after ? switchAt : 0), fps, config: { damping: 13, stiffness: 200 } });
   const tall = L.kind === "tall", ja = L.lang === "ja";
-  const box = tall ? { left: 60, top: 380, width: 960, height: 1400 } : { left: 260, top: 200, width: 1400, height: 840 };
+  // 横は字幕が 2 行＋英語で 250px ほどあるので、枠はその下から（2026-09-22、利用者の指摘。top 200 では英語の行に枠が重なっていた）
+  const box = tall ? { left: 60, top: 380, width: 960, height: 1400 } : { left: 260, top: 290, width: 1400, height: 760 };
   return (
     <Paper>
       <div style={{ position: "absolute", left: 0, right: 0, top: 0 }}><Stripe h={14} /></div>
@@ -438,7 +446,7 @@ const Hook: React.FC<{ L: Layout }> = ({ L }) => {
           <>
             <div style={{ position: "absolute", left, top, width: w, height: h,
               transform: `scale(${0.92 + s * 0.08})`, opacity: Math.min(1, 0.4 + s), border: `6px solid ${C.ink}`, boxShadow: `14px 14px 0 ${C.ink}`, boxSizing: "content-box", overflow: "hidden" }}>
-              <Img src={staticFile(`stills/${after ? "hook-wide" : "hook-square"}.png`)} style={{ width: "100%", height: "100%", display: "block" }} />
+              <Img src={staticFile(`stills/${after ? "hook-wide" : "hook-square"}${tall ? "" : "-pc"}.png`)} style={{ width: "100%", height: "100%", display: "block" }} />
             </div>
             {/* 札: 前半は「正方形」（左右が切れる）、後半は「横長 16:9」 */}
             <div style={{ position: "absolute", left, width: w + 12, top: top - (tall ? 64 : 54), display: "flex", justifyContent: "flex-end" }}>
@@ -594,7 +602,7 @@ function shotSeq(L: Layout, s: Shot, next: number, base: number) {
                         <Stills L={L} shot={s} />
                       ) : (
                         <Clip kind={L.kind} lang={L.lang} session={s.rec ?? "main"} from={evTime(L.kind, L.lang, s.rec ?? "main", s.ev) + s.off * rate(L.kind, L.lang, s.rec ?? "main")} speed={s.speed} zoom={L.kind === "wide" ? s.zoomPc : s.zoom} still={s.still}
-                          cam={L.kind === "wide" && !s.hlEv ? shotCam(L, s, next) : undefined} />
+                          cam={L.kind === "wide" && !s.hlEv && !s.noCam ? shotCam(L, s, next) : undefined} />
                       )}
                       {L.kind === "tall" && s.hl && <Highlight L={L} hl={s.hl} />}
                       {/* 赤枠は録画の印の位置（markRect）から。縦・横とも。ズームしているショットには付けない（位置がずれる） */}
