@@ -387,7 +387,9 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
   **`grids/default.json`（利用者の並び）をテストで上書きしてしまう**（2026-09-14 に実際にやった。
   幸い `grids/default.json.bak-*` が残っていたので復元できた）。公開モードならブラウザごとの `u-….json` に分かれる
   ```bash
-  PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+  APP_FROM_R2=0 PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
   ```
+  **`APP_FROM_R2=0` も付ける**。付けないと殻（`frontend/dist/`）が指す R2 の CSS と JS（最後に上げた版）が配られ、
+  編集中の `index.html` が画面に出ない（2026-09-22。`docs/gotchas.md`）
   R2 の CORS は `localhost:8000` / `127.0.0.1:8000` だけ許可しているので**ポートは 8000 固定**
 - **`grids/` と `shares/` は `.gitignore`**。並びを壊しても git では戻せない。ただし `shares/<id>.json` は共有したときの並びのスナップショットなので、**そこから失われたマスを復元できる**（実例: 1 マス目だけ消えたグリッドを、同じ並びの共有 JSON から戻した）

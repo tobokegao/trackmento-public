@@ -66,6 +66,11 @@
   /* スライダーのつまみ（19×18 のドット絵）。**色は上の --color-bar-dark / --color-bevel / --color-hl-dim の写し**
      （SVG の中からは CSS 変数が読めない）。上の色を変えたら、ここと暗い地の組の同じ行も直す */
   --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(78%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
+  /* スクロールバーのつまみの枠（外枠＋面取り。border-image で 9 つに割って伸ばす）と握りの縞（縦のバー用・横のバー用）。
+     色は上の 3 色の写し。スライダーのつまみと同じく、上の色を変えたら暗い地の組の同じ行も直す */
+  --sb-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M0 0h5v1H0zM0 4h5v1H0zM0 0h1v5H0zM4 0h1v5H4z'/%3E%3Cpath fill='oklch(78%25 0.012 250)' d='M1 3h3v1H1zM3 1h1v3H3z'/%3E%3Cpath fill='%23fff' d='M1 1h3v1H1zM1 1h1v3H1z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M3 1h1v1H3zM1 3h1v1H1z'/%3E%3C/svg%3E");
+  --sb-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16' viewBox='0 0 9 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM0 6h2v2H0zM0 12h2v2H0z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M2 0h5v2H2zM2 6h5v2H2zM2 12h5v2H2z'/%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M2 2h7v2H2zM2 8h7v2H2zM2 14h7v2H2z'/%3E%3C/svg%3E");
+  --sb-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM6 0h2v2H6zM12 0h2v2h-2z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M0 2h2v5H0zM6 2h2v5H6zM12 2h2v5h-2z'/%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M2 2h2v7H2zM8 2h2v7H8zM14 2h2v7h-2z'/%3E%3C/svg%3E");
   /* ラジオボタンのドット絵だけで使う灰色（Mac OS 8 の図の灰色の段に合わせた。2026-09-22） */
   --color-radio-mid:  oklch(63% 0.008 250);
   --color-radio-deep: oklch(57% 0.008 250);
@@ -185,6 +190,9 @@ img { max-width: 100%; display: block; }
   --color-hl-dim:   oklch(58% 0.010 250);
   --color-bevel:    oklch(29% 0.012 250);   /* 地 38% と外枠 20% の中間 */
   --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
+  --sb-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h5v1H0zM0 4h5v1H0zM0 0h1v5H0zM4 0h1v5H4z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 3h3v1H1zM3 1h1v3H3z'/%3E%3Cpath fill='%23fff' d='M1 1h3v1H1zM1 1h1v3H1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M3 1h1v1H3zM1 3h1v1H1z'/%3E%3C/svg%3E");
+  --sb-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16' viewBox='0 0 9 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM0 6h2v2H0zM0 12h2v2H0z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M2 0h5v2H2zM2 6h5v2H2zM2 12h5v2H2z'/%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M2 2h7v2H2zM2 8h7v2H2zM2 14h7v2H2z'/%3E%3C/svg%3E");
+  --sb-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM6 0h2v2H6zM12 0h2v2h-2z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M0 2h2v5H0zM6 2h2v5H6zM12 2h2v5h-2z'/%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M2 2h2v7H2zM8 2h2v7H8zM14 2h2v7h-2z'/%3E%3C/svg%3E");
   /* **暗い地では「地より明るい中間のグレー」**。地より暗い色にすると、地がもう十分暗いので
      影がまったく見えない（実機で報告）。中間のグレーなら、暗い面の縁に落ちた影として読める。
      **34% では「見えづらい」と 2 度報告があった**ので 58% まで上げた（地 24% との差が 34%）。
@@ -274,63 +282,28 @@ img { max-width: 100%; display: block; }
 ::-webkit-scrollbar-track:horizontal {
   box-shadow: inset 0 1px 0 var(--color-bar-dark), inset 0 -1px 0 var(--color-bar-dark);
 }
-/* つまみの縁は border で描く。**外側に出る box-shadow（0 0 0 1px）を使ってはいけない**。
-   WebKit はスクロールバー部品の外側を描き直さないので、つまみを動かすと縁の線が溝に残る */
+/* つまみの縁は border の場所に描く。**外側に出る box-shadow（0 0 0 1px）を使ってはいけない**。
+   WebKit はスクロールバー部品の外側を描き直さないので、つまみを動かすと縁の線が溝に残る。
+   **線は 1 枚の絵から描く**（2026-09-22、スライダーのつまみと同じ理由）。以前は外枠・面取り・縞を
+   9 枚の背景に分けて重ねていたが、1 枚ずつ端末の画素へ丸められるので、指で拡大したときなどに
+   1 枚だけずれて帯や筋が出た。つまみは長さが変わるので 1 枚の絵を引き伸ばせない。そこで
+   - 外枠＋面取りは `border-image`（5×5 の --sb-frame を 9 つに割り、角は 2px 四方のまま・辺だけ伸ばす）。
+     外枠は四辺とも濃いグレー、面取りは上・左が白で下・右が中間のグレー（外枠と同じ濃さだと影が二重に見える）、
+     右上と左下の角の 1px は暗い白
+   - 握りの縞は真ん中に置く 1 枚の絵（--sb-grip-v / --sb-grip-h）。白線（先頭 2px だけ明るい白、以降は暗い白）＋
+     隙間を開けず隣に置く濃いグレー線を 1 組として、グレーを 2px ずらし白線の端から 2px はみ出させる。3 組
+   面は透かしてあり、地の色は background-color が出す（:hover / :active の色替えがそのまま効く） */
 ::-webkit-scrollbar-thumb {
   background-color: var(--color-bar);
-  border: 1px solid var(--color-bar-dark);
+  border: 2px solid transparent;
+  border-image: var(--sb-frame) 2 / 2px;
+  background-repeat: no-repeat;
+  background-position: center;
 }
-::-webkit-scrollbar-thumb:vertical { min-height: 28px; }
-::-webkit-scrollbar-thumb:horizontal { min-width: 28px; }
+::-webkit-scrollbar-thumb:vertical { min-height: 28px; background-image: var(--sb-grip-v); background-size: 9px 16px; }
+::-webkit-scrollbar-thumb:horizontal { min-width: 28px; background-image: var(--sb-grip-h); background-size: 16px 9px; }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--color-paper-2); }
 ::-webkit-scrollbar-thumb:active { background-color: var(--color-rule-2); }
-/* つまみの四角と握りの縞は、スライダー（input[type="range"]）と同じ規則で背景に描く。
-   **面取りを box-shadow で描かない**のは、内側の影が背景より上に乗って角の 1px を塗り分けられないため。
-   縞は「白線（先頭 2px だけ明るい白、以降は暗い白）＋ 隙間を開けず隣に置く濃いグレー線」を 1 組として、
-   グレーを線の太さ（2px）ぶんずらし、白線の端から 2px はみ出させる。これを 3 組、真ん中に置く。
-   縦のバーは横線、横のバーは縦線。 */
-::-webkit-scrollbar-thumb:vertical {
-  background-image:
-    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
-    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
-    repeating-linear-gradient(to bottom, #fff 0 2px, transparent 2px 6px),
-    repeating-linear-gradient(to bottom, var(--color-hl-dim) 0 2px, transparent 2px 6px),
-    repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px, transparent 4px 6px),
-    linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
-    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
-  background-size:
-    1px 1px, 1px 1px,
-    2px 16px, 7px 16px, 7px 16px,
-    100% 1px, 1px 100%,
-    100% 1px, 1px 100%;
-  background-position:
-    right 0 top 0, left 0 bottom 0,
-    calc(50% - 3.5px) center, calc(50% - 1px) center, calc(50% + 1px) center,
-    left 0 top 0, left 0 top 0,
-    left 0 bottom 0, right 0 top 0;
-  background-repeat: no-repeat;
-}
-::-webkit-scrollbar-thumb:horizontal {
-  background-image:
-    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
-    linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
-    repeating-linear-gradient(to right, #fff 0 2px, transparent 2px 6px),
-    repeating-linear-gradient(to right, var(--color-hl-dim) 0 2px, transparent 2px 6px),
-    repeating-linear-gradient(to right, transparent 0 2px, var(--color-bar-dark) 2px 4px, transparent 4px 6px),
-    linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
-    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)), linear-gradient(var(--color-bar-dark), var(--color-bar-dark));
-  background-size:
-    1px 1px, 1px 1px,
-    16px 2px, 7px 16px, 7px 16px,
-    100% 1px, 1px 100%,
-    100% 1px, 1px 100%;
-  background-position:
-    right 0 top 0, left 0 bottom 0,
-    center calc(50% - 3.5px), center calc(50% - 1px), center calc(50% + 1px),
-    left 0 top 0, left 0 top 0,
-    left 0 bottom 0, right 0 top 0;
-  background-repeat: no-repeat;
-}
 ::-webkit-scrollbar-button { display: none; }
 ::-webkit-scrollbar-button:vertical:start:decrement,
 ::-webkit-scrollbar-button:vertical:end:increment,
@@ -987,22 +960,12 @@ body.sheet-open { overflow: hidden; }
   .tsb { display: block; position: absolute; width: 24px; background: var(--color-paper-3);
     box-shadow: inset 1px 0 0 var(--color-bar-dark), inset -1px 0 0 var(--color-bar-dark); touch-action: none; }
   .tsb[hidden] { display: none; }
+  /* 見た目は ::-webkit-scrollbar-thumb:vertical と同じ絵（枠は border-image、縞は真ん中の 1 枚） */
   .tsb-thumb { position: absolute; left: 0; width: 100%; min-height: 44px; box-sizing: border-box;
-    background-color: var(--color-bar); border: 1px solid var(--color-bar-dark);
-    background-image:
-      linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
-      linear-gradient(var(--color-hl-dim), var(--color-hl-dim)),
-      repeating-linear-gradient(to bottom, #fff 0 2px, transparent 2px 6px),
-      repeating-linear-gradient(to bottom, var(--color-hl-dim) 0 2px, transparent 2px 6px),
-      repeating-linear-gradient(to bottom, transparent 0 2px, var(--color-bar-dark) 2px 4px, transparent 4px 6px),
-      linear-gradient(#fff, #fff), linear-gradient(#fff, #fff),
-      /* 下辺・右辺は中間のグレー。border と同じ濃さだと、枠のすぐ内側で 2 本に見える */
-      linear-gradient(var(--color-bevel), var(--color-bevel)), linear-gradient(var(--color-bevel), var(--color-bevel));
-    background-size: 1px 1px, 1px 1px, 2px 16px, 7px 16px, 7px 16px, 100% 1px, 1px 100%, 100% 1px, 1px 100%;
-    background-position: right 0 top 0, left 0 bottom 0,
-      calc(50% - 3.5px) center, calc(50% - 1px) center, calc(50% + 1px) center,
-      left 0 top 0, left 0 top 0, left 0 bottom 0, right 0 top 0;
-    background-repeat: no-repeat; }
+    background-color: var(--color-bar);
+    border: 2px solid transparent; border-image: var(--sb-frame) 2 / 2px;
+    background-image: var(--sb-grip-v); background-size: 9px 16px;
+    background-position: center; background-repeat: no-repeat; }
   .tsb-thumb:active { background-color: var(--color-rule-2); }
 }
 /* 送信中の窓。**上りが細いと 80 秒かかる**ことがあり、何も出ていないと「固まった」と思って
