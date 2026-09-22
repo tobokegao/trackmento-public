@@ -293,6 +293,50 @@
           </dl>
         </div>
       </div>
+      <h3 style="margin-top:18px">よく使うコマンド（2026-09-23）</h3>
+      <div class="split">
+        <div>
+          <h3>起動するとき</h3>
+          <dl class="kv">
+            <dt><code>claude -c</code></dt><dd>直前の会話の続きから始める</dd>
+            <dt><code>claude --resume</code></dt><dd>過去の会話を一覧から選んで再開する</dd>
+            <dt><code>--remote-control TRACKMENTO</code></dt><dd>スマホの Claude アプリからつなぐ</dd>
+            <dt><code>--permission-mode plan</code></dt><dd>計画モードで始める。os9-hig のような大きい直しは、コードに触る前に方針を決める</dd>
+          </dl>
+        </div>
+        <div>
+          <h3>作業中</h3>
+          <dl class="kv">
+            <dt>Shift+Tab</dt><dd>計画モードと自動モードを切り替える</dd>
+            <dt><code>/rewind</code>（Esc 2 回）</dt><dd>会話とコードの変更を前の地点に戻す。試した直しが外れたとき</dd>
+            <dt><code>/context</code></dt><dd>文脈の使用量を見る。多ければ <code>/clear</code> して新しいセッションに</dd>
+            <dt><code>@ファイル</code></dt><dd>ファイルを名指しする（例: <code>@frontend/index.html</code>）</dd>
+            <dt><code>! コマンド</code></dt><dd>シェルを実行し、結果を会話に入れる</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="split">
+        <div>
+          <h3>コミットの前</h3>
+          <dl class="kv">
+            <dt><code>/code-review</code></dt><dd>差分のバグを探す。<code>render.py</code> と <code>renderShareCanvas</code> の二重実装を触ったあとは特に</dd>
+            <dt><code>/simplify</code></dt><dd>重複や冗長な書き方を整理する</dd>
+            <dt><code>/security-review</code></dt><dd>差分の安全性を確かめる</dd>
+            <dt><code>/consistency-check</code></dt><dd>文書と画面の記述がコードとずれていないか</dd>
+            <dt><code>/site-safety-check</code></dt><dd>定期の安全点検</dd>
+            <dt><code>/run</code></dt><dd>アプリを起動して動きを確かめる</dd>
+          </dl>
+        </div>
+        <div>
+          <h3>手間を減らす</h3>
+          <dl class="kv">
+            <dt><code>/fewer-permission-prompts</code></dt><dd>よく使う読み取り専用のコマンドを許可リストに入れ、確認を減らす</dd>
+            <dt><code>/loop 10m …</code></dt><dd>決まった間隔で繰り返す（デプロイ後の見張りなど）</dd>
+            <dt><code>/schedule</code></dt><dd>クラウドで決まった日に動かす（10 月頭のフィルタ再確認・10-09 の掃除の確認）</dd>
+            <dt>ultracode</dt><dd>プロンプトに入れると複数の担当で大きな作業をする。トークンを多く使うので必要なときだけ</dd>
+          </dl>
+        </div>
+      </div>
     </div>
   </section>
 
