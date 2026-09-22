@@ -4065,6 +4065,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const SLAB_ROW_FONT = 0.30, SLAB_ROW_MIN = 18;
   const SLAB_ROW_FONT1 = 0.42;   // 1 列の並び（1xN）は字を大きく取る（backend/render.py の SLAB_ROW_FONT1）
   const SLAB_ROW_INLINE = 0.5;   // 1 列の並びの 1 行型（backend/render.py の SLAB_ROW_INLINE）   // 流し込みの下限（20px）より低くてよい（1 曲 1 行は行間が広いので読める）
+  const ROW3_STEP = 1.3;        // 3 行になる曲の行の送り（backend/render.py の ROW3_STEP）
+  const ROW_FILL = 0.8;         // 1 列の並びで曲名が 1 マスの高さのこの割合に収まる字まで下げる（backend/render.py の ROW_FILL）
   // 比率なしのときの段の幅（文字の大きさの何倍か＝だいたい何字入るか）。**文字を測って決めない**
   const SLAB_ROW_SEG = 30;
   // 段の幅は塊の高さまで。曲が少ないと段のほうが長くなり、枠が横に伸びてマスが潰れる
@@ -5971,26 +5973,39 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           continue;
         }
         // **1 行に入らない曲名は 2 行に折る**（「…」で切ると曲名が読めなくなる。backend/render.py と同じ）
-        ctx.font = fT;
-        let lines = [title];
-        if (ctx.measureText(title).width > maxW) {
-          const [l1, l2] = splitTitle(ctx, title, fT, maxW);
-          lines = l2 ? [l1, l2] : [l1];
+        const rowsOf = (fTx) => {
+          ctx.font = fTx;
+          let ls = [title];
+          if (ctx.measureText(title).width > maxW) {
+            const [l1, l2] = splitTitle(ctx, title, fTx, maxW);
+            ls = l2 ? [l1, l2] : [l1];
+          }
+          return artist ? ls.concat([artist]) : ls;
+        };
+        let rowsTxt = rowsOf(fT);
+        // **1 マスの高さの ROW_FILL に収まる大きさまで字を下げ、下げた字で折り直す**（backend/render.py と同じ。2026-09-22）
+        let fsR = fs, fTR = fT, fAR = fA;
+        const k = rowsTxt.length;
+        const fit = Math.floor(sc(L.lineH) * ROW_FILL / ((k - 1) * (k <= 2 ? 1.24 : ROW3_STEP) + 0.5 + (artist ? 0.5 * ARTIST_SCALE : 0.5)));
+        if (fit < fs) {
+          fsR = Math.max(8, fit);
+          fTR = fontBold(fsR); fAR = fontRegular(Math.max(8, Math.round(fsR * ARTIST_SCALE)));
+          rowsTxt = rowsOf(fTR);
         }
-        const rowsTxt = artist ? lines.concat([artist]) : lines;
-        // 行の間隔。3 行（曲名 2 行＋アーティスト名）のときは詰めて 1 マスの高さに収める
-        const step = Math.round(fs * (rowsTxt.length <= 2 ? 1.24 : 1.12));
+        const step = Math.round(fsR * (rowsTxt.length <= 2 ? 1.24 : ROW3_STEP));
         const y0row = cy - Math.round(step * (rowsTxt.length - 1) / 2);
-        ctx.textBaseline = "middle";
+        ctx.textBaseline = "alphabetic";
         for (let j = 0; j < rowsTxt.length; j++) {
           const isArtist = artist && j === rowsTxt.length - 1;
-          ctx.font = isArtist ? fA : fT;
+          ctx.font = isArtist ? fAR : fTR;
+          const size = isArtist ? Math.max(8, Math.round(fsR * ARTIST_SCALE)) : fsR;
           if (!isArtist) {
             // **はみ出しがわずかなら縮めて収める**（右サイドバーの最後の行と同じ規則）
-            ctx.font = shrinkFont(ctx, rowsTxt[j], fT, fs, maxW);
+            ctx.font = shrinkFont(ctx, rowsTxt[j], fTR, fsR, maxW);
           }
           ctx.fillStyle = cssRgb(isArtist ? muted : ink);
-          ctx.fillText(ellipsizeText(ctx, rowsTxt[j], maxW), x + nw, y0row + j * step);
+          // 行の中心からベースラインへ BASELINE だけ下げて描く（backend/render.py と同じ）
+          ctx.fillText(ellipsizeText(ctx, rowsTxt[j], maxW), x + nw, y0row + j * step + Math.round(size * BASELINE));
         }
       }
       // **ここで終わる**（backend/render.py と同じ）。返さずに下へ落ちると、サイドバー（流し込み）の描画まで

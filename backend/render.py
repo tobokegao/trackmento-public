@@ -1008,6 +1008,11 @@ SLAB_ROW_FONT1 = 0.42
 # 曲名の下にアーティスト名を置く形だと、4:5・1:1 で画像の右半分が空いていた。1 行に並べれば字を 1 曲ぶんの
 # 高さの半分まで取れる。**全曲が 1 行に入る大きさまで下げ**、2 行の形（SLAB_ROW_FONT1）より小さくなるなら 2 行の形
 SLAB_ROW_INLINE = 0.5
+# 1 列の並びで、曲名（とアーティスト名）が 1 マスの高さのこの割合に収まる字まで下げる。残りが曲と曲のあいだ
+# （frontend の ROW_FILL と同じ。2026-09-22、利用者の指摘で 0.94 → 0.8）
+ROW_FILL = 0.8
+# 3 行になる曲の行の送り（字の大きさに対する比）。1.12 では詰まって見えた（2026-09-22、利用者の指摘）
+ROW3_STEP = 1.3
 # **流し込みの下限（20px）より少し低くてよい**。流し込みは字を詰めるので 20px を切ると読めないが、
 # マスごとは 1 曲 1 行で行間も広いため 18px でも読める。20px のままだと 3x11 を 1:1 にしたときに
 # 19.5px で弾かれ、その並びだけコの字になっていた（利用者の指摘）
@@ -2134,24 +2139,38 @@ def render(doc: GridDoc) -> Image.Image:
                 continue
             # **1 行に入らない曲名は 2 行に折る**（「…」で切ると曲名が読めなくなる。
             # 折る位置の決め方はサイドバーと同じ `_split_title`）
-            lines = [title]
-            if d.textlength(title, font=f_t) > max_w:
-                l1, l2 = _split_title(d, title, f_t, max_w)
-                lines = [l1, l2] if l2 else [l1]
-            rows = lines + ([artist] if artist else [])
-            # 行の間隔。3 行（曲名 2 行＋アーティスト名）のときは詰めて 1 マスの高さに収める
-            step = rnd(fs * (1.24 if len(rows) <= 2 else 1.12))
+            def rows_of(ft: ImageFont.FreeTypeFont) -> list[str]:
+                ls = [title]
+                if d.textlength(title, font=ft) > max_w:
+                    l1, l2 = _split_title(d, title, ft, max_w)
+                    ls = [l1, l2] if l2 else [l1]
+                return ls + ([artist] if artist else [])
+            rows = rows_of(f_t)
+            # **1 マスの高さの ROW_FILL に収まる大きさまで字を下げ、下げた字で折り直す**（2026-09-22、利用者の指摘）。
+            # 字は 1 マスの送りの 0.42 倍（SLAB_ROW_FONT1）で決めるので、曲名 1 行＋アーティスト名でも 1 マスの 9 割を埋めて
+            # 曲と曲のあいだが詰まって見え、曲名が 2 行に折れると 1 マスを超えて次の曲に重なっていた（1x8・16:9 のマス）
+            fs_r, ft_r, fa_r = fs, f_t, f_a
+            k = len(rows)
+            fit = int(sc(L.line_h) * ROW_FILL / ((k - 1) * (1.24 if k <= 2 else ROW3_STEP) + 0.5 + (0.5 * ARTIST_SCALE if artist else 0.5)))
+            if fit < fs:
+                fs_r = max(8, fit)
+                ft_r, fa_r = font("bold", fs_r), font("regular", max(8, rnd(fs_r * ARTIST_SCALE)))
+                rows = rows_of(ft_r)
+            step = rnd(fs_r * (1.24 if len(rows) <= 2 else ROW3_STEP))
             top = cy - rnd(step * (len(rows) - 1) / 2)
             for j, text in enumerate(rows):
                 is_artist = artist and j == len(rows) - 1
-                f = f_a if is_artist else f_t
+                f = fa_r if is_artist else ft_r
+                size = max(8, rnd(fs_r * ARTIST_SCALE)) if is_artist else fs_r
                 if not is_artist:
                     # **はみ出しがわずかなら縮めて収める**（右サイドバーの 2 行目と同じ規則）。
                     # 2 行に折っても 2 行ぶんの幅にわずかに足りない題があり（`I Love Love You
                     # (Love Love Super Dimension mix)` は 6px 超過）、「…」で切ると曲名が読めなくなる
-                    f = _shrink_font(d, text, f, fs, max_w)
-                d.text((x + nw, top + j * step), _ellipsize(d, text, f, max_w),
-                       font=f, fill=muted if is_artist else ink, anchor="lm")
+                    f = _shrink_font(d, text, f, fs_r, max_w)
+                # **行の中心からベースラインへ BASELINE だけ下げて描く**（ほかの組み方と同じ）。anchor="lm" は
+                # Canvas の textBaseline="middle" と基準が違い、突き合わせで字が上下にずれていた（6px のぼかしで 4%）
+                d.text((x + nw, top + j * step + rnd(size * BASELINE)), _ellipsize(d, text, f, max_w),
+                       font=f, fill=muted if is_artist else ink, anchor="ls")
         _release_memory()
         return im
 

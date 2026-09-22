@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-22", "マスが縦 1 列の並びで、曲名が 2 行に折れると次の曲の名前に重なることがあったのを直しました。曲と曲のあいだも少し広げています。",
+     "In a single-column grid, a track title that wrapped onto two lines could overlap the next track. Fixed, and there is a little more space between tracks."),
     ("2026-09-22", "検索のソース・比率・マスの形・サムネの入れ方・曲名リストを、1 つだけ選ぶラジオボタンにしました。ソースは同時に 1 つだけ選ぶ形になります。",
      "Search source, ratio, cell shape, thumbnail fit and track list are now radio buttons where you pick one. You now search one source at a time."),
     ("2026-09-22", "検索の候補や URL から曲を入れたとき、「〇番に…を入れました」と出るのにマスが空のままになることがあったのを直しました。",

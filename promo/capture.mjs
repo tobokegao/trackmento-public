@@ -171,7 +171,7 @@ async function bring(sel, ms = 450) {
 /** 引きの印（画面全体）。窓が重なって出たときなど、横の動画のカメラを寄りから引きに戻す（2026-09-22、利用者の指定） */
 const markWide = (name) => mark(name, { rect: { x: 0, y: 0, w: 1, h: 1 } });
 /** 押す。波紋（とカーソル）を出してから押す。押した瞬間が印の時刻 */
-async function tap(sel, name) {
+async function tap(sel, name, { noCam = false } = {}) {   // noCam = 横の動画のカメラの行き先にしない（印に rect を付けない）
   const loc = typeof sel === "string" ? page.locator(sel).first() : sel;
   await until(() => loc.isVisible(), { label: String(name || sel), timeout: 60000 });
   await center(loc);
@@ -181,7 +181,7 @@ async function tap(sel, name) {
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
   await page.evaluate(([x, y]) => window.__tap(x, y), [x, y]);
   await hold(120);
-  mark(name || `tap ${sel}`, { rect: await rectOf(loc) });
+  mark(name || `tap ${sel}`, noCam ? {} : { rect: await rectOf(loc) });
   await page.mouse.click(x, y);
   await frame();
 }
@@ -324,7 +324,8 @@ const MAIN = [
     await hold(700);
     // 検索ソースの切り替えを見せる。**ソースは 1 つだけ選ぶ**（2026-09-22 からラジオボタン）ので、VocaDB → otoDB と選ぶ
     // （MusicBrainz も押していたが、要らないと利用者。2026-09-22）
-    for (const k of ["vocadb", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await hold(450); }
+    // **カメラはソースへ寄らない**（2026-09-22、利用者の指定。「枠をタップ」の場面で、押したマスからソースへ移っていた）
+    for (const k of ["vocadb", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`, { noCam: true }); await hold(450); }
     await hold(300);
     // 2026-09-21: 本編の 9 マスはニコニコ・YouTube・otoDB だけ（利用者の指定）。検索は otoDB の作品を引く
     await type("#q", "最終鬼畜妹"); await page.locator("#artist").fill("");
@@ -420,6 +421,9 @@ const MAIN = [
     await live(() => page.evaluate(() => { const o = document.querySelector("#output"), i = document.querySelector("#output-img"); return o && !o.hidden && i && i.complete && i.naturalWidth > 0; }), { timeout: 180000 });
     mark("share-ready");
     await net.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    // **共有の場面（e179xpp）の中では出来上がりの窓へ送らない**（2026-09-22、利用者の指定）。1.5 秒待ってから送り、
+    // 次の場面「画像と共有 URL」は送り終えた印（share:output）から始める
+    await hold(1500);
     await center(page.locator("#output-img")); await bring("#output");
     await markRect("share:output", ["#output"]);   // 出来上がりの窓ぜんぶ（2026-09-22、利用者の指摘。窓の上の方だけに寄っていた）
     await hold(1800);
