@@ -180,7 +180,7 @@ const SHOT_EXTRAS: Record<string, Partial<Shot>> = {
   "97t4txw": {"noCam": true},   // 曲名で、みんなの並びを探せる（寄らない。2026-09-22、利用者の指定）
   "xc3oxx2": {},   // 見つけた並びを開ける
   "ntvo0x8": {"rec": "feat", "stills": SMART, "stillBeats": SMART.map((_, i) => i * 0.25), "scrap": true},   // 曲が多くても曲名がきれいに収まる
-  "tail2yqnjh": {},   // 困ったら「使い方」
+  "tail2yqnjh": {"noCam": true},   // 困ったら「使い方」（寄らない。前の場面の操作の位置へずれていた。2026-09-22）
 };
 /** 印がどちらの録画（本編・新機能）にあるか。縦・日本語の録画で探す（4 本とも同じ台本で撮るので同じ） */
 const sessionOf = (ev: string): Session =>

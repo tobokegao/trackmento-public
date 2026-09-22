@@ -129,7 +129,9 @@ const Caption: React.FC<{ L: Layout; jp: string; en: string; children?: React.Re
     <div style={{ ...box, flexDirection: tall ? "column" : "row", alignItems: tall ? "flex-start" : "flex-end", gap: tall ? 0 : 40 }}>
       <div style={{ display: "flex", flexDirection: beside ? "row" : "column", alignItems: beside ? "flex-end" : "flex-start", gap: beside ? 32 : 0 }}>
         {head && <div style={{ background: C.ink, color: C.paper, fontFamily: L.lang === "ja" ? "Plex" : "Dot", fontWeight: 700, fontSize: L.lang === "ja" ? L.jp : L.jp * 0.82, lineHeight: 1.15, padding: tall ? "10px 26px" : "12px 34px", whiteSpace: "pre-line", flex: "none", transform: slide, opacity: s }}>{head}</div>}
-        {sub && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: beside ? 0 : 14, paddingBottom: beside ? 6 : 0, letterSpacing: "0.03em", transform: slide, opacity: s }}>{sub}</div>}
+        {sub && <div style={{ fontFamily: "Dot", fontSize: L.en, color: C.muted, marginTop: beside ? 0 : 14, letterSpacing: "0.03em", transform: slide, opacity: s,
+          // 右に置くときは紙の地を敷く（スクラップブックのように後ろに絵がある場面で読めなかった。2026-09-22、利用者の指摘）
+          ...(beside ? { background: C.paper, padding: "4px 14px", marginBottom: 2, border: `3px solid ${C.ink}`, whiteSpace: "nowrap" as const } : {}) }}>{sub}</div>}
       </div>
       {children}
     </div>

@@ -322,8 +322,9 @@ const MAIN = [
     await tap(cell(1), "cell-tap");
     if (!PC) await waitSel("#sheet:not([hidden])");
     await hold(700);
-    // 検索ソースの切り替えを見せる。**ソースは 1 つだけ選ぶ**（2026-09-22 からラジオボタン）ので、順に選んで最後に otoDB
-    for (const k of ["musicbrainz", "vocadb", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await hold(450); }
+    // 検索ソースの切り替えを見せる。**ソースは 1 つだけ選ぶ**（2026-09-22 からラジオボタン）ので、VocaDB → otoDB と選ぶ
+    // （MusicBrainz も押していたが、要らないと利用者。2026-09-22）
+    for (const k of ["vocadb", "otodb"]) { await tap(page.locator(`#sources input[value="${k}"] + span`), `src:${k}`); await hold(450); }
     await hold(300);
     // 2026-09-21: 本編の 9 マスはニコニコ・YouTube・otoDB だけ（利用者の指定）。検索は otoDB の作品を引く
     await type("#q", "最終鬼畜妹"); await page.locator("#artist").fill("");
