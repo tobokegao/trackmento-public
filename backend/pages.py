@@ -45,7 +45,8 @@ iTunes search, you can switch to MusicBrainz, VocaDB (Vocaloid songs) or otoDB (
 Apple Music (Spotify gives only the title and the cover, so add the artist name yourself). If a track has no cover, you can
 fill it in with an image URL or by uploading an image from your device.</li>
 <li><b>Rearrange:</b> Select two cells one after the other to swap their positions. “Enlarge” shows the grid full-screen,
-so rearranging stays comfortable even with many cells.</li>
+so rearranging stays comfortable even with many cells. With a keyboard, move between cells with the arrow keys and
+press Option (Alt) + an arrow key to swap a track with its neighbour.</li>
 <li><b>Export and share the image:</b> Choose the aspect ratio (1:1, 4:5, 16:9, 9:16 or no fixed ratio), the background colour
 and how the track list is shown, then share. You get the finished image and a dedicated share URL.</li>
 </ol>
@@ -94,7 +95,7 @@ and share the music they love. When sharing, please follow the terms of use and 
 <li><b>マスの数を決める：</b>縦・横のマスの数を指定します（1辺最大32マス、合計256マスまで対応）。</li>
 <li><b>マスを選んでトラックを探す：</b>マスをタップ（クリック）してトラック名やアーティスト名で検索します。標準のiTunes検索のほか、MusicBrainz、VocaDB（ボカロのトラック）、otoDB（音MAD）に切り替えて探すこともできます。</li>
 <li><b>URLから直接追加する：</b>Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify、Apple Musicのリンク貼り付けに対応しています（Spotifyはトラック名とジャケットのみのため、アーティスト名は手入力で補ってください）。ジャケットがないトラックは、画像URLの指定か「端末から画像を選択」で補えます。</li>
-<li><b>並べ替える：</b>2つのマスを順番に選ぶと位置が入れ替わります。「大きく見る」でグリッドを全画面表示にすると、マス数が多い場合でも並べ替えやすくなります。</li>
+<li><b>並べ替える：</b>2つのマスを順番に選ぶと位置が入れ替わります。「大きく見る」でグリッドを全画面表示にすると、マス数が多い場合でも並べ替えやすくなります。キーボードでは、矢印キーでマスを移り、Option（Alt）＋矢印キーで隣のマスと入れ替えられます。</li>
 <li><b>画像を出力・共有する：</b>画像の比率（1:1、4:5、16:9、9:16、自由）、背景色、トラックリストの表示形式を選んで共有すると、完成画像と専用の共有URLが発行されます。</li>
 </ol>
 
@@ -247,6 +248,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-23", "キーボードでも並べ替えられるようになりました。Tab キーでグリッドに入り、矢印キーでマスを移ります。Return キーかスペースキーでマスを選び、Option（Alt）＋矢印キーで隣のマスと入れ替えます。",
+     "You can now rearrange with the keyboard. Press Tab to reach the grid and move between cells with the arrow keys. Return or Space selects a cell, and Option (Alt) + an arrow key swaps the track with the neighbouring cell."),
     ("2026-09-23", "共有ページの画像に、題名と先頭 10 トラックの曲名を代替テキストとして付けました。読み上げを使っているときや、画像が表示されないときも、何の並びか分かります。",
      "The image on a share page now has alt text with its title and the first 10 track names, so screen reader users, or anyone whose image fails to load, can tell what the grid contains."),
     ("2026-09-23", "トラックを外す・入れ替える・動かすなどの操作を、Ctrl+Z（Mac は ⌘Z）で 1 つずつ戻せるようになりました（30 回まで）。Ctrl+Shift+Z でやり直せます。スマホでは、操作のあとに出る「元に戻す」を押すと戻ります。",

@@ -3170,6 +3170,38 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     say(els.gridMsg, wasEmpty ? tr`${from + 1} 番を ${i + 1} 番に移しました。` : tr`${from + 1} 番と ${i + 1} 番を入れ替えました。`); undoLink();
   }
   function clearSelection() { if (selected !== null) { selected = null; renderGrid(); } }
+
+  /* ---- キーボードでの並べ替え（2026-09-23） ----
+     マスは 1 つだけ Tab で止まる（roving tabindex）。矢印で隣のマスへ、Return / Space で押したのと同じ
+     （選ぶ・入れ替える・入れる先にする）、Option（Alt）＋矢印でトラックを持ったまま隣と入れ替える。
+     renderGrid() はマスを作り直すので、グリッドの中にフォーカスがあったら同じ番号へ戻す */
+  let kbdCell = 0;
+  function focusCell(i) {
+    kbdCell = i;
+    els.grid.querySelectorAll(".cell").forEach((c, j) => { c.tabIndex = j === i ? 0 : -1; });
+    els.grid.querySelector(`.cell[data-index="${i}"]`)?.focus();
+  }
+  els.grid.addEventListener("keydown", (e) => {
+    const cell = e.target.closest?.(".cell");
+    if (!cell || e.target !== cell || e.ctrlKey || e.metaKey) return;   // × ボタンの上では何もしない
+    const i = Number(cell.dataset.index);
+    if ((e.key === "Enter" || e.key === " ") && !e.altKey) { e.preventDefault(); onCellTap(i); return; }
+    const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const c = i % state.cols + step[0], r = Math.floor(i / state.cols) + step[1];
+    if (c < 0 || c >= state.cols || r < 0 || r >= state.rows) return;
+    const j = r * state.cols + c;
+    if (!e.altKey) { focusCell(j); return; }
+    const t = state.cells[i]; if (!t) return;
+    const wasEmpty = !state.cells[j];
+    checkpoint();
+    [state.cells[i], state.cells[j]] = [state.cells[j], state.cells[i]];
+    if (selected === i) selected = j; else if (selected === j) selected = i;   // 選んでいたトラックに付いていく
+    target = null; kbdCell = j;
+    renderGrid();
+    say(els.gridMsg, wasEmpty ? tr`${i + 1} 番を ${j + 1} 番に移しました。` : tr`${i + 1} 番と ${j + 1} 番を入れ替えました。`); undoLink();
+  });
   function renderEditor() {
     const t = selected !== null ? state.cells[selected] : null;
     if (!t) { els.editor.hidden = true; if (gridZoomed) syncPreview(); return; }
@@ -3371,6 +3403,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.grid.dataset.dense = px && px < DENSE_CELL_PX ? "true" : "false";
   }
   function renderGrid() {
+    const hadFocus = els.grid.contains(document.activeElement);
+    if (kbdCell >= state.cols * state.rows) kbdCell = 0;
     els.grid.style.setProperty("--cols", state.cols);
     els.grid.style.setProperty("--rows", state.rows);
     els.grid.dataset.numbers = state.numbers ? "on" : "off";
@@ -3380,7 +3414,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     viewCells().forEach((t, i) => {
       const li = document.createElement("li");
       li.className = "cell" + (selected === i ? " is-selected" : "") + (target === i && !t ? " is-target" : ""); li.dataset.index = i;
-      li.addEventListener("click", (e) => { if (e.target.closest(".rm")) return; onCellTap(i); });
+      li.tabIndex = i === kbdCell ? 0 : -1;
+      li.addEventListener("click", (e) => { if (e.target.closest(".rm")) return; kbdCell = i; onCellTap(i); });
       const num = document.createElement("span"); num.className = "num"; num.textContent = String(i + 1).padStart(2, "0");
       li.append(num);
       if (t) {
@@ -3416,6 +3451,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     });
     if (target !== null && state.cells[target]) target = null;
     els.grid.dataset.selecting = selected !== null ? "true" : "false";
+    if (hadFocus) els.grid.querySelector(`.cell[data-index="${kbdCell}"]`)?.focus({ preventScroll: true });
     const n = state.cells.filter(Boolean).length;
     els.gridCount.textContent = `${n}/${state.cells.length}`;
     els.shareBtn.disabled = n === 0;
