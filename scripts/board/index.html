@@ -710,7 +710,8 @@
     return m ? Date.UTC(2026, +m[1] - 1, +m[2], +m[3], +m[4]) / 3600000 : NaN;
   }
   function lineChart(node, rows, opt) {
-    const H = 200, L = 48, R = 12, T = 12, B = 32, DAY = 64, GAP = 8;
+    const H = 200, L = 48, R = 12, T = 12, B = 32, DAY = 64, GAP = 8, AX = 4;
+    // 線の角は bevel。miter だと急な谷で角が細く突き出す（9/24、20 日の谷に棘が出ていた）
     const ts = rows.map(r => hoursOf(r[0])), values = rows.map(r => r[1]);
     const d0 = Math.floor(ts[0] / 24) * 24, d1 = Math.ceil((ts[ts.length - 1] + 0.01) / 24) * 24;
     const days = (d1 - d0) / 24;
@@ -721,7 +722,7 @@
     const s = svgBox(W, H);
     yGrid(s, W, L, R, y, max, opt.fmt);
     // 日の境目に短い目盛り
-    for (let d = d0; d <= d1; d += 24) s.appendChild(el("rect", { x: x(d) - 1, y: y(0) + 2, width: 2, height: 5, fill: INK }));
+    for (let d = d0; d <= d1; d += 24) s.appendChild(el("rect", { x: x(d) - 1, y: y(0) + AX + 2, width: 2, height: 5, fill: INK }));
     // 途切れていない区間ごとに、面と線を描く（点どうしは斜めにつなぐ。crispEdges なので斜めの線はドットのギザギザになる）
     const fill = dither(s, opt.color);
     let seg = [0];
@@ -731,7 +732,7 @@
       const pts = [x(ts[i0]) + "," + y(values[i0])];
       for (let k = 1; k < seg.length; k++) { const i = seg[k]; pts.push(x(ts[i]) + "," + y(values[i])); }
       s.appendChild(el("polygon", { points: x(ts[i0]) + "," + y(0) + " " + pts.join(" ") + " " + x(ts[i1]) + "," + y(0), fill: fill, stroke: "none" }));
-      s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: INK, "stroke-width": 2, "stroke-linejoin": "miter" }));
+      s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: INK, "stroke-width": 2, "stroke-linejoin": "bevel" }));
     };
     for (let i = 1; i < ts.length; i++) {
       if (ts[i] - ts[i - 1] > GAP) { flush(); seg = []; }
@@ -743,7 +744,7 @@
       s.appendChild(el("line", { x1: mx, x2: mx, y1: T, y2: H - B, stroke: opt.markColor || MUTED, "stroke-width": 2, "stroke-dasharray": "4 4" }));
       s.appendChild(el("text", { x: mx + 6, y: T + 14, fill: opt.markColor || MUTED, "font-size": FS }, opt.markText || ""));
     }
-    xAxis(s, W, L, R, y(0));
+    xAxis(s, W, L, R, y(0) + AX);   // 軸は 0 の線より AX px 下に離す。0 に近い値の線が軸と重なって太い塊に見えていた（9/24）
     const last = values.length - 1;
     s.appendChild(el("rect", { x: x(ts[last]) - 5, y: y(values[last]) - 5, width: 10, height: 10, fill: opt.color, stroke: INK, "stroke-width": 2 }));
     // 日付は日の真ん中に
