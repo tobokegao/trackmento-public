@@ -1,0 +1,68 @@
+紹介動画の字幕 次の版（2026-09-23 に決めた。まだ動画には入れていない）
+======================================================================
+経緯: 冒頭のキャッチコピー「好きな曲で、ジャケットのグリッドを。」が「AI っぽい」と言われた。
+字幕を全部 Gemini 3.8 flash に書き直してもらい（ver1〜ver3）、事実・画面の表記・前後のつながりで取捨した。
+01 は利用者が気に入って採用。反映はボードの「video-captions」（制限のリセット後）。
+
+「\n」は改行の位置。番号は前に Gemini へ渡した一覧の番号。並びは動画の流れの順（40 は 34 と 35 の間）。
+どこに書いてあるか:
+  01・40・41 … promo/src/Scenes.tsx に直書き（イントロ・できあがり・エンドカード）
+  03〜05 …… promo/src/timeline.ts の POINTS
+  02・06〜39・42 … promo/plan.json の jp / en（譜割りエディタが元。エディタ側も直す）
+
+01 あの日の曲も、今日の曲も、\n全部ここに並べよう。 / All your tracks, old and new, right here.
+   （横は 1 行。縦は読点のあとで折る）
+02 動画のサムネも\n端が切れずに並ぶ / Video thumbnails fit\nwithout getting cropped
+03 アルバムではなく、1 曲ずつ / Pick track by track, not whole albums
+04 ニコニコと YouTube に対応 / Works with Niconico & YouTube
+05 登録なし・無料 / Free, no sign-up
+06 画面はこれだけ / This is the whole screen
+07 いちばん上にタイトル / Title at the top
+08 真ん中にマス / The grid in the middle
+09 下に共有と検索のボタン / Share and search at the bottom
+10 出力の設定 / Output settings
+11 まずはタイトルを入力 / Type in a title first
+12 マスの形を「横長 16:9」に / Set the cells to 16:9
+13 空いている枠を押す / Tap an empty cell
+14 動画の URL を貼り付け / Paste in a video link
+15 改行で区切れば、まとめて入る / Paste several links, one per line
+16 曲名でも検索できる（4 か所から） / Or search tracks across 4 sources
+17 マイリストや再生リストの\nURL を貼れば / Paste a playlist\nor Mylist link...
+18 最大 500 曲まで一度に入る / ...and up to 500 tracks go in at once
+19 削除された動画でも / Even deleted videos...
+20 otoDB にあればサムネが出る / ...show up if they're on otoDB
+21 転載動画でも、\n大元の作者が分かる / Credit goes to the original creator,\neven from reuploads
+22 サブスクに無いボカロ曲は\nVocaDB で検索 / Vocaloid songs not on streaming?\nSearch on VocaDB
+23 作者名まで自動で入る / Producer names added automatically
+24 動画 ID だけでも入る / Even just a video ID works
+25 形の違うサムネは\n切り抜きか、ぼかしを選べる / Odd-shaped thumbnails:\ncrop, or fill with a blur
+26 マスが全部埋まったら / Once every cell is filled
+27 2 つ押すと入れ替わる / Tap two cells to swap them
+28 「大きく見る」で並べ替え / Rearrange in the big view
+29 画像の比率は 5 種類 / 5 aspect ratios to choose from
+30 曲名リストは 3 択 / Three ways to show the track list
+31 選べる背景色は 8 色 / 8 background colours
+32 つまみで好きな色にできる / Or dial in any colour
+33 パレットで全体の配色を変更 / Palettes change the whole colour scheme
+34 「トラックを共有」を押せば / Tap "Share these tracks"...
+40 これで完成 / All done
+35 「みんなのグリッド」に一覧で公開 / List it on Everyone's grids
+36 画像の保存や共有 URL ができる / Save your image and get a share link
+37 曲名で、ほかの人の並びを探せる / Find other people's grids by track
+38 気に入った並びは\nそのまま自分の画面へ / Load any grid you like\ninto your own
+39 曲が多くても\n曲名がはみ出さない / Track titles fit,\neven with many songs
+41 まずは好きな 9 曲を並べてみよう / Start with your favorite 9 tracks
+   （エンドカード。「あなたは何曲オススメを？ / What would you pick?」を置き換える）
+42 迷ったら「使い方」をチェック / Need help? Check the Guide
+
+採らなかった直し（また同じ案が出たときのため）:
+- 05「ずっと無料」… 将来の約束になる。一人で運営しているので約束に見える言葉は増やさない
+- 06「とてもシンプル」… 自分で褒めている印象語
+- 08「中央に並ぶマス目」・26「マス目」… 画面は「マス」。07・09 と形もそろわない
+- 10「画像の保存設定」… 事実と違う（出力比率・出力サイズ・背景色の欄）。
+  「横に／右に出力の設定」… 横（PC）は右端だが縦（スマホ）は下へ送って開くので、縦横共通の字幕に位置は書けない
+- 12「マスの比率」… 29 の画像の比率と混ざる。画面は「マスの形」
+- 24「URL でなく、動画 ID だけでも OK」… 長い
+- 30「曲名の表示方法」… 画面は「曲名リスト」
+- 32「スライダー」… 画面の説明は「つまみ」
+- 34 の英語は画面の EN 表の「Share these tracks」に合わせた（Gemini 案は "Share Tracks"）
