@@ -948,6 +948,14 @@
       fails ? kvLine(m.client) : "なし"));
 
     if (m.r2) box.appendChild(tile("watch", "R2 の使用量", m.r2.gb, "GB", m.r2.note || ""));
+
+    // 月の合計の見込み（2026-09-24、利用者の希望で円で出す）。帯域は直近の点検の平均から
+    if (MONEY) {
+      const yen = MONEY.jpy != null;
+      box.appendChild(tile("watch", "月の見込み", yen ? "¥" + num(MONEY.jpy) : "$" + MONEY.total_usd.toFixed(2), "",
+        "$" + MONEY.total_usd.toFixed(2) + " ＝ Render $" + MONEY.instance_usd.toFixed(0) + " ＋ 帯域 " + Math.round(MONEY.bw_gb) + "GB $" + MONEY.bw_usd.toFixed(2)
+        + " ＋ R2 $" + MONEY.r2_usd.toFixed(2) + (yen ? "。1 ドル " + MONEY.rate + " 円（" + MONEY.rate_date.slice(5) + "）" : "")));
+    }
   }
 
   function drawOut() {
@@ -1005,6 +1013,7 @@
 
   let WATCH = [];
   let DOCS = null;
+  let MONEY = null;   // 月の合計の見込み（board_data.py の money。円は欧州中央銀行の参照レートで換算）
   let PILLS = null; // 外部サービスの表の「状態」。status.json から db 経由で来る
 
   function drawPills() {
@@ -1190,6 +1199,7 @@
     if (Array.isArray(m.watch)) WATCH = m.watch;
     if (m.r2) LATEST.r2 = m.r2;
     if (m.docs) DOCS = m.docs;
+    if (m.money) MONEY = m.money;
     if (m.status) {
       if (Array.isArray(m.status.todos)) TODOS = m.status.todos;
       if (m.status.services) PILLS = m.status.services;

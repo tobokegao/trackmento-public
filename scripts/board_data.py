@@ -39,6 +39,13 @@ KIND_GROUPS = [
 
 FREE_GB = 10.0      # R2 の無料枠
 PER_GB = 0.015      # 超過 1GB あたりの月額（USD）
+# 月の見込み（円）。数字の出どころは docs/ops.md「帯域と R2 の操作回数」とボードの「お金」（2026-09-24）
+RENDER_INSTANCE_USD = 25.0   # Standard インスタンス
+RENDER_FREE_BW_GB = 5.0      # Hobby プランの込みの帯域（月）
+RENDER_BW_PER_GB = 0.15      # 超過 1GB あたり（USD）
+BW_DAYS = 7                  # 帯域の見込みに使う直近の日数
+FX_URL = "https://api.frankfurter.dev/v1/latest?base=USD&symbols=JPY"   # 欧州中央銀行の参照レート（鍵なし）
+FX_CACHE = Path(__file__).resolve().parent.parent / "metrics" / "fx.json"   # 取れなかったときの控え
 
 # 画像を取りに行くホスト。ここに当たらないものは API への問い合わせ扱いにする。
 IMG_HOST = re.compile(
@@ -271,6 +278,45 @@ def storage_series() -> list:
     return [[d[5:], round(gb, 2), kinds] for d, (gb, kinds) in sorted(by_date.items())]
 
 
+def usd_jpy() -> dict | None:
+    """USD→JPY のレート。取れれば控え（metrics/fx.json）を更新し、取れなければ控えを使う。"""
+    import urllib.request
+    try:
+        req = urllib.request.Request(FX_URL, headers={"User-Agent": "trackmento-board/1.0"})   # UA が無いと 403
+        with urllib.request.urlopen(req, timeout=10) as r:
+            got = json.loads(r.read().decode())
+        fx = {"rate": float(got["rates"]["JPY"]), "date": got["date"]}
+        FX_CACHE.write_text(json.dumps(fx, ensure_ascii=False) + "\n", encoding="utf-8")
+        return fx
+    except Exception:
+        if FX_CACHE.exists():
+            return json.loads(FX_CACHE.read_text(encoding="utf-8"))
+        return None
+
+
+def money(series: list, r2: dict | None) -> dict | None:
+    """月の合計の見込み（USD と円）。Render のインスタンス＋帯域の超過（直近 BW_DAYS 日の 2 時間あたりの平均から）＋ R2 の保存の超過。
+    R2 の操作回数（Class A/B）は無料枠の中なので 0 とする。"""
+    fx = usd_jpy()
+    recent = [r for r in series if r[2] is not None]
+    if recent:
+        days = sorted({r[0][:5] for r in recent})
+        keep = set(days[-BW_DAYS:])
+        recent = [r for r in recent if r[0][:5] in keep]
+    gb2h = sum(r[2] for r in recent) / len(recent) if recent else 0.0
+    bw_gb = gb2h * 12 * 30
+    bw_usd = max(0.0, bw_gb - RENDER_FREE_BW_GB) * RENDER_BW_PER_GB
+    r2_usd = float((r2 or {}).get("cost") or 0)
+    total = RENDER_INSTANCE_USD + bw_usd + r2_usd
+    out = {
+        "instance_usd": RENDER_INSTANCE_USD, "bw_gb": round(bw_gb, 1), "bw_usd": round(bw_usd, 2),
+        "r2_usd": round(r2_usd, 2), "total_usd": round(total, 2), "bw_days": BW_DAYS,
+    }
+    if fx:
+        out.update({"jpy": round(total * fx["rate"]), "rate": fx["rate"], "rate_date": fx["date"]})
+    return out
+
+
 def r2_from_prune() -> dict | None:
     """毎日の掃除が残した `metrics/r2.jsonl` の最後の行から、R2 の使用量タイルを組む。
 
@@ -404,6 +450,9 @@ def main() -> None:
     if shares:
         doc["shares"] = shares
     doc["docs"] = doc_sizes()
+    m = money(doc["series"], doc.get("r2"))
+    if m:
+        doc["money"] = m
     from datetime import datetime, timedelta, timezone
     today = datetime.now(timezone(timedelta(hours=9))).date()
     status, warn = load_status(today)
