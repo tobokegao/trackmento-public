@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 import unicodedata
 from datetime import datetime, timedelta, timezone
@@ -178,8 +179,47 @@ def search(q: str, limit: int = 40) -> list[dict]:
     return out
 
 
-def newest(limit: int = 12) -> list[dict]:
-    """探す前の画面に出す「最近の並び」。題のあるものだけ（無題ばかり並べても選べない）。"""
+def _row(e: dict) -> dict:
+    return {"id": e["id"], "title": e["title"], "n": e["n"],
+            "cols": e["cols"], "rows": e["rows"], "createdAt": e["createdAt"], "hits": []}
+
+
+# 「私を構成する 9 曲」の形の題。載る並びの大半がこれなので、「いろんな切り口」からは外す
+# （「作曲してる曲の構成」のように「構成」だけのものは外さない）
+_COMMON_TITLE = re.compile(r"構成(する|した|して)|make(s)? me|made me", re.I)
+
+
+def varied(limit: int = 8) -> list[dict]:
+    """探す前の画面の上に出す「いろんな切り口」。**想定外の使い方を目立たせる**（2026-09-24、open-use ⑤）。
+
+    載る並びの大半は「私を構成する 9 曲」で、新しい順に並べるだけだと、ほかのテーマの並びが埋もれる。
+    題のあるもののうち「構成する」の形を外し、同じ題（数字の違いは同じと見る）は新しい 1 件にまとめる。
+    運営が手で選ぶことはしない（選ぶ手間が毎回かかる。2026-09-24 に利用者が自動を選んだ）。
+    """
+    with _lock:
+        items = list(reversed(_entries))
+    out, seen = [], set()
+    alive = _alive_after()
+    for e in items:
+        if e["createdAt"] and e["createdAt"] < alive:
+            break
+        if not e["title"] or _COMMON_TITLE.search(e["title"]):
+            continue
+        key = re.sub(r"\d+", "", _norm(e["title"]))   # 「好きな音MAD9選」と「好きな音MAD10選」は同じ題
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(_row(e))
+        if len(out) >= limit:
+            break
+    return out
+
+
+def newest(limit: int = 12, skip: set[str] | frozenset[str] = frozenset()) -> list[dict]:
+    """探す前の画面に出す「最近の並び」。題のあるものだけ（無題ばかり並べても選べない）。
+
+    `skip` は「いろんな切り口」に出したもの。同じ並びを 2 つの節に続けて出さない。
+    """
     with _lock:
         items = list(reversed(_entries))
     out = []
@@ -187,10 +227,9 @@ def newest(limit: int = 12) -> list[dict]:
     for e in items:
         if e["createdAt"] and e["createdAt"] < alive:
             break
-        if not e["title"]:
+        if not e["title"] or e["id"] in skip:
             continue
-        out.append({"id": e["id"], "title": e["title"], "n": e["n"],
-                    "cols": e["cols"], "rows": e["rows"], "createdAt": e["createdAt"], "hits": []})
+        out.append(_row(e))
         if len(out) >= limit:
             break
     return out

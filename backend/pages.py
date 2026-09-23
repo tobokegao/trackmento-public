@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-24", "「みんなのグリッドを探す」の最初の画面に「いろんな切り口」を足しました。「私を構成する〜」以外のテーマで作られたグリッドを、新しいものから 8 つ並べます。",
+     "The first screen of “Find shared grids” now has a “Different themes” list: the eight newest grids built around something other than “songs that make me”."),
     ("2026-09-24", "bilibiliのURLを、また貼れるようにしました。otoDB（音MADなど）かVocaDB（ボカロなど）に登録のある動画だけ、トラック名とサムネイルを取り込めます。bilibiliには問い合わせないため、登録のない動画と短縮URL（b23.tv）は使えません。",
      "You can paste bilibili URLs again. Only videos listed on otoDB (otomad and the like) or VocaDB (Vocaloid and the like) come in, with their titles and thumbnails. Since we never contact bilibili itself, unlisted videos and short URLs (b23.tv) do not work."),
     ("2026-09-24", "「余白」をスライダーから「ふつう」「ひろめ」「たっぷり」の 3 つから選ぶ形にしました。スライダーは動かしても画像が変わらないことが多かったためです。これまでの見た目は「ふつう」と同じです。",

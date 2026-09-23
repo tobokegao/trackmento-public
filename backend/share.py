@@ -275,6 +275,8 @@ TEXT = {
         "find_hits": "{n} 件見つかりました",
         "find_untitled": "無題のグリッド",
         "find_back": "TRACKMENTO を開く",
+        "find_varied": "いろんな切り口",
+        "find_recent": "最近のグリッド",
     },
     "en": {
         "expired_title": "This share is gone",
@@ -317,6 +319,8 @@ TEXT = {
         "find_hits": "{n} found",
         "find_untitled": "Untitled grid",
         "find_back": "Open TRACKMENTO",
+        "find_varied": "Different themes",
+        "find_recent": "Recent grids",
     },
 }
 
@@ -567,7 +571,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
 
 
 def find_html(q: str, results: list[dict], base: str, app_url: str | None = None,
-              lang: str = "ja", listed_total: int = 0) -> str:
+              lang: str = "ja", listed_total: int = 0, varied: list[dict] | None = None) -> str:
     """「みんなの並びを探す」ページ。**ここに出るのは opt-in の共有だけ**（`backend/shareindex.py`）。
 
     JavaScript は使わない（フォームの GET だけ）。共有ページと同じ見た目・同じ CSS。
@@ -576,17 +580,23 @@ def find_html(q: str, results: list[dict], base: str, app_url: str | None = None
     """
     app_url = (app_url or base).rstrip("/")
     qs = html.escape(q or "", quote=True)
-    rows = []
-    for r in results:
-        title = html.escape(r["title"]) or t(lang, "find_untitled")
-        hits = "".join(f"<span class=a>{html.escape(h)}</span>" for h in r.get("hits") or [])
-        rows.append(f'<li><span class=n>{r["n"]:02d}</span><span class=t>'
-                    f'<a href="/s/{r["id"]}"><b>{title}</b></a> '
-                    f'<span class=a>{r["cols"]}×{r["rows"]}</span> {hits}</span></li>')
-    if q and not rows:
+    def items(rs: list[dict]) -> str:
+        out = []
+        for r in rs:
+            title = html.escape(r["title"]) or t(lang, "find_untitled")
+            hits = "".join(f"<span class=a>{html.escape(h)}</span>" for h in r.get("hits") or [])
+            out.append(f'<li><span class=n>{r["n"]:02d}</span><span class=t>'
+                       f'<a href="/s/{r["id"]}"><b>{title}</b></a> '
+                       f'<span class=a>{r["cols"]}×{r["rows"]}</span> {hits}</span></li>')
+        return "".join(out)
+    if q and not results:
         body = f'<p class="note">{t(lang, "find_none")}</p>'
-    elif rows:
-        body = f'<p class="meta">{t(lang, "find_hits", n=len(rows))}</p><ol>{"".join(rows)}</ol>'
+    elif q:
+        body = f'<p class="meta">{t(lang, "find_hits", n=len(results))}</p><ol>{items(results)}</ol>'
+    elif results or varied:
+        # 探す前: 「私を構成する 9 曲」ばかりにならないよう、ほかのテーマを先に出す（open-use ⑤）
+        body = "".join(f'<section><h2>{t(lang, key)}</h2><ol>{items(rs)}</ol></section>'
+                       for key, rs in (("find_varied", varied or []), ("find_recent", results)) if rs)
     elif listed_total:
         body = ""
     else:
@@ -600,6 +610,8 @@ def find_html(q: str, results: list[dict], base: str, app_url: str | None = None
 form.find {{ display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }}
 form.find input {{ flex: 1 1 14rem; min-width: 0; font: inherit; padding: 10px 12px;
   border: 2px solid var(--ink); background: var(--paper); color: var(--ink); }}
+section {{ display: grid; gap: 8px; }}
+h2 {{ font-weight: 700; font-size: 1rem; margin: 0; }}
 </style></head>
 <body>
 <header><a class="mark" href="{app_url}/">TRACKMENTO</a></header>

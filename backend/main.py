@@ -2087,17 +2087,22 @@ async def text_page(request: Request) -> HTMLResponse:
 async def find_page(request: Request, q: str = "") -> HTMLResponse:
     _note_src(request)
     q = (q or "").strip()[:80]
-    rows = shareindex.search(q) if q else shareindex.newest()
+    varied = [] if q else shareindex.varied()
+    rows = shareindex.search(q) if q else shareindex.newest(skip={r["id"] for r in varied})
     return HTMLResponse(share.find_html(q, rows, base_url_for(request), app_url_for(request),
-                                        _lang_for(request), shareindex.count()))
+                                        _lang_for(request), shareindex.count(), varied))
 
 
 @app.get("/find.json")
 async def find_json(q: str = "", limit: int = 40) -> dict:
     q = (q or "").strip()[:80]
     limit = max(1, min(100, limit))
-    rows = shareindex.search(q, limit) if q else shareindex.newest(limit)
-    return {"q": q, "total": shareindex.count(), "ready": shareindex.ready(), "results": rows}
+    if q:
+        return {"q": q, "total": shareindex.count(), "ready": shareindex.ready(),
+                "results": shareindex.search(q, limit)}
+    varied = shareindex.varied()
+    return {"q": q, "total": shareindex.count(), "ready": shareindex.ready(), "varied": varied,
+            "results": shareindex.newest(limit, skip={r["id"] for r in varied})}
 
 
 @app.get("/s/{sid}", response_class=HTMLResponse)
