@@ -604,7 +604,8 @@
   }
   /* 図はローファイに描く（2026-09-24、窓の作りに合わせて）。
      - 置き場の幅そのままの px で描き、縮めない（縮めると線と字がにじむ）。座標は整数に丸め、角は crispEdges
-     - 字は DotGothic16 の本来の大きさ 16px（小さくするとにじむ）。時系列は 1 点 6px を守って横に流し、棒は収めて重なる字を間引く
+     - 字は DotGothic16 の本来の大きさ 16px（小さくするとにじむ）。時系列は 1 点ぶんの幅（折れ線 6px・日ごとの棒 52〜56px）を守って横に流し、
+       それ以外の棒は収めて重なる字を間引く
      - 折れ線は階段（斜めの線を使わない）、線は墨、面は 2px の市松、終点は四角
      - 棒は墨の枠と、窓と同じずらした影。目盛りの線は点線、軸は墨の 2px */
   const FS = 16;                       // 図の字の大きさ
@@ -692,7 +693,8 @@
   /* 棒。rows = [[名前, 値, 色?], …]。名前に空白があれば 2 行に分けて置く */
   function barChart(node, rows, opt) {
     const H = 220, L = 48, R = 12, T = 28, B = 52;
-    const W = chartW(node);
+    // opt.slot があれば 1 本ぶんの幅を守り、足りなければ横に流す（日ごとの棒。9/24 に間隔が狭いと言われた）
+    const W = chartW(node, opt.slot ? L + R + rows.length * opt.slot : 0);
     const max = niceMax(Math.max.apply(null, rows.map(r => r[1])) || 1);
     const s = svgBox(W, H);
     const bw = (W - L - R) / rows.length, BAR = Math.min(32, Math.max(8, Math.floor(bw * 0.6)));
@@ -718,6 +720,7 @@
     xAxis(s, W, L, R, y(0));
     xLabels(s, rows.map((r, i) => [L + bw * i + bw / 2, r[0]]), H, W, true);
     node.appendChild(s);
+    if (opt.slot) showEnd(node);
   }
 
   /* 積み上げの棒。rows = [[日付, 合計 GB, {種類: GB} または null], …]。
@@ -725,7 +728,7 @@
   const STACK_COLORS = { "共有": "var(--c-img)", "画像キャッシュ": "var(--c-api)", "アップロード": "var(--c-gb)", "その他": "var(--c-ok)" };
   const STACK_UNKNOWN = "var(--c-other)";
   function stackChart(node, rows, opt) {
-    const H = 200, L = 48, R = 12, T = 12, B = 32, SLOT = 16;
+    const H = 200, L = 48, R = 12, T = 12, B = 32, SLOT = 52;
     const W = chartW(node, L + R + rows.length * SLOT);
     const max = niceMax(Math.max.apply(null, rows.map(r => r[1])) || 1);
     const s = svgBox(W, H);
@@ -790,7 +793,7 @@
     lineChart(document.getElementById("c-gb"), gb, labels, {
       color: "var(--c-gb)", fmt: v => v.toFixed(1), mark: gzip > 0 ? gzip : null, markColor: "var(--c-bad)", markText: "gzip を入れた"
     });
-    barChart(document.getElementById("c-share"), SHARES, { color: "var(--c-img)", fmt: k });
+    barChart(document.getElementById("c-share"), SHARES, { color: "var(--c-img)", fmt: k, slot: 56 });
     /* いまの棒だけ db の実測（多い日）から取る。手で書くと、次の点検で古くなる */
     const vocaPeak = ((SERVICES.peak || {}).vocadb || {}).api || 0;
     const vocaHost = OUT_HOSTS.find(h => h[0] === "vocadb.net");
