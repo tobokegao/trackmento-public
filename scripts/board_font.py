@@ -1,7 +1,7 @@
-"""運用ボード（scripts/board/index.html）にマルモニカ（x12y16pxMaruMonica）を刈り込んで埋め込む。
+"""運用ボード（scripts/board/index.html）に JF ドット東雲ゴシック16 を刈り込んで埋め込む。
 
-2026-09-24 に DotGothic16 から替えた（DotGothic16 は英字の A が山形・C/O/R の角が欠けていて、上辺が波打って見えた）。
-ライセンスは fonts/LICENSE-MaruMonica.txt。
+2026-09-24 に DotGothic16 → マルモニカ → 東雲ゴシック16 と替えた（DotGothic16 は英字の上辺が波打ち、
+マルモニカは縦長。東雲は 16×16 の正方形で英字の上辺もそろう）。ライセンスは fonts/LICENSE-JF-Dot-Shinonome16.txt（実質パブリックドメイン）。
 
 Claude のアプリの中では Google Fonts が読み込まれないので、ページの最後の
 <style id="fonts"> に data: で入れる（2026-09-24、board-retro）。
@@ -42,7 +42,7 @@ def wanted_chars() -> set[str]:
 
 
 def main() -> None:
-    font = TTFont(ROOT / "fonts/x12y16pxMaruMonica.ttf")
+    font = TTFont(ROOT / "fonts/JF-Dot-Shinonome16.ttf")
     cmap = font.getBestCmap()
     keep = sorted(ord(c) for c in wanted_chars() if len(c) == 1 and ord(c) in cmap)
     opts = subset.Options()
@@ -58,9 +58,9 @@ def main() -> None:
 
     block = (
         '\n<style id="fonts">\n'
-        "/* マルモニカ（x12y16pxMaruMonica、(c) 2021 hicc、fonts/LICENSE-MaruMonica.txt）を scripts/board_font.py で刈り込んだもの。"
+        "/* JF ドット東雲ゴシック16（実質パブリックドメイン、fonts/LICENSE-JF-Dot-Shinonome16.txt）を scripts/board_font.py で刈り込んだもの。"
         "字を大きく足したら回し直す */\n"
-        '@font-face { font-family: "MaruMonica"; src: url("data:font/woff2;base64,'
+        '@font-face { font-family: "Shinonome16"; src: url("data:font/woff2;base64,'
         + b64
         + '") format("woff2"); font-display: block; }\n</style>\n'
     )
