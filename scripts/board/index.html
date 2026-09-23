@@ -253,10 +253,11 @@
   .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 18px; }
 
   /* 目次と、右下の「目次へ」。見出しは section.win の h2 から組む（節を足しても目次を直さなくてよい） */
-  nav.toc ol { list-style: none; margin: 0; padding: 10px 1.5ch 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 0 2ch; counter-reset: toc; }
+  /* 目次は横に流して詰める（9/24、縦 1 列だとスマホで 9 行を取っていた）。名前は上の帯と同じ短い形 */
+  nav.toc ol { list-style: none; margin: 0; padding: 8px 1.5ch 10px; display: flex; flex-wrap: wrap; gap: 2px 1.5ch; counter-reset: toc; }
   nav.toc li { counter-increment: toc; }
   nav.toc a { display: flex; gap: 1ch; align-items: baseline; padding: 2px 4px; color: var(--ink); text-decoration: none; }
-  nav.toc a::before { content: "F" counter(toc); color: var(--key); min-width: 3ch; }
+  nav.toc a::before { content: "F" counter(toc); color: var(--key); }
   nav.toc a:hover { background: var(--legend-bg); color: var(--legend-ink); }
   nav.toc a:hover::before { color: inherit; }
   a.totop {
@@ -1271,6 +1272,10 @@
       if (node.classList && node.classList.contains("shut")) setOpen(node, true, true);
       node.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
     };
+    /* 目次と上の帯に出す短い名前（9/24、目次を詰めるため）。無ければ見出しの最初の区切りまで */
+    const SHORT = { now: "状況", trend: "推移", out: "外への要求", svc: "外部サービス", "checks-sec": "回すもの",
+                    todo: "待ち・やること", session: "進め方", docs: "文書", notes: "覚え書き" };
+    const shortName = (sec, h) => SHORT[sec.id] || h.textContent.replace(/[（・].*$/, "");
     const fbar = document.getElementById("fbar"), secs = [];
     document.querySelectorAll("section.win[id]").forEach(sec => {
       const h = sec.querySelector(".bar h2");
@@ -1278,7 +1283,8 @@
       secs.push(sec);
       const li = document.createElement("li"), a = document.createElement("a");
       a.href = "#" + sec.id;
-      a.textContent = h.textContent;
+      a.textContent = shortName(sec, h);
+      a.title = h.textContent;
       a.addEventListener("click", e => { e.preventDefault(); go(sec); });
       li.appendChild(a);
       list.appendChild(li);
@@ -1286,7 +1292,7 @@
       const fl = document.createElement("li"), fa = document.createElement("a"), k = document.createElement("span");
       fa.href = "#" + sec.id;
       k.className = "key"; k.textContent = "F" + secs.length;
-      fa.append(k, " " + h.textContent.replace(/[（・].*$/, ""));
+      fa.append(k, " " + shortName(sec, h));
       fa.addEventListener("click", e => { e.preventDefault(); go(sec); });
       fl.appendChild(fa);
       fbar.appendChild(fl);
