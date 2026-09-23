@@ -1756,6 +1756,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "トラックを全て外す。あとから「元に戻す」で戻せる": "Remove every track. You can bring them back with “Undo”",
         "元に戻す": "Undo",
         "戻しました。": "Restored.",
+        "元に戻せる操作はありません。": "Nothing to undo.",
+        "やり直せる操作はありません。": "Nothing to redo.",
+        "やり直しました。": "Redone.",
         "トラックを探す": "Find a track",
         "並びを保存": "Save layout",
         "並びを読み込み…": "Load layout…",
@@ -3023,13 +3026,55 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* ---- grid ---- */
   /* 「入れる先」のマス。空マスをクリック／タップすると決まり、次に選んだ候補はそこに入る */
   let target = null;
+
+  /* ---- 取り消し（Ctrl+Z / Ctrl+Shift+Z・Ctrl+Y） ----
+     **並びを書き換える操作の直前に checkpoint() を呼ぶ**。控えるのはマスと控え（stash）と横 × 縦だけで、
+     出力の設定（比率・色など）は入れない（それぞれ 1 手で戻せるので）。
+     マスの中身は写しを取る。曲名の編集は t.title をその場で書き換えるので、参照のままだと控えまで変わる。
+     キーボードの無いスマホのために、操作のメッセージにも「元に戻す」を付ける（押すと 1 段戻る。2026-09-23） */
+  const HISTORY_MAX = 30;
+  let undoStack = [], redoStack = [];
+  const snapGrid = () => ({ cols: state.cols, rows: state.rows, cells: state.cells.map(t => t && { ...t }), stash: state.stash.map(t => ({ ...t })) });
+  function checkpoint() {
+    undoStack.push(snapGrid());
+    if (undoStack.length > HISTORY_MAX) undoStack.shift();
+    redoStack = [];
+  }
+  function applySnap(s) {
+    state.cols = s.cols; state.rows = s.rows; state.cells = s.cells; state.stash = s.stash;
+    els.cols.value = s.cols; els.rows.value = s.rows;
+    if (selected !== null && !state.cells[selected]) selected = null;   // 編集中のマスが残っていれば編集欄は開いたまま
+    if (target !== null && (target >= state.cells.length || state.cells[target])) target = null;
+    clearViewCells(); renderGrid();
+  }
+  function undo(msgEl = els.gridMsg) {
+    const s = undoStack.pop();
+    if (!s) { say(msgEl, tr("元に戻せる操作はありません。")); return; }
+    redoStack.push(snapGrid()); applySnap(s);
+    say(msgEl, tr("戻しました。"));
+  }
+  function redo() {
+    const s = redoStack.pop();
+    if (!s) { say(els.gridMsg, tr("やり直せる操作はありません。")); return; }
+    undoStack.push(snapGrid()); applySnap(s);
+    say(els.gridMsg, tr("やり直しました。"));
+  }
+  /* メッセージの後ろに「元に戻す」を付ける。次のメッセージで消える（キーボードなら、それより前にも戻れる） */
+  function undoLink(msgEl = els.gridMsg) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "undo"; b.textContent = tr("元に戻す");
+    b.addEventListener("click", () => undo(msgEl));
+    msgEl.append(" ", b);
+  }
+
   function addTrack(t) {
     let i = target !== null && state.cells[target] === null ? target : state.cells.findIndex(c => c === null);
     if (i < 0) { say(els.gridMsg, tr("空きマスがありません。マスの × でトラックを外してから追加してください。"), "error"); return; }
+    checkpoint();
     target = null;
     state.cells[i] = { ...t };   // 候補と切り離す（曲名の編集が候補に波及しないように）
     renderGrid();
-    say(els.gridMsg, tr`${i + 1} 番に「${t.title}」を入れました。`);
+    say(els.gridMsg, tr`${i + 1} 番に「${t.title}」を入れました。`); undoLink();
     if (sheetOpen()) closeSheet();
   }
   /* まとめて取れた曲を、若い番号の空きマスから順に入れる（埋まっているマスは飛ばす）。
@@ -3037,6 +3082,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      入りきらなかった分は呼び出し元が候補へ置く。 */
   function fillEmptyCells(tracks) {
     let put = 0;
+    if (tracks.length && state.cells.includes(null)) checkpoint();
     for (const t of tracks) {
       const i = state.cells.findIndex(c => c === null);
       if (i < 0) break;
@@ -3088,15 +3134,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   placeEditor();
   window.matchMedia("(min-width: 60rem)").addEventListener("change", () => { if (!isMobile()) closeSheet(); placeEditor(); });
   function removeAt(i) {
-    const t = state.cells[i]; state.cells[i] = null;
+    const t = state.cells[i]; if (!t) return;
+    checkpoint();
+    state.cells[i] = null;
     if (selected === i) selected = null;
     renderGrid();
-    if (t) say(els.gridMsg, tr`${i + 1} 番の「${t.title}」を外しました。`);
+    say(els.gridMsg, tr`${i + 1} 番の「${t.title}」を外しました。`); undoLink();
   }
   function swap(a, b) {
     if (a === b) return;
+    checkpoint();
     [state.cells[a], state.cells[b]] = [state.cells[b], state.cells[a]];
-    renderGrid(); say(els.gridMsg, tr`${a + 1} 番と ${b + 1} 番を入れ替えました。`);
+    renderGrid(); say(els.gridMsg, tr`${a + 1} 番と ${b + 1} 番を入れ替えました。`); undoLink();
   }
 
   /* ---- タップで選んでタップで入れ替え（スマホ向け。PC でも使える） ---- */
@@ -3115,9 +3164,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (selected === i) { selected = null; renderGrid(); say(els.gridMsg, tr("選択を解除しました。")); return; }
     const from = selected, wasEmpty = !state.cells[i];
     selected = null;
+    checkpoint();
     [state.cells[from], state.cells[i]] = [state.cells[i], state.cells[from]];
     renderGrid();
-    say(els.gridMsg, wasEmpty ? tr`${from + 1} 番を ${i + 1} 番に移しました。` : tr`${from + 1} 番と ${i + 1} 番を入れ替えました。`);
+    say(els.gridMsg, wasEmpty ? tr`${from + 1} 番を ${i + 1} 番に移しました。` : tr`${from + 1} 番と ${i + 1} 番を入れ替えました。`); undoLink();
   }
   function clearSelection() { if (selected !== null) { selected = null; renderGrid(); } }
   function renderEditor() {
@@ -3171,16 +3221,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     b.addEventListener("click", () => {
       const t = selected !== null ? state.cells[selected] : null;
       if (!t) return;
-      const before = t.artist;
+      checkpoint();
       t.artist = name; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
-      say(els.eOriginMsg, tr`アーティスト名を「${name}」にしました。`);
-      const undo = document.createElement("button");
-      undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
-      undo.addEventListener("click", () => {
-        t.artist = before; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
-        say(els.eOriginMsg, tr("戻しました。"));
-      });
-      els.eOriginMsg.append(" ", undo);
+      say(els.eOriginMsg, tr`アーティスト名を「${name}」にしました。`); undoLink(els.eOriginMsg);
     });
     return b;
   }
@@ -3232,13 +3275,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     } finally { els.eOriginFind.disabled = false; }
   });
 
+  /* 入力欄の書き換えは、欄に入ってから最初の 1 字で 1 段だけ控える（1 字ごとに積むと Ctrl+Z が 1 字ずつになる）。
+     欄の中の Ctrl+Z はブラウザの取り消しに任せる */
+  let editMarked = false;
+  const markEdit = () => { if (!editMarked) { checkpoint(); editMarked = true; } };
+  for (const el of [els.eTitleIn, els.eArtistIn, els.eNoteIn]) el.addEventListener("focus", () => { editMarked = false; });
   els.eTitleIn.addEventListener("input", () => {
     const t = selected !== null && state.cells[selected]; if (!t) return;
-    t.title = els.eTitleIn.value; renderGrid();
+    markEdit(); t.title = els.eTitleIn.value; renderGrid();
   });
   els.eArtistIn.addEventListener("input", () => {
     const t = selected !== null && state.cells[selected]; if (!t) return;
-    t.artist = els.eArtistIn.value; renderGrid();
+    markEdit(); t.artist = els.eArtistIn.value; renderGrid();
   });
   /* 曲ごとのメモ。**共有ページにだけ出す**（画像には描かないので renderGrid は要らない）。
      整えるのはサーバー（`Track._note`: 3 行・200 字、空なら消す）。ここでは 3 行までに抑えるだけ */
@@ -3246,7 +3294,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const t = selected !== null && state.cells[selected]; if (!t) return;
     const v = els.eNoteIn.value.split("\n").slice(0, 3).join("\n");
     if (v !== els.eNoteIn.value) els.eNoteIn.value = v;
-    t.note = v.trim() ? v : null; save();
+    markEdit(); t.note = v.trim() ? v : null; save();
   });
   els.eRemove.addEventListener("click", () => { if (selected !== null) removeAt(selected); });
   els.eClose.addEventListener("click", () => { clearSelection(); say(els.gridMsg, tr("選択を解除しました。")); });
@@ -3262,6 +3310,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (sheetOpen()) { closeSheet(); return; }
     if (selected !== null) { clearSelection(); say(els.gridMsg, tr("選択を解除しました。")); return; }
     if (target !== null) { clearTarget(); say(els.gridMsg, tr("入れる先の指定を解除しました。")); }
+  });
+  /* 取り消しとやり直し。Mac は ⌘Z / ⇧⌘Z、Windows は Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y。
+     文字を打つ欄の中ではブラウザの取り消しに任せ、グリッドと関係ない窓（確認・パレット・取り込み）が開いている間は効かせない */
+  document.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k !== "z" && k !== "y") return;
+    const el = e.target;
+    if (el.isContentEditable || /^(TEXTAREA|SELECT)$/.test(el.tagName)
+        || (el.tagName === "INPUT" && !/^(checkbox|radio|range|button|submit|color)$/.test(el.type))) return;
+    if (!confirmModal.hidden || !palModal.hidden || plOpen() || !srcModal.hidden) return;
+    e.preventDefault();
+    if (k === "y" || e.shiftKey) redo(); else undo();
   });
   /* マスの数の上限。書き出しは最大辺 2400px に収まるので、マスが増えるほど 1 マスは小さくなる
      （16x16 で約 146px）。これ以上は何のジャケットか分からなくなるため 256 で止める。
@@ -3285,6 +3346,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     [cols, rows] = clampGrid(cols, rows, keep);
     if (asked[0] * asked[1] > MAX_CELLS) say(els.gridMsg, tr`マスは全部で ${MAX_CELLS} 個までです（${cols} × ${rows} にしました）。`);
     const n = cols * rows, cur = state.cells.length;
+    if (cols !== state.cols || rows !== state.rows) checkpoint();
     if (n < cur) {
       // 溢れた曲は退避。サイズを戻すと復帰する
       const cut = state.cells.slice(n).filter(Boolean);
@@ -3417,16 +3479,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     openConfirm(clearAll, tr`${n} トラックを全て外します。あとから「元に戻す」で戻せます。`);
   });
   function clearAll() {
-    const before = { cells: state.cells.slice(), stash: state.stash.slice() };
+    checkpoint();
     state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true;
-    say(els.gridMsg, tr("トラックを全て外しました。"));
-    const undo = document.createElement("button");
-    undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
-    undo.addEventListener("click", () => {
-      state.cells = before.cells; state.stash = before.stash; selected = null; target = null; renderGrid();
-      say(els.gridMsg, tr("戻しました。"));
-    });
-    els.gridMsg.append(" ", undo);
+    say(els.gridMsg, tr("トラックを全て外しました。")); undoLink();
   }
   /* **刈った題をデータに書き戻す**（trimNames は表示だけを変えるので、手で直したい人のための操作）。
      書き戻しておくと、編集パネルの入力欄が短い題になり、そこから直せる */
@@ -3444,16 +3499,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
                 tr("短くする"), els.trimAllBtn);
   });
   function trimAll(next, nT, nA) {
-    const before = state.cells.slice();
+    checkpoint();
     state.cells = next; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
-    say(els.gridMsg, tr`${nT} マスのトラック名・${nA} マスのアーティスト名を短くしました。`);
-    const undo = document.createElement("button");
-    undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
-    undo.addEventListener("click", () => {
-      state.cells = before; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
-      say(els.gridMsg, tr("戻しました。"));
-    });
-    els.gridMsg.append(" ", undo);
+    say(els.gridMsg, tr`${nT} マスのトラック名・${nA} マスのアーティスト名を短くしました。`); undoLink();
   }
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
 
