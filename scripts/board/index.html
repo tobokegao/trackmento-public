@@ -135,6 +135,28 @@
   .note-block dt { color: var(--muted); white-space: nowrap; }
   .note-block dd { margin: 0; }
 
+  /* 目次と、右下の「目次へ」。見出しは section.win の h2 から組む（節を足しても目次を直さなくてよい） */
+  html { scroll-padding-top: 12px; }
+  nav.toc { margin-top: 18px; border: 1px solid var(--rule); background: var(--panel); box-shadow: 0 1px 2px var(--shadow); }
+  nav.toc > .bar { border-bottom: 1px solid var(--rule); background: var(--soft); padding: 9px 14px; }
+  nav.toc h2 { font-size: 14px; margin: 0; }
+  nav.toc ol { list-style: none; margin: 0; padding: 10px 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 18px; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; }
+  nav.toc a { display: flex; gap: 10px; align-items: baseline; padding: 5px 4px; color: var(--ink); text-decoration: none; font-size: 13px; }
+  nav.toc a::before { content: counter(toc, decimal-leading-zero); font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); }
+  nav.toc a:hover { background: var(--soft); text-decoration: underline; }
+  nav.toc a:focus-visible, a.totop:focus-visible { outline: 3px solid var(--cerulean); outline-offset: 2px; }
+  a.totop {
+    position: fixed; z-index: 10;
+    right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: 2px 2px 0 var(--ink);
+    font-size: 13px; font-weight: 600; text-decoration: none;
+  }
+  a.totop:hover { background: var(--soft); }
+  a.totop:active { transform: translate(2px, 2px); box-shadow: none; }
+  a.totop[hidden] { display: none; }
+
   footer { margin-top: 30px; color: var(--muted); font-size: 12px; }
   a { color: var(--cerulean); }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -147,14 +169,19 @@
     <p class="sub">点検の数字・推移の図・外部サービスの上限と実測・忘れやすい手順・待っていること。<span id="asof">—</span> 時点。</p>
   </header>
 
-  <section class="win">
+  <nav class="toc" id="toc" aria-labelledby="toc-h">
+    <div class="bar"><h2 id="toc-h">目次</h2></div>
+    <ol id="toc-list"></ol>
+  </nav>
+
+  <section class="win" id="now">
     <div class="bar"><h2>いまの状況</h2><span class="count" id="now-when">—</span></div>
     <div class="body">
       <div class="tiles" id="tiles"></div>
     </div>
   </section>
 
-  <section class="win">
+  <section class="win" id="trend">
     <div class="bar"><h2>推移</h2><span class="count" id="series-count">点検の記録 metrics/series.jsonl から</span></div>
     <div class="body">
       <div class="charts">
@@ -188,7 +215,7 @@
     </div>
   </section>
 
-  <section class="win">
+  <section class="win" id="out">
     <div class="bar"><h2>外へ出した要求（ホスト別）</h2><span class="count" id="out-count">—</span></div>
     <div class="body">
       <div class="bars" id="outbars"></div>
@@ -197,7 +224,7 @@
     </div>
   </section>
 
-  <section class="win">
+  <section class="win" id="svc">
     <div class="bar"><h2>外部サービスの使い方と上限</h2><span class="count" id="svc-src">robots.txt は 7 サイト実取得で確認</span></div>
     <div class="body scroll">
       <table>
@@ -220,7 +247,7 @@
     </div>
   </section>
 
-  <section class="win">
+  <section class="win" id="checks-sec">
     <div class="bar"><h2>変更したら回すもの</h2><span class="count" id="chk-count">0 / 13</span></div>
     <div class="body">
       <ul class="list" id="checks"></ul>
@@ -228,7 +255,7 @@
     </div>
   </section>
 
-  <section class="win">
+  <section class="win" id="todo">
     <div class="bar"><h2>待っていること・やること</h2><span class="count" id="todo-count">0 / 10</span></div>
     <div class="body">
       <div id="watch-list"></div>
@@ -236,7 +263,7 @@
     </div>
   </section>
 
-  <section class="win">
+  <section class="win" id="session">
     <div class="bar"><h2>セッションの進め方</h2><span class="count">2026-09-20 に決めた・09-23 に見直し</span></div>
     <div class="body">
       <p class="sub" style="margin:0 0 14px">Claude は会話が伸びるほど過去のやり取りを読み直す。<strong>短いセッションを何本も</strong>のほうが、長い 1 本より安く、間違いも減る。</p>
@@ -340,7 +367,7 @@
     </div>
   </section>
 
-  <section class="win">
+  <section class="win" id="docs">
     <div class="bar"><h2>文書の置き場所</h2><span class="count" id="doc-base">毎セッションの土台 50,000 → 8,000 トークン</span></div>
     <div class="body">
       <p class="sub" style="margin:0 0 12px"><code>CLAUDE.md</code> は毎回まるごと読み込まれる。11 万字あったので、<strong>核と参照に分けた</strong>（2026-09-20、<code>9a11c39</code>）。中身は並べ替えず、そのまま移してある。推定は字数 × 0.44（分けたときの見積もりと同じ比）で、ログを見るたびに今の字数で出し直す。</p>
@@ -366,7 +393,7 @@
     </div>
   </section>
 
-  <section class="win">
+  <section class="win" id="notes">
     <div class="bar"><h2>覚え書き</h2><span class="count">置き場所・お金・定期の仕事</span></div>
     <div class="body">
       <div class="notes">
@@ -416,6 +443,8 @@
     規約は各社の一次資料、robots.txt は 2026-09-20 に取得したもの。手順の元は <code class="cmd">CLAUDE.md</code>。
   </footer>
 </div>
+
+<a class="totop" id="totop" href="#toc" hidden>↑ 目次へ</a>
 
 <script>
   /* ここから下の数字は「作り付けの控え」。ページを開くと db の board/metrics で上書きする
@@ -931,6 +960,31 @@
     if (LATEST.r2 && LATEST.r2.counted) document.getElementById("foot-r2").textContent = LATEST.r2.counted;
     document.getElementById("asof").textContent = (LATEST.jst || "").slice(0, 10);
   }
+
+  /* 目次。section.win の h2 から組む。移動は scrollIntoView で行う
+     （ページは枠の中で開かれるので、#… の書き換えに頼らない） */
+  (function () {
+    const list = document.getElementById("toc-list"), toc = document.getElementById("toc"), back = document.getElementById("totop");
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const go = (node) => { node.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" }); };
+    document.querySelectorAll("section.win[id]").forEach(sec => {
+      const h = sec.querySelector(".bar h2");
+      if (!h) return;
+      const li = document.createElement("li"), a = document.createElement("a");
+      a.href = "#" + sec.id;
+      a.textContent = h.textContent;
+      a.addEventListener("click", e => { e.preventDefault(); go(sec); });
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+    back.addEventListener("click", e => { e.preventDefault(); go(toc); });
+    // 目次が画面から外れているあいだだけ出す
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(([en]) => { back.hidden = en.isIntersecting || en.boundingClientRect.top > 0; }).observe(toc);
+    } else {
+      back.hidden = false;
+    }
+  })();
 
   drawAll();
   draw();
