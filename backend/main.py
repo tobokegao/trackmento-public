@@ -1029,6 +1029,46 @@ async def apple_touch_icon() -> FileResponse:
     return FileResponse(FRONTEND / "apple-touch-icon.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
+@app.get("/icon-192.png")
+@app.get("/icon-512.png")
+async def app_icon(request: Request) -> FileResponse:
+    """ホーム画面のアイコン（scripts/build_icons.py が作る）。manifest.webmanifest から指す。"""
+    name = request.url.path.lstrip("/")
+    return FileResponse(FRONTEND / name, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
+# **Web Share Target**（2026-09-24、運用ボードの ideas-0923）。ホーム画面に追加すると、Android のほかのアプリの
+# 「共有」に TRACKMENTO が出て、URL を直接送れる。受け取りは frontend の takeSharedUrl()。
+# 引数の名前に st_ を付けるのは、共有ページから開く ?share=<id> と取り違えないため。
+# **Service Worker は置かない**（Chrome のインストールの条件に入っていない。置くと古い画面が残る心配が増える）
+MANIFEST = {
+    "name": "TRACKMENTO",
+    "short_name": "TRACKMENTO",
+    "description": "好きなトラックのジャケットを並べて 1 枚の画像に。",
+    "lang": "ja",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#F6F6F4",
+    "theme_color": "#F6F6F4",
+    "icons": [
+        {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    ],
+    "share_target": {
+        "action": "/",
+        "method": "GET",
+        "params": {"title": "st_title", "text": "st_text", "url": "st_url"},
+    },
+}
+
+
+@app.get("/manifest.webmanifest")
+async def manifest() -> Response:
+    return Response(json.dumps(MANIFEST, ensure_ascii=False), media_type="application/manifest+json",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/health")
 @app.get("/status")   # Web はこちらを使う。EasyPrivacy に「||onrender.com/health」があり、広告ブロッカー入りのブラウザ（Vivaldi など）は /health を遮断する
 async def health() -> dict:

@@ -278,6 +278,12 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-24", "Android でホーム画面に追加すると、ほかのアプリの「共有」から TRACKMENTO に URL を送れるようになりました（iPhone では使えません）。",
+     "On Android, after adding TRACKMENTO to your home screen, you can send it URLs from other apps’ “Share” menu (not available on iPhone)."),
+    ("2026-09-24", "「色で並べ替え」を足しました。ジャケットの主な色で、赤から紫の順に並べ替えます。あとから「元に戻す」で戻せます。",
+     "Added “Sort by color”, which orders the covers by their main color, from red to purple. You can undo it."),
+    ("2026-09-24", "タイトルの下に「お題」を足しました。「私を構成する9曲」などの見本を選ぶと、タイトルと横 × 縦が一度に入ります。同じトラックをもう一度入れたときは、そのことをお知らせするようにしました。",
+     "Added “Theme” below the title. Picking an example such as “9 songs that made me” sets the title and the grid size at once. Adding a track that is already in the grid now tells you so."),
     ("2026-09-24", "「みんなのグリッドを探す」の最初の画面に「いろんな切り口」を足しました。「私を構成する〜」以外のテーマで作られたグリッドを、新しいものから 8 つ並べます。",
      "The first screen of “Find shared grids” now has a “Different themes” list: the eight newest grids built around something other than “songs that make me”."),
     ("2026-09-24", "bilibiliのURLを、また貼れるようにしました。otoDB（音MADなど）かVocaDB（ボカロなど）に登録のある動画だけ、トラック名とサムネイルを取り込めます。bilibiliには問い合わせないため、登録のない動画と短縮URL（b23.tv）は使えません。",

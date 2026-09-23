@@ -21,6 +21,7 @@
 <meta name="google-adsense-account" content="ca-pub-6662407728160305">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" href="favicon.png" sizes="64x64">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
 /* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
 /* IBM Plex Sans JP と DotGothic16 は unicode-range で分割した断片（fonts/split/、scripts/build_fonts.py が生成）。
@@ -1433,6 +1434,19 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
         <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
+      <!-- お題の見本（2026-09-24、運用ボードの ideas-0923）。選ぶとタイトルと横 × 縦が 1 回で入る。
+           題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。大きさは value の「横x縦」 -->
+      <div class="layouts themes">
+        <label for="theme-sel">お題</label>
+        <span class="popup"><select id="theme-sel">
+          <option value="">見本から選ぶ…</option>
+          <option value="3x3">私を構成する9曲</option>
+          <option value="5x2">今年よく聴いた10曲</option>
+          <option value="4x3">今年の12か月（1月から順に1曲ずつ）</option>
+          <option value="2x2">春夏秋冬に聴きたい曲</option>
+          <option value="4x4">はじめての人に聴いてほしい16曲</option>
+        </select></span>
+      </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
@@ -1441,6 +1455,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
         <button class="btn" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
+        <button class="btn" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -2153,6 +2168,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "取り込めませんでした。{}": "Upload failed. {0}",
         "{} / {} をグリッドに追加": "Add {0} by {1} to the grid",
         "{} 番に「{}」を入れました。": "Put \"{1}\" in cell {0}.",
+        "{} 番にも同じトラックがあります。": "Cell {0} has the same track.",
+        "（{} トラックは、ほかのマスと同じトラックです）": "({0} of them are already in other cells.)",
         "{} 番に入れます。候補を押すと入ります／このマスをもう一度押すと解除": "Cell {0} is the target. Tap a result to place it, or tap again to cancel",
         "{} 番に入れるトラックを探す": "Find a track for cell {0}",
         "{} 番の「{}」を外しました。": "Removed \"{1}\" from cell {0}.",
@@ -2180,6 +2197,23 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "共有 {} の並びを新しい並びとして読み込みました（{} トラック）。前の並びは「並び」のメニューから開けます。": "Loaded share {0} as a new layout ({1} tracks). Your previous layout is still in the “Layout” menu.",
         "並び": "Layout",
         "新しい並び": "New layout",
+        "共有された文字に URL が見つかりませんでした。": "No URL was found in what was shared.",
+        "色で並べ替え": "Sort by color",
+        "ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる": "Sort by the main color of each cover: red → yellow → green → blue → purple. Black-and-white covers go last, lightest first. You can undo it.",
+        "2 トラック以上入れてから押してください。": "Add at least 2 tracks first.",
+        "ジャケットの色を調べています…（{}/{}）": "Checking cover colors… ({0}/{1})",
+        "調べている間に並びが変わったので、並べ替えをやめました。もう一度押してください。": "The grid changed while checking, so sorting was stopped. Press again.",
+        "もう色の順に並んでいます。": "Already in color order.",
+        "{} トラックを色の順に並べ替えました。": "Sorted {0} tracks by color.",
+        "（{} トラックは絵が取れなかったので最後に置きました）": "({0} covers could not be loaded and were put last.)",
+        "お題": "Theme",
+        "見本から選ぶ…": "Pick an example…",
+        "私を構成する9曲": "9 songs that made me",
+        "今年よく聴いた10曲": "My 10 most played this year",
+        "今年の12か月（1月から順に1曲ずつ）": "12 months of this year (one song per month)",
+        "春夏秋冬に聴きたい曲": "Songs for the four seasons",
+        "はじめての人に聴いてほしい16曲": "16 songs for someone new to them",
+        "お題「{}」にしました（横 {} × 縦 {}）。": "Set the theme to \"{0}\" ({1} × {2}).",
         "この並びを消す": "Delete layout",
         "空の並びをもう 1 つ作る。今の並びはそのまま残る": "Start another, empty layout. The current one stays as it is",
         "いま開いている並びを消す。ほかの並びは残る": "Delete the layout that is open now. Your other layouts stay",
@@ -3044,9 +3078,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const put = fillEmptyCells(tracks);
     const rest = tracks.slice(put);
     if (rest.length) {
-      plPutToResults(rest, tr`${put} トラックをマスに入れ、残り ${rest.length} トラックを候補に置きました。`);
+      plPutToResults(rest, tr`${put} トラックをマスに入れ、残り ${rest.length} トラックを候補に置きました。` + dupNote());
     } else {
-      say(els.bcMsg, tr`${put} トラックをマスに入れました。`);
+      say(els.bcMsg, tr`${put} トラックをマスに入れました。` + dupNote());
     }
   });
   $("#pl-to-results").addEventListener("click", () => {
@@ -3378,7 +3412,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     listData = [...missed, ...rows.slice(done)];
     renderListRows();
     const parts = [];
-    if (put) parts.push(tr`${put} トラックをマスに入れました。`);
+    if (put) parts.push(tr`${put} トラックをマスに入れました。` + dupNote());
     if (toResults.length) parts.push(tr`${toResults.length} トラックを候補に置きました（名前が合わなかったもの・空きマスが足りなかったもの）。`);
     if (missed.length) parts.push(tr`${missed.length} 行は見つからなかったので、表に残しました。`);
     if (done < rows.length) parts.push(tr`途中でやめました（残りの ${rows.length - done} 行は表に残しました）。`);
@@ -3507,6 +3541,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     msgEl.append(" ", b);
   }
 
+  /* 同じトラックが入っているほかのマス（0 始まり、無ければ -1）。名前は nkey でそろえて突き合わせる。
+     入れるのは止めない（同じトラックを 2 回並べたい人もいる）。知らせるだけ（2026-09-24） */
+  const sameTrack = (a, b) => nkey(a.title) === nkey(b.title) && nkey(a.artist) === nkey(b.artist);
+  const dupAt = (i) => { const t = state.cells[i]; return t && nkey(t.title) ? state.cells.findIndex((c, j) => j !== i && c && sameTrack(c, t)) : -1; };
   function addTrack(t) {
     let i = target !== null && state.cells[target] === null ? target : state.cells.findIndex(c => c === null);
     if (i < 0) { say(els.gridMsg, tr("空きマスがありません。マスの × でトラックを外してから追加してください。"), "error"); return; }
@@ -3514,24 +3552,30 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     target = null;
     state.cells[i] = { ...t };   // 候補と切り離す（曲名の編集が候補に波及しないように）
     renderGrid();
-    say(els.gridMsg, tr`${i + 1} 番に「${t.title}」を入れました。`); undoLink();
+    const d = dupAt(i);
+    say(els.gridMsg, tr`${i + 1} 番に「${t.title}」を入れました。` + (d < 0 ? "" : " " + tr`${d + 1} 番にも同じトラックがあります。`)); undoLink();
     if (sheetOpen()) closeSheet();
   }
   /* まとめて取れた曲を、若い番号の空きマスから順に入れる（埋まっているマスは飛ばす）。
      プレイリストは上から順に聴く前提で並んでいるので、その順序をそのままマスの順序にする。
      入りきらなかった分は呼び出し元が候補へ置く。 */
+  let fillDups = 0;   // 直前の fillEmptyCells で入れたうち、ほかのマスと同じトラックだった数（メッセージに添える）
   function fillEmptyCells(tracks) {
     let put = 0;
+    const placed = [];
     if (tracks.length && state.cells.includes(null)) checkpoint();
     for (const t of tracks) {
       const i = state.cells.findIndex(c => c === null);
       if (i < 0) break;
       state.cells[i] = { ...t };
+      placed.push(i);
       put++;
     }
+    fillDups = placed.filter(i => dupAt(i) >= 0).length;
     if (put) { target = null; renderGrid(); save(); }
     return put;
   }
+  const dupNote = () => fillDups ? " " + tr`（${fillDups} トラックは、ほかのマスと同じトラックです）` : "";
 
   function setTarget(i) {
     target = i; selected = null; renderGrid();
@@ -3923,6 +3967,77 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     try { await navigator.clipboard.writeText(lines.join("\n")); say(els.gridMsg, tr`${lines.length} トラックの名前をコピーしました。`); }
     catch { say(els.gridMsg, tr("コピーできませんでした。"), "error"); }
   });
+  /* ---- 色で並べ替え（2026-09-24、運用ボードの ideas-0923）。ジャケットの主な色の色相で虹の順に並べる。
+     絵は小さい版（64px）を書き出しと同じ道（R2 → サーバー経由）で取るので、Render の転送量はほとんど増えない。
+     主な色は「鮮やかな画素の色相を 12 に分けて、いちばん多い組の平均」。鮮やかな画素が 1 割に満たない絵は白黒とみなし、
+     最後に明るい順で並べる。取れなかった絵は最後尾。空きマスは後ろに寄る ---- */
+  const COLOR_KEY = new Map();   // 画像 URL → 並べる鍵（同じ画面で押し直したときに取り直さない）
+  async function colorKey(t) {
+    const k = t.image || t.thumb;
+    if (COLOR_KEY.has(k)) return COLOR_KEY.get(k);
+    const bmp = await loadCover(t, 64);
+    let key = [3, 0];   // 取れなかった絵
+    if (bmp) {
+      const S = 24, cv = document.createElement("canvas"); cv.width = cv.height = S;
+      const cx = cv.getContext("2d", { willReadFrequently: true });
+      cx.drawImage(bmp, 0, 0, S, S);   // 縦横比は崩れてよい（色の割合だけを見る）
+      const px = cx.getImageData(0, 0, S, S).data;
+      const bins = Array.from({ length: 12 }, () => ({ n: 0, x: 0, y: 0 }));
+      let vivid = 0, light = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        const r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+        light += (mx + mn) / 2;
+        if (mx < 0.2 || d / mx < 0.25) continue;   // 暗すぎる・くすんだ画素は色に数えない
+        let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+        h = (h * 60 + 360) % 360;
+        const bin = bins[Math.floor(h / 30) % 12], rad = h * Math.PI / 180;
+        bin.n++; bin.x += Math.cos(rad); bin.y += Math.sin(rad); vivid++;
+      }
+      const n = S * S;
+      if (vivid >= n * 0.1) {
+        const top = bins.reduce((a, c) => (c.n > a.n ? c : a));
+        const h = (Math.atan2(top.y, top.x) * 180 / Math.PI + 360) % 360;
+        key = [1, (h + 15) % 360];   // 赤の少し手前（345°）を 0 として数える。345° 付近の赤は紫の後ろではなく先頭に来る
+      } else key = [2, -light / n];
+      bmp.close && bmp.close();
+    }
+    COLOR_KEY.set(k, key);
+    return key;
+  }
+  let colorRun = false;
+  $("#color-sort").addEventListener("click", async () => {
+    if (colorRun) return;
+    const before = state.cells.slice();
+    const idx = before.map((t, i) => (t ? i : -1)).filter(i => i >= 0);
+    if (idx.length < 2) { say(els.gridMsg, tr("2 トラック以上入れてから押してください。"), "error"); return; }
+    const btn = $("#color-sort");
+    colorRun = true; setBtnState(btn, "loading");
+    try {
+      const need = idx.filter(i => !COLOR_KEY.has(before[i].image || before[i].thumb));
+      if (need.length) await preloadR2Map(need.map(i => ({ url: before[i].image || before[i].thumb, px: 64 })));
+      const keys = new Map();
+      let done = 0;
+      // 6 本ずつ並行して取る（256 マスでも待ちすぎず、サーバーにも一度に押し寄せない）
+      for (let p = 0; p < idx.length; p += 6) {
+        await Promise.all(idx.slice(p, p + 6).map(async (i) => { keys.set(i, await colorKey(before[i]).catch(() => [3, 0])); done++; }));
+        say(els.gridMsg, tr`ジャケットの色を調べています…（${done}/${idx.length}）`);
+      }
+      // 調べている間に並びが変わっていたら、古い並びで上書きしない
+      if (state.cells.length !== before.length || state.cells.some((c, i) => c !== before[i])) {
+        say(els.gridMsg, tr("調べている間に並びが変わったので、並べ替えをやめました。もう一度押してください。"), "error"); return;
+      }
+      const sorted = idx.slice().sort((a, b) => { const x = keys.get(a), y = keys.get(b); return x[0] - y[0] || x[1] - y[1] || a - b; });
+      const next = sorted.map(i => before[i]);
+      while (next.length < before.length) next.push(null);
+      if (next.every((c, i) => c === before[i])) { say(els.gridMsg, tr("もう色の順に並んでいます。")); return; }
+      checkpoint();
+      state.cells = next; selected = null; target = null;
+      clearViewCells(); renderGrid(); save();
+      const fail = sorted.filter(i => keys.get(i)[0] === 3).length;
+      say(els.gridMsg, tr`${idx.length} トラックを色の順に並べ替えました。` + (fail ? " " + tr`（${fail} トラックは絵が取れなかったので最後に置きました）` : "")); undoLink();
+    } finally { colorRun = false; setBtnState(btn, null); }
+  });
   els.jsonImport.addEventListener("click", () => els.jsonFile.click());
   els.jsonFile.addEventListener("change", async () => {
     const f = els.jsonFile.files && els.jsonFile.files[0];
@@ -3990,6 +4105,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     say(els.gridMsg, tr`${nT} マスのトラック名・${nA} マスのアーティスト名を短くしました。`); undoLink();
   }
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
+  $("#theme-sel").addEventListener("change", (e) => {
+    const sel = e.target, o = sel.selectedOptions[0];
+    sel.value = "";   // メニューは毎回「見本から選ぶ…」に戻す（続けて同じお題を選び直せるように）
+    if (!o || !o.value) return;
+    const [c, r] = o.value.split("x").map(Number);
+    const title = o.textContent.replace(/[（(].*$/, "").trim();   // 括弧の中は選ぶときの説明なので題名に入れない
+    resizeGrid(c, r);
+    state.title = title; els.title.value = title; updateSpec();
+    say(els.gridMsg, tr`お題「${title}」にしました（横 ${c} × 縦 ${r}）。`);
+  });
 
   /* ---- options ---- */
   // いま触った側は動かさず、もう一方を減らして総数に収める
@@ -7087,7 +7212,24 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   loadHealth()
     .then(() => { if (isPublic || API) GRID_BASE = browserGridId(); GRID_NAME = serverGridName(); renderLayoutMenu(); })
     .then(restoreFromShare).then(ok => ok ? Promise.resolve() : restore())
-    .finally(() => { ready = true; save(); });
+    .finally(() => { ready = true; save(); takeSharedUrl(); });
+  /* **Android の「共有」から届いた URL を取り込む**（Web Share Target、2026-09-24、運用ボードの ideas-0923）。
+     manifest.webmanifest の share_target が /?st_title=…&st_text=…&st_url=… で開く。アプリによって URL が
+     url に入るもの・text の中に文章と一緒に入るもの（YouTube など）があるので、両方から http の URL を拾う。
+     ホーム画面に追加した人だけが使える（iPhone の Safari は share_target に対応していない） */
+  function takeSharedUrl() {
+    const q = new URLSearchParams(location.search);
+    if (!["st_url", "st_text", "st_title"].some(k => q.has(k))) return;
+    history.replaceState(null, "", location.pathname);
+    const urls = [...new Set([q.get("st_url"), q.get("st_text"), q.get("st_title")].join(" ").match(/https?:\/\/[^\s<>"]+/g) || [])];
+    if (!urls.length) { say(els.gridMsg, tr("共有された文字に URL が見つかりませんでした。"), "error"); return; }
+    els.bcUrl.value = urls.join("\n");
+    const sub = els.bcForm.closest(".sub");
+    if (sub && sub.dataset.collapsed === "true") toggleFold(sub);
+    if (isMobile()) openSheet(null);
+    fitUrlBox();
+    els.bcForm.requestSubmit();
+  }
   $("#lang-switch").addEventListener("click", () => {
     LANG = LANG === "ja" ? "en" : "ja";
     try { localStorage.setItem(LANG_KEY, LANG); } catch { /* ignore */ }

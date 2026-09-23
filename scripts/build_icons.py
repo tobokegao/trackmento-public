@@ -6,6 +6,9 @@
   frontend/no-cover.png … ジャケットが無い曲のマスに使う 600x600。サイトのアイコン（3x3 の色ブロック）と
                           同じ意匠で、左下だけ粗い市松にして「画像が無い」ことを示す。
                           600px は書き出しのマスの大きさ（render.py / index.html の CELL_PX）。
+  frontend/icon-192.png, icon-512.png … ホーム画面に置いたときのアイコン（manifest.webmanifest から指す。
+                          2026-09-24、Android の「共有」から URL を受け取る Web Share Target のため）。
+                          apple-touch-icon.png（180px）と同じ意匠: 3x3 の色ブロックの間を透明にあけ、左下は 7x7 の市松。
 
 色は frontend/apple-touch-icon.png から取ったもの。意匠を変えるときはここを直して再実行する。
 """
@@ -29,7 +32,33 @@ BLOCKS = [["#E6B731", "#008BC7", "#E5462C"],
           [None,      PAPER_3,   WHITE]]
 
 
+def app_icon(size: int, block: int, gap: int) -> Image.Image:
+    """3 * block + 2 * gap = size。apple-touch-icon.png は block 56・gap 6 で 180"""
+    assert 3 * block + 2 * gap == size
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    dr = ImageDraw.Draw(im)
+    for r in range(3):
+        for col in range(3):
+            x, y = col * (block + gap), r * (block + gap)
+            fill = BLOCKS[r][col]
+            if fill:
+                dr.rectangle([x, y, x + block - 1, y + block - 1], fill=fill)
+                continue
+            dr.rectangle([x, y, x + block - 1, y + block - 1], fill=WHITE)
+            edges = [round(block * i / 7) for i in range(8)]
+            for rr in range(7):
+                for cc in range(7):
+                    if (rr + cc) % 2 == 0:
+                        dr.rectangle([x + edges[cc], y + edges[rr], x + edges[cc + 1] - 1, y + edges[rr + 1] - 1], fill=INK)
+    return im
+
+
 def main() -> int:
+    for size, block, gap in ((192, 60, 6), (512, 160, 16)):
+        out = ROOT / "frontend" / f"icon-{size}.png"
+        app_icon(size, block, gap).save(out, optimize=True)
+        print(f"{out.relative_to(ROOT)} を作りました（{out.stat().st_size / 1024:.1f} KB）")
+
     im = Image.new("RGB", (SIZE, SIZE), WHITE)
     dr = ImageDraw.Draw(im)
     c = SIZE // 3

@@ -21,6 +21,7 @@
 <meta name="google-adsense-account" content="ca-pub-6662407728160305">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" href="favicon.png" sizes="64x64">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
 /* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
 /* IBM Plex Sans JP と DotGothic16 は unicode-range で分割した断片（fonts/split/、scripts/build_fonts.py が生成）。
@@ -203,6 +204,19 @@
         </div>
         <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
+      <!-- お題の見本（2026-09-24、運用ボードの ideas-0923）。選ぶとタイトルと横 × 縦が 1 回で入る。
+           題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。大きさは value の「横x縦」 -->
+      <div class="layouts themes">
+        <label for="theme-sel">お題</label>
+        <span class="popup"><select id="theme-sel">
+          <option value="">見本から選ぶ…</option>
+          <option value="3x3">私を構成する9曲</option>
+          <option value="5x2">今年よく聴いた10曲</option>
+          <option value="4x3">今年の12か月（1月から順に1曲ずつ）</option>
+          <option value="2x2">春夏秋冬に聴きたい曲</option>
+          <option value="4x4">はじめての人に聴いてほしい16曲</option>
+        </select></span>
+      </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
@@ -211,6 +225,7 @@
         <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
         <button class="btn" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
+        <button class="btn" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -500,6 +515,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.da3af656.js"></script>
+<script id="app-js" src="app/app.b9f4be41.js"></script>
 </body>
 </html>
