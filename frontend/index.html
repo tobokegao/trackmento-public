@@ -488,6 +488,20 @@ img { max-width: 100%; display: block; }
 .sub[data-collapsed="true"] > form { display: none; }
 .sub > form { border-top: 0; }
 
+/* 「トラック名の一覧から」の表。枠を重ねて 1 枚の表に見せる（表計算の升目）。行頭の番号は行見出し */
+.list-sheet { display: grid; border: var(--line) solid var(--color-ink); background: var(--color-paper); }
+.list-row { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) minmax(0, 1fr); }
+.list-row + .list-row, #list-rows .list-row:first-child { border-top: 1px solid var(--color-rule); }
+.list-row > * { min-width: 0; }
+.list-row > * + * { border-left: 1px solid var(--color-rule); }
+.list-head { background: var(--color-paper-2); font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
+.list-head > span { padding: var(--space-1) var(--space-2); align-self: end; }   /* 狭い窓で「アーティスト名」が 2 行になっても、見出しの下端をそろえる */
+.list-num { display: grid; place-items: center; background: var(--color-paper-2); font-family: var(--font-outlier); font-size: var(--text-sm); color: var(--color-ink-2); }
+.list-row .input { border: 0; box-shadow: none; padding: var(--space-1) var(--space-2); }
+.list-row .input:hover { box-shadow: none; background: var(--color-paper-2); }
+.list-row .input:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; }
+.list-row .input[aria-invalid="true"] { box-shadow: inset 0 0 0 2px var(--color-error); }
+
 /* ---------- controls ---------- */
 .field { display: grid; gap: var(--space-1); }
 .field label, .field legend { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
@@ -1259,8 +1273,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">トラック名の一覧から</button>
     <form class="pane-body search-form" id="list-form" novalidate>
       <div class="field">
-        <label for="list-text">1 行に 1 トラック。「アーティスト - トラック名」か「トラック名 / アーティスト」の形で貼ってください（一度に 20 行まで）。<br>iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</label>
-        <textarea class="input" id="list-text" rows="3" autocomplete="off" placeholder="米津玄師 - 感電"></textarea>
+        <p class="msg" id="list-help">1 行に 1 トラック（一度に 20 行まで）。Excel などの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。<br>iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</p>
+        <!-- 表計算のような 2 列の表。行は入れるにつれて増える（renderListRows） -->
+        <div class="list-sheet" role="table" aria-describedby="list-help">
+          <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">トラック名</span><span role="columnheader">アーティスト名</span></div>
+          <div id="list-rows" role="rowgroup"></div>
+        </div>
+        <div class="search-actions">
+          <button class="btn" type="button" id="list-clear">表を空にする</button>
+        </div>
       </div>
       <div class="search-actions">
         <button class="btn btn-primary" type="submit" id="list-btn"><span class="label">一覧から入れる</span></button>
@@ -1495,7 +1516,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>トラック名の一覧から</b>: 「アーティスト - トラック名」を 1 行に 1 つ並べて貼ると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。「トラック名をコピー」で書き出した一覧もそのまま貼れます。</p>
+          <p><b>トラック名の一覧から</b>: 表にトラック名とアーティスト名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
@@ -1751,11 +1772,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録トラックをまとめて取得できます（最大 500 トラック。マスに入りきらない分は候補に残ります）。": "A playlist URL — a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or Apple Music — pulls in every track at once (up to 500; anything that does not fit in the grid stays in the results).",
         "URL から取得": "Fetch from URL",
         "トラック名の一覧から": "From a list of track names",
-        "1 行に 1 トラック。「アーティスト - トラック名」か「トラック名 / アーティスト」の形で貼ってください（一度に 20 行まで）。": "One track per line, as \"Artist - Track\" or \"Track / Artist\" (up to 20 lines at a time).",
+        "1 行に 1 トラック（一度に 20 行まで）。Excel などの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。": "One track per row (up to 20 rows at a time). Pasting from a spreadsheet such as Excel, or a list made with \"Copy track names\", splits it into rows and columns.",
+        "表を空にする": "Clear the table",
         "iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。": "Each line is looked up on iTunes. Exact name matches go into empty cells; for the rest, the closest track goes to Results.",
         "一覧から入れる": "Add from list",
-        ": 「アーティスト - トラック名」を 1 行に 1 つ並べて貼ると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。「トラック名をコピー」で書き出した一覧もそのまま貼れます。": ": Paste one \"Artist - Track\" per line and each line is looked up on iTunes. Only exact name matches go into empty cells; for the rest, the closest track is listed in Results. A list written by \"Copy track names\" can be pasted back as is.",
-        "米津玄師 - 感電": "Rick Astley - Never Gonna Give You Up",
+        ": 表にトラック名とアーティスト名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。": ": Enter a track name and artist on each row of the table, and each row is looked up on iTunes. Only exact name matches go into empty cells; for the rest, the closest track is listed in Results. You can also paste from a spreadsheet such as Excel, or a list written by \"Copy track names\".",
         "トラック名をコピー": "Copy track names",
         "「1. トラック名 / アーティスト」の形で、番号順にコピーする。X の本文などにそのまま貼れる": "Copy as \"1. Track / Artist\" in cell order, ready to paste into a post on X",
         "手入力（画像 URL＋トラック名）": "By hand (image URL + track name)",
@@ -1990,16 +2011,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "「マスに入れる」で {} トラックが入り、残り {} トラックは候補に置きます。": "\"Fill the grid\" takes {0} of them; the other {1} go to the results.",
         "{} トラックをマスに入れ、残り {} トラックを候補に置きました。": "Put {0} tracks in the grid and the other {1} in the results.",
         "{} トラックをマスに入れました。": "Put {0} tracks in the grid.",
-        "{}/{} 行目を探しています…": "Looking up line {0}/{1}…",
+        "{}/{} 行目を探しています…": "Looking up row {0}/{1}…",
         "{} トラックの名前をコピーしました。": "Copied the names of {0} tracks.",
-        "{} 行は見つからなかったので、欄に残しました。": "{0} lines were not found and are left in the box.",
+        "{} 行は見つからなかったので、表に残しました。": "{0} rows were not found and are left in the table.",
+        "{} 行を超えたぶん（{} 行）は入れませんでした。": "Rows beyond {0} ({1} rows) were not added.",
+        "{} 行目のトラック名": "Track name, row {0}",
+        "{} 行目のアーティスト名": "Artist name, row {0}",
+        "{} 行目のトラック名が空です。": "Row {0} has no track name.",
         "{} トラックを候補に置きました（名前が合わなかったもの・空きマスが足りなかったもの）。": "Put {0} tracks in Results (names that did not match, or no empty cell left).",
         "まだトラックが入っていません。": "There are no tracks yet.",
         "コピーできませんでした。": "Could not copy.",
-        "トラック名を 1 行に 1 つ入れてください。": "Enter one track name per line.",
-        "一度に入れられるのは {} 行までです（いまは {} 行）。": "Up to {0} lines at a time (you have {1}).",
+        "トラック名を 1 行に 1 つ入れてください。": "Enter one track name per row.",
         "見つかりませんでした。": "Nothing was found.",
-        "途中でやめました（残りの {} 行は欄に残しました）。": "Stopped partway (the remaining {0} lines are left in the box).",
+        "途中でやめました（残りの {} 行は表に残しました）。": "Stopped partway (the remaining {0} rows are left in the table).",
         "候補に {} トラックを置きました。押すとマスに入ります。": "Put {0} tracks in the results. Click one to place it.",
         "一度に取れるのは {} 件までです（いまは {} 件）。": "Up to {0} at a time, and there are {1} here.",
         "{} 件を取得中…": "Fetching {0}…",
@@ -2979,38 +3003,113 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
   });
 
-  /* ---- トラック名の一覧から（text-paste）。1 行ずつ iTunes で引く ----
+  /* ---- トラック名の一覧から（text-paste）。表計算のような 2 列の表に入れ、1 行ずつ iTunes で引く ----
      iTunes Search API は約 20 回/分（docs/services-terms.md）なので、行数に上限を置き、行の間を空ける。
      英語の画面は 1 行で米国のストアにもう 1 回問い合わせる（itunesEnglish）ので間隔を倍にする。
      名前（nkey）がトラック名・アーティスト名ともぴったり合ったものだけマスに入れ、ほかは先頭の 1 件を候補に置く
-     （アーティスト名が無い行は、同名の別の曲が入りやすいので必ず候補へ） */
-  const LIST_MAX = 20;
-  const listEls = { form: $("#list-form"), text: $("#list-text"), btn: $("#list-btn"), msg: $("#list-form-msg") };
+     （アーティスト名が無い行は、同名の別の曲が入りやすいので必ず候補へ）。
+     初めは 1 本の文章欄だったが、トラック名とアーティスト名を分けて打てないと探しづらいと利用者から言われて表にした（2026-09-23）。
+     貼り付けは Excel など（タブ区切り）と「トラック名をコピー」の形（「1. トラック名 / アーティスト」）の両方を行と列に分ける */
+  const LIST_MAX = 20, LIST_MIN_ROWS = 3;
+  const listEls = { form: $("#list-form"), rows: $("#list-rows"), btn: $("#list-btn"), msg: $("#list-form-msg") };
   let listRun = null;   // 走っている間は { stop: false }。もう一度押すと止める
+  // 表の中身。swappable は「A - B」の形で貼られ、どちらがアーティストか決めきれない行
+  let listData = [];
   function parseListLine(line) {
     const s = line.replace(/^\s*(?:[-*・•]\s*|\d{1,3}[.)．。:、]\s*)/, "").trim();   // 行頭の番号・箇条書きの印
     let m = /^(.*\S)\s+\/\s+(\S.*)$/.exec(s);                                      // トラック名 / アーティスト（「トラック名をコピー」の形）
     if (m) return { title: m[1], artist: m[2] };
     m = /^(.*?\S)\s+[-–—]\s+(\S.*)$/.exec(s);                                      // アーティスト - トラック名
     if (m) return { title: m[2], artist: m[1], swappable: true };
-    return { title: s, artist: "" };
+    return null;
   }
+  const blankRow = () => ({ title: "", artist: "" });
+  function renderListRows(focus) {
+    // 最後の行が埋まったら空の行を 1 つ足す（上限まで）。表計算と同じく、打ち進めれば行が増える
+    while (listData.length < LIST_MIN_ROWS) listData.push(blankRow());
+    const last = listData[listData.length - 1];
+    if ((last.title || last.artist) && listData.length < LIST_MAX) listData.push(blankRow());
+    listEls.rows.replaceChildren(...listData.map((r, i) => listRowEl(i)));
+    if (focus) listCell(...focus)?.focus({ preventScroll: true });
+  }
+  const listCell = (i, key) => listEls.rows.querySelector(`input[data-row="${i}"][data-key="${key}"]`);
+  function listRowEl(i) {
+    const row = document.createElement("div"); row.className = "list-row"; row.setAttribute("role", "row");
+    const num = document.createElement("span"); num.className = "list-num"; num.setAttribute("role", "rowheader"); num.textContent = String(i + 1);
+    row.append(num);
+    for (const key of ["title", "artist"]) {
+      const inp = document.createElement("input");
+      inp.className = "input"; inp.type = "text"; inp.autocomplete = "off"; inp.maxLength = 120;
+      inp.setAttribute("role", "cell"); inp.dataset.row = String(i); inp.dataset.key = key;
+      inp.setAttribute("aria-label", key === "title" ? tr`${i + 1} 行目のトラック名` : tr`${i + 1} 行目のアーティスト名`);
+      inp.value = listData[i][key];
+      row.append(inp);
+    }
+    return row;
+  }
+  listEls.rows.addEventListener("input", (e) => {
+    const inp = e.target, i = +inp.dataset.row;
+    listData[i][inp.dataset.key] = inp.value;
+    listData[i].swappable = false;   // 手で直した行は、打った列のとおりに探す
+    inp.removeAttribute("aria-invalid");
+    // 最後の行に打ち始めたら下に空の行を 1 つ継ぎ足す。**表を作り直してはいけない**（日本語の変換中に欄が入れ替わると、変換が切れる）
+    if (i === listData.length - 1 && listData.length < LIST_MAX) {
+      listData.push(blankRow());
+      listEls.rows.append(listRowEl(listData.length - 1));
+    }
+  });
+  // Return は表計算と同じく 1 つ下の升へ（押すたびに探し始めないように）。Shift+Return は 1 つ上へ
+  listEls.rows.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    e.preventDefault();
+    const i = +e.target.dataset.row + (e.shiftKey ? -1 : 1);
+    if (i >= 0 && i < listData.length) listCell(i, e.target.dataset.key)?.focus();
+  });
+  listEls.rows.addEventListener("paste", (e) => {
+    const text = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+    const lines = text.replace(/\r\n?/g, "\n").replace(/\n+$/, "").split("\n");
+    if (lines.length < 2 && !text.includes("\t") && !parseListLine(text.trim())) return;   // 1 つの升に 1 語貼るだけなら普通に貼る
+    e.preventDefault();
+    const at = +e.target.dataset.row, fromArtist = e.target.dataset.key === "artist";
+    let i = at;
+    for (const line of lines) {
+      if (i >= LIST_MAX) break;
+      while (listData.length <= i) listData.push(blankRow());
+      const r = listData[i], v = line.trim();
+      if (line.includes("\t")) {
+        const cols = line.split("\t").map(c => c.trim());   // Excel などの表: 列の順に入れる
+        if (fromArtist) Object.assign(r, { artist: cols[0], swappable: false });
+        else Object.assign(r, { title: cols[0], artist: cols[1] ?? r.artist, swappable: false });
+      } else {
+        const p = v && parseListLine(v);
+        if (p) Object.assign(r, { swappable: false }, p);
+        else r[fromArtist ? "artist" : "title"] = v;   // 区切りの無い 1 列ぶんは、貼った列に縦に入れる
+      }
+      i++;
+    }
+    const over = lines.length - (i - at);
+    renderListRows([Math.min(i, listData.length - 1), fromArtist ? "artist" : "title"]);
+    say(listEls.msg, over > 0 ? tr`${LIST_MAX} 行を超えたぶん（${over} 行）は入れませんでした。` : "", over > 0 ? "error" : "");
+  });
+  $("#list-clear").addEventListener("click", () => { listData = []; renderListRows([0, "title"]); say(listEls.msg, ""); });
+  renderListRows();
+
   const sameName = (t, p) => nkey(t.title) === nkey(p.title) && !!p.artist && nkey(t.artist) === nkey(p.artist);
   listEls.form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (listRun) { listRun.stop = true; return; }
-    listEls.text.removeAttribute("aria-invalid");
-    const lines = listEls.text.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-    const parsed = lines.map(parseListLine).filter(p => p.title);
-    if (!parsed.length) {
-      listEls.text.setAttribute("aria-invalid", "true");
-      say(listEls.msg, tr("トラック名を 1 行に 1 つ入れてください。"), "error");
-      listEls.text.focus({ preventScroll: true });
+    for (const el of listEls.rows.querySelectorAll("[aria-invalid]")) el.removeAttribute("aria-invalid");
+    const noTitle = listData.findIndex(r => !r.title.trim() && r.artist.trim());
+    if (noTitle >= 0) {
+      const el = listEls.rows.querySelector(`input[data-row="${noTitle}"][data-key="title"]`);
+      el.setAttribute("aria-invalid", "true"); el.focus({ preventScroll: true });
+      say(listEls.msg, tr`${noTitle + 1} 行目のトラック名が空です。`, "error");
       return;
     }
-    if (parsed.length > LIST_MAX) {
-      listEls.text.setAttribute("aria-invalid", "true");
-      say(listEls.msg, tr`一度に入れられるのは ${LIST_MAX} 行までです（いまは ${parsed.length} 行）。`, "error");
+    const rows = listData.map(r => ({ ...r, title: r.title.trim(), artist: r.artist.trim() })).filter(r => r.title);
+    if (!rows.length) {
+      say(listEls.msg, tr("トラック名を 1 行に 1 つ入れてください。"), "error");
+      listEls.rows.querySelector("input")?.focus({ preventScroll: true });
       return;
     }
     const run = listRun = { stop: false };
@@ -3020,11 +3119,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const matched = [], near = [], missed = [];
     let done = 0;
     try {
-      for (const [i, p] of parsed.entries()) {
+      for (const [i, p] of rows.entries()) {
         if (run.stop) break;
         if (i) await sleep(gap);
         if (run.stop) break;
-        say(listEls.msg, tr`${i + 1}/${parsed.length} 行目を探しています…`);
+        say(listEls.msg, tr`${i + 1}/${rows.length} 行目を探しています…`);
         let found = [], hit = null;
         try {
           found = await itunesSearch(p.title, p.artist);
@@ -3042,7 +3141,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         done++;
         if (hit) matched.push(hit);
         else if (found.length) near.push(found[0]);
-        else missed.push(lines[i]);
+        else missed.push(p);
       }
     } finally {
       listRun = null;
@@ -3055,13 +3154,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       currentResults = [...toResults, ...currentResults.filter(t => !images.has(t.image))];
       renderResults(currentResults);
     }
-    // 見つからなかった行だけを欄に残す（直してもう一度押せるように）
-    listEls.text.value = missed.join("\n") + (done < parsed.length ? (missed.length ? "\n" : "") + lines.slice(done).join("\n") : "");
+    // 見つからなかった行と、止めたときの残りの行だけを表に残す（直してもう一度押せるように）
+    listData = [...missed, ...rows.slice(done)];
+    renderListRows();
     const parts = [];
     if (put) parts.push(tr`${put} トラックをマスに入れました。`);
     if (toResults.length) parts.push(tr`${toResults.length} トラックを候補に置きました（名前が合わなかったもの・空きマスが足りなかったもの）。`);
-    if (missed.length) parts.push(tr`${missed.length} 行は見つからなかったので、欄に残しました。`);
-    if (done < parsed.length) parts.push(tr`途中でやめました（残りの ${parsed.length - done} 行は欄に残しました）。`);
+    if (missed.length) parts.push(tr`${missed.length} 行は見つからなかったので、表に残しました。`);
+    if (done < rows.length) parts.push(tr`途中でやめました（残りの ${rows.length - done} 行は表に残しました）。`);
     say(listEls.msg, parts.join(" ") || tr("見つかりませんでした。"), put || toResults.length ? "" : "error");
     if (put) undoLink(listEls.msg);
   });
