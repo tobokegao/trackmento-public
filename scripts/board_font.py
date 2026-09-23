@@ -1,4 +1,7 @@
-"""運用ボード（scripts/board/index.html）に DotGothic16 を刈り込んで埋め込む。
+"""運用ボード（scripts/board/index.html）にマルモニカ（x12y16pxMaruMonica）を刈り込んで埋め込む。
+
+2026-09-24 に DotGothic16 から替えた（DotGothic16 は英字の A が山形・C/O/R の角が欠けていて、上辺が波打って見えた）。
+ライセンスは fonts/LICENSE-MaruMonica.txt。
 
 Claude のアプリの中では Google Fonts が読み込まれないので、ページの最後の
 <style id="fonts"> に data: で入れる（2026-09-24、board-retro）。
@@ -39,7 +42,7 @@ def wanted_chars() -> set[str]:
 
 
 def main() -> None:
-    font = TTFont(ROOT / "fonts/DotGothic16-Regular.ttf")
+    font = TTFont(ROOT / "fonts/x12y16pxMaruMonica.ttf")
     cmap = font.getBestCmap()
     keep = sorted(ord(c) for c in wanted_chars() if len(c) == 1 and ord(c) in cmap)
     opts = subset.Options()
@@ -55,9 +58,9 @@ def main() -> None:
 
     block = (
         '\n<style id="fonts">\n'
-        "/* DotGothic16（OFL, fonts/OFL-DotGothic16.txt）を scripts/board_font.py で刈り込んだもの。"
+        "/* マルモニカ（x12y16pxMaruMonica、(c) 2021 hicc、fonts/LICENSE-MaruMonica.txt）を scripts/board_font.py で刈り込んだもの。"
         "字を大きく足したら回し直す */\n"
-        '@font-face { font-family: "DotGothic16"; src: url("data:font/woff2;base64,'
+        '@font-face { font-family: "MaruMonica"; src: url("data:font/woff2;base64,'
         + b64
         + '") format("woff2"); font-display: block; }\n</style>\n'
     )

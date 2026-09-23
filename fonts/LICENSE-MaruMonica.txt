@@ -1,0 +1,12 @@
+x12y16pxMaruMonica（マルモニカ）Version 2025-09-03
+Copyright (c) 2021, hicc（x0y0pxFreeFont）
+配布元: https://hicchicc.github.io/00ff/ （BOOTH: https://booth.pm/ja/items/2958237）
+
+作者の独自ライセンス（2026-09-24 に配布元で確認した要点）:
+- フォントから生成されるデータは全て無償で利用できる。表現する内容・媒体は問わない
+- 商用利用・.ttf の同梱（埋め込み）・改変・再配布ができる
+- 出典やクレジットの表記は、してもしなくてもよい
+- フォントの著作権は放棄されていない。フォント単体での販売はできない
+- 利用によって生じた損害について作者は責任を負わない
+
+TRACKMENTO では運用ボード（scripts/board/index.html）に、使う字だけに刈り込んで埋め込んでいる（scripts/board_font.py）。
