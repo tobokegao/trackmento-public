@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-24", "ボタン以外の操作部品（見出し・チェックボックス・ラジオボタンなど）の文字も、ドット字にそろえました。「比率」の選択肢は「16:9 横長」「9:16 縦長」に名前を短くし、2 列に並べています。",
+     "The pixel font used on the buttons now also covers the other controls (headings, checkboxes, radio buttons and so on). In “Ratio”, the options are now called “16:9 wide” and “9:16 tall” and sit in two columns."),
     ("2026-09-24", "SpotifyのURLを貼ったとき、アーティスト名をiTunesで同じトラック名のものから補うようになりました。同じトラック名のアーティストが何人かいるときは、ボタンで選べます。見つからないときは、これまでどおり手で入れてください。",
      "When you paste a Spotify URL, the artist name is now filled in from an iTunes track with the same title. If more than one artist has that title, you can pick one with a button. If none is found, add it yourself as before."),
     ("2026-09-23", "「タイトル」の欄の入力例が、開くたびに変わるようになりました（「雨の日に聴く曲」「文化祭のセトリ」など）。使い方のページにも「こんな使い方も」を足しています。テーマは自由です。好きな切り口で並べてみてください。",

@@ -361,8 +361,9 @@ img { max-width: 100%; display: block; }
   .pane-results { order: 1; }
   .pane-options { order: 2; }
 }
-/* オプション列の幅: 背景色の見本 8 個（28px、間隔 8px）が 1 行に収まる内側の幅 ＋ ペインの余白と枠線 */
-:root { --options-w: calc(8 * 28px + 7 * var(--space-2) + 2 * var(--space-3) + 2 * var(--line)); }
+/* オプション列の幅: 背景色の見本 8 個（32px、間隔 8px）が 1 行に収まる内側の幅 ＋ ペインの余白と枠線。
+   見本は 28px だったが、操作部品の字を 16px のドット字にしたとき比率の選択肢が 2 列に入らず、32px ぶん広げた（2026-09-24） */
+:root { --options-w: calc(8 * 32px + 7 * var(--space-2) + 2 * var(--space-3) + 2 * var(--line)); }
 @media (min-width: 60rem) {
   :root { --page-inline: var(--space-6); }
   .workbench {
@@ -629,7 +630,9 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 /* **ラジオボタンの見た目**（2026-09-22、利用者の指定）。1 つだけ選ぶもの（ソース・比率・マスの形・サムネの入れ方・曲名リスト）は
    ボタンの並びではなく、Mac OS 9 のダイアログのラジオボタンにする（丸い枠と、選ぶと中に黒い点）。
    仕組みはこれまでどおり中身の input[type=radio]。**文字まで含めた 1 行全体を押せる**（label が押せる範囲）ので、点が小さくても押しやすい */
-.seg.radio { gap: var(--space-1) var(--space-4); }
+/* **選択肢は 2 列の格子にそろえる**（2026-09-24）。流し込みだと字が 16px になってから「2 つ・1 つ・2 つ」と
+   不ぞろいに折れ、列の頭がずれて見えた。列の幅は中身の幅（max-content）。PC の欄に 2 列が入るよう比率の名前を短くした */
+.seg.radio { display: grid; grid-template-columns: repeat(2, max-content); gap: var(--space-1) var(--space-4); }
 .seg.radio label { flex: 0 0 auto; }
 .seg.radio span {
   display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0;
@@ -644,6 +647,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
   content: ""; flex: none; width: calc(var(--rp, 1px) * 16); height: calc(var(--rp, 1px) * 16);
   background: var(--radio-off) no-repeat 0 0 / 100% 100%; border: 0; border-radius: 0;
   image-rendering: pixelated;   /* 拡大してもドットをぼかさない */
+  position: relative; top: 1px;   /* ドット字のインクは行の中心より 1px 下に出るので、丸のほうを合わせる（2026-09-24、4 倍で撮って測った） */
 }
 .seg.radio span::after { display: none; }
 .seg.radio input:checked + span { background: none; color: inherit; transform: none; }
@@ -1009,9 +1013,10 @@ body.sheet-open { overflow: hidden; }
 /* 「表示」のチェックは横に流し込む。入らないものは次の行へ回る（縦に 1 つずつ積むと場所を食う） */
 .check-row { display: flex; flex-wrap: wrap; column-gap: var(--space-4); row-gap: 0; }
 .check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; min-height: 28px; }
-/* 文字だけ少し下げる。行ボックスの中心は箱と合っているが、IBM Plex Sans JP は行の下側の余白（ディセンダ）が
-   大きく、**字のインクが行の中心より 2px ほど上**に見える（利用者の指摘。4 倍で撮って測った） */
-.check > span { position: relative; top: 0.15em; }
+/* 文字だけ 1px 上げる。**ドット字（DotGothic16）は字のインクが行の中心より 1px ほど下**に出る（2026-09-24、4 倍で撮って
+   漢字の行で測った）。Plex のときは逆に上に出るので 0.15em 下げていたが、ドット字に替えてもそのままだったため
+   箱より 3px 下がり、「チェックボックスとのラインが崩れている」と利用者に言われた */
+.check > span { position: relative; top: -1px; }
 .check input {
   appearance: none; width: 18px; height: 18px; margin: 0; flex: none;
   border: var(--line) solid var(--color-ink); background: var(--color-paper);
@@ -1042,7 +1047,7 @@ body.sheet-open { overflow: hidden; }
 }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
-.swatches label { position: relative; flex: 1 1 28px; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに広がる（PC の列幅では 28px）。右に空きが残らない */
+.swatches label { position: relative; flex: 1 1 28px; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに広がる（PC の列幅では 32px）。右に空きが残らない */
 /* 「配色パレットを選ぶ…」。**ほかのボタンと同じ影付きの .btn にする**（2026-09-18）。見出しの横に細い枠だけで
    置いていたときは、見出しの飾りに見えて押せると気付かれにくかった。名前の「…」は OS 9 の決まりで「窓が開く」の印 */
 .pal-open { width: 100%; margin-top: var(--space-3); font-size: var(--text-sm); }
@@ -1222,6 +1227,19 @@ output { font-variant-numeric: tabular-nums; }
 
 footer { padding: var(--space-3) var(--page-inline); border-top: var(--line) solid var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); display: flex; gap: var(--space-4); flex-wrap: wrap; }
 footer a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+/* **操作部品の字はドット字（DotGothic16）の 16px にそろえる**（2026-09-24、利用者が見本で決めた）。
+   DotGothic16 は 16px の升目で作られた字なので、--text-sm（12.8px）だとにじみ、チェックとラジオだけ Plex で
+   そこだけ既定の字に見えていた。題名バー・見出し・入力欄の名前・チェックとラジオ・折りたたみの見出し・フッターが対象。
+   **曲名・説明文・メッセージ・書き出し画像は Plex のまま**（長い文はドット字だと読みづらい。書き出しは Plex の字幅で
+   render.py と割り付けを合わせてある）。個々の規則を直さずここで上書きするのは、対象を 1 か所で見渡すため */
+.pane-title h2, legend, .field label, .field legend, .sub-title, .seg span, .seg.radio span, .check > span,
+.layouts > label, .custom-color, .custom-size label, .hsv label, .hsv .hex, .lang-switch, .spec dt, .spec dd,
+footer, .editor-head, .list-head, .bar-status, .pal-open, .share-url .lbl, .promo .lbl, .support .album, .promo .album {
+  font-family: var(--font-display); font-size: var(--text-base); letter-spacing: 0;
+}
+/* 入力欄の名前でも、長い説明を兼ねているものは本文の字に戻す */
+label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
@@ -1460,8 +1478,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="出力比率">
           <label><input type="radio" name="ratio" value="1:1"><span>1:1 正方形</span></label>
           <label><input type="radio" name="ratio" value="4:5"><span>4:5 インスタ</span></label>
-          <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 ツイート</span></label>
-          <label><input type="radio" name="ratio" value="9:16"><span>9:16 ストーリーズ</span></label>
+          <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 横長</span></label>
+          <label><input type="radio" name="ratio" value="9:16"><span>9:16 縦長</span></label>
           <label><input type="radio" name="ratio" value="free"><span>自由</span></label>
         </div>
         <p class="msg" id="ratio-msg" hidden></p>
@@ -1876,8 +1894,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "比率": "Ratio",
         "1:1 正方形": "1:1 square",
         "4:5 インスタ": "4:5 Instagram",
-        "16:9 ツイート": "16:9 post",
-        "9:16 ストーリーズ": "9:16 stories",
+        "16:9 横長": "16:9 wide",
+        "9:16 縦長": "9:16 tall",
         "自由": "Free",
         "表示": "Show",
         "タイトル": "Title",
