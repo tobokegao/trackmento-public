@@ -1,4 +1,4 @@
-"""運用ボード（scripts/board/index.html）に JF ドット東雲ゴシック16 を刈り込んで埋め込む。
+"""運用ボード（scripts/board/index.html）に JF ドット東雲ゴシック14 を刈り込んで埋め込む（16 からさらに小さくした）。
 
 2026-09-24 に DotGothic16 → マルモニカ → 東雲ゴシック16 と替えた（DotGothic16 は英字の上辺が波打ち、
 マルモニカは縦長。東雲は 16×16 の正方形で英字の上辺もそろう）。ライセンスは fonts/LICENSE-JF-Dot-Shinonome16.txt（実質パブリックドメイン）。
@@ -20,7 +20,9 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "scripts/board/index.html"
-LATIN_DROP = 64   # 半角の英数記号を下げる量（1 目 = 64 単位）
+SRC = "fonts/JF-Dot-Shinonome14.ttf"   # 9/24 に 16 から 14 へ（字をもう少し小さく、と言われた）
+PX = 14                                # この字の 1 目 = 1px になる大きさ
+LATIN_DROP_DOTS = 1                    # 半角の英数記号を下げる目の数
 SOURCES = [PAGE, ROOT / "scripts/board/status.json", ROOT / "scripts/board_data.py"]
 
 
@@ -43,9 +45,10 @@ def wanted_chars() -> set[str]:
 
 
 def main() -> None:
-    font = TTFont(ROOT / "fonts/JF-Dot-Shinonome16.ttf")
+    font = TTFont(ROOT / SRC)
+    drop = round(font["head"].unitsPerEm / PX * LATIN_DROP_DOTS)
     cmap = font.getBestCmap()
-    # 半角の英数記号を 1 目（64 単位）下げる。東雲の漢字は基準線より 2 目下まで伸びるが英字は基準線までなので、
+    # 半角の英数記号を 1 目下げる。東雲の漢字は基準線より 2 目下まで伸びるが英字は基準線までなので、
     # そのままだと英字の下に 2 目の余白ができ、日本語より浮いて見えた（9/24）。1 目下げて上下の余りを 1 目ずつにする
     glyf = font["glyf"]
     moved = set()
@@ -56,7 +59,7 @@ def main() -> None:
         moved.add(name)
         g = glyf[name]
         if not g.isComposite() and g.numberOfContours > 0:
-            g.coordinates.translate((0, -LATIN_DROP))
+            g.coordinates.translate((0, -drop))
             g.recalcBounds(glyf)
     keep = sorted(ord(c) for c in wanted_chars() if len(c) == 1 and ord(c) in cmap)
     opts = subset.Options()
@@ -72,9 +75,9 @@ def main() -> None:
 
     block = (
         '\n<style id="fonts">\n'
-        "/* JF ドット東雲ゴシック16（実質パブリックドメイン、fonts/LICENSE-JF-Dot-Shinonome16.txt）を scripts/board_font.py で刈り込んだもの。"
+        "/* JF ドット東雲ゴシック14（実質パブリックドメイン、fonts/LICENSE-JF-Dot-Shinonome16.txt）を scripts/board_font.py で刈り込んだもの。"
         "字を大きく足したら回し直す */\n"
-        '@font-face { font-family: "Shinonome16"; src: url("data:font/woff2;base64,'
+        '@font-face { font-family: "Shinonome"; src: url("data:font/woff2;base64,'
         + b64
         + '") format("woff2"); font-display: block; }\n</style>\n'
     )
