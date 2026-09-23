@@ -798,6 +798,9 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   background: var(--color-ink); transform: rotate(180deg);
   -webkit-mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat; mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat;
 }
+/* **影は外の箱にぴったり重ねる**。ボタンは枠線が自分に付いているので影を枠線 1 本ぶん外へ広げる（`.btn::after` の inset）が、
+   ここは枠線が中の select にあり、外の箱がもう枠線の外側。同じだけ広げると影が 1 本ぶん太く、ずれて見えた（実機で報告） */
+.popup::after { inset: 0; }
 @media (hover: hover) and (pointer: fine) { .popup select:hover { background-color: var(--color-paper-2); } }
 .popup select:active { background-color: var(--color-paper-2); }
 /* 一覧の中の項目はブラウザが描くので、暗い組でも読めるように色だけ渡す */
