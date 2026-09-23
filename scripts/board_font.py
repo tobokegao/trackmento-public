@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "scripts/board/index.html"
 SRC = "fonts/JF-Dot-Shinonome14.ttf"   # 9/24 に 16 から 14 へ（字をもう少し小さく、と言われた）
 PX = 14                                # この字の 1 目 = 1px になる大きさ
-LATIN_DROP_DOTS = 1                    # 半角の英数記号を下げる目の数
+LATIN_DROP_DOTS = 0                    # 半角の英数記号を下げる目の数（14 では下げない。1 だと上に 2 目・下に 1 目で下寄りに見えた。9/24）
 SOURCES = [PAGE, ROOT / "scripts/board/status.json", ROOT / "scripts/board_data.py"]
 
 
