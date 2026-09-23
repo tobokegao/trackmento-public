@@ -248,6 +248,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-23", "トラック名の一覧を貼って、まとめて入れられるようになりました（検索の「トラック名の一覧から」、一度に 20 行まで）。逆に「トラック名をコピー」で、並びを「1. トラック名 / アーティスト」の文章にしてコピーできます。",
+     "You can now paste a list of track names to add them all at once (“From a list of track names” under Search, up to 20 lines at a time). In the other direction, “Copy track names” copies the layout as text in the form “1. Track / Artist”."),
     ("2026-09-23", "キーボードでも並べ替えられるようになりました。Tab キーでグリッドに入り、矢印キーでマスを移ります。Return キーかスペースキーでマスを選び、Option（Alt）＋矢印キーで隣のマスと入れ替えます。",
      "You can now rearrange with the keyboard. Press Tab to reach the grid and move between cells with the arrow keys. Return or Space selects a cell, and Option (Alt) + an arrow key swaps the track with the neighbouring cell."),
     ("2026-09-23", "共有ページの画像に、題名と先頭 10 トラックの曲名を代替テキストとして付けました。読み上げを使っているときや、画像が表示されないときも、何の並びか分かります。",

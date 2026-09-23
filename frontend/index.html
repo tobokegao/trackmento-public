@@ -1255,6 +1255,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </div>
     </form>
     </div>
+    <div class="sub" id="sub-list">
+    <button class="sub-title" type="button" aria-expanded="true">トラック名の一覧から</button>
+    <form class="pane-body search-form" id="list-form" novalidate>
+      <div class="field">
+        <label for="list-text">1 行に 1 トラック。「アーティスト - トラック名」か「トラック名 / アーティスト」の形で貼ってください（一度に 20 行まで）。<br>iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</label>
+        <textarea class="input" id="list-text" rows="3" autocomplete="off" placeholder="米津玄師 - 感電"></textarea>
+      </div>
+      <div class="search-actions">
+        <button class="btn btn-primary" type="submit" id="list-btn"><span class="label">一覧から入れる</span></button>
+        <p class="msg" id="list-form-msg" role="status" aria-live="polite"></p>
+      </div>
+    </form>
+    </div>
     <div class="sub" id="sub-manual">
     <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋トラック名）</button>
     <form class="pane-body search-form" id="manual-form" novalidate>
@@ -1314,6 +1327,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
+        <button class="btn" type="button" id="text-copy" title="「1. トラック名 / アーティスト」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -1481,6 +1495,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
+          <p><b>トラック名の一覧から</b>: 「アーティスト - トラック名」を 1 行に 1 つ並べて貼ると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。「トラック名をコピー」で書き出した一覧もそのまま貼れます。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
@@ -1735,6 +1750,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。": "Put one per line to pull from several sites at once.",
         "プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録トラックをまとめて取得できます（最大 500 トラック。マスに入りきらない分は候補に残ります）。": "A playlist URL — a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or Apple Music — pulls in every track at once (up to 500; anything that does not fit in the grid stays in the results).",
         "URL から取得": "Fetch from URL",
+        "トラック名の一覧から": "From a list of track names",
+        "1 行に 1 トラック。「アーティスト - トラック名」か「トラック名 / アーティスト」の形で貼ってください（一度に 20 行まで）。": "One track per line, as \"Artist - Track\" or \"Track / Artist\" (up to 20 lines at a time).",
+        "iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。": "Each line is looked up on iTunes. Exact name matches go into empty cells; for the rest, the closest track goes to Results.",
+        "一覧から入れる": "Add from list",
+        ": 「アーティスト - トラック名」を 1 行に 1 つ並べて貼ると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。「トラック名をコピー」で書き出した一覧もそのまま貼れます。": ": Paste one \"Artist - Track\" per line and each line is looked up on iTunes. Only exact name matches go into empty cells; for the rest, the closest track is listed in Results. A list written by \"Copy track names\" can be pasted back as is.",
+        "米津玄師 - 感電": "Rick Astley - Never Gonna Give You Up",
+        "トラック名をコピー": "Copy track names",
+        "「1. トラック名 / アーティスト」の形で、番号順にコピーする。X の本文などにそのまま貼れる": "Copy as \"1. Track / Artist\" in cell order, ready to paste into a post on X",
         "手入力（画像 URL＋トラック名）": "By hand (image URL + track name)",
         "手入力: ジャケット画像の URL": "By hand: cover image URL",
         "端末から画像を選択…": "Choose an image from this device…",
@@ -1967,6 +1990,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "「マスに入れる」で {} トラックが入り、残り {} トラックは候補に置きます。": "\"Fill the grid\" takes {0} of them; the other {1} go to the results.",
         "{} トラックをマスに入れ、残り {} トラックを候補に置きました。": "Put {0} tracks in the grid and the other {1} in the results.",
         "{} トラックをマスに入れました。": "Put {0} tracks in the grid.",
+        "{}/{} 行目を探しています…": "Looking up line {0}/{1}…",
+        "{} トラックの名前をコピーしました。": "Copied the names of {0} tracks.",
+        "{} 行は見つからなかったので、欄に残しました。": "{0} lines were not found and are left in the box.",
+        "{} トラックを候補に置きました（名前が合わなかったもの・空きマスが足りなかったもの）。": "Put {0} tracks in Results (names that did not match, or no empty cell left).",
+        "まだトラックが入っていません。": "There are no tracks yet.",
+        "コピーできませんでした。": "Could not copy.",
+        "トラック名を 1 行に 1 つ入れてください。": "Enter one track name per line.",
+        "一度に入れられるのは {} 行までです（いまは {} 行）。": "Up to {0} lines at a time (you have {1}).",
+        "見つかりませんでした。": "Nothing was found.",
+        "途中でやめました（残りの {} 行は欄に残しました）。": "Stopped partway (the remaining {0} lines are left in the box).",
         "候補に {} トラックを置きました。押すとマスに入ります。": "Put {0} tracks in the results. Click one to place it.",
         "一度に取れるのは {} 件までです（いまは {} 件）。": "Up to {0} at a time, and there are {1} here.",
         "{} 件を取得中…": "Fetching {0}…",
@@ -2946,6 +2979,93 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     }
   });
 
+  /* ---- トラック名の一覧から（text-paste）。1 行ずつ iTunes で引く ----
+     iTunes Search API は約 20 回/分（docs/services-terms.md）なので、行数に上限を置き、行の間を空ける。
+     英語の画面は 1 行で米国のストアにもう 1 回問い合わせる（itunesEnglish）ので間隔を倍にする。
+     名前（nkey）がトラック名・アーティスト名ともぴったり合ったものだけマスに入れ、ほかは先頭の 1 件を候補に置く
+     （アーティスト名が無い行は、同名の別の曲が入りやすいので必ず候補へ） */
+  const LIST_MAX = 20;
+  const listEls = { form: $("#list-form"), text: $("#list-text"), btn: $("#list-btn"), msg: $("#list-form-msg") };
+  let listRun = null;   // 走っている間は { stop: false }。もう一度押すと止める
+  function parseListLine(line) {
+    const s = line.replace(/^\s*(?:[-*・•]\s*|\d{1,3}[.)．。:、]\s*)/, "").trim();   // 行頭の番号・箇条書きの印
+    let m = /^(.*\S)\s+\/\s+(\S.*)$/.exec(s);                                      // トラック名 / アーティスト（「トラック名をコピー」の形）
+    if (m) return { title: m[1], artist: m[2] };
+    m = /^(.*?\S)\s+[-–—]\s+(\S.*)$/.exec(s);                                      // アーティスト - トラック名
+    if (m) return { title: m[2], artist: m[1], swappable: true };
+    return { title: s, artist: "" };
+  }
+  const sameName = (t, p) => nkey(t.title) === nkey(p.title) && !!p.artist && nkey(t.artist) === nkey(p.artist);
+  listEls.form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (listRun) { listRun.stop = true; return; }
+    listEls.text.removeAttribute("aria-invalid");
+    const lines = listEls.text.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const parsed = lines.map(parseListLine).filter(p => p.title);
+    if (!parsed.length) {
+      listEls.text.setAttribute("aria-invalid", "true");
+      say(listEls.msg, tr("トラック名を 1 行に 1 つ入れてください。"), "error");
+      listEls.text.focus({ preventScroll: true });
+      return;
+    }
+    if (parsed.length > LIST_MAX) {
+      listEls.text.setAttribute("aria-invalid", "true");
+      say(listEls.msg, tr`一度に入れられるのは ${LIST_MAX} 行までです（いまは ${parsed.length} 行）。`, "error");
+      return;
+    }
+    const run = listRun = { stop: false };
+    const gap = LANG === "en" ? 6000 : 3000;
+    const label = listEls.btn.querySelector(".label");
+    label.textContent = tr("やめる");
+    const matched = [], near = [], missed = [];
+    let done = 0;
+    try {
+      for (const [i, p] of parsed.entries()) {
+        if (run.stop) break;
+        if (i) await sleep(gap);
+        if (run.stop) break;
+        say(listEls.msg, tr`${i + 1}/${parsed.length} 行目を探しています…`);
+        let found = [], hit = null;
+        try {
+          found = await itunesSearch(p.title, p.artist);
+          hit = found.find(t => sameName(t, p));
+          // 「A - B」はどちらがアーティストか決めきれないので、ぴったり合わなければ入れ替えてもう 1 回
+          // （逆に解いた検索でも、曲名に名前を含む別のトラックが引っかかって空にはならないことがある）
+          if (!hit && p.swappable && !run.stop) {
+            await sleep(gap);
+            const q = { title: p.artist, artist: p.title };
+            const found2 = await itunesSearch(q.title, q.artist);
+            hit = found2.find(t => sameName(t, q));
+            if (hit || !found.length) found = found2;
+          }
+        } catch { found = []; }
+        done++;
+        if (hit) matched.push(hit);
+        else if (found.length) near.push(found[0]);
+        else missed.push(lines[i]);
+      }
+    } finally {
+      listRun = null;
+      label.textContent = tr("一覧から入れる");
+    }
+    const put = fillEmptyCells(matched);
+    const toResults = [...matched.slice(put), ...near];
+    if (toResults.length) {
+      const images = new Set(toResults.map(t => t.image));
+      currentResults = [...toResults, ...currentResults.filter(t => !images.has(t.image))];
+      renderResults(currentResults);
+    }
+    // 見つからなかった行だけを欄に残す（直してもう一度押せるように）
+    listEls.text.value = missed.join("\n") + (done < parsed.length ? (missed.length ? "\n" : "") + lines.slice(done).join("\n") : "");
+    const parts = [];
+    if (put) parts.push(tr`${put} トラックをマスに入れました。`);
+    if (toResults.length) parts.push(tr`${toResults.length} トラックを候補に置きました（名前が合わなかったもの・空きマスが足りなかったもの）。`);
+    if (missed.length) parts.push(tr`${missed.length} 行は見つからなかったので、欄に残しました。`);
+    if (done < parsed.length) parts.push(tr`途中でやめました（残りの ${parsed.length - done} 行は欄に残しました）。`);
+    say(listEls.msg, parts.join(" ") || tr("見つかりませんでした。"), put || toResults.length ? "" : "error");
+    if (put) undoLink(listEls.msg);
+  });
+
   /* ---- manual entry ---- */
   els.mForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -3472,6 +3592,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     say(els.gridMsg, tr("並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。"));
+  });
+  /* ---- トラック名を文章でコピー（text-copy）。「1. トラック名 / アーティスト」を番号順に。
+     番号はマスの番号バッジと同じ（空きマスは飛ばすので番号も飛ぶ）。この形は「トラック名の一覧から」にそのまま貼り戻せる ---- */
+  const flat = (v) => (v || "").split(/\s+/).join(" ").trim();   // 描画用の oneLine と違い、絵文字は落とさない（文章として貼るので）
+  const trackLines = () => state.cells.map((t, i) => t && `${i + 1}. ${flat(t.title)}${flat(t.artist) ? ` / ${flat(t.artist)}` : ""}`).filter(Boolean);
+  $("#text-copy").addEventListener("click", async () => {
+    const lines = trackLines();
+    if (!lines.length) { say(els.gridMsg, tr("まだトラックが入っていません。"), "error"); return; }
+    try { await navigator.clipboard.writeText(lines.join("\n")); say(els.gridMsg, tr`${lines.length} トラックの名前をコピーしました。`); }
+    catch { say(els.gridMsg, tr("コピーできませんでした。"), "error"); }
   });
   els.jsonImport.addEventListener("click", () => els.jsonFile.click());
   els.jsonFile.addEventListener("change", async () => {
@@ -6452,13 +6582,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
 
   /* ---- 折りたたみ（Explorer 風）。PC とスマホで別々に記憶し、初期値はスマホだけオプションと補助フォームを畳む ---- */
-  const FOLD_DEFAULT = { mobile: { "pane-options": true, "sub-bandcamp": true, "sub-manual": true }, desktop: { "sub-manual": true } };   // PC は手入力だけ閉じておく
+  const FOLD_DEFAULT = { mobile: { "pane-options": true, "sub-bandcamp": true, "sub-list": true, "sub-manual": true }, desktop: { "sub-list": true, "sub-manual": true } };   // PC は「URL から」だけ開いておく
   const mq = window.matchMedia("(min-width: 60rem)");
   const foldMode = () => (mq.matches ? "desktop" : "mobile");
   const foldKey = () => `trackmento:fold:${foldMode()}`;
   const foldables = () => [...document.querySelectorAll(".pane, .sub")];
   const foldId = (el) => el.id || el.className.split(" ").find(c => c.startsWith("pane-")) || "";
-  function loadFold() { try { return JSON.parse(localStorage.getItem(foldKey()) || "null") || { ...FOLD_DEFAULT[foldMode()] }; } catch { return { ...FOLD_DEFAULT[foldMode()] }; } }
+  // 覚えた状態に無い欄（あとから足した「トラック名の一覧から」など）は初期値で埋める
+  function loadFold() { try { return { ...FOLD_DEFAULT[foldMode()], ...JSON.parse(localStorage.getItem(foldKey()) || "null") }; } catch { return { ...FOLD_DEFAULT[foldMode()] }; } }
   function applyFold() {
     const st = loadFold();
     for (const el of foldables()) {
@@ -6473,7 +6604,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const id = foldId(el);
     st[id] = el.dataset.collapsed !== "true";
     if (el.classList.contains("sub") && !st[id]) {
-      // Bandcamp と手入力は片方を開いたらもう片方を閉じる
+      // 補助の欄（URL から・一覧から・手入力）は 1 つ開いたらほかを閉じる
       for (const other of document.querySelectorAll(".sub")) if (other !== el) st[foldId(other)] = true;
     }
     try { localStorage.setItem(foldKey(), JSON.stringify(st)); } catch { /* ignore */ }

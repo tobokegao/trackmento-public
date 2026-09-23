@@ -123,6 +123,19 @@
       </div>
     </form>
     </div>
+    <div class="sub" id="sub-list">
+    <button class="sub-title" type="button" aria-expanded="true">トラック名の一覧から</button>
+    <form class="pane-body search-form" id="list-form" novalidate>
+      <div class="field">
+        <label for="list-text">1 行に 1 トラック。「アーティスト - トラック名」か「トラック名 / アーティスト」の形で貼ってください（一度に 20 行まで）。<br>iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</label>
+        <textarea class="input" id="list-text" rows="3" autocomplete="off" placeholder="米津玄師 - 感電"></textarea>
+      </div>
+      <div class="search-actions">
+        <button class="btn btn-primary" type="submit" id="list-btn"><span class="label">一覧から入れる</span></button>
+        <p class="msg" id="list-form-msg" role="status" aria-live="polite"></p>
+      </div>
+    </form>
+    </div>
     <div class="sub" id="sub-manual">
     <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋トラック名）</button>
     <form class="pane-body search-form" id="manual-form" novalidate>
@@ -182,6 +195,7 @@
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
+        <button class="btn" type="button" id="text-copy" title="「1. トラック名 / アーティスト」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -349,6 +363,7 @@
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
+          <p><b>トラック名の一覧から</b>: 「アーティスト - トラック名」を 1 行に 1 つ並べて貼ると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。「トラック名をコピー」で書き出した一覧もそのまま貼れます。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
@@ -464,6 +479,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.a82d93f0.js"></script>
+<script id="app-js" src="app/app.f6301165.js"></script>
 </body>
 </html>
