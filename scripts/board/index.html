@@ -612,8 +612,34 @@
   const LABEL_GAP = 8;                 // x 軸の字どうしの最小のすきま
   function textW(t) { let w = 0; for (const c of String(t)) w += c.charCodeAt(0) < 0x2000 ? FS / 2 : FS; return w; }
   function chartW(node, minW) { return Math.max(minW || 260, Math.floor(node.clientWidth || 560)); }
-  /* 横に流れる図は、いちばん新しい右端を見せる */
-  function showEnd(node) { node.scrollLeft = node.scrollWidth; }
+  /* 横に流れる図は、いちばん新しい右端を見せる。そのとき縦軸の目盛りと「何月か」を左に貼り付ける
+     （流すと目盛りと、月の入った最初の日付が左へ隠れるため。9/24）。月は左端に見えている日付に合わせて替える */
+  function showEnd(node) {
+    const s = node.querySelector("svg");
+    if (!s || node.scrollWidth <= node.clientWidth + 1) return;
+    const L = +(node.dataset.l || 48), H = +s.getAttribute("height");
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;width:max-content";
+    const ax = el("svg", { viewBox: "0 0 " + L + " " + H, width: L, height: H, "aria-hidden": "true" });
+    ax.style.cssText = "position:sticky;left:0;z-index:1;flex:none;background:var(--win);shape-rendering:crispEdges;margin-right:" + (-L) + "px";
+    s.querySelectorAll(".ytick").forEach(t => ax.appendChild(t.cloneNode(true)));
+    const months = [...s.querySelectorAll(".xlab")].filter(t => t.textContent.includes("/"))
+      .map(t => [+t.dataset.cx, t.textContent.split("/")[0]]);
+    const mt = el("text", { x: 2, y: H - 8, fill: MUTED, "font-size": FS }, "");
+    ax.appendChild(mt);
+    node.textContent = "";
+    row.append(ax, s);
+    node.appendChild(row);
+    const month = () => {
+      const edge = node.scrollLeft + L;
+      let m = months.length ? months[0][1] : "";
+      months.forEach(([x, mm]) => { if (x <= edge + 24) m = mm; });
+      mt.textContent = m ? m + "月" : "";
+    };
+    node.onscroll = month;
+    node.scrollLeft = node.scrollWidth;
+    month();
+  }
   let DITHER_N = 0;
   function svgBox(w, h) {
     const s = el("svg", { viewBox: "0 0 " + w + " " + h, width: w, height: h, role: "img" });
@@ -644,7 +670,7 @@
     }
     for (let g = 0; g <= 2; g++) {
       const v = max * g / 2;
-      s.appendChild(el("text", { x: L - 6, y: y(v) + 6, "text-anchor": "end", fill: MUTED, "font-size": FS }, fmt(v)));
+      s.appendChild(el("text", { x: L - 6, y: y(v) + 6, "text-anchor": "end", fill: MUTED, "font-size": FS, class: "ytick" }, fmt(v)));
     }
   }
   function xAxis(s, W, L, R, y0) {
@@ -658,7 +684,7 @@
       const w = Math.max.apply(null, lines.map(textW));
       if (cx - w / 2 < right + LABEL_GAP || cx + w / 2 > W) return;
       lines.forEach((t, k) => {
-        s.appendChild(el("text", { x: Math.round(cx - textW(t) / 2), y: H - 8 - (lines.length - 1 - k) * (FS + 2), fill: MUTED, "font-size": FS }, t));
+        s.appendChild(el("text", { x: Math.round(cx - textW(t) / 2), y: H - 8 - (lines.length - 1 - k) * (FS + 2), fill: MUTED, "font-size": FS, class: "xlab", "data-cx": Math.round(cx) }, t));
       });
       right = cx + w / 2;
     });
@@ -764,13 +790,21 @@
     return seen;
   }
 
+  /* 図の日付は短く書く。月が変わる所（と最初）だけ「9/11」、ほかは日だけ「12」（9/24、「09-」がくどいと言われた） */
+  function md(d) { const [m, dd] = String(d).split("-"); return +m + "/" + (+dd); }
+  function shortDates(list) {
+    let pm = null;
+    return list.map(d => { const m = String(d).split("-")[0], out = m !== pm ? md(d) : String(+String(d).split("-")[1]); pm = m; return out; });
+  }
+  function withShortDates(rows) { const t = shortDates(rows.map(r => r[0])); return rows.map((r, i) => [t[i]].concat(r.slice(1))); }
+
   function drawStorage() {
     const wrap = document.getElementById("storage-wrap");
     if (!STORAGE.length) { wrap.hidden = true; return; }
     wrap.hidden = false;
     const box = document.getElementById("c-storage"), leg = document.getElementById("storage-legend");
     box.textContent = ""; leg.textContent = "";
-    const seen = stackChart(box, STORAGE, { fmt: v => v.toFixed(0), free: FREE_GB });
+    const seen = stackChart(box, withShortDates(STORAGE), { fmt: v => v.toFixed(0), free: FREE_GB });
     seen.forEach(k => {
       const sp = document.createElement("span");
       const i = document.createElement("i");
@@ -787,18 +821,19 @@
     const labels = [];
     let seen = "";
     SERIES.forEach((r, i) => { const d = r[0].slice(0, 5); if (d !== seen) { labels.push([i, d]); seen = d; } });
+    shortDates(labels.map(l => l[1])).forEach((t, j) => { labels[j][1] = t; });
     const k = v => v >= 1000 ? Math.round(v / 1000) + "k" : String(Math.round(v));
     lineChart(document.getElementById("c-req"), req, labels, { color: "var(--c-api)", fmt: k });
     let gzip = SERIES.findIndex(r => r[0] >= "09-16 06");
     lineChart(document.getElementById("c-gb"), gb, labels, {
       color: "var(--c-gb)", fmt: v => v.toFixed(1), mark: gzip > 0 ? gzip : null, markColor: "var(--c-bad)", markText: "gzip を入れた"
     });
-    barChart(document.getElementById("c-share"), SHARES, { color: "var(--c-img)", fmt: k, slot: 56 });
+    barChart(document.getElementById("c-share"), withShortDates(SHARES), { color: "var(--c-img)", fmt: k, slot: 56 });
     /* いまの棒だけ db の実測（多い日）から取る。手で書くと、次の点検で古くなる */
     const vocaPeak = ((SERVICES.peak || {}).vocadb || {}).api || 0;
     const vocaHost = OUT_HOSTS.find(h => h[0] === "vocadb.net");
     const vocaLast = vocaHost ? Math.round(vocaHost[1] * 24 / (LATEST.hours || 2)) : 0;
-    barChart(document.getElementById("c-voca"), [["直す前", 2000, "var(--c-bad)"], ["9/20 朝", 336, "var(--c-ok)"], ["多い日", vocaPeak, "var(--c-ok)"], ["直近 " + (LATEST.jst || "").slice(5, 10), vocaLast, "var(--c-api)"], ["目安", 2880, "var(--c-other)"]], { color: "var(--c-api)", fmt: k });
+    barChart(document.getElementById("c-voca"), [["直す前", 2000, "var(--c-bad)"], ["9/20 朝", 336, "var(--c-ok)"], ["多い日", vocaPeak, "var(--c-ok)"], ["直近 " + md((LATEST.jst || "").slice(5, 10)), vocaLast, "var(--c-api)"], ["目安", 2880, "var(--c-other)"]], { color: "var(--c-api)", fmt: k });
   }
 
   /* いまの状況のタイル。数字は LATEST（db の board/metrics で上書きされる）から組む。 */
