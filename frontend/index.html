@@ -1252,7 +1252,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <div class="pane-title"><h2 id="h-results">候補</h2><span class="tail"><span class="count" id="results-count" aria-label="候補数">0</span><button class="fold" type="button" aria-expanded="true" aria-label="候補を折りたたむ"></button></span></div>
     <div class="pane-body">
       <ul class="results" id="results">
-        <li class="empty"><strong>まだ候補がありません</strong><span>トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>クリックで次の空きマスに入ります。</span></li>
+        <li class="empty"><strong>まだ候補がありません</strong><span>トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>押すと次の空きマスに入ります。</span></li>
       </ul>
     </div>
   </section>
@@ -1268,12 +1268,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
-      <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
+      <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
-        <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
-        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
+        <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
+        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -1434,14 +1434,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <div class="modal-panel">
     <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2><button class="btn" type="button" id="src-modal-close">閉じる</button></div>
     <div class="modal-body note">
-          <p><b>iTunes</b>: トラック名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。</p>
+          <p><b>iTunes</b>: トラック名に検索した言葉を含み、アーティスト名に検索したアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。</p>
           <p><b>MusicBrainz</b>: 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。</p>
           <p><b>VocaDB</b>: ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
 </div>
@@ -1700,10 +1700,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "候補": "Results",
         "まだ候補がありません": "No results yet",
         "トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。": "Search by track or artist and the matches appear here with their covers.",
-        "クリックで次の空きマスに入ります。": "Click one to drop it into the next empty cell.",
+        "押すと次の空きマスに入ります。": "Press one to drop it into the next empty cell.",
         "グリッド": "Grid",
         "タイトル（省略可）": "Title (optional)",
-        "候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。": "Click a result to fill the next empty cell. Tap a cell to select it, then tap another to swap.",
+        "候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。": "Press a result to fill the next empty cell. Press a cell to select it, then press another to swap.",
         "トラックを共有": "Share these tracks",
         "トラックを全て外す": "Remove all tracks",
         "確認": "Confirm",
@@ -1783,7 +1783,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "マスに入れる": "Fill the grid",
         "候補に置いて選ぶ": "Put in results and pick",
         "ソースについて": "About the sources",
-        ": トラック名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。": ": only shows tracks whose title contains your query and whose artist contains the artist you typed, to keep unrelated songs and covers out. Exact matches come first.",
+        ": トラック名に検索した言葉を含み、アーティスト名に検索したアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。": ": only shows tracks whose title contains your query and whose artist contains the artist you typed, to keep unrelated songs and covers out. Exact matches come first.",
         ": 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。": ": covers come only from releases registered with the Cover Art Archive. It allows one request per second, so it is a little slow.",
         ": 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。": ": the otoMAD database (otodb.net). Search by work title; the creator comes from the database tags. Thumbnails live on otoDB, so they still show even when the original video is gone.",
         ": ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。": ": the Vocaloid song database (vocadb.net). Search by title; the artist comes back as \"Hachi feat. Hatsune Miku\", the producer and the voice together. Results are ordered by rating so the original comes first. Thumbnails come from the original video.",
@@ -1795,7 +1795,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。": " — we took that out to follow their rules, though a URL for one track still works. Put URLs on separate lines to mix several sites in one go.",
         ": Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track), SoundCloud (track), Spotify (track or album), Apple Music (song), YouTube (video) or Niconico and it picks up the cover or thumbnail along with the title and the artist (or uploader). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bare ID such as sm12345 works too.",
         "保存されるもの": "What gets stored",
-        ": 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched covers are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
+        ": 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched covers are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
         "01 番に入れるトラックを探す": "Find a track for cell 01",
         "サーバー代のおねがい": "A word about server bills",
         "無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
@@ -1818,8 +1818,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "例: 私を構成する9曲": "e.g. 9 tracks that made me",
         "ジャケットの並び": "Cover grid",
         "画像を作り、今の並びと一緒に共有 URL にする": "Render an image and put it, with the current layout, behind a share URL",
-        "並び（トラック・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる": "Save the layout (tracks, image URLs and output settings) to a JSON file on this device. Load it to get the same layout back",
-        "「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す": "Load a JSON file written by \"Save layout\" to restore that layout",
+        "並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる": "Save the layout (tracks, image URLs and output settings) to a JSON file on this device. Load it to get the same layout back",
+        "「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す": "Load a JSON file written by \"Save layout\" to restore that layout",
         "共有した画像のプレビュー": "Preview of the shared image",
         "出力オプションを折りたたむ": "Collapse output options",
         "横のマス数": "Columns",
@@ -1878,10 +1878,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "サーバーに接続できません": "Cannot reach the server",
         "このソースは今は使えません。": "This source is not available right now.",
         "トラック名かアーティスト名のどちらかは必要です。": "Enter a track name or an artist name.",
-        "URL だったので「URL から」に回して取り込みます。": "That was a URL, so it is being fetched through \"From a URL\".",
+        "URL が入っていたので、「URL から」で取り込みます。": "That was a URL, so it is being fetched through \"From a URL\".",
         "ソースを選んでください。": "Pick a source.",
-        "混雑中で応答しませんでした（少し待って再検索）": "was busy and did not answer; wait a moment and search again",
-        "エラーで取得できませんでした": "failed with an error",
+        "混み合っていて応答がありませんでした（少し待ってからもう一度検索してください）": "was busy and did not answer; wait a moment and search again",
+        "うまく取得できませんでした（少し待ってからもう一度お試しください）": "failed with an error",
         "iTunes に無かったので MusicBrainz でも探しました。": "Nothing on iTunes, so we searched MusicBrainz too.",
     "見つかりませんでした。表記を変えるか、別のソースを試してください。": "Nothing found. Try a different spelling, or another source.",
         "「マスに入れる」で、番号の若い空きマスから順に全部入ります。": "\"Fill the grid\" puts every one of them into the empty cells, lowest number first.",
@@ -1890,7 +1890,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "画像は https:// から始まる URL を入れるか、「端末から画像を選択」で選んでください。": "Enter an image URL starting with https://, or pick one with “Choose an image from this device”.",
         "トラック名を入れてください。": "Enter a track name.",
         "<strong>該当なし</strong><span>トラック名を短くする、アーティスト名だけで検索する、などを試してください。</span>": "<strong>No matches</strong><span>Try a shorter title, or search by artist alone.</span>",
-        "空きマスがありません。× で外してから追加してください。": "No empty cells left. Remove one with × first.",
+        "空きマスがありません。マスの × でトラックを外してから追加してください。": "No empty cells left. Remove a track with the × on its cell first.",
         "トラックを探す（次の空きマスに入ります）": "Find a track (goes into the next empty cell)",
         "入れる先の指定を解除しました。": "Target cell cleared.",
         "選択を解除しました。": "Selection cleared.",
@@ -1908,7 +1908,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "トラックを置いてから押してください。": "Put some tracks in first.",
         "この端末では画像を作れなかったので、サーバーで作成します…": "This device could not render the image, so the server is doing it…",
         "共有 URL をコピーしました。": "Share URL copied.",
-        "コピーできなかったので、URL 欄を選択しました。手動でコピーしてください。": "Copying failed, so the URL field is selected. Copy it by hand.",
+        "自動でコピーできなかったので、URL 欄を選択しました。そのままコピーしてください。": "Copying failed, so the URL field is selected. Copy it by hand.",
         "無題": "Untitled",
         "期限切れか削除済みです": "Expired or deleted",
         "サーバーが応答できませんでした。30 秒ほど待ってからもう一度お試しください。": "The server could not answer. Wait about 30 seconds and try again.",
@@ -1920,13 +1920,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "「マスに入れる」で {} トラックが入り、残り {} トラックは候補に置きます。": "\"Fill the grid\" takes {0} of them; the other {1} go to the results.",
         "{} トラックをマスに入れ、残り {} トラックを候補に置きました。": "Put {0} tracks in the grid and the other {1} in the results.",
         "{} トラックをマスに入れました。": "Put {0} tracks in the grid.",
-        "候補に {} トラックを置きました。クリックで配置します。": "Put {0} tracks in the results. Click one to place it.",
+        "候補に {} トラックを置きました。押すとマスに入ります。": "Put {0} tracks in the results. Click one to place it.",
         "一度に取れるのは {} 件までです（いまは {} 件）。": "Up to {0} at a time, and there are {1} here.",
         "{} 件を取得中…": "Fetching {0}…",
         "{}/{} 件目を取得中…": "Fetching {0} of {1}…",
-        "候補の先頭に「{}」を入れました。クリックで配置します。": "Put \"{0}\" at the top of the results. Click it to place it.",
-        "候補の先頭に {} 件入れました。クリックで配置します。": "Put {0} at the top of the results. Click one to place it.",
-        "（Spotify はアーティスト名を返さないので、マスを選んで足してください）": " (Spotify doesn't give the artist name, so select the cell and add it.)",
+        "候補の先頭に「{}」を入れました。押すとマスに入ります。": "Put \"{0}\" at the top of the results. Click it to place it.",
+        "候補の先頭に {} 件入れました。押すとマスに入ります。": "Put {0} at the top of the results. Click one to place it.",
+        "（Spotify からはアーティスト名を取れないので、マスを選んで入力してください）": " (Spotify doesn't give the artist name, so select the cell and add it.)",
         "{} 件を候補に入れました。取れなかったもの: {}": "Put {0} in the results. These could not be fetched: {1}",
         "取れませんでした。{}": "Nothing could be fetched. {0}",
         "{} を送っています…": "Uploading {0}…",
@@ -1934,11 +1934,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "取り込めませんでした。{}": "Upload failed. {0}",
         "{} / {} をグリッドに追加": "Add {0} by {1} to the grid",
         "{} 番に「{}」を入れました。": "Put \"{1}\" in cell {0}.",
-        "{} 番に入れます。候補をタップで確定／もう一度タップで解除": "Cell {0} is the target. Tap a result to place it, or tap again to cancel",
+        "{} 番に入れます。候補を押すと入ります／このマスをもう一度押すと解除": "Cell {0} is the target. Tap a result to place it, or tap again to cancel",
         "{} 番に入れるトラックを探す": "Find a track for cell {0}",
         "{} 番の「{}」を外しました。": "Removed \"{1}\" from cell {0}.",
         "{} 番と {} 番を入れ替えました。": "Swapped cells {0} and {1}.",
-        "{} 番を選択中。別のマスをタップすると入れ替え（空マスなら移動）。もう一度タップで解除。": "Cell {0} is selected. Tap another cell to swap, or an empty one to move. Tap again to deselect.",
+        "{} 番を選択中。別のマスを押すと入れ替わります（空きマスなら移動）。もう一度押すと解除します。": "Cell {0} is selected. Tap another cell to swap, or an empty one to move. Tap again to deselect.",
         "{} 番を {} 番に移しました。": "Moved cell {0} to cell {1}.",
         "アルバム: {}": "Album: {0}",
         "マスは全部で {} 個までです（{} × {} にしました）。": "The grid holds at most {0} cells, so this is now {1} × {2}.",
@@ -2703,7 +2703,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.bcUrl.value = pasted;
       const sub = els.bcForm.closest(".sub");
       if (sub && sub.dataset.collapsed === "true") toggleFold(sub);
-      say(els.searchMsg, tr("URL だったので「URL から」に回して取り込みます。"));
+      say(els.searchMsg, tr("URL が入っていたので、「URL から」で取り込みます。"));
       els.bcForm.requestSubmit();
       return;
     }
@@ -2749,7 +2749,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       setBtnState(els.searchBtn, null);
       // 一部のソースが失敗していたら、その旨を添える（MusicBrainz の混雑など）
       const failNote = failed.length
-        ? " " + failed.map(([n, k]) => tr`${tr(SOURCE_LABEL[n] || n)} は${k === "busy" ? tr("混雑中で応答しませんでした（少し待って再検索）") : tr("エラーで取得できませんでした")}。`).join("")
+        ? " " + failed.map(([n, k]) => tr`${tr(SOURCE_LABEL[n] || n)} は${k === "busy" ? tr("混み合っていて応答がありませんでした（少し待ってからもう一度検索してください）") : tr("うまく取得できませんでした（少し待ってからもう一度お試しください）")}。`).join("")
         : "";
       const mbNote = mbFallback ? " " + tr("iTunes に無かったので MusicBrainz でも探しました。") : "";
       say(els.searchMsg, (tracks.length ? tr`${tracks.length} 件` : tr("見つかりませんでした。表記を変えるか、別のソースを試してください。")) + mbNote + failNote, failed.length ? "error" : null);
@@ -2808,7 +2808,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   $("#pl-to-results").addEventListener("click", () => {
     const tracks = plPending || [];
     closePlModal();
-    plPutToResults(tracks, tr`候補に ${tracks.length} トラックを置きました。クリックで配置します。`);
+    plPutToResults(tracks, tr`候補に ${tracks.length} トラックを置きました。押すとマスに入ります。`);
   });
   $("#pl-cancel").addEventListener("click", () => { closePlModal(); say(els.bcMsg, tr("やめました。")); });
   $("#pl-modal-backdrop").addEventListener("click", () => { closePlModal(); say(els.bcMsg, tr("やめました。")); });
@@ -2888,9 +2888,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     // （Web API は開発者アカウントに Spotify Premium が要るため使っていない）。分かるように一言添える
     const noArtist = got.filter(t => t.source === "spotify" && !(t.artist || "").trim()).length;
     if (got.length && !failed.length) {
-      const tail = noArtist ? tr`（Spotify はアーティスト名を返さないので、マスを選んで足してください）` : "";
-      say(els.bcMsg, (got.length === 1 ? tr`候補の先頭に「${got[0].title}」を入れました。クリックで配置します。`
-                                       : tr`候補の先頭に ${got.length} 件入れました。クリックで配置します。`) + tail);
+      const tail = noArtist ? tr`（Spotify からはアーティスト名を取れないので、マスを選んで入力してください）` : "";
+      say(els.bcMsg, (got.length === 1 ? tr`候補の先頭に「${got[0].title}」を入れました。押すとマスに入ります。`
+                                       : tr`候補の先頭に ${got.length} 件入れました。押すとマスに入ります。`) + tail);
     } else if (got.length) {
       say(els.bcMsg, tr`${got.length} 件を候補に入れました。取れなかったもの: ${failed.join(" / ")}`, "error");
     } else {
@@ -2919,7 +2919,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     currentResults = [t, ...currentResults.filter(x => x.image !== image)];
     renderResults(currentResults);
     els.mImage.value = ""; els.mTitle.value = ""; els.mArtist.value = ""; els.mLink.value = "";
-    say(els.mMsg, tr`候補の先頭に「${title}」を入れました。クリックで配置します。`);
+    say(els.mMsg, tr`候補の先頭に「${title}」を入れました。押すとマスに入ります。`);
   });
 
   /* ---- ローカル画像のアップロード（手入力用） ---- */
@@ -2981,7 +2981,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   let target = null;
   function addTrack(t) {
     let i = target !== null && state.cells[target] === null ? target : state.cells.findIndex(c => c === null);
-    if (i < 0) { say(els.gridMsg, tr("空きマスがありません。× で外してから追加してください。"), "error"); return; }
+    if (i < 0) { say(els.gridMsg, tr("空きマスがありません。マスの × でトラックを外してから追加してください。"), "error"); return; }
     target = null;
     state.cells[i] = { ...t };   // 候補と切り離す（曲名の編集が候補に波及しないように）
     renderGrid();
@@ -3006,7 +3006,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function setTarget(i) {
     target = i; selected = null; renderGrid();
     // スマホでもここで出しておく。シートを閉じたときに、下の欄が古い文言（「解除しました」など）のまま残らないように
-    say(els.gridMsg, tr`${i + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
+    say(els.gridMsg, tr`${i + 1} 番に入れます。候補を押すと入ります／このマスをもう一度押すと解除`);
     if (isMobile()) { openSheet(i); return; }
     els.q.focus({ preventScroll: false });
   }
@@ -3033,7 +3033,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     applyFold();
     sheet.hidden = true; unlockScroll();
     // 閉じても入れる先は残る（マスに枠が出たまま）。何が選ばれているかを下の欄にも書いておく
-    if (target !== null) say(els.gridMsg, tr`${target + 1} 番に入れます。候補をタップで確定／もう一度タップで解除`);
+    if (target !== null) say(els.gridMsg, tr`${target + 1} 番に入れます。候補を押すと入ります／このマスをもう一度押すと解除`);
   }
   $("#sheet-close").addEventListener("click", closeSheet);
   $("#sheet-backdrop").addEventListener("click", closeSheet);
@@ -3065,7 +3065,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       }
       target = null;
       selected = i; renderGrid();
-      say(els.gridMsg, tr`${i + 1} 番を選択中。別のマスをタップすると入れ替え（空マスなら移動）。もう一度タップで解除。`);
+      say(els.gridMsg, tr`${i + 1} 番を選択中。別のマスを押すと入れ替わります（空きマスなら移動）。もう一度押すと解除します。`);
       return;
     }
     if (selected === i) { selected = null; renderGrid(); say(els.gridMsg, tr("選択を解除しました。")); return; }
@@ -6281,7 +6281,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
   els.copyBtn.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(els.shareUrl.value); setBtnState(els.copyBtn, "success"); say(els.gridMsg, tr("共有 URL をコピーしました。")); }
-    catch { els.shareUrl.select(); say(els.gridMsg, tr("コピーできなかったので、URL 欄を選択しました。手動でコピーしてください。"), "error"); }
+    catch { els.shareUrl.select(); say(els.gridMsg, tr("自動でコピーできなかったので、URL 欄を選択しました。そのままコピーしてください。"), "error"); }
     setTimeout(() => setBtnState(els.copyBtn, null), 1500);
   });
   /* SNS に共有: 文言 + 共有 URL。共有シートがある端末（スマホ）はそれを、無い PC は X の投稿画面を開く */
