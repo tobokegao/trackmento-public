@@ -49,7 +49,9 @@ for f in $files; do
   case "$f" in
     .env.example|*/.env.example|scripts/scan_secrets.sh|.githooks/*|.github/workflows/secrets.yml) continue ;;
   esac
-  read_file "$f" | head -c 2000000 > "$tmp" 2>/dev/null || continue
+  # data: URI の base64（ボードに埋め込んだフォントなど）は中身を見ない。15 万字のでたらめな英数字なので、
+  # 大文字小文字を問わない照合だと「sk-…」「AKIA…」のような形にたまたま当たる（2026-09-24 に当たった）
+  read_file "$f" | head -c 2000000 | sed -E 's#;base64,[A-Za-z0-9+/=]+#;base64,#g' > "$tmp" 2>/dev/null || continue
   grep -qI . "$tmp" 2>/dev/null || continue   # テキストでないものは見ない
 
   hit=$(grep -nEi "$known" "$tmp" 2>/dev/null | cut -d: -f1 | head -3 | tr '\n' ',' | sed 's/,$//')

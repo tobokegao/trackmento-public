@@ -22,8 +22,9 @@ ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "scripts/board/index.html"
 SRC = "fonts/JF-Dot-MPlus12.ttf"       # 9/24: 東雲 16 → 東雲 14（小さく）→ M+ 12（東雲 14 は はね・はらいが残り明朝寄りに見えた）
 PX = 12                                # この字の 1 目 = 1px になる大きさ
-LATIN_DROP_DOTS = -1                   # 半角の英数記号を下げる目の数（負なら上げる）。M+ 12 は大文字が漢字より上 2 目・下 1 目あくので 1 目上げる
-                                       # （東雲 14 では 0、1 だと上 2 目・下 1 目で下寄りに見えた。9/24）
+LATIN_DROP_DOTS = 0                    # 半角の英数記号を下げる目の数（負なら上げる）。M+ 12 は下げも上げもしない
+                                       # （描いたときの黒い点で測ると、大文字は漢字に対して上 1〜2 目・下 1 目でもともと釣り合っていた。
+                                       #  字形の外枠〔yMin/yMax〕で測って 1 目上げたら上にずれて見えた。9/24。測るなら描いて数える）
 SOURCES = [PAGE, ROOT / "scripts/board/status.json", ROOT / "scripts/board_data.py"]
 
 
