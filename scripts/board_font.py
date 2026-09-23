@@ -20,6 +20,7 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "scripts/board/index.html"
+LATIN_DROP = 64   # 半角の英数記号を下げる量（1 目 = 64 単位）
 SOURCES = [PAGE, ROOT / "scripts/board/status.json", ROOT / "scripts/board_data.py"]
 
 
@@ -44,6 +45,19 @@ def wanted_chars() -> set[str]:
 def main() -> None:
     font = TTFont(ROOT / "fonts/JF-Dot-Shinonome16.ttf")
     cmap = font.getBestCmap()
+    # 半角の英数記号を 1 目（64 単位）下げる。東雲の漢字は基準線より 2 目下まで伸びるが英字は基準線までなので、
+    # そのままだと英字の下に 2 目の余白ができ、日本語より浮いて見えた（9/24）。1 目下げて上下の余りを 1 目ずつにする
+    glyf = font["glyf"]
+    moved = set()
+    for cp in range(0x21, 0x7F):
+        name = cmap.get(cp)
+        if not name or name in moved:
+            continue
+        moved.add(name)
+        g = glyf[name]
+        if not g.isComposite() and g.numberOfContours > 0:
+            g.coordinates.translate((0, -LATIN_DROP))
+            g.recalcBounds(glyf)
     keep = sorted(ord(c) for c in wanted_chars() if len(c) == 1 and ord(c) in cmap)
     opts = subset.Options()
     opts.flavor = "woff2"
