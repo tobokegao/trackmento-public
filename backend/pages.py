@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-23", "共有ページの画像に、題名と先頭 10 トラックの曲名を代替テキストとして付けました。読み上げを使っているときや、画像が表示されないときも、何の並びか分かります。",
+     "The image on a share page now has alt text with its title and the first 10 track names, so screen reader users, or anyone whose image fails to load, can tell what the grid contains."),
     ("2026-09-23", "トラックを外す・入れ替える・動かすなどの操作を、Ctrl+Z（Mac は ⌘Z）で 1 つずつ戻せるようになりました（30 回まで）。Ctrl+Shift+Z でやり直せます。スマホでは、操作のあとに出る「元に戻す」を押すと戻ります。",
      "You can now undo removing, swapping and moving tracks one step at a time with Ctrl+Z (⌘Z on a Mac), up to 30 steps. Ctrl+Shift+Z redoes. On a phone, press “Undo” in the message that appears after each change."),
     ("2026-09-23", "確認の窓とパレットの窓が Esc で閉じるようになりました。確認の窓では「やめる」が太い枠で囲まれ、Return キーで押せます。「横 × 縦」の欄には上下の小さな矢印を付け、押し続けると続けて増減します。",

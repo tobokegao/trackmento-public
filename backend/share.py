@@ -253,6 +253,8 @@ TEXT = {
         "save_img": "画像を保存",
         "open_in": "TRACKMENTO で開く（この並びを読み込む）",
         "tracks": "{n} トラック",
+        "img_alt": "{cols}×{rows} に並べたジャケット",
+        "img_alt_more": "ほか {n} トラック",
         "share_id": "共有 ID",
         "this_url": "この URL",
         # **残し方は 2 つある**。画像だけでなく、TRACKMENTO で開いて「並びを保存」すれば
@@ -295,6 +297,8 @@ TEXT = {
         "save_img": "Save image",
         "open_in": "Open in TRACKMENTO (loads this layout)",
         "tracks": "{n} tracks",
+        "img_alt": "Cover art in a {cols}×{rows} grid",
+        "img_alt_more": "and {n} more",
         "share_id": "Share ID",
         "this_url": "This URL",
         "keep": "save the image, or open it in TRACKMENTO and use “Save layout” to keep the layout as a file",
@@ -474,6 +478,9 @@ def notice_html(status: int, base: str, app_url: str | None = None, detail: str 
 </body></html>"""
 
 
+ALT_TRACKS = 10   # 画像の代替テキストに入れる曲の数
+
+
 def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja") -> str:
     """共有ページ。依存なしの単一 HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
@@ -499,12 +506,15 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
     # **画像と同じ題を出す**。共有したときの `trimNames`（無い古い共有は入り）に従う
     trim_names = ((snap.get("options") or {}).get("trimNames")) is not False
     rows = []
+    alt_items = []
     for i, c in enumerate(snap.get("cells") or [], 1):
         if not c:
             continue
         c_title, c_artist = (c.get("title") or ""), (c.get("artist") or "")
         if trim_names:
             c_title, c_artist = names.trim(c_title, c_artist)
+        alt_items.append(f"{c_title}（{c_artist}）" if lang == "ja" and c_artist
+                         else f"{c_title} – {c_artist}" if c_artist else c_title)
         inner = f"<b>{html.escape(c_title)}</b> <span class=a>{html.escape(c_artist)}</span>"
         # 元のページ（YouTube・ニコニコ・Bandcamp など）へ飛べるようにする。
         # **URL は利用者のデータなので、http(s) だけを通す**（javascript: などを弾く）。
@@ -519,6 +529,17 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
             inner += f"<span class=memo>{html.escape(note)}</span>"
         rows.append(f"<li><span class=n>{i:02d}</span><span class=t>{inner}</span></li>")
     n = len(rows)
+    # 画像の代替テキスト。読み上げや画像が読めないときにも何の並びか分かるよう、題・大きさ・曲名を入れる。
+    # **曲名は先頭 ALT_TRACKS 曲まで**（全曲は直後の一覧にあり、読み上げで同じものを 2 度聞かせない）
+    alt = t(lang, "img_alt", cols=snap.get("cols"), rows=snap.get("rows"))
+    if raw_title:
+        alt = (f"「{raw_title}」、" if lang == "ja" else f"“{raw_title}”: ") + alt
+    if alt_items:
+        shown = alt_items[:ALT_TRACKS]
+        rest = len(alt_items) - len(shown)
+        alt += ("。" if lang == "ja" else ". ") + ("、" if lang == "ja" else "; ").join(shown)
+        if rest:
+            alt += ("、" if lang == "ja" else "; ") + t(lang, "img_alt_more", n=rest)
     return f"""<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{page_title}</title>
@@ -531,7 +552,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
 <header><a class="mark" href="{app_url}/">TRACKMENTO</a></header>
 <main>
   {heading}
-  <img src="{img_url}" alt="{title}">
+  <img src="{img_url}" alt="{html.escape(alt, quote=True)}">
   <div class="btns">
     <a class="btn primary" href="/shares/{sid}.{ext}" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.{ext}">{t(lang, "save_img")}</a>
     <a class="btn" href="{app_url}/?share={sid}">{t(lang, "open_in")}</a>
