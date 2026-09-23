@@ -10,10 +10,6 @@
      Claude のアプリの中では Google Fonts が読み込まれないため）。 */
   :root {
     color-scheme: light;
-    /* ドット字の 1 目。DotGothic16 は 16px で 1 目 = 1px の字なので、字の大きさを「画素比を丸めた数 ÷ 画素比」の倍数にすると
-       1 目が端末の画素のちょうど整数倍になり、英字の上辺がガタつかない（9/24、Pixel の 2.625 倍で段がそろっていなかった）。
-       --ds は小さい字（1 目を 1 画素ぶん小さく）。値は JS（setDot）が入れる */
-    --d: 1px; --ds: 0.8125px;
     /* リソ（既定） */
     --ground: oklch(89% 0.005 95);        /* 机（窓の後ろ） */
     --dither: oklch(82% 0.012 250);       /* 机の市松の目 */
@@ -73,7 +69,7 @@
 
   * { box-sizing: border-box; }
   /* **body にも付ける**。公開のときに付く外側の枠が body に font（-apple-system）を直に書くので、html だけだと上書きされる（9/23） */
-  html, body { font-family: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace; font-size: calc(16 * var(--d)); line-height: 1.5; }
+  html, body { font-family: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace; font-size: 16px; line-height: 1.5; }
   body {
     margin: 0; min-height: 100%;
     display: flex; flex-direction: column;
@@ -93,7 +89,7 @@
   a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
   /* 上の帯（F1〜F9 で窓へ）と下の帯（時点・配色）。TuiCss は fixed だが、ページが流れるよう sticky にする */
-  .fbar, .sbar { background: var(--bar); color: var(--ink); font-size: calc(16 * var(--ds)); }
+  .fbar, .sbar { background: var(--bar); color: var(--ink); font-size: 14px; }
   .fbar { position: sticky; top: 0; z-index: 20; padding-top: env(safe-area-inset-top, 0px); border-bottom: 2px solid var(--bar-edge); }
   .fbar ul { list-style: none; margin: 0 auto; padding: 2px 16px; max-width: 1060px; display: flex; flex-wrap: wrap; gap: 0 1.5ch; }
   .fbar a { color: inherit; text-decoration: none; padding: 0 .5ch; display: inline-block; }
@@ -115,9 +111,9 @@
   .wrap { width: 100%; max-width: 1060px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 48px; }
 
   header.top { background: var(--win); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--shadow); padding: 6px 1.5ch 8px; }
-  .eyebrow { font-size: calc(16 * var(--ds)); color: var(--muted); }
-  h1 { font-size: calc(32 * var(--d)); line-height: 1.25; margin: 2px 0 4px; font-weight: 400; text-wrap: balance; }
-  .sub { color: var(--muted); margin: 0; font-size: calc(16 * var(--ds)); }
+  .eyebrow { font-size: 13px; color: var(--muted); }
+  h1 { font-size: 32px; line-height: 1.25; margin: 2px 0 4px; font-weight: 400; text-wrap: balance; }
+  .sub { color: var(--muted); margin: 0; font-size: 14px; }
   .sub strong, .cap strong { color: var(--ink); }
 
   /* 窓: 二重線・ずらした影・題名の札を上の線に載せる（TuiCss の fieldset と legend の形） */
@@ -131,12 +127,12 @@
     display: flex; align-items: flex-start; gap: 4px 1.5ch; flex-wrap: wrap;
     margin: -0.85em 0 0; padding: 0 1.5ch;
   }
-  .bar h2 { font-size: calc(16 * var(--d)); font-weight: 400; margin: 0; padding: 0 1ch; background: var(--legend-bg); color: var(--legend-ink); }
-  .bar .count { font-size: calc(16 * var(--ds)); color: var(--muted); background: var(--win); padding: 0 1ch; margin-left: auto; }
+  .bar h2 { font-size: 16px; font-weight: 400; margin: 0; padding: 0 1ch; background: var(--legend-bg); color: var(--legend-ink); }
+  .bar .count { font-size: 13px; color: var(--muted); background: var(--win); padding: 0 1ch; margin-left: auto; }
   section.win > .body { padding: 12px 1.5ch 16px; }
   section.win:target { border-color: var(--key); }
   /* 窓の開け閉め（2026-09-24）。長い窓はスマホでは閉じて始める。閉じても題名の札と件数は見える */
-  .bar .fold { font: inherit; font-size: calc(16 * var(--ds)); color: var(--ink); background: var(--win); border: none; padding: 0 1ch; cursor: pointer; }
+  .bar .fold { font: inherit; font-size: 14px; color: var(--ink); background: var(--win); border: none; padding: 0 1ch; cursor: pointer; }
   .bar .fold:hover { background: var(--legend-bg); color: var(--legend-ink); }
   section.win.shut > .body { display: none; }
   section.win.shut { padding-bottom: 10px; box-shadow: 5px 5px 0 var(--shadow); }
@@ -150,30 +146,30 @@
   .tile { border-left: 6px solid var(--rule); padding: 0 0 0 1ch; }
   .tile.ok { border-left-color: var(--ok-bg); }
   .tile.watch { border-left-color: var(--warn-bg); }
-  .tile .k { font-size: calc(16 * var(--ds)); color: var(--muted); }
-  .tile .v { font-size: calc(32 * var(--d)); line-height: 1.2; font-variant-numeric: tabular-nums; }
-  .tile .v small { font-size: calc(16 * var(--d)); color: var(--muted); margin-left: 2px; }
-  .tile .n { font-size: calc(16 * var(--ds)); color: var(--muted); line-height: 1.45; }
+  .tile .k { font-size: 13px; color: var(--muted); }
+  .tile .v { font-size: 32px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .tile .v small { font-size: 16px; color: var(--muted); margin-left: 2px; }
+  .tile .n { font-size: 13px; color: var(--muted); line-height: 1.45; }
 
   /* 図 */
   .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 24px; }
-  .chart h3 { font-size: calc(16 * var(--d)); font-weight: 400; margin: 0 0 2px; }
-  .chart p.cap { margin: 0 0 8px; font-size: calc(16 * var(--ds)); color: var(--muted); }
+  .chart h3 { font-size: 16px; font-weight: 400; margin: 0 0 2px; }
+  .chart p.cap { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
   /* 図は置き場の幅そのままで描く（縮めない）。時系列は 1 点ぶんの幅を守って横に流し、最新の右端を見せる。棒は収めて字を間引く */
   .chart { min-width: 0; }
   .chart > div[id^="c-"] { overflow-x: auto; scrollbar-color: var(--rule) transparent; scrollbar-width: thin; }   /* つまみは薄く（9/24） */
   .chart svg { display: block; font-family: inherit; }
-  .legend { display: flex; gap: 4px 2ch; flex-wrap: wrap; font-size: calc(16 * var(--ds)); color: var(--muted); margin-top: 6px; }
+  .legend { display: flex; gap: 4px 2ch; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 6px; }
   .legend i { display: inline-block; width: 12px; height: 12px; margin-right: .5ch; vertical-align: -1px; border: 1px solid var(--ink); }
 
   /* メーター（ホスト別） */
   .bars { display: grid; gap: 6px; }
   .barrow { display: grid; grid-template-columns: minmax(130px, 200px) 1fr 5ch; gap: 1.5ch; align-items: center; }
-  .barrow .host { font-size: calc(16 * var(--ds)); overflow-wrap: anywhere; }
+  .barrow .host { font-size: 14px; overflow-wrap: anywhere; }
   .barrow .track { display: block; height: 18px; background: var(--win-2); border: 2px solid var(--ink); }
   .barrow .fill { display: block; height: 100%; background: var(--c-api); min-width: 2px; }
   .barrow .fill.img { background: var(--c-img); }
-  .barrow .val { font-size: calc(16 * var(--ds)); text-align: right; font-variant-numeric: tabular-nums; }
+  .barrow .val { font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
   @media (max-width: 520px) {
     .barrow { grid-template-columns: 1fr 5ch; row-gap: 2px; }
     .barrow .track { grid-column: 1; }
@@ -182,13 +178,13 @@
 
   /* 表 */
   .scroll { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: calc(16 * var(--ds)); }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
   th, td { text-align: left; padding: 4px 8px; vertical-align: top; border-right: 2px solid var(--rule); border-bottom: 1px solid var(--rule); }
   th:last-child, td:last-child { border-right: none; }
   thead th { font-weight: 400; background: var(--win-2); border-bottom: 2px solid var(--ink); white-space: nowrap; }
   tbody tr:last-child td { border-bottom: none; }
   @media (hover: hover) { tbody tr:hover { background: var(--hover); } }   /* 触る画面では押した行が色づいたまま残るので付けない */
-  td .note { color: var(--muted); font-size: calc(16 * var(--ds)); display: block; }
+  td .note { color: var(--muted); font-size: 13px; display: block; }
   /* 外部サービスの状態の札は名前の横に置く（9/24、利用者の希望。以前は表の右端の列） */
   td .who + .pill { margin-left: .5ch; vertical-align: 1px; }
   #svc th:first-child { width: 15em; }
@@ -206,20 +202,20 @@
     th, td { border-right: none; padding: 2px 0; }
     tbody tr td { border-bottom: 1px dashed var(--rule); }
     tbody tr td:last-child { border-bottom: none; }
-    td[data-label]::before { content: attr(data-label); display: block; font-size: calc(16 * var(--ds)); color: var(--muted); }
+    td[data-label]::before { content: attr(data-label); display: block; font-size: 13px; color: var(--muted); }
     td:first-child::before { display: none; }
-    td:first-child { font-size: calc(16 * var(--d)); }
+    td:first-child { font-size: 16px; }
     .nums { white-space: normal; }
     /* 外部サービスは 1 社ずつ開け閉めする。閉じていると名前・状態・用途だけ（9/24、利用者の希望） */
     #svc .rowfold, #docs .rowfold { display: inline-block; }
     :is(#svc, #docs) tbody tr:not(.open) td:not(:first-child) { display: none; }
     :is(#svc, #docs) tbody tr:not(.open) td:first-child { border-bottom: none; }
   }
-  .rowfold { display: none; float: right; font: inherit; font-size: calc(16 * var(--ds)); color: var(--ink); background: none; border: none; padding: 0 0 0 1ch; cursor: pointer; }
+  .rowfold { display: none; float: right; font: inherit; font-size: 14px; color: var(--ink); background: none; border: none; padding: 0 0 0 1ch; cursor: pointer; }
   .rowfold:hover { background: var(--legend-bg); color: var(--legend-ink); }
 
   /* 状態の札。色の地に字（明るい地で色の字は読めない） */
-  .pill { display: inline-block; font-size: calc(16 * var(--ds)); padding: 0 .75ch; white-space: nowrap; background: var(--dim-bg); color: var(--dim-ink); }
+  .pill { display: inline-block; font-size: 13px; padding: 0 .75ch; white-space: nowrap; background: var(--dim-bg); color: var(--dim-ink); }
   .pill.ok { background: var(--ok-bg); color: var(--ok-ink); }
   .pill.wait { background: var(--warn-bg); color: var(--warn-ink); }
   .pill.stop { background: var(--bad-bg); color: var(--bad-ink); }
@@ -237,21 +233,21 @@
   .box:focus-visible { outline: 2px solid var(--focus); }
   .item { min-width: 0; overflow-wrap: anywhere; }
   .item .t { font-weight: 400; }
-  .item .d { color: var(--muted); font-size: calc(16 * var(--ds)); display: block; }
+  .item .d { color: var(--muted); font-size: 14px; display: block; }
   li.done .item .t { text-decoration: line-through; color: var(--muted); }
-  code, code.cmd { font-family: inherit; font-size: calc(16 * var(--ds)); background: var(--win-2); padding: 0 .5ch; border: 1px solid var(--rule); overflow-wrap: anywhere; }
-  .when { font-size: calc(16 * var(--ds)); padding: 0 .75ch; margin-left: 1ch; white-space: nowrap; background: var(--hi-bg); color: var(--hi-ink); }
+  code, code.cmd { font-family: inherit; font-size: 14px; background: var(--win-2); padding: 0 .5ch; border: 1px solid var(--rule); overflow-wrap: anywhere; }
+  .when { font-size: 13px; padding: 0 .75ch; margin-left: 1ch; white-space: nowrap; background: var(--hi-bg); color: var(--hi-ink); }
   .when.soon { background: var(--bad-bg); color: var(--bad-ink); }
-  .savehint { font-size: calc(16 * var(--ds)); color: var(--muted); }
+  .savehint { font-size: 13px; color: var(--muted); }
 
   ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
   ol.steps li { display: grid; grid-template-columns: 3ch 1fr; gap: 1ch; align-items: start; }
-  ol.steps .n { font-size: calc(16 * var(--d)); color: var(--win); background: var(--ink); height: 1.5em; display: grid; place-content: center; font-variant-numeric: tabular-nums; }
+  ol.steps .n { font-size: 16px; color: var(--win); background: var(--ink); height: 1.5em; display: grid; place-content: center; font-variant-numeric: tabular-nums; }
   ol.steps b { display: block; background: none; }
-  ol.steps .d { color: var(--muted); font-size: calc(16 * var(--ds)); display: block; }
+  ol.steps .d { color: var(--muted); font-size: 14px; display: block; }
   .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 18px; margin-top: 18px; padding-top: 12px; border-top: 2px solid var(--rule); }
-  .split h3, .note-block h3, section.win h3 { font-size: calc(16 * var(--d)); font-weight: 400; margin: 0 0 4px; }
-  dl.kv, .note-block dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 1.5ch; font-size: calc(16 * var(--ds)); }
+  .split h3, .note-block h3, section.win h3 { font-size: 16px; font-weight: 400; margin: 0 0 4px; }
+  dl.kv, .note-block dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 1.5ch; font-size: 14px; }
   dl.kv dt, .note-block dt { color: var(--muted); white-space: nowrap; }
   dl.kv dd, .note-block dd { margin: 0; min-width: 0; }
   .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 18px; }
@@ -275,7 +271,7 @@
   a.totop:active { transform: translate(4px, 4px); box-shadow: none; }
   a.totop[hidden] { display: none; }
 
-  footer.foot { margin-top: 32px; color: var(--muted); font-size: calc(16 * var(--ds)); }
+  footer.foot { margin-top: 32px; color: var(--muted); font-size: 13px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -628,8 +624,7 @@
        それ以外の棒は収めて重なる字を間引く
      - 折れ線は点どうしを斜めにつなぎ（9/24 に階段から戻した。矩形ばかりで硬いと言われた）、線は墨、面は 2px の市松、終点は四角
      - 棒は墨の枠と、窓と同じずらした影。目盛りの線は点線、軸は墨の 2px */
-  const DOT = Math.max(1, Math.round(window.devicePixelRatio || 1)) / (window.devicePixelRatio || 1);
-  const FS = 16 * DOT;                 // 図の字の大きさ（ドット字の 1 目を端末の画素の整数倍に）
+  const FS = 16;                       // 図の字の大きさ
   const LABEL_GAP = 8;                 // x 軸の字どうしの最小のすきま
   function textW(t) { let w = 0; for (const c of String(t)) w += c.charCodeAt(0) < 0x2000 ? FS / 2 : FS; return w; }
   function chartW(node, minW) { return Math.max(minW || 260, Math.floor(node.clientWidth || 560)); }
@@ -1225,13 +1220,6 @@
     document.getElementById("asof").textContent = (LATEST.jst || "").slice(0, 10);
     document.getElementById("sbar-asof").textContent = (LATEST.jst || "").slice(5) || "—";
   }
-
-  /* ドット字の 1 目を端末の画素の整数倍にする（--d / --ds）。画素比が 2 未満なら小さい字は 13px のまま（1 画素 1 目では小さすぎる） */
-  (function setDot() {
-    const dpr = window.devicePixelRatio || 1, r = Math.max(1, Math.round(dpr));
-    document.documentElement.style.setProperty("--d", (r / dpr) + "px");
-    document.documentElement.style.setProperty("--ds", (r >= 2 ? (r - 1) / dpr : 13 / 16) + "px");
-  })();
 
   /* 文節での改行（word-break: auto-phrase）は lang="ja" のときだけ効く */
   document.documentElement.lang = "ja";
