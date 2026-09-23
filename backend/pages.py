@@ -36,6 +36,18 @@ You can make images like “9 tracks that made me” by combining tracks from ma
 subscribe to a streaming service. Its distinguishing feature is that you can arrange music freely <b>track by track</b>, not only
 album by album. It is completely free, and no sign-up is required.</p>
 
+<h2>Other ways to use it</h2>
+<p>You can arrange tracks by any rule you like. Besides “9 tracks that made me”, here are a few ideas:</p>
+<ul>
+<li>Pick by season or weather (“Songs for rainy days”, “Songs for the end of summer”)</li>
+<li>Match cover art by colour or design</li>
+<li>Keep a record of a live show or school festival setlist</li>
+<li>Collect cover videos your favourite singer or player has posted</li>
+<li>Line up the songs sampled in otomads</li>
+<li>Look back on the tracks you played most this year</li>
+</ul>
+<p>Uses not on this list are very welcome too.</p>
+
 <h2>How to make a grid</h2>
 <ol class="steps">
 <li><b>Set the number of cells:</b> Choose how many cells go down and across (up to 32 per side, 256 cells in total).</li>
@@ -92,6 +104,18 @@ and share the music they love. When sharing, please follow the terms of use and 
 """
     return f"""
 <p>TRACKMENTO（トラックメント）は、好きなトラックのアートワーク（ジャケット写真）を格子状に並べて1枚の画像にするツールです。「私を構成する9曲」のような画像を、サブスクリプションへの加入有無に関わらず、さまざまな配信サイトのトラックを組み合わせて作成できます。アルバム単位だけでなく、<b>トラック単位</b>で自由に並べられるのが特徴です。完全無料で、会員登録も不要です。</p>
+
+<h2>こんな使い方も</h2>
+<p>並べる決まりは自由です。「私を構成する9曲」のほかにも、たとえばこんな並べ方があります。</p>
+<ul>
+<li>季節や天気で選ぶ（「雨の日に聴く曲」「夏の終わりに聴きたい曲」など）</li>
+<li>ジャケットの色や絵柄でそろえる</li>
+<li>ライブや文化祭のセトリを残す</li>
+<li>推しの歌ってみたや演奏してみた動画を集める</li>
+<li>音MADの元ネタを並べる</li>
+<li>1年でいちばん聴いたトラックを振り返る</li>
+</ul>
+<p>ここにない使い方も大歓迎です。</p>
 
 <h2>並べ方</h2>
 <ol class="steps">
@@ -218,6 +242,7 @@ Tobokegao runs the independent label TBKgao and contributed the song “Nouveau 
 among other work.</p>
 <p>TRACKMENTO began as a personal tool for making “tracks that made me” images that include works not available on streaming
 services, such as Vocaloid songs, otomad and doujin music, and was later released to the public as a web service.</p>
+<p>Feel free to arrange tracks by any rule you like. Coming across uses the creator never thought of is the best part of running it.</p>
 
 <h2>Contact</h2>
 <p>For questions, bug reports, requests or deletion of shared data, please use the
@@ -236,6 +261,7 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
     return f"""
 <p>TRACKMENTO は <b>Tobokegao（とぼけがお）</b>が開発・運営しています。2014年よりゲームボーイを用いた作曲活動を行っているチップチューンアーティストで、自主レーベル「TBKgao」の主宰や、Nintendo Switch用ソフト『YARS RISING』への楽曲提供（「Nouveau Monde」）などを手がけています。</p>
 <p>ボカロのトラックや音MAD、同人音楽など、サブスクリプションサービスでは配信されていない作品も含めて「私を構成する曲」の画像を作りたい、という自分用のツール開発からスタートし、Webサービスとして一般公開しました。</p>
+<p>どんな決まりで並べても大丈夫です。作った本人が思いつかなかった使い方を見かけるのが、いちばんの楽しみです。</p>
 
 <h2>お問い合わせ</h2>
 <p>ご質問、不具合のご報告、ご要望、共有データの削除依頼などは、<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>よりお願いいたします。共有データに関するお問い合わせの際は、対象の共有URLを忘れずに添えてご連絡ください。<a href="{ja_url}" rel="noopener">公式サイト</a>に記載の連絡先からもご連絡いただけます。</p>
@@ -252,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-23", "題名の欄の入力例が、開くたびに変わるようになりました（「雨の日に聴く曲」「文化祭のセトリ」など）。使い方のページにも「こんな使い方も」を足しています。どんな決まりで並べても大丈夫です。",
+     "The example in the title field now changes each time you open the page (“Songs for rainy days”, “Our school festival setlist” and more). The How to use page also has a new “Other ways to use it” section. You can arrange tracks by any rule you like."),
     ("2026-09-23", "並びを 10 個まで持てるようになりました。グリッドの上の「並び」のメニューで切り替え、「新しい並び」で増やせます。共有 URL を開いたときは、今の並びにトラックが入っていれば、上書きせずに新しい並びとして開きます。",
      "You can now keep up to 10 layouts. Switch between them with the “Layout” menu above the grid, and add one with “New layout”. When you open a share URL and your current layout already has tracks, it opens as a new layout instead of replacing it."),
     ("2026-09-23", "アーティスト名とトラック名の表から、まとめて入れられるようになりました（検索の「トラック名の一覧から」、一度に 20 行まで）。Excel などの表も貼れます。逆に「トラック名をコピー」で、並びを「1. アーティスト - トラック名」の文章にしてコピーできます。",

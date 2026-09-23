@@ -1962,6 +1962,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "配置数": "Cells filled",
         "グリッドを折りたたむ": "Collapse grid",
         "例: 私を構成する9曲": "e.g. 9 tracks that made me",
+        "例: 雨の日に聴く曲": "e.g. Songs for rainy days",
+        "例: 今年いちばん聴いた曲": "e.g. My most-played this year",
+        "例: 推しの歌ってみた": "e.g. Covers by my favourite singer",
+        "例: 音MADの元ネタ": "e.g. Songs sampled in otomads",
+        "例: 文化祭のセトリ": "e.g. Our school festival setlist",
+        "例: ジャケットが青い曲": "e.g. Tracks with blue cover art",
+        "例: 夜のドライブで流す曲": "e.g. Songs for a late-night drive",
         "ジャケットの並び": "Cover grid",
         "画像を作り、今の並びと一緒に共有 URL にする": "Render an image and put it, with the current layout, behind a share URL",
         "並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる": "Save the layout (tracks, image URLs and output settings) to a JSON file on this device. Load it to get the same layout back",
@@ -2166,6 +2173,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return raw.reduce((s, p, i) => s + (i ? v[i - 1] : "") + p, "");
   }
 
+  /* 題名欄の例は開くたびに変える（2026-09-23、運用ボードの open-use）。例が「私を構成する9曲」だけだと、
+     ほかの決まりで並べた人が「想定と合っているか分からない」と感じるため。選ぶ基準がばらばらな例を混ぜる。
+     言語を切り替えても同じ例のままにするので、番号は読み込んだときに 1 回だけ決める */
+  const TITLE_EX_I = Math.floor(Math.random() * 8);
+  function titleExample() {
+    return [tr("例: 私を構成する9曲"), tr("例: 雨の日に聴く曲"), tr("例: 今年いちばん聴いた曲"), tr("例: 推しの歌ってみた"),
+            tr("例: 音MADの元ネタ"), tr("例: 文化祭のセトリ"), tr("例: ジャケットが青い曲"), tr("例: 夜のドライブで流す曲")][TITLE_EX_I];
+  }
+
   const I18N_SNAP = [];
   function snapI18n() {
     const w = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
@@ -2193,6 +2209,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     for (const a of document.querySelectorAll(".foot-page")) a.href = `/${a.dataset.page}${LANG === "en" ? "?lang=en" : ""}`;
     const home = $("#home-link");
     if (home) home.href = LANG === "en" ? "/?lang=en" : "/";
+    const ti = $("#title");
+    if (ti) ti.placeholder = titleExample();
     const b = $("#lang-switch");
     if (b) {
       b.textContent = LANG === "ja" ? "EN" : "日本語";
