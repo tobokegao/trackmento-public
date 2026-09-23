@@ -49,6 +49,12 @@
       `User-agent: * / Disallow: /`。**許可を求める窓口が見当たらない**ので、**対応そのものをやめた**
       （`video.fetch_bilibili` と `playlist._bilibili` は案内を返すだけ。`fromurl._ROXY_FALLBACK` からも外した）。
       画像 URL の手入力でマスには入れられる。**すでに並びに入っている曲はそのまま映る**
+      - **2026-09-23 に開放平台（open.bilibili.com/doc）を読み直した**（JS で描かれるページなので Playwright で開き、
+        文書の目次 API `open.bilibili.com/arcopen/user/open-doc/view?id=4` から全文を取った）。**個人は登録できない**
+        （「暂未开通个人开发者的申请入驻」。営業許可証・押印した公函・ICP 備案が要る）。稿件の詳細（`arcopen/fn/archive/view`）は
+        **作者本人の OAuth が前提**で、任意の BV から題名やカバーを引く口は無い。載っていない用途の相談先は
+        `openplatform-feedback@bilibili.com`（CC `live-open@bilibili.com`、3〜5 営業日）で、「合作内容・双方の定量的な利益・会社情報」を
+        書くよう求めている。戻すなら、この窓口に書面許可を頼むか、VocaDB の PV から引く（bilibili を叩かない）かのどちらか
     - **名乗りを正直にする** … `playlist.py` と `applemusic.py` が素の Chrome の UA を、旧 `spotify.py` が
       facebookexternalhit を名乗っていた。**ブラウザやクローラのふりをすると、相手は誰が来ているか分からず、
       連絡も遮断もできない**。今は全部 `trackmento/0.1 (+https://trackmento.com)`（HTML を読む所は
