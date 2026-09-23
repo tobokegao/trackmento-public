@@ -22,6 +22,7 @@ import json
 import re
 import threading
 import unicodedata
+from difflib import SequenceMatcher
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor
 
@@ -189,26 +190,47 @@ def _row(e: dict) -> dict:
 _COMMON_TITLE = re.compile(r"構成(する|した|して)|make(s)? me|made me", re.I)
 
 
+def _theme_key(title: str) -> str:
+    """「いろんな切り口」で同じ題かを比べる形。数字と記号を落とす（「好きな音MAD9選」と「好きな音MAD10選」は同じ題）。"""
+    return re.sub(r"[\d\W_]+", "", _norm(title))
+
+
+def _same_theme(a: str, b: str) -> bool:
+    """言い回しが違うだけの同じ題か。**いちばん長い共通の部分が、短いほうの 6 割以上**なら同じと見る。
+
+    ぴったり同じ文字列だけをまとめていたとき、「好きな音MAD9選」「我的音mad9選」「9個の音MAD」が
+    8 件のうち 3 件を占めた（2026-09-24、本番の点検）。共通の「音mad」は短いほう（個の音mad）の 6 割を超える。
+    6 割にしたのは「好きな曲（VTuber）」と「好きな曲（アニメ）」を別の題に残すため（共通の「好きな曲」は 4/7）。
+    """
+    if a == b:
+        return True
+    n = min(len(a), len(b))
+    if n == 0:
+        return False
+    m = SequenceMatcher(None, a, b, autojunk=False).find_longest_match(0, len(a), 0, len(b))
+    return m.size >= 2 and m.size >= 0.6 * n
+
+
 def varied(limit: int = 8) -> list[dict]:
     """探す前の画面の上に出す「いろんな切り口」。**想定外の使い方を目立たせる**（2026-09-24、open-use ⑤）。
 
     載る並びの大半は「私を構成する 9 曲」で、新しい順に並べるだけだと、ほかのテーマの並びが埋もれる。
-    題のあるもののうち「構成する」の形を外し、同じ題（数字の違いは同じと見る）は新しい 1 件にまとめる。
+    題のあるもののうち「構成する」の形を外し、同じ題（言い回しだけ違うものも。`_same_theme`）は新しい 1 件にまとめる。
     運営が手で選ぶことはしない（選ぶ手間が毎回かかる。2026-09-24 に利用者が自動を選んだ）。
     """
     with _lock:
         items = list(reversed(_entries))
-    out, seen = [], set()
+    out, seen = [], []
     alive = _alive_after()
     for e in items:
         if e["createdAt"] and e["createdAt"] < alive:
             break
         if not e["title"] or _COMMON_TITLE.search(e["title"]):
             continue
-        key = re.sub(r"\d+", "", _norm(e["title"]))   # 「好きな音MAD9選」と「好きな音MAD10選」は同じ題
-        if key in seen:
+        key = _theme_key(e["title"])
+        if any(_same_theme(key, k) for k in seen):
             continue
-        seen.add(key)
+        seen.append(key)
         out.append(_row(e))
         if len(out) >= limit:
             break
