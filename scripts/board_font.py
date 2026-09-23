@@ -1,4 +1,4 @@
-"""運用ボード（scripts/board/index.html）に JF ドット東雲ゴシック14 を刈り込んで埋め込む（16 からさらに小さくした）。
+"""運用ボード（scripts/board/index.html）に JF ドット M+ 12 を刈り込んで埋め込む。
 
 2026-09-24 に DotGothic16 → マルモニカ → 東雲ゴシック16 と替えた（DotGothic16 は英字の上辺が波打ち、
 マルモニカは縦長。東雲は 16×16 の正方形で英字の上辺もそろう）。ライセンスは fonts/LICENSE-JF-Dot-Shinonome16.txt（実質パブリックドメイン）。
@@ -20,9 +20,10 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "scripts/board/index.html"
-SRC = "fonts/JF-Dot-Shinonome14.ttf"   # 9/24 に 16 から 14 へ（字をもう少し小さく、と言われた）
-PX = 14                                # この字の 1 目 = 1px になる大きさ
-LATIN_DROP_DOTS = 0                    # 半角の英数記号を下げる目の数（14 では下げない。1 だと上に 2 目・下に 1 目で下寄りに見えた。9/24）
+SRC = "fonts/JF-Dot-MPlus12.ttf"       # 9/24: 東雲 16 → 東雲 14（小さく）→ M+ 12（東雲 14 は はね・はらいが残り明朝寄りに見えた）
+PX = 12                                # この字の 1 目 = 1px になる大きさ
+LATIN_DROP_DOTS = -1                   # 半角の英数記号を下げる目の数（負なら上げる）。M+ 12 は大文字が漢字より上 2 目・下 1 目あくので 1 目上げる
+                                       # （東雲 14 では 0、1 だと上 2 目・下 1 目で下寄りに見えた。9/24）
 SOURCES = [PAGE, ROOT / "scripts/board/status.json", ROOT / "scripts/board_data.py"]
 
 
@@ -75,9 +76,9 @@ def main() -> None:
 
     block = (
         '\n<style id="fonts">\n'
-        "/* JF ドット東雲ゴシック14（実質パブリックドメイン、fonts/LICENSE-JF-Dot-Shinonome16.txt）を scripts/board_font.py で刈り込んだもの。"
+        "/* JF ドット M+ 12（M+ FONTS LICENSE、fonts/LICENSE-JF-Dot-MPlus12.txt）を scripts/board_font.py で刈り込んだもの。"
         "字を大きく足したら回し直す */\n"
-        '@font-face { font-family: "Shinonome"; src: url("data:font/woff2;base64,'
+        '@font-face { font-family: "BoardDot"; src: url("data:font/woff2;base64,'
         + b64
         + '") format("woff2"); font-display: block; }\n</style>\n'
     )
