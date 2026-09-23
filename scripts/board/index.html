@@ -189,6 +189,8 @@
   /* 外部サービスの状態の札は名前の横に置く（9/24、利用者の希望。以前は表の右端の列） */
   td .who + .pill { margin-left: .5ch; vertical-align: 1px; }
   #svc th:first-child { width: 15em; }
+  #docs th:first-child { width: 17em; }
+  .pill.est::after { content: " トークン"; }
 
   /* スマホでは表を横に流さず、1 行を 1 枚の札に積む。列の名前は JS が data-label に写す（2026-09-24、横の流しは見にくいと言われた） */
   @media (max-width: 640px) {
@@ -206,9 +208,9 @@
     td:first-child { font-size: 16px; }
     .nums { white-space: normal; }
     /* 外部サービスは 1 社ずつ開け閉めする。閉じていると名前・状態・用途だけ（9/24、利用者の希望） */
-    #svc .rowfold { display: inline-block; }
-    #svc tbody tr:not(.open) td:not(:first-child) { display: none; }
-    #svc tbody tr:not(.open) td:first-child { border-bottom: none; }
+    #svc .rowfold, #docs .rowfold { display: inline-block; }
+    :is(#svc, #docs) tbody tr:not(.open) td:not(:first-child) { display: none; }
+    :is(#svc, #docs) tbody tr:not(.open) td:first-child { border-bottom: none; }
   }
   .rowfold { display: none; float: right; font: inherit; font-size: 14px; color: var(--ink); background: none; border: none; padding: 0 0 0 1ch; cursor: pointer; }
   .rowfold:hover { background: var(--legend-bg); color: var(--legend-ink); }
@@ -486,19 +488,19 @@
       <p class="sub" style="margin:0 0 12px"><code>CLAUDE.md</code> は毎回まるごと読み込まれる。11 万字あったので、<strong>核と参照に分けた</strong>（2026-09-20、<code>9a11c39</code>）。中身は並べ替えず、そのまま移してある。推定は字数 × 0.44（分けたときの見積もりと同じ比）で、ログを見るたびに今の字数で出し直す。</p>
       <div class="scroll">
         <table>
-          <thead><tr><th>ファイル</th><th>中身</th><th>読むとき</th><th>推定</th></tr></thead>
+          <thead><tr><th>ファイル（推定トークン）</th><th>中身</th><th>読むとき</th></tr></thead>
           <tbody>
-            <tr><td><code>CLAUDE.md</code></td><td>核。全体の仕組み・起動・CLI・変更したら回すもの・二重実装の一覧・索引</td><td>毎回</td><td class="nums" data-doc="claude">8.0k</td></tr>
-            <tr><td><code>docs/layout.md</code></td><td>割り付け（回り込み・柱と帯・曲名リスト）</td><td>render.py / renderShareCanvas を触るとき</td><td class="nums" data-doc="layout">10.2k</td></tr>
-            <tr><td><code>docs/ui.md</code></td><td>画面（スライダー・スクロールバー・パレット・日本語と英語）</td><td>index.html を触るとき</td><td class="nums" data-doc="ui">8.6k</td></tr>
-            <tr><td><code>docs/ops.md</code></td><td>本番・点検・引っ越し・画像の中継・過去の数字</td><td>デプロイや点検のとき</td><td class="nums" data-doc="ops">6.4k</td></tr>
-            <tr><td><code>docs/gotchas.md</code></td><td>一度引っかかった覚え書き</td><td>「前も同じ所でつまずいた気がする」とき</td><td class="nums" data-doc="gotchas">4.9k</td></tr>
-            <tr><td><code>docs/sources.md</code></td><td>取得元と画像の大きさ</td><td>sources/ を触るとき</td><td class="nums" data-doc="sources">4.2k</td></tr>
-            <tr><td><code>docs/services-terms.md</code></td><td>各サービスの規約・上限と問い合わせの記録</td><td>取得のしかたを変えるとき</td><td class="nums" data-doc="terms">2.0k</td></tr>
-            <tr><td><code>docs/history.md</code></td><td>経緯と保留していること</td><td>「なぜこうなっているのか」を知りたいとき</td><td class="nums" data-doc="history">2.8k</td></tr>
-            <tr><td><code>docs/share.md</code> / <code>env.md</code> / <code>promo.md</code></td><td>共有・環境変数・記事の素材</td><td>その作業のとき</td><td class="nums" data-doc="misc">3.8k</td></tr>
-            <tr><td>メモリ（<code>MEMORY.md</code> ほか）</td><td>利用者の好み・進捗・引き継ぎ</td><td>毎回（索引のみ）</td><td class="nums" data-doc="memory">0.5k</td></tr>
-            <tr><td><code>metrics/series.jsonl</code></td><td>点検 1 回 1 行の記録。上の図の元</td><td>推移を見るとき</td><td class="nums">—</td></tr>
+            <tr><td><span class="who"><code>CLAUDE.md</code></span> <span class="pill est" data-doc="claude">8.0k</span></td><td>核。全体の仕組み・起動・CLI・変更したら回すもの・二重実装の一覧・索引</td><td>毎回</td></tr>
+            <tr><td><span class="who"><code>docs/layout.md</code></span> <span class="pill est" data-doc="layout">10.2k</span></td><td>割り付け（回り込み・柱と帯・曲名リスト）</td><td>render.py / renderShareCanvas を触るとき</td></tr>
+            <tr><td><span class="who"><code>docs/ui.md</code></span> <span class="pill est" data-doc="ui">8.6k</span></td><td>画面（スライダー・スクロールバー・パレット・日本語と英語）</td><td>index.html を触るとき</td></tr>
+            <tr><td><span class="who"><code>docs/ops.md</code></span> <span class="pill est" data-doc="ops">6.4k</span></td><td>本番・点検・引っ越し・画像の中継・過去の数字</td><td>デプロイや点検のとき</td></tr>
+            <tr><td><span class="who"><code>docs/gotchas.md</code></span> <span class="pill est" data-doc="gotchas">4.9k</span></td><td>一度引っかかった覚え書き</td><td>「前も同じ所でつまずいた気がする」とき</td></tr>
+            <tr><td><span class="who"><code>docs/sources.md</code></span> <span class="pill est" data-doc="sources">4.2k</span></td><td>取得元と画像の大きさ</td><td>sources/ を触るとき</td></tr>
+            <tr><td><span class="who"><code>docs/services-terms.md</code></span> <span class="pill est" data-doc="terms">2.0k</span></td><td>各サービスの規約・上限と問い合わせの記録</td><td>取得のしかたを変えるとき</td></tr>
+            <tr><td><span class="who"><code>docs/history.md</code></span> <span class="pill est" data-doc="history">2.8k</span></td><td>経緯と保留していること</td><td>「なぜこうなっているのか」を知りたいとき</td></tr>
+            <tr><td><span class="who"><code>docs/share.md</code> / <code>env.md</code> / <code>promo.md</code></span> <span class="pill est" data-doc="misc">3.8k</span></td><td>共有・環境変数・記事の素材</td><td>その作業のとき</td></tr>
+            <tr><td><span class="who">メモリ（<code>MEMORY.md</code> ほか）</span> <span class="pill est" data-doc="memory">0.5k</span></td><td>利用者の好み・進捗・引き継ぎ</td><td>毎回（索引のみ）</td></tr>
+            <tr><td><span class="who"><code>metrics/series.jsonl</code></span></td><td>点検 1 回 1 行の記録。上の図の元</td><td>推移を見るとき</td></tr>
           </tbody>
         </table>
       </div>
@@ -1011,7 +1013,7 @@
 
   function drawDocs() {
     if (!DOCS) return;
-    document.querySelectorAll("td[data-doc]").forEach(td => {
+    document.querySelectorAll("[data-doc]").forEach(td => {
       const v = DOCS[td.dataset.doc];
       if (v != null) td.textContent = v.toFixed(1) + "k";
     });
@@ -1300,8 +1302,8 @@
     const names = [...t.querySelectorAll("thead th")].map(th => th.textContent);
     t.querySelectorAll("tbody tr").forEach(tr => [...tr.children].forEach((td, i) => { if (names[i]) td.dataset.label = names[i]; }));
   });
-  /* 外部サービスの札の開け閉め（スマホの札のときだけ見える）。閉じて始める */
-  document.querySelectorAll("#svc tbody tr").forEach(tr => {
+  /* 外部サービスと文書の札の開け閉め（スマホの札のときだけ見える）。閉じて始める */
+  document.querySelectorAll("#svc tbody tr, #docs tbody tr").forEach(tr => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "rowfold";
     const set = open => { tr.classList.toggle("open", open); b.textContent = open ? "[−]" : "[+]"; b.setAttribute("aria-expanded", open ? "true" : "false"); b.setAttribute("aria-label", open ? "閉じる" : "開く"); };
