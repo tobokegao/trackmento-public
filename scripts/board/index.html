@@ -291,7 +291,7 @@
       <div class="charts">
         <div class="chart">
           <h3>2 時間あたりの要求数</h3>
-          <p class="cap">点は点検 1 回ぶん（窓の長さが違う回は 2 時間に直してある）。09-17〜09-19 は点検を回していないので記録が無い。</p>
+          <p class="cap">横は時刻で、1 日の幅はどの日も同じ。段 1 つが点検 1 回ぶん（窓の長さが違う回は 2 時間に直してある）。09-17〜09-19 は点検を回していないので空けてある。</p>
           <div id="c-req"></div>
         </div>
         <div class="chart">
@@ -690,28 +690,56 @@
     });
   }
 
-  /* 折れ線（面つき・階段）。値の並びと、x 軸に出す目盛りの索引 */
-  function lineChart(node, values, labels, opt) {
-    const H = 200, L = 48, R = 12, T = 12, B = 32, STEP = 6;
-    const W = chartW(node, L + R + values.length * STEP);
+  /* 折れ線（面つき・階段）。横軸は時刻で、1 日の幅はどの日も同じ（DAY px）。
+     以前は点検 1 回を等間隔に置いていたので、点検の多い日ほど広く、点検の無い 09-17〜09-20 は詰まって見えた（9/24 に直した）。
+     点検どうしが GAP 時間より離れていたら線を切り、記録の無い区間は空けておく。
+     rows = [["MM-DD HH:MM", 値], …]、opt.mark は印を付ける時刻（"MM-DD HH:MM"） */
+  function hoursOf(t) {
+    const m = /^(\d\d)-(\d\d) (\d\d):(\d\d)/.exec(t);
+    return m ? Date.UTC(2026, +m[1] - 1, +m[2], +m[3], +m[4]) / 3600000 : NaN;
+  }
+  function lineChart(node, rows, opt) {
+    const H = 200, L = 48, R = 12, T = 12, B = 32, DAY = 64, GAP = 8;
+    const ts = rows.map(r => hoursOf(r[0])), values = rows.map(r => r[1]);
+    const d0 = Math.floor(ts[0] / 24) * 24, d1 = Math.ceil((ts[ts.length - 1] + 0.01) / 24) * 24;
+    const days = (d1 - d0) / 24;
+    const W = chartW(node, L + R + days * DAY);
     const max = niceMax(Math.max.apply(null, values) || 1);
-    const x = i => Math.round(L + (W - L - R) * (values.length < 2 ? 0.5 : i / (values.length - 1)));
+    const x = t => Math.round(L + (W - L - R) * (t - d0) / (d1 - d0));
     const y = v => Math.round(T + (H - T - B) * (1 - v / max));
     const s = svgBox(W, H);
     yGrid(s, W, L, R, y, max, opt.fmt);
-    // 階段: 次の点の x まで横に進んでから縦に動く
-    const pts = [x(0) + "," + y(values[0])];
-    for (let i = 1; i < values.length; i++) pts.push(x(i) + "," + y(values[i - 1]), x(i) + "," + y(values[i]));
-    s.appendChild(el("polygon", { points: x(0) + "," + y(0) + " " + pts.join(" ") + " " + x(values.length - 1) + "," + y(0), fill: dither(s, opt.color), stroke: "none" }));
-    s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: INK, "stroke-width": 2, "stroke-linejoin": "miter" }));
-    if (opt.mark != null) {
-      s.appendChild(el("line", { x1: x(opt.mark), x2: x(opt.mark), y1: T, y2: H - B, stroke: opt.markColor || MUTED, "stroke-width": 2, "stroke-dasharray": "4 4" }));
-      s.appendChild(el("text", { x: x(opt.mark) + 6, y: T + 14, fill: opt.markColor || MUTED, "font-size": FS }, opt.markText || ""));
+    // 日の境目に短い目盛り
+    for (let d = d0; d <= d1; d += 24) s.appendChild(el("rect", { x: x(d) - 1, y: y(0) + 2, width: 2, height: 5, fill: INK }));
+    // 途切れていない区間ごとに、階段の面と線を描く
+    const fill = dither(s, opt.color);
+    let seg = [0];
+    const flush = () => {
+      if (!seg.length) return;
+      const i0 = seg[0], i1 = seg[seg.length - 1];
+      const pts = [x(ts[i0]) + "," + y(values[i0])];
+      for (let k = 1; k < seg.length; k++) { const i = seg[k]; pts.push(x(ts[i]) + "," + y(values[i - 1]), x(ts[i]) + "," + y(values[i])); }
+      s.appendChild(el("polygon", { points: x(ts[i0]) + "," + y(0) + " " + pts.join(" ") + " " + x(ts[i1]) + "," + y(0), fill: fill, stroke: "none" }));
+      s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: INK, "stroke-width": 2, "stroke-linejoin": "miter" }));
+    };
+    for (let i = 1; i < ts.length; i++) {
+      if (ts[i] - ts[i - 1] > GAP) { flush(); seg = []; }
+      seg.push(i);
+    }
+    flush();
+    if (opt.mark) {
+      const mx = x(hoursOf(opt.mark));
+      s.appendChild(el("line", { x1: mx, x2: mx, y1: T, y2: H - B, stroke: opt.markColor || MUTED, "stroke-width": 2, "stroke-dasharray": "4 4" }));
+      s.appendChild(el("text", { x: mx + 6, y: T + 14, fill: opt.markColor || MUTED, "font-size": FS }, opt.markText || ""));
     }
     xAxis(s, W, L, R, y(0));
     const last = values.length - 1;
-    s.appendChild(el("rect", { x: x(last) - 5, y: y(values[last]) - 5, width: 10, height: 10, fill: opt.color, stroke: INK, "stroke-width": 2 }));
-    xLabels(s, labels.map(([i, text]) => [x(i), text]), H, W);
+    s.appendChild(el("rect", { x: x(ts[last]) - 5, y: y(values[last]) - 5, width: 10, height: 10, fill: opt.color, stroke: INK, "stroke-width": 2 }));
+    // 日付は日の真ん中に
+    const names = [];
+    for (let d = d0; d < d1; d += 24) { const dt = new Date(d * 3600000); names.push([x(d + 12), String(dt.getUTCMonth() + 1).padStart(2, "0") + "-" + String(dt.getUTCDate()).padStart(2, "0")]); }
+    const short = shortDates(names.map(n => n[1]));
+    xLabels(s, names.map((n, j) => [n[0], short[j]]), H, W);
     node.appendChild(s);
     showEnd(node);
   }
@@ -817,16 +845,10 @@
   function drawCharts() {
     if (!SERIES.length) return;
     ["c-req", "c-gb", "c-share", "c-voca"].forEach(id => { document.getElementById(id).textContent = ""; });
-    const req = SERIES.map(r => r[1]), gb = SERIES.map(r => r[2]);
-    const labels = [];
-    let seen = "";
-    SERIES.forEach((r, i) => { const d = r[0].slice(0, 5); if (d !== seen) { labels.push([i, d]); seen = d; } });
-    shortDates(labels.map(l => l[1])).forEach((t, j) => { labels[j][1] = t; });
     const k = v => v >= 1000 ? Math.round(v / 1000) + "k" : String(Math.round(v));
-    lineChart(document.getElementById("c-req"), req, labels, { color: "var(--c-api)", fmt: k });
-    let gzip = SERIES.findIndex(r => r[0] >= "09-16 06");
-    lineChart(document.getElementById("c-gb"), gb, labels, {
-      color: "var(--c-gb)", fmt: v => v.toFixed(1), mark: gzip > 0 ? gzip : null, markColor: "var(--c-bad)", markText: "gzip を入れた"
+    lineChart(document.getElementById("c-req"), SERIES.map(r => [r[0], r[1]]), { color: "var(--c-api)", fmt: k });
+    lineChart(document.getElementById("c-gb"), SERIES.map(r => [r[0], r[2]]), {
+      color: "var(--c-gb)", fmt: v => v.toFixed(1), mark: "09-16 06:00", markColor: "var(--c-bad)", markText: "gzip を入れた"
     });
     barChart(document.getElementById("c-share"), withShortDates(SHARES), { color: "var(--c-img)", fmt: k, slot: 56 });
     /* いまの棒だけ db の実測（多い日）から取る。手で書くと、次の点検で古くなる */
