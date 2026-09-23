@@ -490,7 +490,13 @@ img { max-width: 100%; display: block; }
 
 /* 「トラック名の一覧から」の表。枠を重ねて 1 枚の表に見せる（表計算の升目）。行頭の番号は行見出し */
 .list-sheet { display: grid; border: var(--line) solid var(--color-ink); background: var(--color-paper); }
-.list-row { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) minmax(0, 1fr); }
+.list-row { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) minmax(0, 1fr) 2rem; }
+/* 行の右端の「×」。その行を消す（下の行が詰まる）。行が 3 つ未満になると空の行が補われる */
+.list-del { border: 0; border-left: 1px solid var(--color-rule); background: var(--color-paper-2); color: var(--color-ink-2);
+  font-family: var(--font-display); font-size: var(--text-sm); cursor: pointer; padding: 0; }
+.list-del:hover { background: var(--color-paper-3); color: var(--color-ink); }
+.list-del:active { background: var(--color-ink); color: var(--color-paper); }
+.list-del:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; }
 .list-row + .list-row, #list-rows .list-row:first-child { border-top: 1px solid var(--color-rule); }
 .list-row > * { min-width: 0; }
 .list-row > * + * { border-left: 1px solid var(--color-rule); }
@@ -1286,7 +1292,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <p class="msg" id="list-help">1 行に 1 トラック（一度に 20 行まで）。Excel などの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。<br>iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</p>
         <!-- 表計算のような 2 列の表。行は入れるにつれて増える（renderListRows） -->
         <div class="list-sheet" role="table" aria-describedby="list-help">
-          <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">トラック名</span><span role="columnheader">アーティスト名</span></div>
+          <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">トラック名</span><span role="columnheader">アーティスト名</span><span role="columnheader" aria-hidden="true"></span></div>
           <div id="list-rows" role="rowgroup"></div>
           <button class="list-add" type="button" id="list-add">＋ 行を足す</button>
         </div>
@@ -1786,6 +1792,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "1 行に 1 トラック（一度に 20 行まで）。Excel などの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。": "One track per row (up to 20 rows at a time). Pasting from a spreadsheet such as Excel, or a list made with \"Copy track names\", splits it into rows and columns.",
         "表を空にする": "Clear the table",
         "＋ 行を足す": "+ Add a row",
+        "{} 行目を消す": "Delete row {0}",
         "iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。": "Each line is looked up on iTunes. Exact name matches go into empty cells; for the rest, the closest track goes to Results.",
         "一覧から入れる": "Add from list",
         ": 表にトラック名とアーティスト名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。": ": Enter a track name and artist on each row of the table, and each row is looked up on iTunes. Only exact name matches go into empty cells; for the rest, the closest track is listed in Results. You can also paste from a spreadsheet such as Excel, or a list written by \"Copy track names\".",
@@ -3059,6 +3066,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       inp.value = listData[i][key];
       row.append(inp);
     }
+    const del = document.createElement("button");
+    del.type = "button"; del.className = "list-del"; del.textContent = "×"; del.dataset.del = String(i);
+    del.setAttribute("aria-label", tr`${i + 1} 行目を消す`); del.title = tr`${i + 1} 行目を消す`;
+    row.append(del);
     return row;
   }
   listEls.rows.addEventListener("input", (e) => {
@@ -3075,7 +3086,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   });
   // Return は表計算と同じく 1 つ下の升へ（押すたびに探し始めないように）。Shift+Return は 1 つ上へ
   listEls.rows.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" || e.isComposing) return;
+    if (e.key !== "Enter" || e.isComposing || e.target.tagName !== "INPUT") return;   // 「×」の上の Return は押したことにする
     e.preventDefault();
     const i = +e.target.dataset.row + (e.shiftKey ? -1 : 1);
     if (i >= 0 && i < listData.length) listCell(i, e.target.dataset.key)?.focus();
@@ -3113,6 +3124,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     listEls.rows.append(listRowEl(listData.length - 1));
     listAdd.hidden = listData.length >= LIST_MAX;
     listCell(listData.length - 1, "title")?.focus();
+  });
+  // 行の「×」: その行を消して下を詰める（2026-09-23、利用者の依頼）。消した位置の次の行へ移る
+  listEls.rows.addEventListener("click", (e) => {
+    const b = e.target.closest(".list-del");
+    if (!b || listRun) return;
+    const i = +b.dataset.del;
+    listData.splice(i, 1);
+    renderListRows([Math.min(i, Math.max(listData.length, LIST_MIN_ROWS) - 1), "title"]);
   });
   $("#list-clear").addEventListener("click", () => { listData = []; renderListRows([0, "title"]); say(listEls.msg, ""); });
   renderListRows();
