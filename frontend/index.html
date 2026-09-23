@@ -2157,7 +2157,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "{} 番: 空": "Cell {0}: empty",
         "並びを読み込みました（{} トラック）。この画面での変更は自分のグリッドとして保存されます。": "Layout loaded ({0} tracks). Changes you make here are saved as your own grid.",
         "並びを読み込めませんでした: {}": "Could not load the layout: {0}",
-        "上下 {} / 左右 {} px": "{0} top and bottom / {1} left and right, px",
+        "上下 {} / 左右 {} px": "top & bottom {0} / sides {1} px",
     "この並びと比率だとジャケットが {}px になります。正方形に近い比率にすると大きくなります。":
       "Cover art comes out at just {0}px with this grid and ratio. A squarer ratio makes it bigger.",
         "画像を作成中… {}/{}": "Rendering the image… {0}/{1}",
@@ -5646,10 +5646,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
     els.specCell.textContent = cellH() === CELL_W ? `${Math.round(CELL_W * L.scale)} px`
       : `${Math.round(CELL_W * L.scale)} × ${Math.round(cellH() * L.scale)} px`;
-    /* 数の前後の空白は折らない（2026-09-24）。「上下 193 / 左右 109 px」が 2 行に折れるとき、「px」だけが次の行に落ちていた
-       （利用者がスマホで報告）。折れるのは「/」の前後だけになる */
+    /* 折れるのは「/」の後だけにする（2026-09-24）。「上下 193 / 左右 109 px」が 2 行に折れるとき「px」だけが次の行に落ち、
+       英語は「171 top and bottom / 58 left and right, px」が語の途中の切れ目で 3 行になった（利用者がスマホで報告）。
+       空白をすべて NBSP にし、「/」の後の 1 つだけ戻す。英語も日本語と同じ「名前 数 / 名前 数 px」の形に短くした */
     els.specMargin.textContent = tr`上下 ${Math.round(L.oy * L.scale)} / 左右 ${Math.round(L.ox * L.scale)} px`
-      .replace(/ (?=\d)|(?<=\d) /g, " ");
+      .replace(/ /g, "\u00a0").replace("/\u00a0", "/ ");
     noteSmallCell(Math.round(cellShort() * L.scale));   /* 潰れて読めなくなるのは**短辺**で決まる */
     // 重ねた曲名が読めない大きさになる並びでは、選べなくする（今選んでいるなら、出さないことを知らせる）
     // **判定は共有画像を描く大きさで行う**。重ねる組み方には曲名リストが無く、流し込みに落ちることも
