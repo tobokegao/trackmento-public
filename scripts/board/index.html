@@ -132,6 +132,11 @@
   .bar .count { font-size: 13px; color: var(--muted); background: var(--win); padding: 0 1ch; margin-left: auto; }
   section.win > .body { padding: 12px 1.5ch 16px; }
   section.win:target { border-color: var(--key); }
+  /* 窓の開け閉め（2026-09-24）。長い窓はスマホでは閉じて始める。閉じても題名の札と件数は見える */
+  .bar .fold { font: inherit; font-size: 14px; color: var(--ink); background: var(--win); border: none; padding: 0 1ch; cursor: pointer; }
+  .bar .fold:hover { background: var(--legend-bg); color: var(--legend-ink); }
+  section.win.shut > .body { display: none; }
+  section.win.shut { padding-bottom: 10px; box-shadow: 5px 5px 0 var(--shadow); }
   @media (max-width: 520px) {
     section.win, nav.toc { box-shadow: 5px 5px 0 var(--shadow); }
     .bar .count { margin-left: 0; }
@@ -151,7 +156,10 @@
   .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 24px; }
   .chart h3 { font-size: 16px; font-weight: 400; margin: 0 0 2px; }
   .chart p.cap { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
-  .chart svg { max-width: 100%; height: auto; display: block; font-family: inherit; }
+  /* 図は置き場の幅そのままで描く（縮めない）。時系列は 1 点ぶんの幅を守って横に流し、最新の右端を見せる。棒は収めて字を間引く */
+  .chart { min-width: 0; }
+  .chart > div[id^="c-"] { overflow-x: auto; scrollbar-color: var(--ink) var(--win-2); }
+  .chart svg { display: block; font-family: inherit; }
   .legend { display: flex; gap: 4px 2ch; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 6px; }
   .legend i { display: inline-block; width: 12px; height: 12px; margin-right: .5ch; vertical-align: -1px; border: 1px solid var(--ink); }
 
@@ -179,6 +187,23 @@
   tbody tr:hover { background: var(--hover); }
   td .note { color: var(--muted); font-size: 13px; display: block; }
 
+  /* スマホでは表を横に流さず、1 行を 1 枚の札に積む。列の名前は JS が data-label に写す（2026-09-24、横の流しは見にくいと言われた） */
+  @media (max-width: 640px) {
+    .scroll { overflow-x: visible; }
+    table { min-width: 0; }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tbody tr { border: 2px solid var(--ink); margin-bottom: 10px; padding: 4px 1ch; box-shadow: 3px 3px 0 var(--shadow); }
+    tbody tr:last-child { margin-bottom: 0; }
+    th, td { border-right: none; padding: 2px 0; }
+    tbody tr td { border-bottom: 1px dashed var(--rule); }
+    tbody tr td:last-child { border-bottom: none; }
+    td[data-label]::before { content: attr(data-label); display: block; font-size: 13px; color: var(--muted); }
+    td:first-child::before { display: none; }
+    td:first-child { font-size: 16px; }
+    .nums { white-space: normal; }
+  }
+
   /* 状態の札。色の地に字（明るい地で色の字は読めない） */
   .pill { display: inline-block; font-size: 13px; padding: 0 .75ch; white-space: nowrap; background: var(--dim-bg); color: var(--dim-ink); }
   .pill.ok { background: var(--ok-bg); color: var(--ok-ink); }
@@ -196,6 +221,7 @@
   .box::after { content: "[ ]"; }
   .box:checked::after { content: "[×]"; color: var(--key); }
   .box:focus-visible { outline: 2px solid var(--focus); }
+  .item { min-width: 0; overflow-wrap: anywhere; }
   .item .t { font-weight: 400; }
   .item .d { color: var(--muted); font-size: 14px; display: block; }
   li.done .item .t { text-decoration: line-through; color: var(--muted); }
@@ -576,9 +602,17 @@
     if (text !== undefined) n.textContent = text;
     return n;
   }
-  /* 図はローファイに描く（2026-09-24、窓の作りに合わせて）。置き場の幅そのままの px で描いて縮めない
-     （縮めると線がにじむ）、角は crispEdges、面は 2px の市松、終点は四角、棒は墨の枠 */
-  function chartW(node) { return Math.max(280, Math.floor(node.clientWidth || 560)); }
+  /* 図はローファイに描く（2026-09-24、窓の作りに合わせて）。
+     - 置き場の幅そのままの px で描き、縮めない（縮めると線と字がにじむ）。座標は整数に丸め、角は crispEdges
+     - 字は DotGothic16 の本来の大きさ 16px（小さくするとにじむ）。時系列は 1 点 6px を守って横に流し、棒は収めて重なる字を間引く
+     - 折れ線は階段（斜めの線を使わない）、線は墨、面は 2px の市松、終点は四角
+     - 棒は墨の枠と、窓と同じずらした影。目盛りの線は点線、軸は墨の 2px */
+  const FS = 16;                       // 図の字の大きさ
+  const LABEL_GAP = 8;                 // x 軸の字どうしの最小のすきま
+  function textW(t) { let w = 0; for (const c of String(t)) w += c.charCodeAt(0) < 0x2000 ? FS / 2 : FS; return w; }
+  function chartW(node, minW) { return Math.max(minW || 260, Math.floor(node.clientWidth || 560)); }
+  /* 横に流れる図は、いちばん新しい右端を見せる */
+  function showEnd(node) { node.scrollLeft = node.scrollWidth; }
   let DITHER_N = 0;
   function svgBox(w, h) {
     const s = el("svg", { viewBox: "0 0 " + w + " " + h, width: w, height: h, role: "img" });
@@ -601,54 +635,88 @@
     const p = Math.pow(10, Math.floor(Math.log10(v)));
     return Math.ceil(v / p) * p;
   }
-
-  /* 折れ線（面つき）。値の並びと、x 軸に出す目盛りの索引 */
-  function lineChart(node, values, labels, opt) {
-    const W = chartW(node), H = 190, L = 44, R = 8, T = 12, B = 26;
-    const max = niceMax(Math.max.apply(null, values) || 1);
-    const x = i => L + (W - L - R) * (values.length < 2 ? 0.5 : i / (values.length - 1));
-    const y = v => T + (H - T - B) * (1 - v / max);
-    const s = svgBox(W, H);
+  /* 目盛り（点線と y の字） */
+  function yGrid(s, W, L, R, y, max, fmt) {
+    for (let g = 1; g <= 2; g++) {
+      const v = max * g / 2;
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1, "stroke-dasharray": "1 3" }));
+    }
     for (let g = 0; g <= 2; g++) {
       const v = max * g / 2;
-      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1, "stroke-dasharray": "2 2" }));
-      const t = el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 12 }, opt.fmt(v));
-      s.appendChild(t);
+      s.appendChild(el("text", { x: L - 6, y: y(v) + 6, "text-anchor": "end", fill: MUTED, "font-size": FS }, fmt(v)));
     }
-    const pts = values.map((v, i) => x(i) + "," + y(v));
-    s.appendChild(el("polygon", { points: x(0) + "," + y(0) + " " + pts.join(" ") + " " + x(values.length - 1) + "," + y(0), fill: dither(s, opt.color), stroke: "none" }));
-    s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: opt.color, "stroke-width": 2, "stroke-linejoin": "miter" }));
-    const last = values.length - 1;
-    s.appendChild(el("rect", { x: Math.round(x(last)) - 4, y: Math.round(y(values[last])) - 4, width: 8, height: 8, fill: opt.color, stroke: INK, "stroke-width": 2 }));
-    if (opt.mark != null) {
-      s.appendChild(el("line", { x1: x(opt.mark), x2: x(opt.mark), y1: T, y2: H - B, stroke: opt.markColor || MUTED, "stroke-width": 1, "stroke-dasharray": "4 2" }));
-      s.appendChild(el("text", { x: x(opt.mark) + 4, y: T + 10, fill: opt.markColor || MUTED, "font-size": 12 }, opt.markText || ""));
-    }
-    s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
-    labels.forEach(([i, text]) => {
-      s.appendChild(el("text", { x: x(i), y: H - 8, "text-anchor": i === 0 ? "start" : (i === values.length - 1 ? "end" : "middle"), fill: MUTED, "font-size": 12 }, text));
+  }
+  function xAxis(s, W, L, R, y0) {
+    s.appendChild(el("rect", { x: L, y: y0, width: W - L - R, height: 2, fill: INK }));
+  }
+  /* x 軸の字を、重ならない分だけ置く（左から詰め、右端からはみ出すものは落とす） */
+  function xLabels(s, items, H, W, split) {
+    let right = -Infinity;
+    items.forEach(([cx, text]) => {
+      const lines = split ? String(text).split(" ") : [text];
+      const w = Math.max.apply(null, lines.map(textW));
+      if (cx - w / 2 < right + LABEL_GAP || cx + w / 2 > W) return;
+      lines.forEach((t, k) => {
+        s.appendChild(el("text", { x: Math.round(cx - textW(t) / 2), y: H - 8 - (lines.length - 1 - k) * (FS + 2), fill: MUTED, "font-size": FS }, t));
+      });
+      right = cx + w / 2;
     });
-    node.appendChild(s);
   }
 
+  /* 折れ線（面つき・階段）。値の並びと、x 軸に出す目盛りの索引 */
+  function lineChart(node, values, labels, opt) {
+    const H = 200, L = 48, R = 12, T = 12, B = 32, STEP = 6;
+    const W = chartW(node, L + R + values.length * STEP);
+    const max = niceMax(Math.max.apply(null, values) || 1);
+    const x = i => Math.round(L + (W - L - R) * (values.length < 2 ? 0.5 : i / (values.length - 1)));
+    const y = v => Math.round(T + (H - T - B) * (1 - v / max));
+    const s = svgBox(W, H);
+    yGrid(s, W, L, R, y, max, opt.fmt);
+    // 階段: 次の点の x まで横に進んでから縦に動く
+    const pts = [x(0) + "," + y(values[0])];
+    for (let i = 1; i < values.length; i++) pts.push(x(i) + "," + y(values[i - 1]), x(i) + "," + y(values[i]));
+    s.appendChild(el("polygon", { points: x(0) + "," + y(0) + " " + pts.join(" ") + " " + x(values.length - 1) + "," + y(0), fill: dither(s, opt.color), stroke: "none" }));
+    s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: INK, "stroke-width": 2, "stroke-linejoin": "miter" }));
+    if (opt.mark != null) {
+      s.appendChild(el("line", { x1: x(opt.mark), x2: x(opt.mark), y1: T, y2: H - B, stroke: opt.markColor || MUTED, "stroke-width": 2, "stroke-dasharray": "4 4" }));
+      s.appendChild(el("text", { x: x(opt.mark) + 6, y: T + 14, fill: opt.markColor || MUTED, "font-size": FS }, opt.markText || ""));
+    }
+    xAxis(s, W, L, R, y(0));
+    const last = values.length - 1;
+    s.appendChild(el("rect", { x: x(last) - 5, y: y(values[last]) - 5, width: 10, height: 10, fill: opt.color, stroke: INK, "stroke-width": 2 }));
+    xLabels(s, labels.map(([i, text]) => [x(i), text]), H, W);
+    node.appendChild(s);
+    showEnd(node);
+  }
+
+  /* 棒。rows = [[名前, 値, 色?], …]。名前に空白があれば 2 行に分けて置く */
   function barChart(node, rows, opt) {
-    const W = chartW(node), H = 190, L = 48, R = 8, T = 12, B = 30;
+    const H = 220, L = 48, R = 12, T = 28, B = 52;
+    const W = chartW(node);
     const max = niceMax(Math.max.apply(null, rows.map(r => r[1])) || 1);
     const s = svgBox(W, H);
-    const bw = (W - L - R) / rows.length;
-    const y = v => T + (H - T - B) * (1 - v / max);
-    for (let g = 0; g <= 2; g++) {
-      const v = max * g / 2;
-      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1, "stroke-dasharray": "2 2" }));
-      s.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 12 }, opt.fmt(v)));
-    }
+    const bw = (W - L - R) / rows.length, BAR = Math.min(32, Math.max(8, Math.floor(bw * 0.6)));
+    const y = v => Math.round(T + (H - T - B) * (1 - v / max));
+    yGrid(s, W, L, R, y, max, opt.fmt);
+    const vals = [];
     rows.forEach((r, i) => {
-      const w = bw * 0.62, cx = L + bw * i + bw / 2;
-      s.appendChild(el("rect", { x: cx - w / 2, y: y(r[1]), width: w, height: y(0) - y(r[1]), fill: (r[2] || opt.color), stroke: INK, "stroke-width": 2 }));
-      s.appendChild(el("text", { x: cx, y: y(r[1]) - 5, "text-anchor": "middle", fill: INK, "font-size": 12 }, opt.fmt(r[1])));
-      s.appendChild(el("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: MUTED, "font-size": 12 }, r[0]));
+      const cx = Math.round(L + bw * i + bw / 2), x0 = cx - BAR / 2, top = y(r[1]), h = y(0) - top;
+      if (h > 0) {
+        s.appendChild(el("rect", { x: x0 + 4, y: top + 4, width: BAR, height: Math.max(0, h - 4), fill: "var(--shadow)" }));
+        s.appendChild(el("rect", { x: x0, y: top, width: BAR, height: h, fill: (r[2] || opt.color), stroke: INK, "stroke-width": 2 }));
+      }
+      const v = opt.fmt(r[1]);
+      vals.push({ x: cx - Math.round(textW(v) / 2), w: textW(v), y: top - 6, v: v });
     });
-    s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
+    const shown = [];
+    for (let i = vals.length - 1; i >= 0; i--) {
+      const a = vals[i];
+      if (shown.some(b => a.x < b.x + b.w + 4 && b.x < a.x + a.w + 4 && Math.abs(a.y - b.y) < FS + 2)) continue;
+      shown.push(a);
+      s.appendChild(el("text", { x: a.x, y: a.y, fill: INK, "font-size": FS }, a.v));
+    }
+    xAxis(s, W, L, R, y(0));
+    xLabels(s, rows.map((r, i) => [L + bw * i + bw / 2, r[0]]), H, W, true);
     node.appendChild(s);
   }
 
@@ -657,19 +725,17 @@
   const STACK_COLORS = { "共有": "var(--c-img)", "画像キャッシュ": "var(--c-api)", "アップロード": "var(--c-gb)", "その他": "var(--c-ok)" };
   const STACK_UNKNOWN = "var(--c-other)";
   function stackChart(node, rows, opt) {
-    const W = chartW(node), H = 190, L = 44, R = 8, T = 12, B = 30;
+    const H = 200, L = 48, R = 12, T = 12, B = 32, SLOT = 16;
+    const W = chartW(node, L + R + rows.length * SLOT);
     const max = niceMax(Math.max.apply(null, rows.map(r => r[1])) || 1);
     const s = svgBox(W, H);
     const bw = (W - L - R) / rows.length;
-    const y = v => T + (H - T - B) * (1 - v / max);
-    for (let g = 0; g <= 2; g++) {
-      const v = max * g / 2;
-      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1, "stroke-dasharray": "2 2" }));
-      s.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 12 }, opt.fmt(v)));
-    }
+    const y = v => Math.round(T + (H - T - B) * (1 - v / max));
+    yGrid(s, W, L, R, y, max, opt.fmt);
     const seen = new Set();
+    const w = Math.max(6, Math.floor(bw * 0.6));
     rows.forEach((r, i) => {
-      const w = Math.max(3, bw * 0.62), cx = L + bw * i + bw / 2;
+      const cx = Math.round(L + bw * i + bw / 2);
       const kinds = r[2];
       let base = 0;
       const parts = kinds
@@ -677,25 +743,21 @@
         : [["記録のみ", r[1]]];
       parts.forEach(([k, v]) => {
         const top = base + v;
-        s.appendChild(el("rect", { x: cx - w / 2, y: y(top), width: w, height: Math.max(1, y(base) - y(top)), fill: STACK_COLORS[k] || STACK_UNKNOWN, stroke: INK, "stroke-width": 1 }));
+        s.appendChild(el("rect", { x: cx - Math.floor(w / 2), y: y(top), width: w, height: Math.max(1, y(base) - y(top)), fill: STACK_COLORS[k] || STACK_UNKNOWN, stroke: INK, "stroke-width": 1 }));
         base = top;
         seen.add(k);
       });
     });
     // 無料枠の線
     if (opt.free && opt.free < max) {
-      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(opt.free), y2: y(opt.free), stroke: "var(--c-bad)", "stroke-width": 1, "stroke-dasharray": "4 2" }));
-      s.appendChild(el("text", { x: W - R, y: y(opt.free) - 4, "text-anchor": "end", fill: "var(--c-bad)", "font-size": 12 }, "無料枠 " + opt.free + "GB"));
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(opt.free), y2: y(opt.free), stroke: "var(--c-bad)", "stroke-width": 2, "stroke-dasharray": "4 4" }));
+      const t = "無料枠 " + opt.free + "GB";
+      s.appendChild(el("text", { x: W - R - textW(t), y: y(opt.free) - 6, fill: "var(--c-bad)", "font-size": FS }, t));
     }
-    s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
-    // 目盛りは詰まらない数だけ
-    const step = Math.max(1, Math.ceil(rows.length / 7));
-    rows.forEach((r, i) => {
-      if (i % step && i !== rows.length - 1) return;
-      const cx = L + bw * i + bw / 2;
-      s.appendChild(el("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: MUTED, "font-size": 12 }, r[0]));
-    });
+    xAxis(s, W, L, R, y(0));
+    xLabels(s, rows.map((r, i) => [L + bw * i + bw / 2, r[0]]), H, W);
     node.appendChild(s);
+    showEnd(node);
     return seen;
   }
 
@@ -721,7 +783,7 @@
     const req = SERIES.map(r => r[1]), gb = SERIES.map(r => r[2]);
     const labels = [];
     let seen = "";
-    SERIES.forEach((r, i) => { const d = r[0].slice(0, 5); if (d !== seen && (labels.length === 0 || i - labels[labels.length - 1][0] > 6)) { labels.push([i, d]); seen = d; } });
+    SERIES.forEach((r, i) => { const d = r[0].slice(0, 5); if (d !== seen) { labels.push([i, d]); seen = d; } });
     const k = v => v >= 1000 ? Math.round(v / 1000) + "k" : String(Math.round(v));
     lineChart(document.getElementById("c-req"), req, labels, { color: "var(--c-api)", fmt: k });
     let gzip = SERIES.findIndex(r => r[0] >= "09-16 06");
@@ -1094,7 +1156,33 @@
   (function () {
     const list = document.getElementById("toc-list"), toc = document.getElementById("toc"), back = document.getElementById("totop");
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const go = (node) => { node.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" }); };
+    /* 窓の開け閉め。この端末だけ覚える。覚えが無ければ、スマホでは長い窓を閉じて始める */
+    const LONG = ["svc", "session", "docs", "notes"];
+    let folds = {};
+    try { folds = JSON.parse(localStorage.getItem("board-fold") || "{}"); } catch (_) {}
+    const narrow = window.matchMedia("(max-width: 640px)").matches;
+    function setOpen(sec, open, keep) {
+      sec.classList.toggle("shut", !open);
+      const b = sec.querySelector(".bar .fold");
+      if (b) { b.textContent = open ? "[−] 閉じる" : "[+] 開く"; b.setAttribute("aria-expanded", open ? "true" : "false"); }
+      if (keep) { folds[sec.id] = open; try { localStorage.setItem("board-fold", JSON.stringify(folds)); } catch (_) {} }
+      if (open && sec.id === "trend") { drawCharts(); drawStorage(); }   // 閉じている間は幅が 0 なので描き直す
+    }
+    document.querySelectorAll("section.win[id]").forEach(sec => {
+      const bar = sec.querySelector(".bar"), h = bar && bar.querySelector("h2");
+      if (!h) return;
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "fold";
+      b.setAttribute("aria-controls", sec.id);
+      b.addEventListener("click", () => setOpen(sec, sec.classList.contains("shut"), true));
+      h.after(b);
+      const open = sec.id in folds ? folds[sec.id] : !(narrow && LONG.includes(sec.id));
+      setOpen(sec, open, false);
+    });
+    const go = (node) => {
+      if (node.classList && node.classList.contains("shut")) setOpen(node, true, true);
+      node.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+    };
     const fbar = document.getElementById("fbar"), secs = [];
     document.querySelectorAll("section.win[id]").forEach(sec => {
       const h = sec.querySelector(".bar h2");
@@ -1137,6 +1225,12 @@
       back.hidden = false;
     }
   })();
+
+  /* スマホで表を札に積むとき用に、列の名前を各セルの data-label に写す */
+  document.querySelectorAll("table").forEach(t => {
+    const names = [...t.querySelectorAll("thead th")].map(th => th.textContent);
+    t.querySelectorAll("tbody tr").forEach(tr => [...tr.children].forEach((td, i) => { if (names[i]) td.dataset.label = names[i]; }));
+  });
 
   drawAll();
   draw();
