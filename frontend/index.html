@@ -1367,7 +1367,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
-        <button class="btn" type="button" id="text-copy" title="「1. トラック名 / アーティスト」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
+        <button class="btn" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -1799,7 +1799,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "一覧から入れる": "Add from list",
         ": 表にアーティスト名とトラック名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。": ": Enter an artist and track name on each row of the table, and each row is looked up on iTunes. Only exact name matches go into empty cells; for the rest, the closest track is listed in Results. You can also paste from a spreadsheet such as Excel, or a list written by \"Copy track names\".",
         "トラック名をコピー": "Copy track names",
-        "「1. トラック名 / アーティスト」の形で、番号順にコピーする。X の本文などにそのまま貼れる": "Copy as \"1. Track / Artist\" in cell order, ready to paste into a post on X",
+        "「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる": "Copy as \"1. Artist - Track\" in cell order, ready to paste into a post on X",
         "手入力（画像 URL＋トラック名）": "By hand (image URL + track name)",
         "手入力: ジャケット画像の URL": "By hand: cover image URL",
         "端末から画像を選択…": "Choose an image from this device…",
@@ -3030,7 +3030,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      名前（nkey）がトラック名・アーティスト名ともぴったり合ったものだけマスに入れ、ほかは先頭の 1 件を候補に置く
      （アーティスト名が無い行は、同名の別の曲が入りやすいので必ず候補へ）。
      初めは 1 本の文章欄だったが、トラック名とアーティスト名を分けて打てないと探しづらいと利用者から言われて表にした（2026-09-23）。
-     貼り付けは Excel など（タブ区切り）と「トラック名をコピー」の形（「1. トラック名 / アーティスト」）の両方を行と列に分ける */
+     貼り付けは Excel など（タブ区切り）と「トラック名をコピー」の形（「1. アーティスト - トラック名」）の両方を行と列に分ける */
   const LIST_MAX = 20, LIST_MIN_ROWS = 3;
   const listEls = { form: $("#list-form"), rows: $("#list-rows"), btn: $("#list-btn"), msg: $("#list-form-msg") };
   const listAdd = $("#list-add");
@@ -3739,10 +3739,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     say(els.gridMsg, tr("並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。"));
   });
-  /* ---- トラック名を文章でコピー（text-copy）。「1. トラック名 / アーティスト」を番号順に。
+  /* ---- トラック名を文章でコピー（text-copy）。「1. アーティスト - トラック名」を番号順に。
      番号はマスの番号バッジと同じ（空きマスは飛ばすので番号も飛ぶ）。この形は「トラック名の一覧から」にそのまま貼り戻せる ---- */
   const flat = (v) => (v || "").split(/\s+/).join(" ").trim();   // 描画用の oneLine と違い、絵文字は落とさない（文章として貼るので）
-  const trackLines = () => state.cells.map((t, i) => t && `${i + 1}. ${flat(t.title)}${flat(t.artist) ? ` / ${flat(t.artist)}` : ""}`).filter(Boolean);
+  const trackLines = () => state.cells.map((t, i) => t && `${i + 1}. ${flat(t.artist) ? `${flat(t.artist)} - ` : ""}${flat(t.title)}`).filter(Boolean);
   $("#text-copy").addEventListener("click", async () => {
     const lines = trackLines();
     if (!lines.length) { say(els.gridMsg, tr("まだトラックが入っていません。"), "error"); return; }

@@ -57,7 +57,7 @@ and how the track list is shown, then share. You get the finished image and a de
 Apple Music playlist — to load up to 500 tracks at once. Tracks that don't fit in the grid stay in the candidate list.</li>
 <li><b>Add from a list, or copy one:</b> Enter artist and track names in the table under “From a list of track names” and each
 row is looked up on iTunes and added at once (up to 20 rows; you can also paste from a spreadsheet such as Excel). In the other
-direction, “Copy track names” copies the layout as text in the form “1. Track / Artist”.</li>
+direction, “Copy track names” copies the layout as text in the form “1. Artist - Track”.</li>
 <li><b>Automatic recovery of deleted videos:</b> Even if a Niconico video has been deleted, TRACKMENTO automatically restores the
 official title, creator name and thumbnail when the work is registered in otoDB (the otomad database).</li>
 <li><b>Three track list styles:</b> Choose from “beside the grid”, “on the covers” or “hidden”. When cells are too small and the
@@ -105,7 +105,7 @@ and share the music they love. When sharing, please follow the terms of use and 
 <h2>便利な機能</h2>
 <ul>
 <li><b>プレイリストの一括読み込み：</b>ニコニコ動画のマイリスト、YouTubeの再生リスト、Bandcampのアルバム、Apple MusicのプレイリストのURLを1つ貼るだけで、最大500トラックを一気に読み込みます。マスに入り切らなかったトラックは候補リストに残ります。</li>
-<li><b>トラック名の一覧から入れる・コピーする：</b>検索の「トラック名の一覧から」の表にアーティスト名とトラック名を入れると、iTunesで1行ずつ探してまとめて入れられます（一度に20行まで。Excelなどの表も貼れます）。逆に「トラック名をコピー」で、並びを「1. トラック名 / アーティスト」の文章にしてコピーできます。</li>
+<li><b>トラック名の一覧から入れる・コピーする：</b>検索の「トラック名の一覧から」の表にアーティスト名とトラック名を入れると、iTunesで1行ずつ探してまとめて入れられます（一度に20行まで。Excelなどの表も貼れます）。逆に「トラック名をコピー」で、並びを「1. アーティスト - トラック名」の文章にしてコピーできます。</li>
 <li><b>削除動画の自動補完：</b>ニコニコ動画で削除済みの動画であっても、otoDB（音MADデータベース）に登録があれば、正式なタイトル・作者名・サムネイルを自動で復元・補完します。</li>
 <li><b>選べる3種類のトラックリスト：</b>トラックリストは「横に並べる」「マスに重ねる」「表示しない」の3通りから選択可能です。マスが小さく文字が潰れてしまう場合は、重ねる表示が自動でオフになります。</li>
 <li><b>カラーパレット：</b>画面全体の配色テーマを切り替えられます。好みの8色セットを自作してカラーコードをコピーし、他の人と共有することも可能です。</li>
@@ -252,8 +252,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-23", "アーティスト名とトラック名の表から、まとめて入れられるようになりました（検索の「トラック名の一覧から」、一度に 20 行まで）。Excel などの表も貼れます。逆に「トラック名をコピー」で、並びを「1. トラック名 / アーティスト」の文章にしてコピーできます。",
-     "You can now add tracks all at once from a table of artist and track names (“From a list of track names” under Search, up to 20 rows at a time). You can also paste from a spreadsheet such as Excel. In the other direction, “Copy track names” copies the layout as text in the form “1. Track / Artist”."),
+    ("2026-09-23", "アーティスト名とトラック名の表から、まとめて入れられるようになりました（検索の「トラック名の一覧から」、一度に 20 行まで）。Excel などの表も貼れます。逆に「トラック名をコピー」で、並びを「1. アーティスト - トラック名」の文章にしてコピーできます。",
+     "You can now add tracks all at once from a table of artist and track names (“From a list of track names” under Search, up to 20 rows at a time). You can also paste from a spreadsheet such as Excel. In the other direction, “Copy track names” copies the layout as text in the form “1. Artist - Track”."),
     ("2026-09-23", "キーボードでも並べ替えられるようになりました。Tab キーでグリッドに入り、矢印キーでマスを移ります。Return キーかスペースキーでマスを選び、Option（Alt）＋矢印キーで隣のマスと入れ替えます。",
      "You can now rearrange with the keyboard. Press Tab to reach the grid and move between cells with the arrow keys. Return or Space selects a cell, and Option (Alt) + an arrow key swaps the track with the neighbouring cell."),
     ("2026-09-23", "共有ページの画像に、題名と先頭 10 トラックの曲名を代替テキストとして付けました。読み上げを使っているときや、画像が表示されないときも、何の並びか分かります。",
