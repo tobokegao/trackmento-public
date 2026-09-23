@@ -151,7 +151,7 @@
   .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 24px; }
   .chart h3 { font-size: 16px; font-weight: 400; margin: 0 0 2px; }
   .chart p.cap { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
-  .chart svg { width: 100%; height: auto; display: block; font-family: inherit; }
+  .chart svg { max-width: 100%; height: auto; display: block; font-family: inherit; }
   .legend { display: flex; gap: 4px 2ch; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 6px; }
   .legend i { display: inline-block; width: 12px; height: 12px; margin-right: .5ch; vertical-align: -1px; border: 1px solid var(--ink); }
 
@@ -576,10 +576,26 @@
     if (text !== undefined) n.textContent = text;
     return n;
   }
+  /* 図はローファイに描く（2026-09-24、窓の作りに合わせて）。置き場の幅そのままの px で描いて縮めない
+     （縮めると線がにじむ）、角は crispEdges、面は 2px の市松、終点は四角、棒は墨の枠 */
+  function chartW(node) { return Math.max(280, Math.floor(node.clientWidth || 560)); }
+  let DITHER_N = 0;
   function svgBox(w, h) {
-    const s = el("svg", { viewBox: "0 0 " + w + " " + h, role: "img" });
+    const s = el("svg", { viewBox: "0 0 " + w + " " + h, width: w, height: h, role: "img" });
     s.style.overflow = "visible";
+    s.style.shapeRendering = "crispEdges";
     return s;
+  }
+  /* 色 c の市松（1 目おきに塗る）。面の塗りに使う */
+  function dither(s, c) {
+    const id = "dith" + (++DITHER_N);
+    const pat = el("pattern", { id: id, width: 2, height: 2, patternUnits: "userSpaceOnUse" });
+    pat.appendChild(el("rect", { x: 0, y: 0, width: 1, height: 1, fill: c }));
+    pat.appendChild(el("rect", { x: 1, y: 1, width: 1, height: 1, fill: c }));
+    const defs = el("defs", {});
+    defs.appendChild(pat);
+    s.appendChild(defs);
+    return "url(#" + id + ")";
   }
   function niceMax(v) {
     const p = Math.pow(10, Math.floor(Math.log10(v)));
@@ -588,49 +604,49 @@
 
   /* 折れ線（面つき）。値の並びと、x 軸に出す目盛りの索引 */
   function lineChart(node, values, labels, opt) {
-    const W = 560, H = 190, L = 44, R = 8, T = 12, B = 26;
+    const W = chartW(node), H = 190, L = 44, R = 8, T = 12, B = 26;
     const max = niceMax(Math.max.apply(null, values) || 1);
     const x = i => L + (W - L - R) * (values.length < 2 ? 0.5 : i / (values.length - 1));
     const y = v => T + (H - T - B) * (1 - v / max);
     const s = svgBox(W, H);
     for (let g = 0; g <= 2; g++) {
       const v = max * g / 2;
-      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1 }));
-      const t = el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 11 }, opt.fmt(v));
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1, "stroke-dasharray": "2 2" }));
+      const t = el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 12 }, opt.fmt(v));
       s.appendChild(t);
     }
     const pts = values.map((v, i) => x(i) + "," + y(v));
-    s.appendChild(el("polygon", { points: x(0) + "," + y(0) + " " + pts.join(" ") + " " + x(values.length - 1) + "," + y(0), fill: opt.color, "fill-opacity": .13, stroke: "none" }));
-    s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: opt.color, "stroke-width": 2, "stroke-linejoin": "round" }));
+    s.appendChild(el("polygon", { points: x(0) + "," + y(0) + " " + pts.join(" ") + " " + x(values.length - 1) + "," + y(0), fill: dither(s, opt.color), stroke: "none" }));
+    s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: opt.color, "stroke-width": 2, "stroke-linejoin": "miter" }));
     const last = values.length - 1;
-    s.appendChild(el("circle", { cx: x(last), cy: y(values[last]), r: 4, fill: opt.color, stroke: "var(--win)", "stroke-width": 2 }));
+    s.appendChild(el("rect", { x: Math.round(x(last)) - 4, y: Math.round(y(values[last])) - 4, width: 8, height: 8, fill: opt.color, stroke: INK, "stroke-width": 2 }));
     if (opt.mark != null) {
-      s.appendChild(el("line", { x1: x(opt.mark), x2: x(opt.mark), y1: T, y2: H - B, stroke: opt.markColor || MUTED, "stroke-width": 1, "stroke-dasharray": "3 3" }));
-      s.appendChild(el("text", { x: x(opt.mark) + 4, y: T + 10, fill: opt.markColor || MUTED, "font-size": 10.5 }, opt.markText || ""));
+      s.appendChild(el("line", { x1: x(opt.mark), x2: x(opt.mark), y1: T, y2: H - B, stroke: opt.markColor || MUTED, "stroke-width": 1, "stroke-dasharray": "4 2" }));
+      s.appendChild(el("text", { x: x(opt.mark) + 4, y: T + 10, fill: opt.markColor || MUTED, "font-size": 12 }, opt.markText || ""));
     }
     s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
     labels.forEach(([i, text]) => {
-      s.appendChild(el("text", { x: x(i), y: H - 8, "text-anchor": i === 0 ? "start" : (i === values.length - 1 ? "end" : "middle"), fill: MUTED, "font-size": 11 }, text));
+      s.appendChild(el("text", { x: x(i), y: H - 8, "text-anchor": i === 0 ? "start" : (i === values.length - 1 ? "end" : "middle"), fill: MUTED, "font-size": 12 }, text));
     });
     node.appendChild(s);
   }
 
   function barChart(node, rows, opt) {
-    const W = 560, H = 190, L = 48, R = 8, T = 12, B = 30;
+    const W = chartW(node), H = 190, L = 48, R = 8, T = 12, B = 30;
     const max = niceMax(Math.max.apply(null, rows.map(r => r[1])) || 1);
     const s = svgBox(W, H);
     const bw = (W - L - R) / rows.length;
     const y = v => T + (H - T - B) * (1 - v / max);
     for (let g = 0; g <= 2; g++) {
       const v = max * g / 2;
-      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1 }));
-      s.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 11 }, opt.fmt(v)));
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1, "stroke-dasharray": "2 2" }));
+      s.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 12 }, opt.fmt(v)));
     }
     rows.forEach((r, i) => {
       const w = bw * 0.62, cx = L + bw * i + bw / 2;
-      s.appendChild(el("rect", { x: cx - w / 2, y: y(r[1]), width: w, height: y(0) - y(r[1]), fill: (r[2] || opt.color) }));
-      s.appendChild(el("text", { x: cx, y: y(r[1]) - 5, "text-anchor": "middle", fill: INK, "font-size": 11 }, opt.fmt(r[1])));
-      s.appendChild(el("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: MUTED, "font-size": 11 }, r[0]));
+      s.appendChild(el("rect", { x: cx - w / 2, y: y(r[1]), width: w, height: y(0) - y(r[1]), fill: (r[2] || opt.color), stroke: INK, "stroke-width": 2 }));
+      s.appendChild(el("text", { x: cx, y: y(r[1]) - 5, "text-anchor": "middle", fill: INK, "font-size": 12 }, opt.fmt(r[1])));
+      s.appendChild(el("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: MUTED, "font-size": 12 }, r[0]));
     });
     s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
     node.appendChild(s);
@@ -641,15 +657,15 @@
   const STACK_COLORS = { "共有": "var(--c-img)", "画像キャッシュ": "var(--c-api)", "アップロード": "var(--c-gb)", "その他": "var(--c-ok)" };
   const STACK_UNKNOWN = "var(--c-other)";
   function stackChart(node, rows, opt) {
-    const W = 560, H = 190, L = 44, R = 8, T = 12, B = 30;
+    const W = chartW(node), H = 190, L = 44, R = 8, T = 12, B = 30;
     const max = niceMax(Math.max.apply(null, rows.map(r => r[1])) || 1);
     const s = svgBox(W, H);
     const bw = (W - L - R) / rows.length;
     const y = v => T + (H - T - B) * (1 - v / max);
     for (let g = 0; g <= 2; g++) {
       const v = max * g / 2;
-      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1 }));
-      s.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 11 }, opt.fmt(v)));
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: RULE, "stroke-width": 1, "stroke-dasharray": "2 2" }));
+      s.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: MUTED, "font-size": 12 }, opt.fmt(v)));
     }
     const seen = new Set();
     rows.forEach((r, i) => {
@@ -661,15 +677,15 @@
         : [["記録のみ", r[1]]];
       parts.forEach(([k, v]) => {
         const top = base + v;
-        s.appendChild(el("rect", { x: cx - w / 2, y: y(top), width: w, height: Math.max(1, y(base) - y(top)), fill: STACK_COLORS[k] || STACK_UNKNOWN }));
+        s.appendChild(el("rect", { x: cx - w / 2, y: y(top), width: w, height: Math.max(1, y(base) - y(top)), fill: STACK_COLORS[k] || STACK_UNKNOWN, stroke: INK, "stroke-width": 1 }));
         base = top;
         seen.add(k);
       });
     });
     // 無料枠の線
     if (opt.free && opt.free < max) {
-      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(opt.free), y2: y(opt.free), stroke: "var(--c-bad)", "stroke-width": 1, "stroke-dasharray": "3 3" }));
-      s.appendChild(el("text", { x: W - R, y: y(opt.free) - 4, "text-anchor": "end", fill: "var(--c-bad)", "font-size": 10.5 }, "無料枠 " + opt.free + "GB"));
+      s.appendChild(el("line", { x1: L, x2: W - R, y1: y(opt.free), y2: y(opt.free), stroke: "var(--c-bad)", "stroke-width": 1, "stroke-dasharray": "4 2" }));
+      s.appendChild(el("text", { x: W - R, y: y(opt.free) - 4, "text-anchor": "end", fill: "var(--c-bad)", "font-size": 12 }, "無料枠 " + opt.free + "GB"));
     }
     s.appendChild(el("line", { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: INK, "stroke-width": 1 }));
     // 目盛りは詰まらない数だけ
@@ -677,7 +693,7 @@
     rows.forEach((r, i) => {
       if (i % step && i !== rows.length - 1) return;
       const cx = L + bw * i + bw / 2;
-      s.appendChild(el("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: MUTED, "font-size": 11 }, r[0]));
+      s.appendChild(el("text", { x: cx, y: H - 10, "text-anchor": "middle", fill: MUTED, "font-size": 12 }, r[0]));
     });
     node.appendChild(s);
     return seen;
@@ -1124,6 +1140,16 @@
 
   drawAll();
   draw();
+  {
+    let lastW = 0, t = null;
+    addEventListener("resize", () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const w = chartW(document.getElementById("c-req"));
+        if (w !== lastW) { lastW = w; drawCharts(); drawStorage(); }
+      }, 150);
+    });
+  }
 
   (async () => {
     try {
