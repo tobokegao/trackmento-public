@@ -11,9 +11,9 @@
 <meta name="trackmento-retention" content="__RETENTION__">
 <title>TRACKMENTO</title>
 <!--__FONT_LINK__-->
-<meta name="description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
+<meta name="description" content="好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
-<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
+<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:url" content="__BASE__/"><meta property="og:image" content="__BASE__/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="__BASE__/">
@@ -675,10 +675,10 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 /* **押している間の色は自前で描く**（`:active`）。箱は箱だけ、リンクはリンクの文字だけ。色はブラウザの水色と同じ */
 .check-sep input:active { box-shadow: inset 0 0 0 18px rgba(51, 181, 229, .4); }
 .check-sep a:active { background: rgba(51, 181, 229, .4); }
-/* 確認の窓（「マスを全部外す」）。幅は文だけなので狭くし、ボタンは右に寄せる */
+/* 確認の窓（「トラックを全て外す」）。幅は文だけなので狭くし、ボタンは右に寄せる */
 .modal-narrow { width: min(100%, 26rem); }
 .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
-/* 行の箱の余白（min-height: 28px）を外して、箱と文字の下端が「マスを全部外す」の枠の下辺に乗るようにする */
+/* 行の箱の余白（min-height: 28px）を外して、箱と文字の下端が「トラックを全て外す」の枠の下辺に乗るようにする */
 .grid-foot .check { min-height: 0; }
 .msg-under { margin-top: var(--space-3); }
 .msg .undo { font: inherit; font-weight: 700; color: var(--color-ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
@@ -894,10 +894,10 @@ body.sheet-open { overflow: hidden; }
 @media (min-width: 60rem) { #share-btn { grid-column: 1 / -1; } }
 /* **取り消せない操作は、いちばん押すものから遠く・最後・小さく**（OS 9 の Special メニューの末尾に Empty Trash… があるのと同じ）。
    以前は「曲を探す」の真上に「全部クリア」があり、利用者から「ヒヤヒヤする」と言われた */
-/* 最後の行: 左に「みんなのグリッド」の 2 段、右に「マスを全部外す」。幅が足りなければボタンが次の行の右端に落ちる */
+/* 最後の行: 左に「みんなのグリッド」の 2 段、右に「トラックを全て外す」。幅が足りなければボタンが次の行の右端に落ちる */
 .grid-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end;   /* 説明の行はボタンの下辺にそろえる（利用者の指定） */
   gap: var(--space-2); margin-top: var(--space-2); }
-/* **「マスを全部外す」は説明文の下、右端に単独で置く**（2026-09-21、利用者の指定）。
+/* **「トラックを全て外す」は説明文の下、右端に単独で置く**（2026-09-21、利用者の指定）。
    ボタンの列から縦にも横にも離れるので、続けて押したときに当たりにくい */
 .clear-row { display: flex; justify-content: flex-end; margin-top: var(--space-3); }
 
@@ -1086,7 +1086,7 @@ input[type="range"].is-grabbed::-webkit-slider-thumb { background-color: var(--c
 output { font-variant-numeric: tabular-nums; }
 
 /* ---------- output ---------- */
-/* 出来上がりは**それ自体を窓にする**（2026-09-16）。共有したあと、そのままオプションを
+/* できあがりは**それ自体を窓にする**（2026-09-16）。共有したあと、そのままオプションを
    いじって作り直したいときに、画像のぶんだけ延々とスクロールすることになっていた（スマホで報告）。
    窓にすればタイトルバーの「−」で畳めて、下のオプションがすぐ出る */
 .pane-output { margin-top: var(--space-4); }
@@ -1097,7 +1097,7 @@ output { font-variant-numeric: tabular-nums; }
    効かないので左に寄り、しかも高さの頭打ちに当たった比率のときだけ右に余りが出る
    （「左に寄っている・左右ぴったりでない」と報告があった）。
    **高さの頭打ちは外した**。画面の高さ（`dvh` / `svh`）で切ると、切られた比率だけ幅が縮んで
-   また左右に余りが出る。縦長の並びは縦に長く出るが、出来上がりを確かめる場所なのでそれでよい
+   また左右に余りが出る。縦長の並びは縦に長く出るが、できあがりを確かめる場所なのでそれでよい
    （`dvh` はスクロールでアドレスバーが隠れると値が変わり、画像ごと伸び縮みして
      下の欄がずれる、という別の問題もあった） */
 .output img { display: block; width: 100%; height: auto;
@@ -1156,12 +1156,12 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <div class="editor" id="editor" hidden aria-labelledby="editor-title">
         <div class="editor-head"><span class="num-badge" id="editor-num">01</span><span id="editor-title">選択中のマス</span><span class="badge" id="editor-source"></span></div>
         <div class="editor-fields">
-          <div class="field"><label for="e-title">曲名</label><input class="input" id="e-title" type="text" autocomplete="off" maxlength="120"></div>
+          <div class="field"><label for="e-title">トラック名</label><input class="input" id="e-title" type="text" autocomplete="off" maxlength="120"></div>
           <div class="field"><label for="e-artist">アーティスト名</label><input class="input" id="e-artist" type="text" autocomplete="off" maxlength="120"></div>
         </div>
         <div class="field">
-          <label for="e-note">メモ（共有ページの曲名リストに出ます）</label>
-          <textarea class="input" id="e-note" rows="3" maxlength="200" autocomplete="off" placeholder="この曲を選んだ理由など"></textarea>
+          <label for="e-note">メモ（共有ページのトラックリストに出ます）</label>
+          <textarea class="input" id="e-note" rows="3" maxlength="200" autocomplete="off" placeholder="このトラックを選んだ理由など"></textarea>
         </div>
         <p class="editor-meta" id="editor-meta"></p>
         <div class="field" id="e-origin-field" hidden>
@@ -1186,7 +1186,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     </div>
     <form class="pane-body search-form" id="search-form" novalidate>
       <div class="field">
-        <label for="q">曲名</label>
+        <label for="q">トラック名</label>
         <input class="input" id="q" name="q" type="search" autocomplete="off" placeholder="例: 感電" enterkeyhint="search">
       </div>
       <div class="field">
@@ -1206,7 +1206,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録曲をまとめて取得出来ます（最大 500 曲。マスに入りきらない分は候補に残ります）</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録トラックをまとめて取得できます（最大 500 トラック。マスに入りきらない分は候補に残ります）。</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
@@ -1216,19 +1216,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     </form>
     </div>
     <div class="sub" id="sub-manual">
-    <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋曲名）</button>
+    <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋トラック名）</button>
     <form class="pane-body search-form" id="manual-form" novalidate>
       <div class="field">
         <label for="m-image">手入力: ジャケット画像の URL</label>
         <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
         <div class="search-actions">
-          <button class="btn" type="button" id="m-file-btn"><span class="label">端末から画像を選択</span></button>
+          <button class="btn" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
           <input type="file" id="m-file" accept="image/*" hidden>
           <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶと画像が取り込まれ、URL 欄に入ります。</p>
         </div>
       </div>
       <div class="field">
-        <label for="m-title">曲名</label>
+        <label for="m-title">トラック名</label>
         <input class="input" id="m-title" name="title" type="text" autocomplete="off">
       </div>
       <div class="field">
@@ -1237,8 +1237,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       </div>
       <div class="field">
         <label for="m-link">リンク先の URL（省略可）</label>
-        <input class="input" id="m-link" name="link" type="text" inputmode="url" autocomplete="off" placeholder="https://…（曲のページ）">
-        <p class="msg">共有ページの曲名から、このページへ飛べるようになります。</p>
+        <input class="input" id="m-link" name="link" type="text" inputmode="url" autocomplete="off" placeholder="https://…（トラックのページ）">
+        <p class="msg">共有ページのトラック名から、このページへ飛べるようになります。</p>
       </div>
       <div class="search-actions">
         <button class="btn btn-primary" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
@@ -1252,7 +1252,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <div class="pane-title"><h2 id="h-results">候補</h2><span class="tail"><span class="count" id="results-count" aria-label="候補数">0</span><button class="fold" type="button" aria-expanded="true" aria-label="候補を折りたたむ"></button></span></div>
     <div class="pane-body">
       <ul class="results" id="results">
-        <li class="empty"><strong>まだ候補がありません</strong><span>曲名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>クリックで次の空きマスに入ります。</span></li>
+        <li class="empty"><strong>まだ候補がありません</strong><span>トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>クリックで次の空きマスに入ります。</span></li>
       </ul>
     </div>
   </section>
@@ -1270,10 +1270,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
       <div class="grid-actions">
-        <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
-        <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
-        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
-        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み</button>
+        <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
+        <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
+        <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
+        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -1284,18 +1284,18 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
                  英語は語順が変わる（Add to everyone's grids）ので、前の空の span に applyI18n が "Add to " を入れる -->
             <div class="check check-sep"><input type="checkbox" id="opt-listed" aria-labelledby="listed-text"><span id="listed-text"><span id="listed-pre"></span><a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッド</a>に載せる</span></div>
           </div>
-          <button class="btn" type="button" id="trim-all-btn" title="曲名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">全曲名を短縮する</button>
+          <button class="btn" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
         </div>
       </div>
-      <p class="msg msg-under">チェックを入れると、共有されたグリッドが曲名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
-      <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。</p>
+      <p class="msg msg-under">チェックを入れると、共有されたグリッドがトラック名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
+      <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残すときは「並びを保存」でファイルにしておくと、あとで読み込めます。</p>
       <!-- **取り消せない操作は説明文の下に置いて、位置をずらす**（利用者の指定、2026-09-21）。
            すぐ上のボタンの列と離すことで、続けて押したときの誤タップを防ぐ -->
       <div class="clear-row">
-        <button class="btn" type="button" id="clear-btn" title="マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる">マスを全部外す</button>
+        <button class="btn" type="button" id="clear-btn" title="トラックを全て外す。あとから「元に戻す」で戻せる">トラックを全て外す</button>
       </div>
       <section class="pane pane-output" id="output" hidden aria-labelledby="h-output">
-        <div class="pane-title"><h2 id="h-output">出来上がり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="出来上がりを折りたたむ"></button></span></div>
+        <div class="pane-title"><h2 id="h-output">できあがり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="できあがりを折りたたむ"></button></span></div>
         <div class="pane-body">
         <img id="output-img" alt="共有した画像のプレビュー">
         <div class="share-url"><span class="lbl">共有 URL</span><input class="input" id="share-url" type="text" readonly></div>
@@ -1333,7 +1333,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <label><input type="radio" name="ratio" value="4:5"><span>4:5 インスタ</span></label>
           <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 ツイート</span></label>
           <label><input type="radio" name="ratio" value="9:16"><span>9:16 ストーリーズ</span></label>
-          <label><input type="radio" name="ratio" value="free"><span>設定なし</span></label>
+          <label><input type="radio" name="ratio" value="free"><span>自由</span></label>
         </div>
         <p class="msg" id="ratio-msg" hidden></p>
       </fieldset>
@@ -1365,13 +1365,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
           <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
           <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
-          <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">蛇足な曲名を除外する</span></div>
+          <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の余計な部分を省く</span></div>
         </div>
       </fieldset>
 
       <fieldset class="field">
-        <legend>曲名リスト</legend>
-        <div class="seg radio" id="list-seg" role="radiogroup" aria-label="曲名リスト">
+        <legend>トラックリスト</legend>
+        <div class="seg radio" id="list-seg" role="radiogroup" aria-label="トラックリスト">
           <label><input type="radio" name="listmode" value="side" checked><span>横に並べる</span></label>
           <label><input type="radio" name="listmode" value="overlay"><span>マスに重ねる</span></label>
           <label><input type="radio" name="listmode" value="none"><span>表示しない</span></label>
@@ -1434,14 +1434,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <div class="modal-panel">
     <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2><button class="btn" type="button" id="src-modal-close">閉じる</button></div>
     <div class="modal-body note">
-          <p><b>iTunes</b>: 曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。</p>
+          <p><b>iTunes</b>: トラック名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。</p>
           <p><b>MusicBrainz</b>: 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。</p>
-          <p><b>VocaDB</b>: ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
-          <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
-          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。曲ごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
-          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（曲）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。Spotify だけは曲名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
+          <p><b>VocaDB</b>: ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
+          <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
+          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
+          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
 </div>
@@ -1454,8 +1454,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <div class="up-bar"><div class="up-fill" id="up-fill"></div></div>
       <p class="up-pct" id="up-pct">0%</p>
       <p class="up-note" id="up-note">回線が細いと少し時間がかかります。このままお待ちください。</p>
-      <aside class="up-promo" aria-label="作者の曲">
-        <span class="lbl">待っているあいだに、作者の曲はいかがですか</span>
+      <aside class="up-promo" aria-label="作者のトラック">
+        <span class="lbl">待っているあいだに、作者のトラックはいかがですか</span>
         <p id="up-track"></p>
       </aside>
     </div>
@@ -1470,16 +1470,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   </div>
 </div>
 
-<!-- 「マスを全部外す」の確認。**ブラウザ標準の confirm は使わない**（画面が止まり、撮影や自動操作でも扱えない） -->
+<!-- 「トラックを全て外す」の確認。**ブラウザ標準の confirm は使わない**（画面が止まり、撮影や自動操作でも扱えない） -->
 <div class="modal" id="confirm-modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
   <div class="sheet-backdrop" id="confirm-backdrop"></div>
   <div class="modal-panel modal-narrow">
     <div class="sheet-head"><h2 id="confirm-title">確認</h2></div>
     <div class="modal-body note">
-      <p id="confirm-msg">マスとストックの曲を全部外します。よろしいですか？</p>
+      <p id="confirm-msg">トラックを全て外します。あとから「元に戻す」で戻せます。</p>
       <div class="confirm-actions">
         <button class="btn" type="button" id="confirm-no">やめる</button>
-        <button class="btn btn-primary" type="button" id="confirm-yes">全部外す</button>
+        <button class="btn btn-primary" type="button" id="confirm-yes">全て外す</button>
       </div>
     </div>
   </div>
@@ -1505,13 +1505,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <button class="btn" type="button" id="pal-new">いまの色から作る</button>
       </div>
       <div class="pal-io">
-        <label for="pal-import">色コードを貼って読み込む</label>
+        <label for="pal-import">カラーコードを貼って読み込む</label>
         <div class="pal-io-row">
           <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（8 つ）" spellcheck="false" autocomplete="off">
           <button class="btn" type="button" id="pal-import-btn">読み込む</button>
         </div>
         <!-- パレットをファイルで渡す（2026-09-19、利用者の要望）。各組の「保存」で書き出したファイルをここで読む -->
-        <button class="btn" type="button" id="pal-file-btn">ファイルから読み込む</button>
+        <button class="btn" type="button" id="pal-file-btn">ファイルから読み込む…</button>
         <input type="file" id="pal-file" accept=".json,.txt,application/json,text/plain" hidden>
         <p class="msg" id="pal-msg"></p>
       </div>
@@ -1522,7 +1522,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="sheet-backdrop" id="sheet-backdrop"></div>
   <div class="sheet-panel">
-    <div class="sheet-head"><h2 id="sheet-title">01 番に入れる曲を探す</h2><button class="btn" type="button" id="sheet-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="sheet-title">01 番に入れるトラックを探す</h2><button class="btn" type="button" id="sheet-close">閉じる</button></div>
     <div class="sheet-body" id="sheet-body"></div>
   </div>
 </div>
@@ -1533,7 +1533,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。 -->
 <aside class="promo" aria-label="サーバー代のおねがい">
   <span class="lbl">サーバー代のおねがい</span>
-  <p>無料で置いているツールですが、思ったより多くの反響にてサーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
+  <p>無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
   <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a>（Bandcamp）</span>
   <span class="elsewhere">ほかで聴く:
     <a href="https://soundcloud.com/tobokegao" target="_blank" rel="noopener noreferrer">SoundCloud</a> /
@@ -1677,11 +1677,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "閉じる": "Close",
         "検索": "Search",
         "選択中のマス": "Selected cell",
-        "曲名": "Track",
+        "トラック名": "Track",
         "アーティスト名": "Artist",
         "リンク先の URL（省略可）": "Link URL (optional)",
-        "共有ページの曲名から、このページへ飛べるようになります。": "The track name on the shared page will link to it.",
-        "https://…（曲のページ）": "https://… (the page for the track)",
+        "共有ページのトラック名から、このページへ飛べるようになります。": "The track name on the shared page will link to it.",
+        "https://…（トラックのページ）": "https://… (the page for the track)",
         "リンク先は https:// から始まる URL にしてください。": "The link has to be a URL starting with https://.",
         "このマスを外す": "Remove this cell",
         "選択解除": "Deselect",
@@ -1690,32 +1690,32 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "URL から": "From a URL",
         "Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。": "A page URL from Bandcamp, SoundCloud, YouTube, Niconico, Spotify or Apple Music (a bare video ID such as sm… also works).",
         "改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。": "Put one per line to pull from several sites at once.",
-        "プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録曲をまとめて取得出来ます（最大 500 曲。マスに入りきらない分は候補に残ります）": "A playlist URL — a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or Apple Music — pulls in every track at once (up to 500; anything that does not fit in the grid stays in the results).",
+        "プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録トラックをまとめて取得できます（最大 500 トラック。マスに入りきらない分は候補に残ります）。": "A playlist URL — a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or Apple Music — pulls in every track at once (up to 500; anything that does not fit in the grid stays in the results).",
         "URL から取得": "Fetch from URL",
-        "手入力（画像 URL＋曲名）": "By hand (image URL + track name)",
+        "手入力（画像 URL＋トラック名）": "By hand (image URL + track name)",
         "手入力: ジャケット画像の URL": "By hand: cover image URL",
-        "端末から画像を選択": "Choose an image from this device",
+        "端末から画像を選択…": "Choose an image from this device…",
         "選ぶと画像が取り込まれ、URL 欄に入ります。": "The image is uploaded and its URL fills the field above.",
         "手入力で追加": "Add by hand",
         "候補": "Results",
         "まだ候補がありません": "No results yet",
-        "曲名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。": "Search by track or artist and the matches appear here with their covers.",
+        "トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。": "Search by track or artist and the matches appear here with their covers.",
         "クリックで次の空きマスに入ります。": "Click one to drop it into the next empty cell.",
         "グリッド": "Grid",
         "タイトル（省略可）": "Title (optional)",
         "候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。": "Click a result to fill the next empty cell. Tap a cell to select it, then tap another to swap.",
         "トラックを共有": "Share these tracks",
-        "マスを全部外す": "Clear all cells",
+        "トラックを全て外す": "Remove all tracks",
         "確認": "Confirm",
-        "マスとストックの曲を全部外します。よろしいですか？": "This removes every track from the cells and the stash. Are you sure?",
-        "全部外す": "Clear all",
-        "マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる": "Remove every track from the cells and the stash. You can undo right after.",
+        "トラックを全て外します。あとから「元に戻す」で戻せます。": "This removes every track. You can bring them back with “Undo”.",
+        "全て外す": "Remove all",
+        "トラックを全て外す。あとから「元に戻す」で戻せる": "Remove every track. You can bring them back with “Undo”",
         "元に戻す": "Undo",
         "戻しました。": "Restored.",
-        "曲を探す": "Find a track",
+        "トラックを探す": "Find a track",
         "並びを保存": "Save layout",
-        "並びを読み込み": "Load layout",
-        "共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。": "Share URLs expire after __RETENTION__ days. To keep a layout, save it to a file and load it back later.",
+        "並びを読み込み…": "Load layout…",
+        "共有 URL は __RETENTION__ 日で消えます。長く残すときは「並びを保存」でファイルにしておくと、あとで読み込めます。": "Share URLs expire after __RETENTION__ days. To keep a layout, save it to a file and load it back later.",
         "共有 URL": "Share URL",
         "SNS に共有": "Share on social",
         "共有ページを開く": "Open share page",
@@ -1731,16 +1731,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "4:5 インスタ": "4:5 Instagram",
         "16:9 ツイート": "16:9 post",
         "9:16 ストーリーズ": "9:16 stories",
-        "設定なし": "Free",
+        "自由": "Free",
         "表示": "Show",
         "タイトル": "Title",
-        "曲名リスト": "Track list",
+        "トラックリスト": "Track list",
         "横に並べる": "Beside the grid",
         "マスに重ねる": "On the covers",
         "表示しない": "Hidden",
-        "この並びだとマスが小さく、重ねた曲名が読めない大きさになるので、曲名は出しません。マスを減らすか、横に並べてください。": "The covers are too small in this layout for readable titles on top, so no titles will be drawn. Use fewer cells or put the list beside the grid.",
+        "この並びだとマスが小さく、重ねたトラック名が読めない大きさになるので、トラック名は出しません。マスを減らすか、横に並べてください。": "The covers are too small in this layout for readable titles on top, so no titles will be drawn. Use fewer cells or put the list beside the grid.",
         "番号バッジ": "Number badges",
-        "蛇足な曲名を除外する": "Trim needless title text",
+        "トラック名の余計な部分を省く": "Trim needless title text",
         "アーティスト名の候補": "Artist name suggestions",
         "アーティスト名の候補:": "Artist name suggestions:",
         "元の投稿を探す": "Find the original post",
@@ -1759,16 +1759,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "切り抜く": "Crop",
         "ぼかして埋める": "Blur to fill",
         "このマスのサムネの入れ方": "How this thumbnail fits",
-        "メモ（共有ページの曲名リストに出ます）": "Note (shown in the track list on the share page)",
-        "この曲を選んだ理由など": "Why you picked this track, etc.",
+        "メモ（共有ページのトラックリストに出ます）": "Note (shown in the track list on the share page)",
+        "このトラックを選んだ理由など": "Why you picked this track, etc.",
         "全体に従う": "Follow the setting",
         "マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。": "How to fit thumbnails whose shape differs from the cell (for example, video thumbnails in square cells or square covers in 16:9 cells). Choose “Blur to fill” to fit them in without cutting. You can also change it for a single cell.",
-        "全曲名を短縮する": "Shorten all titles",
-        "曲名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
+        "トラック名を短くする": "Shorten all titles",
+        "トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
         "短くする": "Shorten",
-        "短くできる曲名はありませんでした。": "No titles needed shortening.",
-        "{} マスの曲名・{} マスのアーティスト名を短くします。よろしいですか？": "This shortens {0} track names and {1} artist names. Are you sure?",
-        "{} マスの曲名・{} マスのアーティスト名を短くしました。": "Shortened {0} track names and {1} artist names.",
+        "短くできるトラック名はありませんでした。": "No titles needed shortening.",
+        "{} マスのトラック名・{} マスのアーティスト名を短くします。あとから「元に戻す」で戻せます。": "This shortens {0} track names and {1} artist names. Are you sure?",
+        "{} マスのトラック名・{} マスのアーティスト名を短くしました。": "Shortened {0} track names and {1} artist names.",
         "背景色": "Background",
         "カスタムカラー": "Custom colour",
         "色相": "Hue",
@@ -1783,28 +1783,28 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "マスに入れる": "Fill the grid",
         "候補に置いて選ぶ": "Put in results and pick",
         "ソースについて": "About the sources",
-        ": 曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。": ": only shows tracks whose title contains your query and whose artist contains the artist you typed, to keep unrelated songs and covers out. Exact matches come first.",
+        ": トラック名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。": ": only shows tracks whose title contains your query and whose artist contains the artist you typed, to keep unrelated songs and covers out. Exact matches come first.",
         ": 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。": ": covers come only from releases registered with the Cover Art Archive. It allows one request per second, so it is a little slow.",
         ": 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。": ": the otoMAD database (otodb.net). Search by work title; the creator comes from the database tags. Thumbnails live on otoDB, so they still show even when the original video is gone.",
-        ": ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。": ": the Vocaloid song database (vocadb.net). Search by title; the artist comes back as \"Hachi feat. Hatsune Miku\", the producer and the voice together. Results are ordered by rating so the original comes first. Thumbnails come from the original video.",
+        ": ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。": ": the Vocaloid song database (vocadb.net). Search by title; the artist comes back as \"Hachi feat. Hatsune Miku\", the producer and the voice together. Results are ordered by rating so the original comes first. Thumbnails come from the original video.",
         "組み合わせ": "Combining sources",
-        ": ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。": ": you can pick several. Results follow the order of the buttons (iTunes → MusicBrainz → …), and for duplicates the earlier source wins, since iTunes is fast and steady while MusicBrainz gets busy. Your choice is remembered.",
+        ": ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。": ": you can pick several. Results follow the order of the buttons (iTunes → MusicBrainz → …), and for duplicates the earlier source wins, since iTunes is fast and steady while MusicBrainz gets busy. Your choice is remembered.",
         "まとめて取る": "Fetching a whole list",
-        ": ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。": ": paste a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or an Apple Music URL, and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results and pick\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
+        ": ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。": ": paste a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or an Apple Music URL, and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results and pick\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
         "SoundCloud のセットと Spotify のプレイリストはまとめて取れません": "SoundCloud sets and Spotify playlists can't be pulled in at once",
-        "（それぞれのサービスの決まりに合わせて外しました。曲ごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。": " — we took that out to follow their rules, though a URL for one track still works. Put URLs on separate lines to mix several sites in one go.",
-        ": Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（曲）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。Spotify だけは曲名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track), SoundCloud (track), Spotify (track or album), Apple Music (song), YouTube (video) or Niconico and it picks up the cover or thumbnail along with the title and the artist (or uploader). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bare ID such as sm12345 works too.",
+        "（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。": " — we took that out to follow their rules, though a URL for one track still works. Put URLs on separate lines to mix several sites in one go.",
+        ": Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track), SoundCloud (track), Spotify (track or album), Apple Music (song), YouTube (video) or Niconico and it picks up the cover or thumbnail along with the title and the artist (or uploader). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bare ID such as sm12345 works too.",
         "保存されるもの": "What gets stored",
-        ": 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched covers are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
-        "01 番に入れる曲を探す": "Find a track for cell 01",
+        ": 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched covers are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
+        "01 番に入れるトラックを探す": "Find a track for cell 01",
         "サーバー代のおねがい": "A word about server bills",
-        "無料で置いているツールですが、思ったより多くの反響にてサーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
+        "無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
         "ほかで聴く:": "Also on:",
         "おかねがたりないときのうた": "Okane ga Tarinai Toki no Uta",
         "（サーバー代のたすけ）": " (helps with the server bills)",
         "お問い合わせフォーム": "Contact form",
         "使い方": "How to use", "プライバシーポリシー": "Privacy policy", "運営者": "About", "更新情報": "Updates",
-        "曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有": "Build a grid of cover art track by track. Search widely, then share the tracks you love.",
+        "好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。": "Line up the cover art of your favorite tracks in one image. Mix tracks from any site, even ones missing from streaming services.",
         "この案内を閉じる": "Dismiss this notice",
         "検索を折りたたむ": "Collapse search",
         "例: 感電": "e.g. Never Gonna Give You Up",
@@ -1817,8 +1817,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "グリッドを折りたたむ": "Collapse grid",
         "例: 私を構成する9曲": "e.g. 9 tracks that made me",
         "ジャケットの並び": "Cover grid",
-        "PNG を作り、並びのスナップショットと一緒に共有 URL にする": "Render a PNG and put it, with a snapshot of the layout, behind a share URL",
-        "並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる": "Save the layout (tracks, image URLs and output settings) to a JSON file on this device. Load it to get the same layout back",
+        "画像を作り、今の並びと一緒に共有 URL にする": "Render an image and put it, with the current layout, behind a share URL",
+        "並び（トラック・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる": "Save the layout (tracks, image URLs and output settings) to a JSON file on this device. Load it to get the same layout back",
         "「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す": "Load a JSON file written by \"Save layout\" to restore that layout",
         "共有した画像のプレビュー": "Preview of the shared image",
         "出力オプションを折りたたむ": "Collapse output options",
@@ -1838,13 +1838,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "ピンク": "Pink",
     "レモン": "Lemon", "ウルトラマリン": "Ultramarine", "コーラル": "Coral",
     "スカイ": "Sky", "リーフ": "Leaf", "ローズ": "Rose",
-    "作者の曲": "Songs by the author",
+    "作者のトラック": "Songs by the author",
     "画像を送っています": "Sending the image", "回線が細いと少し時間がかかります。このままお待ちください。": "On a slow connection this takes a little while. Please keep this open.",
     "送信を仕上げています。回線が遅いと、ここで少し時間がかかります。このままお待ちください。": "Finishing the upload. On a slow connection this step can take a little while, so please wait.",
-    "待っているあいだに、作者の曲はいかがですか": "While you wait, how about a song by the author",
+    "待っているあいだに、作者のトラックはいかがですか": "While you wait, how about a song by the author",
     "みんなのグリッド": "everyone's grids",
     "に載せる": "",
-    "チェックを入れると、共有されたグリッドが曲名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。":
+    "チェックを入れると、共有されたグリッドがトラック名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。":
       "Tick the box and the shared grid can be found by song or artist name. Leave it unticked and only people with the URL can see it.",
     "やめる": "Cancel",
     "時間がかかっています。回線が不安定なときは「やめる」でやり直せます。":
@@ -1853,7 +1853,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "時間切れです（回線が遅いか、途切れています）": "Timed out (the connection is slow or broken)",
     "送信をやめました": "Sending cancelled",
     "送れませんでした（通信が止まりました）": "Could not send it (the transfer stopped)",
-    "出来上がり": "The result", "出来上がりを折りたたむ": "Collapse the result",
+    "できあがり": "The result", "できあがりを折りたたむ": "Collapse the result",
     "送信をやめました。": "Sending cancelled.",
     "画像を送れなかったので、サーバーで作り直しています…": "The image could not be sent, so the server is making it again\u2026",
     "（{} 秒）": " ({0}s)",
@@ -1863,11 +1863,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     "背景色に並ぶ 8 色と、画面の配色をまとめて切り替えます。": "Switches the eight background colours and the page's own colours together.",
     "いまの色から作る": "Make one from these colours", "じぶんの色": "My colour",
     "使う": "Use", "消す": "Delete", "リソ": "Riso", "ポップ": "Pop",
-    "コピー": "Copy", "読み込む": "Load", "色コードを貼って読み込む": "Paste colour codes to load",
-    "保存": "Save", "ファイルから読み込む": "Load from a file", "ファイルに保存しました。": "Saved to a file.",
+    "コピー": "Copy", "読み込む": "Load", "カラーコードを貼って読み込む": "Paste colour codes to load",
+    "保存": "Save", "ファイルから読み込む…": "Load from a file…", "ファイルに保存しました。": "Saved to a file.",
     "パレットのファイルではないようです。": "That doesn't look like a palette file.",
     "コピーしました。": "Copied.", "コピーできなかったので、欄に入れました。": "Could not copy, so we put it in the box.",
-    "読み込みました。": "Loaded.", "色コードを 8 つ入れてください。": "Eight colour codes are needed.",
+    "読み込みました。": "Loaded.", "カラーコードを 8 つ入れてください。": "Eight colour codes are needed.",
     "#f2418f, #4878da, …（8 つ）": "#f2418f, #4878da, … (eight)",
     "アイボリー": "Ivory", "チャコール": "Charcoal",
     "ミッドナイト": "Midnight", "チョーク": "Chalk", "アンバー": "Amber", "アジュール": "Azure", "フレア": "Flare", "バイオレット": "Violet", "ジェイド": "Jade", "マゼンタ": "Magenta", "ナイト": "Night",
@@ -1876,8 +1876,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "接続OK": "Connected",
         "サーバーに接続できません（検索は iTunes / MusicBrainz のみ。保存・共有は不可）": "Cannot reach the server (search is limited to iTunes and MusicBrainz; saving and sharing are unavailable)",
         "サーバーに接続できません": "Cannot reach the server",
-        "このソースはサーバー側で無効です（README を参照）": "This source is switched off on the server (see the README)",
-        "曲名かアーティスト名のどちらかは必要です。": "Enter a track name or an artist name.",
+        "このソースは今は使えません。": "This source is not available right now.",
+        "トラック名かアーティスト名のどちらかは必要です。": "Enter a track name or an artist name.",
         "URL だったので「URL から」に回して取り込みます。": "That was a URL, so it is being fetched through \"From a URL\".",
         "ソースを選んでください。": "Pick a source.",
         "混雑中で応答しませんでした（少し待って再検索）": "was busy and did not answer; wait a moment and search again",
@@ -1887,40 +1887,40 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "「マスに入れる」で、番号の若い空きマスから順に全部入ります。": "\"Fill the grid\" puts every one of them into the empty cells, lowest number first.",
         "やめました。": "Cancelled.",
         "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music）か、動画 ID（sm… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。": "Paste a page URL starting with https:// (Bandcamp, SoundCloud, YouTube, Niconico, Spotify or Apple Music), or a video ID (sm… or the 11-character YouTube one). Put one per line for several.",
-        "画像は https:// の URL か、「画像を選ぶ」で取り込んだ /uploads/ の URL にしてください。": "The image must be an https:// URL, or a /uploads/ URL from \"Choose an image\".",
-        "曲名を入れてください。": "Enter a track name.",
-        "<strong>該当なし</strong><span>曲名を短くする、アーティスト名だけで検索する、などを試してください。</span>": "<strong>No matches</strong><span>Try a shorter title, or search by artist alone.</span>",
+        "画像は https:// から始まる URL を入れるか、「端末から画像を選択」で選んでください。": "Enter an image URL starting with https://, or pick one with “Choose an image from this device”.",
+        "トラック名を入れてください。": "Enter a track name.",
+        "<strong>該当なし</strong><span>トラック名を短くする、アーティスト名だけで検索する、などを試してください。</span>": "<strong>No matches</strong><span>Try a shorter title, or search by artist alone.</span>",
         "空きマスがありません。× で外してから追加してください。": "No empty cells left. Remove one with × first.",
-        "曲を探す（次の空きマスに入ります）": "Find a track (goes into the next empty cell)",
+        "トラックを探す（次の空きマスに入ります）": "Find a track (goes into the next empty cell)",
         "入れる先の指定を解除しました。": "Target cell cleared.",
         "選択を解除しました。": "Selection cleared.",
         "元ページを開く": "Open the original page",
-        "曲名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。": "The track and artist names appear in the sidebar of the image. Edit them here.",
+        "トラック名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。": "The track and artist names appear in the sidebar of the image. Edit them here.",
         "並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。": "Layout saved to a JSON file. \"Load layout\" brings it back, though images you uploaded from this device may have expired by then.",
-        "マスを全部外しました。": "Cleared every cell.",
+        "トラックを全て外しました。": "Removed every track.",
         "画像の取得に失敗": "Could not fetch the image",
-        "TRACKMENTO の JSON ではありません（cells がありません）。": "That is not a TRACKMENTO JSON file (no cells in it).",
+        "TRACKMENTO の並びのファイルではないようです。": "This does not look like a TRACKMENTO layout file.",
         "サーバー側の保存（CLI など）の方が新しいので、そちらを読み込みました。": "The copy saved on the server (from the CLI, say) was newer, so that one was loaded.",
         "コピーしました": "Copied",
         "コピーできませんでした": "Could not copy",
         "サーバーが応答しません。少し待ってもう一度試しています…": "The server is not answering. Waiting a moment and trying again…",
         "画像を作成中…": "Rendering the image…",
-        "曲を置いてから押してください。": "Put some tracks in first.",
+        "トラックを置いてから押してください。": "Put some tracks in first.",
         "この端末では画像を作れなかったので、サーバーで作成します…": "This device could not render the image, so the server is doing it…",
         "共有 URL をコピーしました。": "Share URL copied.",
         "コピーできなかったので、URL 欄を選択しました。手動でコピーしてください。": "Copying failed, so the URL field is selected. Copy it by hand.",
         "無題": "Untitled",
         "期限切れか削除済みです": "Expired or deleted",
-        "サーバーが応答できませんでした（HTTP {}）。再起動中の可能性があります。30 秒ほど待ってからもう一度お試しください": "The server could not answer (HTTP {0}). It may be restarting. Wait about 30 seconds and try again",
+        "サーバーが応答できませんでした。30 秒ほど待ってからもう一度お試しください。": "The server could not answer. Wait about 30 seconds and try again.",
         "ソース: {}": "Sources: {0}",
         "{} は{}。": "{0} {1}.",
         "{} 件": "{0} found",
         "検索に失敗しました（{}）。サーバーが起動しているか確認して、もう一度押してください。": "Search failed ({0}). Check that the server is running and press again.",
-        "{} 曲 取れました。いまの空きマスは {} 個です。": "Got {0} tracks. There are {1} empty cells right now.",
-        "「マスに入れる」で {} 曲が入り、残り {} 曲は候補に置きます。": "\"Fill the grid\" takes {0} of them; the other {1} go to the results.",
-        "{} 曲をマスに入れ、残り {} 曲を候補に置きました。": "Put {0} tracks in the grid and the other {1} in the results.",
-        "{} 曲をマスに入れました。": "Put {0} tracks in the grid.",
-        "候補に {} 曲を置きました。クリックで配置します。": "Put {0} tracks in the results. Click one to place it.",
+        "{} トラック 取れました。いまの空きマスは {} 個です。": "Got {0} tracks. There are {1} empty cells right now.",
+        "「マスに入れる」で {} トラックが入り、残り {} トラックは候補に置きます。": "\"Fill the grid\" takes {0} of them; the other {1} go to the results.",
+        "{} トラックをマスに入れ、残り {} トラックを候補に置きました。": "Put {0} tracks in the grid and the other {1} in the results.",
+        "{} トラックをマスに入れました。": "Put {0} tracks in the grid.",
+        "候補に {} トラックを置きました。クリックで配置します。": "Put {0} tracks in the results. Click one to place it.",
         "一度に取れるのは {} 件までです（いまは {} 件）。": "Up to {0} at a time, and there are {1} here.",
         "{} 件を取得中…": "Fetching {0}…",
         "{}/{} 件目を取得中…": "Fetching {0} of {1}…",
@@ -1930,23 +1930,23 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "{} 件を候補に入れました。取れなかったもの: {}": "Put {0} in the results. These could not be fetched: {1}",
         "取れませんでした。{}": "Nothing could be fetched. {0}",
         "{} を送っています…": "Uploading {0}…",
-        "取り込みました（{}）。曲名を確認して「手入力で追加」を押してください。": "Uploaded ({0}). Check the track name and press \"Add by hand\".",
+        "取り込みました（{}）。トラック名を確認して「手入力で追加」を押してください。": "Uploaded ({0}). Check the track name and press \"Add by hand\".",
         "取り込めませんでした。{}": "Upload failed. {0}",
         "{} / {} をグリッドに追加": "Add {0} by {1} to the grid",
         "{} 番に「{}」を入れました。": "Put \"{1}\" in cell {0}.",
         "{} 番に入れます。候補をタップで確定／もう一度タップで解除": "Cell {0} is the target. Tap a result to place it, or tap again to cancel",
-        "{} 番に入れる曲を探す": "Find a track for cell {0}",
+        "{} 番に入れるトラックを探す": "Find a track for cell {0}",
         "{} 番の「{}」を外しました。": "Removed \"{1}\" from cell {0}.",
         "{} 番と {} 番を入れ替えました。": "Swapped cells {0} and {1}.",
         "{} 番を選択中。別のマスをタップすると入れ替え（空マスなら移動）。もう一度タップで解除。": "Cell {0} is selected. Tap another cell to swap, or an empty one to move. Tap again to deselect.",
         "{} 番を {} 番に移しました。": "Moved cell {0} to cell {1}.",
         "アルバム: {}": "Album: {0}",
         "マスは全部で {} 個までです（{} × {} にしました）。": "The grid holds at most {0} cells, so this is now {1} × {2}.",
-        "{} 曲をいったん外しました。サイズを戻すと復帰します。": "{0} tracks were set aside. They come back if you restore the size.",
+        "{} トラックをいったん外しました。サイズを戻すと復帰します。": "{0} tracks were set aside. They come back if you restore the size.",
         "{} 番: {} / {}": "Cell {0}: {1} by {2}",
         "{} 番の {} を外す": "Remove {1} from cell {0}",
         "{} 番: 空": "Cell {0}: empty",
-        "並びを読み込みました（{} 曲）。この画面での変更は自分のグリッドとして保存されます。": "Layout loaded ({0} tracks). Changes you make here are saved as your own grid.",
+        "並びを読み込みました（{} トラック）。この画面での変更は自分のグリッドとして保存されます。": "Layout loaded ({0} tracks). Changes you make here are saved as your own grid.",
         "並びを読み込めませんでした: {}": "Could not load the layout: {0}",
         "上下 {} / 左右 {} px": "{0} top and bottom / {1} left and right, px",
     "この並びと比率だとジャケットが {}px になります。正方形に近い比率にすると大きくなります。":
@@ -1957,7 +1957,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "共有できませんでした（{}）。": "Sharing failed ({0}).",
         "何度も失敗する場合はこちらからお知らせください": "If it keeps failing, please let us know here",
         "トラック共有サイト #TRACKMENTO からシェア:「{}」": "Shared from #TRACKMENTO, the track-grid maker: \"{0}\"",
-        "共有 {} の並びを読み込みました（{} 曲）。この画面での変更は自分のグリッドとして保存されます。": "Loaded the layout from share {0} ({1} tracks). Changes you make here are saved as your own grid.",
+        "共有 {} の並びを読み込みました（{} トラック）。この画面での変更は自分のグリッドとして保存されます。": "Loaded the layout from share {0} ({1} tracks). Changes you make here are saved as your own grid.",
         "共有 {} を読み込めませんでした（{}）。": "Could not load share {0} ({1})."
     };
   /* **共有が消えるまでの日数を表にも入れる**（2026-09-20）。以前はサーバーが HTML 全体を置換していて、
@@ -2043,7 +2043,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const text = await r.text();
     try { return JSON.parse(text); }
     catch {
-      if (r.status >= 500 || r.status === 429) throw new Error(tr`サーバーが応答できませんでした（HTTP ${r.status}）。再起動中の可能性があります。30 秒ほど待ってからもう一度お試しください`);
+      if (r.status >= 500 || r.status === 429) throw new Error(tr("サーバーが応答できませんでした。30 秒ほど待ってからもう一度お試しください。"));
       throw new Error(`HTTP ${r.status}`);
     }
   }
@@ -2362,7 +2362,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       i.type = "radio"; i.name = "source"; i.value = s; i.disabled = !on;
       i.checked = on && s === pick;
       const sp = document.createElement("span"); sp.textContent = tr(SOURCE_LABEL[s]);
-      if (!on) l.title = tr("このソースはサーバー側で無効です（README を参照）");
+      if (!on) l.title = tr("このソースは今は使えません。");
       i.addEventListener("change", () => { try { localStorage.setItem(SOURCES_KEY, JSON.stringify(selectedSources())); } catch { /* ignore */ } });
       l.append(i, sp); els.sources.append(l);
     }
@@ -2696,7 +2696,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     e.preventDefault();
     const q = els.q.value.trim(), artist = els.artist.value.trim();
     els.q.removeAttribute("aria-invalid");
-    if (!q && !artist) { els.q.setAttribute("aria-invalid", "true"); say(els.searchMsg, tr("曲名かアーティスト名のどちらかは必要です。"), "error"); els.q.focus({ preventScroll: true }); return; }
+    if (!q && !artist) { els.q.setAttribute("aria-invalid", "true"); say(els.searchMsg, tr("トラック名かアーティスト名のどちらかは必要です。"), "error"); els.q.focus({ preventScroll: true }); return; }
     // 曲名欄にページの URL を貼った人は「URL を貼る」に回す（iTunes に URL を検索させても何も出ない）
     const pasted = [q, artist].find(v => /^https?:\/\//i.test(v));
     if (pasted) {
@@ -2780,10 +2780,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     plPending = tracks;
     const empty = state.cells.filter(c => c === null).length;
     const fit = Math.min(empty, tracks.length);
-    $("#pl-summary").textContent = tr`${tracks.length} 曲 取れました。いまの空きマスは ${empty} 個です。`;
+    $("#pl-summary").textContent = tr`${tracks.length} トラック 取れました。いまの空きマスは ${empty} 個です。`;
     $("#pl-hint").textContent = fit >= tracks.length
       ? tr("「マスに入れる」で、番号の若い空きマスから順に全部入ります。")
-      : tr`「マスに入れる」で ${fit} 曲が入り、残り ${tracks.length - fit} 曲は候補に置きます。`;
+      : tr`「マスに入れる」で ${fit} トラックが入り、残り ${tracks.length - fit} トラックは候補に置きます。`;
     plModal.hidden = false;
     lockScroll();
     $("#pl-to-grid").focus({ preventScroll: true });
@@ -2800,15 +2800,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const put = fillEmptyCells(tracks);
     const rest = tracks.slice(put);
     if (rest.length) {
-      plPutToResults(rest, tr`${put} 曲をマスに入れ、残り ${rest.length} 曲を候補に置きました。`);
+      plPutToResults(rest, tr`${put} トラックをマスに入れ、残り ${rest.length} トラックを候補に置きました。`);
     } else {
-      say(els.bcMsg, tr`${put} 曲をマスに入れました。`);
+      say(els.bcMsg, tr`${put} トラックをマスに入れました。`);
     }
   });
   $("#pl-to-results").addEventListener("click", () => {
     const tracks = plPending || [];
     closePlModal();
-    plPutToResults(tracks, tr`候補に ${tracks.length} 曲を置きました。クリックで配置します。`);
+    plPutToResults(tracks, tr`候補に ${tracks.length} トラックを置きました。クリックで配置します。`);
   });
   $("#pl-cancel").addEventListener("click", () => { closePlModal(); say(els.bcMsg, tr("やめました。")); });
   $("#pl-modal-backdrop").addEventListener("click", () => { closePlModal(); say(els.bcMsg, tr("やめました。")); });
@@ -2913,8 +2913,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.mLink.focus({ preventScroll: true });
       return;
     }
-    if (!isImageRef(image)) { els.mImage.setAttribute("aria-invalid", "true"); say(els.mMsg, tr("画像は https:// の URL か、「画像を選ぶ」で取り込んだ /uploads/ の URL にしてください。"), "error"); els.mImage.focus({ preventScroll: true }); return; }
-    if (!title) { els.mTitle.setAttribute("aria-invalid", "true"); say(els.mMsg, tr("曲名を入れてください。"), "error"); els.mTitle.focus({ preventScroll: true }); return; }
+    if (!isImageRef(image)) { els.mImage.setAttribute("aria-invalid", "true"); say(els.mMsg, tr("画像は https:// から始まる URL を入れるか、「端末から画像を選択」で選んでください。"), "error"); els.mImage.focus({ preventScroll: true }); return; }
+    if (!title) { els.mTitle.setAttribute("aria-invalid", "true"); say(els.mMsg, tr("トラック名を入れてください。"), "error"); els.mTitle.focus({ preventScroll: true }); return; }
     const t = { source: "manual", title, artist, album: null, image, thumb: image, external_url: link || null };
     currentResults = [t, ...currentResults.filter(x => x.image !== image)];
     renderResults(currentResults);
@@ -2936,7 +2936,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       els.mImage.value = d.url; els.mImage.removeAttribute("aria-invalid");
       if (!els.mTitle.value) els.mTitle.value = f.name.replace(/\.[^.]+$/, "");
       setBtnState(els.mFileBtn, null);
-      say(els.mFileMsg, tr`取り込みました（${d.url}）。曲名を確認して「手入力で追加」を押してください。`);
+      say(els.mFileMsg, tr`取り込みました（${d.url}）。トラック名を確認して「手入力で追加」を押してください。`);
       els.mTitle.focus({ preventScroll: true });
     } catch (err) {
       setBtnState(els.mFileBtn, "error");
@@ -2953,7 +2953,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     els.resultsCount.textContent = String(tracks.length);
     if (!tracks.length) {
       const li = document.createElement("li"); li.className = "empty";
-      li.innerHTML = tr("<strong>該当なし</strong><span>曲名を短くする、アーティスト名だけで検索する、などを試してください。</span>");
+      li.innerHTML = tr("<strong>該当なし</strong><span>トラック名を短くする、アーティスト名だけで検索する、などを試してください。</span>");
       els.results.append(li);
       return;
     }
@@ -3018,7 +3018,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   const sheetOpen = () => !sheet.hidden;
   $("#find-btn").addEventListener("click", () => { target = null; renderGrid(); openSheet(null); });
   function openSheet(i) {
-    sheetTitle.textContent = i === null ? tr("曲を探す（次の空きマスに入ります）") : tr`${String(i + 1).padStart(2, "0")} 番に入れる曲を探す`;
+    sheetTitle.textContent = i === null ? tr("トラックを探す（次の空きマスに入ります）") : tr`${String(i + 1).padStart(2, "0")} 番に入れるトラックを探す`;
     const search = $(".pane-search"), results = $(".pane-results");
     sheetBody.append(search, results);
     search.dataset.collapsed = "false"; results.dataset.collapsed = "false";
@@ -3096,7 +3096,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (parts.length) els.eMeta.append(" · ");
       const a = document.createElement("a"); a.href = t.external_url; a.target = "_blank"; a.rel = "noopener"; a.textContent = tr("元ページを開く"); els.eMeta.append(a);
     }
-    if (!parts.length && !t.external_url) els.eMeta.textContent = tr("曲名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。");
+    if (!parts.length && !t.external_url) els.eMeta.textContent = tr("トラック名とアーティスト名は画像のサイドバー表示に使われます。ここで直せます。");
   }
   /* ---- アーティスト名の候補（転載元） ---- */
   /* **チャンネル名っぽいか**。宣伝の文句か「公式チャンネル」などを含むときだけ、題からの候補も出す。
@@ -3242,7 +3242,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const cut = state.cells.slice(n).filter(Boolean);
       state.stash = cut.concat(state.stash);
       state.cells = state.cells.slice(0, n);
-      if (cut.length) say(els.gridMsg, tr`${cut.length} 曲をいったん外しました。サイズを戻すと復帰します。`);
+      if (cut.length) say(els.gridMsg, tr`${cut.length} トラックをいったん外しました。サイズを戻すと復帰します。`);
     } else if (n > cur) {
       const add = [];
       while (add.length < n - cur) add.push(state.stash.length ? state.stash.shift() : null);
@@ -3335,22 +3335,22 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     try {
       applyData(JSON.parse(await f.text()));
       save();
-      say(els.gridMsg, tr`並びを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
+      say(els.gridMsg, tr`並びを読み込みました（${state.cells.filter(Boolean).length} トラック）。この画面での変更は自分のグリッドとして保存されます。`);
     } catch (err) {
       say(els.gridMsg, tr`並びを読み込めませんでした: ${err.message}`, "error");
     }
   });
-  // **「マスを全部外す」は戻せる**。確認ダイアログは毎回邪魔になって読まずに押すようになるので出さず、
+  // **「トラックを全て外す」は戻せる**。確認ダイアログは毎回邪魔になって読まずに押すようになるので出さず、
   // 外した直後のメッセージに「元に戻す」を付ける。次のメッセージで消える（＝そこまでは戻せる）
   // **取り消せない操作は確認してから**（利用者の要望、2026-09-17）。押したあとの「元に戻す」も残す
   const confirmModal = $("#confirm-modal");
   let confirmYes = null, confirmBack = null;
-  /* 文言と「はい」の札を差し替えて使い回す（「マスを全部外す」と「全曲名を短縮する」）。
+  /* 文言と「はい」の札を差し替えて使い回す（「トラックを全て外す」と「トラック名を短くする」）。
      閉じたあとは開いたボタンへフォーカスを戻す。**既定の文言は tr() の中に直接書く**
      （定数に逃がすと scripts/check_i18n.py が「包み忘れ」と読む） */
   function openConfirm(onYes, msg = null, yesLabel = null, back = null) {
-    $("#confirm-msg").textContent = msg || tr("マスとストックの曲を全部外します。よろしいですか？");
-    $("#confirm-yes").textContent = yesLabel || tr("全部外す");
+    $("#confirm-msg").textContent = msg || tr("トラックを全て外します。あとから「元に戻す」で戻せます。");
+    $("#confirm-yes").textContent = yesLabel || tr("全て外す");
     confirmYes = onYes; confirmBack = back || els.clearBtn; confirmModal.hidden = false; lockScroll();
     $("#confirm-no").focus({ preventScroll: true });
   }
@@ -3369,7 +3369,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   function clearAll() {
     const before = { cells: state.cells.slice(), stash: state.stash.slice() };
     state.cells.fill(null); state.stash = []; selected = null; target = null; renderGrid(); els.output.hidden = true;
-    say(els.gridMsg, tr("マスを全部外しました。"));
+    say(els.gridMsg, tr("トラックを全て外しました。"));
     const undo = document.createElement("button");
     undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
     undo.addEventListener("click", () => {
@@ -3388,15 +3388,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     });
     const nT = next.filter((t, i) => t && t !== state.cells[i] && t.title !== state.cells[i].title).length;
     const nA = next.filter((t, i) => t && t !== state.cells[i] && t.artist !== state.cells[i].artist).length;
-    if (!nT && !nA) { say(els.gridMsg, tr("短くできる曲名はありませんでした。")); return; }
+    if (!nT && !nA) { say(els.gridMsg, tr("短くできるトラック名はありませんでした。")); return; }
     openConfirm(() => trimAll(next, nT, nA),
-                tr`${nT} マスの曲名・${nA} マスのアーティスト名を短くします。よろしいですか？`,
+                tr`${nT} マスのトラック名・${nA} マスのアーティスト名を短くします。あとから「元に戻す」で戻せます。`,
                 tr("短くする"), els.trimAllBtn);
   });
   function trimAll(next, nT, nA) {
     const before = state.cells.slice();
     state.cells = next; clearViewCells(); renderGrid(); renderEditor(); updateSpec();
-    say(els.gridMsg, tr`${nT} マスの曲名・${nA} マスのアーティスト名を短くしました。`);
+    say(els.gridMsg, tr`${nT} マスのトラック名・${nA} マスのアーティスト名を短くしました。`);
     const undo = document.createElement("button");
     undo.type = "button"; undo.className = "undo"; undo.textContent = tr("元に戻す");
     undo.addEventListener("click", () => {
@@ -3617,7 +3617,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       palLanes.append(lane);
     }
   }
-  /* 貼られた文字から 8 つの色コードを取り出す。区切りは何でもよい（, 空白 改行） */
+  /* 貼られた文字から 8 つのカラーコードを取り出す。区切りは何でもよい（, 空白 改行） */
   function parseHexes(text) {
     const found = (text || "").match(/#?[0-9a-f]{6}/gi) || [];
     return found.slice(0, 9).map(h => "#" + h.replace("#", "").toLowerCase());
@@ -3630,11 +3630,11 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   $("#pal-import-btn").addEventListener("click", () => {
     const hexes = parseHexes(els.palImport.value);
-    if (hexes.length !== 8) { say($("#pal-msg"), tr("色コードを 8 つ入れてください。"), "error"); return; }
+    if (hexes.length !== 8) { say($("#pal-msg"), tr("カラーコードを 8 つ入れてください。"), "error"); return; }
     els.palImport.value = "";
     addPalette(hexes);
   });
-  // 「保存」で書き出したファイル（JSON）を読む。**中身が色コードを並べただけの文字でも読める**（手で作ったものも通す）
+  // 「保存」で書き出したファイル（JSON）を読む。**中身がカラーコードを並べただけの文字でも読める**（手で作ったものも通す）
   $("#pal-file-btn").addEventListener("click", () => $("#pal-file").click());
   $("#pal-file").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0]; e.target.value = "";
@@ -3645,7 +3645,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     try {
       const d = JSON.parse(text);
       if (d && Array.isArray(d.colors)) { hexes = parseHexes(d.colors.join(" ")); name = String(d.name || "").slice(0, 40); }
-    } catch { /* JSON でなければ色コードの文字として読む */ }
+    } catch { /* JSON でなければカラーコードの文字として読む */ }
     if (!hexes) hexes = parseHexes(text);
     if (hexes.length !== 8) { say($("#pal-msg"), tr("パレットのファイルではないようです。"), "error"); return; }
     addPalette(hexes, name);
@@ -5058,7 +5058,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const ovOk = overlayOk(overlayScale()), ovRadio = els.listSeg.querySelector('input[value="overlay"]');
     ovRadio.disabled = !ovOk && !state.overlay;
     els.listMsg.hidden = ovOk || !state.overlay;
-    if (!els.listMsg.hidden) els.listMsg.textContent = tr("この並びだとマスが小さく、重ねた曲名が読めない大きさになるので、曲名は出しません。マスを減らすか、横に並べてください。");
+    if (!els.listMsg.hidden) els.listMsg.textContent = tr("この並びだとマスが小さく、重ねたトラック名が読めない大きさになるので、トラック名は出しません。マスを減らすか、横に並べてください。");
   }
   /* グリッドのプレビューを出力と同じ比率にする: 余白・マスの間隔を幅に合わせて縮尺し、背景色も反映 */
   const ZOOM_MIN_CELL = 48;
@@ -5455,7 +5455,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     };
   }
   function applyData(d) {
-    if (!d || typeof d !== "object" || !Array.isArray(d.cells)) throw new Error(tr("TRACKMENTO の JSON ではありません（cells がありません）。"));
+    if (!d || typeof d !== "object" || !Array.isArray(d.cells)) throw new Error(tr("TRACKMENTO の並びのファイルではないようです。"));
     const clamp = (v, lo, hi, dflt) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, Math.round(+v))) : dflt;
     /* 上限は clampGrid（MAX_CELLS 256・1 辺 MAX_SIDE_CELLS 32）に合わせる。
        ここを 12 のままにしていたため、16x16 の並びを読み込む／ページを開き直すだけで
@@ -6214,7 +6214,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   }
   const shareViaServer = (snap) => postShare("/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ grid: GRID_NAME, doc: snap }) });
   els.shareBtn.addEventListener("click", async () => {
-    if (!state.cells.some(Boolean)) { say(els.gridMsg, tr("曲を置いてから押してください。"), "error"); return; }
+    if (!state.cells.some(Boolean)) { say(els.gridMsg, tr("トラックを置いてから押してください。"), "error"); return; }
     setBtnState(els.shareBtn, "loading"); say(els.gridMsg, "");
     try {
       /* 並びは同梱する。サーバーの grids/ は再起動で消えることがあり（Render）、
@@ -6265,7 +6265,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       setBtnState(els.shareBtn, null);
       say(els.gridMsg, tr`${d.width} × ${d.height} px の画像と共有 URL ができました。`);
       /* **スマホでは URL 欄に焦点を当てない**。`preventScroll` を無視して欄まで飛ぶ端末があり、
-         できた画像を見る前に画面が動いてしまう。代わりに出来上がりの先頭までそっと送る */
+         できた画像を見る前に画面が動いてしまう。代わりにできあがりの先頭までそっと送る */
       if (isMobile()) els.output.scrollIntoView({ behavior: "smooth", block: "start" });
       else { els.shareUrl.focus({ preventScroll: true }); els.shareUrl.select(); }
     } catch (err) {
@@ -6343,7 +6343,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       applyData(await readJson(r));
       history.replaceState(null, "", location.pathname);
-      say(els.gridMsg, tr`共有 ${sid} の並びを読み込みました（${state.cells.filter(Boolean).length} 曲）。この画面での変更は自分のグリッドとして保存されます。`);
+      say(els.gridMsg, tr`共有 ${sid} の並びを読み込みました（${state.cells.filter(Boolean).length} トラック）。この画面での変更は自分のグリッドとして保存されます。`);
       return true;
     } catch (err) {
       say(els.gridMsg, tr`共有 ${sid} を読み込めませんでした（${err.message}）。`, "error");

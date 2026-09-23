@@ -11,9 +11,9 @@
 <meta name="trackmento-retention" content="__RETENTION__">
 <title>TRACKMENTO</title>
 <!--__FONT_LINK__-->
-<meta name="description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
+<meta name="description" content="好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
-<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="曲単位でジャケットのグリッド画像を作成。幅広い検索機能と共に、みんなに好きなトラックを共有">
+<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:url" content="__BASE__/"><meta property="og:image" content="__BASE__/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="__BASE__/">
@@ -34,7 +34,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.9adf0865.css">
+<link rel="stylesheet" href="app/app.d5de469f.css">
 </head>
 <body>
 
@@ -64,12 +64,12 @@
     <div class="editor" id="editor" hidden aria-labelledby="editor-title">
         <div class="editor-head"><span class="num-badge" id="editor-num">01</span><span id="editor-title">選択中のマス</span><span class="badge" id="editor-source"></span></div>
         <div class="editor-fields">
-          <div class="field"><label for="e-title">曲名</label><input class="input" id="e-title" type="text" autocomplete="off" maxlength="120"></div>
+          <div class="field"><label for="e-title">トラック名</label><input class="input" id="e-title" type="text" autocomplete="off" maxlength="120"></div>
           <div class="field"><label for="e-artist">アーティスト名</label><input class="input" id="e-artist" type="text" autocomplete="off" maxlength="120"></div>
         </div>
         <div class="field">
-          <label for="e-note">メモ（共有ページの曲名リストに出ます）</label>
-          <textarea class="input" id="e-note" rows="3" maxlength="200" autocomplete="off" placeholder="この曲を選んだ理由など"></textarea>
+          <label for="e-note">メモ（共有ページのトラックリストに出ます）</label>
+          <textarea class="input" id="e-note" rows="3" maxlength="200" autocomplete="off" placeholder="このトラックを選んだ理由など"></textarea>
         </div>
         <p class="editor-meta" id="editor-meta"></p>
         <div class="field" id="e-origin-field" hidden>
@@ -94,7 +94,7 @@
     </div>
     <form class="pane-body search-form" id="search-form" novalidate>
       <div class="field">
-        <label for="q">曲名</label>
+        <label for="q">トラック名</label>
         <input class="input" id="q" name="q" type="search" autocomplete="off" placeholder="例: 感電" enterkeyhint="search">
       </div>
       <div class="field">
@@ -114,7 +114,7 @@
     <button class="sub-title" type="button" aria-expanded="true">URL から</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録曲をまとめて取得出来ます（最大 500 曲。マスに入りきらない分は候補に残ります）</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録トラックをまとめて取得できます（最大 500 トラック。マスに入りきらない分は候補に残ります）。</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
@@ -124,19 +124,19 @@
     </form>
     </div>
     <div class="sub" id="sub-manual">
-    <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋曲名）</button>
+    <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋トラック名）</button>
     <form class="pane-body search-form" id="manual-form" novalidate>
       <div class="field">
         <label for="m-image">手入力: ジャケット画像の URL</label>
         <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
         <div class="search-actions">
-          <button class="btn" type="button" id="m-file-btn"><span class="label">端末から画像を選択</span></button>
+          <button class="btn" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
           <input type="file" id="m-file" accept="image/*" hidden>
           <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶと画像が取り込まれ、URL 欄に入ります。</p>
         </div>
       </div>
       <div class="field">
-        <label for="m-title">曲名</label>
+        <label for="m-title">トラック名</label>
         <input class="input" id="m-title" name="title" type="text" autocomplete="off">
       </div>
       <div class="field">
@@ -145,8 +145,8 @@
       </div>
       <div class="field">
         <label for="m-link">リンク先の URL（省略可）</label>
-        <input class="input" id="m-link" name="link" type="text" inputmode="url" autocomplete="off" placeholder="https://…（曲のページ）">
-        <p class="msg">共有ページの曲名から、このページへ飛べるようになります。</p>
+        <input class="input" id="m-link" name="link" type="text" inputmode="url" autocomplete="off" placeholder="https://…（トラックのページ）">
+        <p class="msg">共有ページのトラック名から、このページへ飛べるようになります。</p>
       </div>
       <div class="search-actions">
         <button class="btn btn-primary" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
@@ -160,7 +160,7 @@
     <div class="pane-title"><h2 id="h-results">候補</h2><span class="tail"><span class="count" id="results-count" aria-label="候補数">0</span><button class="fold" type="button" aria-expanded="true" aria-label="候補を折りたたむ"></button></span></div>
     <div class="pane-body">
       <ul class="results" id="results">
-        <li class="empty"><strong>まだ候補がありません</strong><span>曲名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>クリックで次の空きマスに入ります。</span></li>
+        <li class="empty"><strong>まだ候補がありません</strong><span>トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>クリックで次の空きマスに入ります。</span></li>
       </ul>
     </div>
   </section>
@@ -178,10 +178,10 @@
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補をクリックで空きマスに入ります。マスをタップで選び、別のマスをタップで入れ替え。</p>
       <div class="grid-actions">
-        <button class="btn btn-primary" type="button" id="find-btn">曲を探す</button>
-        <button class="btn btn-primary" type="button" id="share-btn" title="PNG を作り、並びのスナップショットと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
-        <button class="btn" type="button" id="json-export" title="並び（曲・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
-        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み</button>
+        <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
+        <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
+        <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）を JSON ファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
+        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出した JSON ファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -192,18 +192,18 @@
                  英語は語順が変わる（Add to everyone's grids）ので、前の空の span に applyI18n が "Add to " を入れる -->
             <div class="check check-sep"><input type="checkbox" id="opt-listed" aria-labelledby="listed-text"><span id="listed-text"><span id="listed-pre"></span><a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッド</a>に載せる</span></div>
           </div>
-          <button class="btn" type="button" id="trim-all-btn" title="曲名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">全曲名を短縮する</button>
+          <button class="btn" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
         </div>
       </div>
-      <p class="msg msg-under">チェックを入れると、共有されたグリッドが曲名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
-      <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残す場合ファイルに保存し、あとで読み込みましょう。</p>
+      <p class="msg msg-under">チェックを入れると、共有されたグリッドがトラック名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
+      <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残すときは「並びを保存」でファイルにしておくと、あとで読み込めます。</p>
       <!-- **取り消せない操作は説明文の下に置いて、位置をずらす**（利用者の指定、2026-09-21）。
            すぐ上のボタンの列と離すことで、続けて押したときの誤タップを防ぐ -->
       <div class="clear-row">
-        <button class="btn" type="button" id="clear-btn" title="マスとストックの曲を全部外す。外したあと「元に戻す」で戻せる">マスを全部外す</button>
+        <button class="btn" type="button" id="clear-btn" title="トラックを全て外す。あとから「元に戻す」で戻せる">トラックを全て外す</button>
       </div>
       <section class="pane pane-output" id="output" hidden aria-labelledby="h-output">
-        <div class="pane-title"><h2 id="h-output">出来上がり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="出来上がりを折りたたむ"></button></span></div>
+        <div class="pane-title"><h2 id="h-output">できあがり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="できあがりを折りたたむ"></button></span></div>
         <div class="pane-body">
         <img id="output-img" alt="共有した画像のプレビュー">
         <div class="share-url"><span class="lbl">共有 URL</span><input class="input" id="share-url" type="text" readonly></div>
@@ -241,7 +241,7 @@
           <label><input type="radio" name="ratio" value="4:5"><span>4:5 インスタ</span></label>
           <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 ツイート</span></label>
           <label><input type="radio" name="ratio" value="9:16"><span>9:16 ストーリーズ</span></label>
-          <label><input type="radio" name="ratio" value="free"><span>設定なし</span></label>
+          <label><input type="radio" name="ratio" value="free"><span>自由</span></label>
         </div>
         <p class="msg" id="ratio-msg" hidden></p>
       </fieldset>
@@ -273,13 +273,13 @@
           <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
           <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
           <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
-          <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">蛇足な曲名を除外する</span></div>
+          <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の余計な部分を省く</span></div>
         </div>
       </fieldset>
 
       <fieldset class="field">
-        <legend>曲名リスト</legend>
-        <div class="seg radio" id="list-seg" role="radiogroup" aria-label="曲名リスト">
+        <legend>トラックリスト</legend>
+        <div class="seg radio" id="list-seg" role="radiogroup" aria-label="トラックリスト">
           <label><input type="radio" name="listmode" value="side" checked><span>横に並べる</span></label>
           <label><input type="radio" name="listmode" value="overlay"><span>マスに重ねる</span></label>
           <label><input type="radio" name="listmode" value="none"><span>表示しない</span></label>
@@ -342,14 +342,14 @@
   <div class="modal-panel">
     <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2><button class="btn" type="button" id="src-modal-close">閉じる</button></div>
     <div class="modal-body note">
-          <p><b>iTunes</b>: 曲名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ない曲やカバーを避けるため）。完全一致が先頭に並びます。</p>
+          <p><b>iTunes</b>: トラック名にクエリを含み、アーティスト名にクエリのアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。</p>
           <p><b>MusicBrainz</b>: 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。</p>
-          <p><b>VocaDB</b>: ボーカロイド楽曲のデータベース（vocadb.net）。曲名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
-          <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じ曲は先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
-          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中の曲をまとめて取れます（最大 500 曲）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでに曲があるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。曲ごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
-          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（曲）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルと曲名・アーティスト（投稿者）を取ります。Spotify だけは曲名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像と曲リストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
+          <p><b>VocaDB</b>: ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
+          <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
+          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
+          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的にキャッシュされます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などのメタデータを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
 </div>
@@ -362,8 +362,8 @@
       <div class="up-bar"><div class="up-fill" id="up-fill"></div></div>
       <p class="up-pct" id="up-pct">0%</p>
       <p class="up-note" id="up-note">回線が細いと少し時間がかかります。このままお待ちください。</p>
-      <aside class="up-promo" aria-label="作者の曲">
-        <span class="lbl">待っているあいだに、作者の曲はいかがですか</span>
+      <aside class="up-promo" aria-label="作者のトラック">
+        <span class="lbl">待っているあいだに、作者のトラックはいかがですか</span>
         <p id="up-track"></p>
       </aside>
     </div>
@@ -378,16 +378,16 @@
   </div>
 </div>
 
-<!-- 「マスを全部外す」の確認。**ブラウザ標準の confirm は使わない**（画面が止まり、撮影や自動操作でも扱えない） -->
+<!-- 「トラックを全て外す」の確認。**ブラウザ標準の confirm は使わない**（画面が止まり、撮影や自動操作でも扱えない） -->
 <div class="modal" id="confirm-modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
   <div class="sheet-backdrop" id="confirm-backdrop"></div>
   <div class="modal-panel modal-narrow">
     <div class="sheet-head"><h2 id="confirm-title">確認</h2></div>
     <div class="modal-body note">
-      <p id="confirm-msg">マスとストックの曲を全部外します。よろしいですか？</p>
+      <p id="confirm-msg">トラックを全て外します。あとから「元に戻す」で戻せます。</p>
       <div class="confirm-actions">
         <button class="btn" type="button" id="confirm-no">やめる</button>
-        <button class="btn btn-primary" type="button" id="confirm-yes">全部外す</button>
+        <button class="btn btn-primary" type="button" id="confirm-yes">全て外す</button>
       </div>
     </div>
   </div>
@@ -413,13 +413,13 @@
         <button class="btn" type="button" id="pal-new">いまの色から作る</button>
       </div>
       <div class="pal-io">
-        <label for="pal-import">色コードを貼って読み込む</label>
+        <label for="pal-import">カラーコードを貼って読み込む</label>
         <div class="pal-io-row">
           <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（8 つ）" spellcheck="false" autocomplete="off">
           <button class="btn" type="button" id="pal-import-btn">読み込む</button>
         </div>
         <!-- パレットをファイルで渡す（2026-09-19、利用者の要望）。各組の「保存」で書き出したファイルをここで読む -->
-        <button class="btn" type="button" id="pal-file-btn">ファイルから読み込む</button>
+        <button class="btn" type="button" id="pal-file-btn">ファイルから読み込む…</button>
         <input type="file" id="pal-file" accept=".json,.txt,application/json,text/plain" hidden>
         <p class="msg" id="pal-msg"></p>
       </div>
@@ -430,7 +430,7 @@
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="sheet-backdrop" id="sheet-backdrop"></div>
   <div class="sheet-panel">
-    <div class="sheet-head"><h2 id="sheet-title">01 番に入れる曲を探す</h2><button class="btn" type="button" id="sheet-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="sheet-title">01 番に入れるトラックを探す</h2><button class="btn" type="button" id="sheet-close">閉じる</button></div>
     <div class="sheet-body" id="sheet-body"></div>
   </div>
 </div>
@@ -441,7 +441,7 @@
      差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。 -->
 <aside class="promo" aria-label="サーバー代のおねがい">
   <span class="lbl">サーバー代のおねがい</span>
-  <p>無料で置いているツールですが、思ったより多くの反響にてサーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
+  <p>無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
   <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a>（Bandcamp）</span>
   <span class="elsewhere">ほかで聴く:
     <a href="https://soundcloud.com/tobokegao" target="_blank" rel="noopener noreferrer">SoundCloud</a> /
@@ -461,6 +461,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.edeb92e4.js"></script>
+<script id="app-js" src="app/app.e77470cd.js"></script>
 </body>
 </html>

@@ -87,25 +87,25 @@ and share the music they love. When sharing, please follow the terms of use and 
 </dl>
 """
     return f"""
-<p>TRACKMENTO（トラックメント）は、好きな曲のアートワーク（ジャケット写真）を格子状に並べて1枚の画像にするツールです。「私を構成する9曲」のような画像を、サブスクリプションへの加入有無に関わらず、さまざまな配信サイトの曲を組み合わせて作成できます。アルバム単位だけでなく、<b>曲単位</b>で自由に並べられるのが特徴です。完全無料で、会員登録も不要です。</p>
+<p>TRACKMENTO（トラックメント）は、好きなトラックのアートワーク（ジャケット写真）を格子状に並べて1枚の画像にするツールです。「私を構成する9曲」のような画像を、サブスクリプションへの加入有無に関わらず、さまざまな配信サイトのトラックを組み合わせて作成できます。アルバム単位だけでなく、<b>トラック単位</b>で自由に並べられるのが特徴です。完全無料で、会員登録も不要です。</p>
 
 <h2>並べ方</h2>
 <ol class="steps">
 <li><b>マスの数を決める：</b>縦・横のマスの数を指定します（1辺最大32マス、合計256マスまで対応）。</li>
-<li><b>マスを選んで曲を探す：</b>マスをタップ（クリック）して曲名やアーティスト名で検索します。標準のiTunes検索のほか、MusicBrainz、VocaDB（ボカロ曲）、otoDB（音MAD）に切り替えて探すこともできます。</li>
-<li><b>URLから直接追加する：</b>Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify、Apple Musicのリンク貼り付けに対応しています（Spotifyは曲名とジャケットのみのため、アーティスト名は手入力で補ってください）。ジャケットがない曲は、画像URLの指定や端末内の画像アップロードで補えます。</li>
-<li><b>並べ替える：</b>2つのマスを順番に選ぶと位置が入れ替わります。「大きく見る」でグリッドを全画面表示にすると、マス数が多い場合でも快適に並べ替えができます。</li>
-<li><b>画像を出力・共有する：</b>画像の比率（1:1、4:5、16:9、9:16、比率固定なし）、背景色、曲名リストの表示形式を選んで共有すると、完成画像と専用の共有URLが発行されます。</li>
+<li><b>マスを選んでトラックを探す：</b>マスをタップ（クリック）してトラック名やアーティスト名で検索します。標準のiTunes検索のほか、MusicBrainz、VocaDB（ボカロのトラック）、otoDB（音MAD）に切り替えて探すこともできます。</li>
+<li><b>URLから直接追加する：</b>Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify、Apple Musicのリンク貼り付けに対応しています（Spotifyはトラック名とジャケットのみのため、アーティスト名は手入力で補ってください）。ジャケットがないトラックは、画像URLの指定か「端末から画像を選択」で補えます。</li>
+<li><b>並べ替える：</b>2つのマスを順番に選ぶと位置が入れ替わります。「大きく見る」でグリッドを全画面表示にすると、マス数が多い場合でも並べ替えやすくなります。</li>
+<li><b>画像を出力・共有する：</b>画像の比率（1:1、4:5、16:9、9:16、自由）、背景色、トラックリストの表示形式を選んで共有すると、完成画像と専用の共有URLが発行されます。</li>
 </ol>
 
 <h2>便利な機能</h2>
 <ul>
-<li><b>プレイリストの一括読み込み：</b>ニコニコ動画のマイリスト、YouTubeの再生リスト、Bandcampのアルバム、Apple MusicのプレイリストのURLを1つ貼るだけで、最大500曲を一気に読み込みます。マスに入り切らなかった曲は候補リストに残ります。</li>
+<li><b>プレイリストの一括読み込み：</b>ニコニコ動画のマイリスト、YouTubeの再生リスト、Bandcampのアルバム、Apple MusicのプレイリストのURLを1つ貼るだけで、最大500トラックを一気に読み込みます。マスに入り切らなかったトラックは候補リストに残ります。</li>
 <li><b>削除動画の自動補完：</b>ニコニコ動画で削除済みの動画であっても、otoDB（音MADデータベース）に登録があれば、正式なタイトル・作者名・サムネイルを自動で復元・補完します。</li>
-<li><b>選べる3種類の曲名リスト：</b>曲名リストは「グリッドの横に並べる」「ジャケットに重ねる」「表示しない」の3通りから選択可能です。マスが小さく文字が潰れてしまう場合は、重ねる表示が自動でオフになります。</li>
+<li><b>選べる3種類のトラックリスト：</b>トラックリストは「横に並べる」「マスに重ねる」「表示しない」の3通りから選択可能です。マスが小さく文字が潰れてしまう場合は、重ねる表示が自動でオフになります。</li>
 <li><b>カラーパレット：</b>画面全体の配色テーマを切り替えられます。好みの8色セットを自作してカラーコードをコピーし、他の人と共有することも可能です。</li>
-<li><b>みんなのグリッド：</b>共有時に「みんなのグリッドに載せる」を有効にすると、他のユーザーが曲名やアーティスト名からあなたのグリッドを探せるようになります（チェックを外した共有は一覧に載りません）。</li>
-<li><b>日本語・英語対応：</b>画面右上のボタンから言語を切り替えられます。英語表示時は、iTunesの楽曲情報もUSストアの表記で取得されます。</li>
+<li><b>みんなのグリッド：</b>共有時に「みんなのグリッドに載せる」を有効にすると、他のユーザーがトラック名やアーティスト名からあなたのグリッドを探せるようになります（チェックを外した共有は一覧に載りません）。</li>
+<li><b>日本語・英語対応：</b>画面右上のボタンから言語を切り替えられます。英語表示時は、iTunesのトラック情報もUSストアの表記で取得されます。</li>
 </ul>
 
 <h2>データの保存と保持期間</h2>
@@ -116,11 +116,11 @@ and share the music they love. When sharing, please follow the terms of use and 
 <dt>無料で使えますか？ 登録は必要ですか？</dt>
 <dd>すべて無料で、アカウント登録も不要です。なお、サーバーの運用費をまかなうために広告を表示する場合があります。</dd>
 <dt>共有したグリッドを後から手直ししたいです。</dt>
-<dd>共有ページにある「TRACKMENTOで開く」を押すと、その配置がエディタに読み込まれます。修正を行ったうえで、再度共有を行ってください。</dd>
+<dd>共有ページにある「TRACKMENTOで開く」を押すと、その配置が編集画面に読み込まれます。修正したうえで、再度共有してください。</dd>
 <dt>ジャケット画像が表示されません。</dt>
-<dd>配信元で画像が削除・非公開になっている可能性があります。その場合は、画像URLを指定するか、端末内の画像を手動で設定してください。</dd>
+<dd>配信元で画像が削除・非公開になっている可能性があります。その場合は、画像URLを指定するか、「端末から画像を選択」で画像を選んでください。</dd>
 <dt>ジャケット写真の権利関係はどうなっていますか？</dt>
-<dd>アートワークや曲名の著作権・知的財産権は、それぞれのアーティストや権利者に帰属します。TRACKMENTOは、利用者が好きな音楽を紹介・共有する用途のために、各配信プラットフォームがAPI等で提供している画像を表示しています。共有の際は、各サービスの利用規約やガイドラインに従ってご利用ください。</dd>
+<dd>アートワークやトラック名の著作権・知的財産権は、それぞれのアーティストや権利者に帰属します。TRACKMENTOは、利用者が好きな音楽を紹介・共有する用途のために、各配信プラットフォームがAPI等で提供している画像を表示しています。共有の際は、各サービスの利用規約やガイドラインに従ってご利用ください。</dd>
 </dl>
 """
 
@@ -165,9 +165,9 @@ You can also opt out of third-party vendors' use of cookies by visiting <a href=
 For details, please see <a href="https://policies.google.com/technologies/ads" rel="noopener">Google's Privacy &amp; Terms</a>.</p>
 
 <h2>5. Requests to delete data</h2>
-<p>You can reset your working data at any time by using “Clear all cells” in the editor or by deleting (clearing) this site's data in
-your browser. Shared data is erased automatically after {days} days; if you would like it removed before then, please contact the
-operator (see <a href="/about?lang=en">About &amp; contact</a>) with the share URL.</p>
+<p>You can reset your working data at any time by using “Remove all tracks” in the editor or by deleting (clearing) this site's data in
+your browser. Shared data is erased automatically after {days} days; if you would like it removed before then, please tell us through the
+<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">contact form</a> with the share URL.</p>
 
 <h2>6. Changes to this policy</h2>
 <p>This privacy policy may be revised without notice in response to changes in law or to additions and changes in the service's features.
@@ -178,17 +178,17 @@ The latest version is always published on this page.</p>
 
 <h2>1. 当サイトが保存する情報</h2>
 <ul>
-<li><b>グリッドの編集データ：</b>マスに配置した曲、タイトル、表示・出力設定は、お使いのブラウザ（ローカルストレージ）に保存されます。また、セッションを復元できるようにするため、ブラウザごとに発行されるランダムなIDと紐づけてサーバーにも一時バックアップを保持します。氏名、メールアドレス等の個人を特定する情報は一切含みません。</li>
-<li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データ（曲ごとに書いたメモを含みます）をCloudflare R2に保存します。メモは共有ページで、URL を知っている人が見られます。これらのデータは生成から{days}日後に自動で完全削除されます。</li>
+<li><b>グリッドの編集データ：</b>マスに配置したトラック、タイトル、表示・出力設定は、お使いのブラウザの保存領域（ローカルストレージ）に保存されます。また、セッションを復元できるようにするため、ブラウザごとに発行されるランダムなIDと紐づけてサーバーにも一時バックアップを保持します。氏名、メールアドレス等の個人を特定する情報は一切含みません。</li>
+<li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データ（トラックごとに書いたメモを含みます）をCloudflare R2に保存します。メモは共有ページで、URL を知っている人が見られます。これらのデータは生成から{days}日後に自動で削除されます。</li>
 <li><b>端末からアップロードされた画像：</b>適切なサイズへのリサイズを行い、位置情報などのメタデータ（Exif）を削除したうえで保存します。</li>
-<li><b>みんなのグリッド：</b>共有時に掲載を許可（オプトイン）されたデータに限り、当サイト内の検索対象として公開・保存されます。</li>
+<li><b>みんなのグリッド：</b>共有時に「みんなのグリッドに載せる」にチェックを入れたデータに限り、当サイト内の検索対象として公開・保存されます。</li>
 </ul>
 
 <h2>2. アクセスログの収集について</h2>
-<p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（曲名・検索語・URL などの内容は含みません）。不正アクセス防止や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは不可逆な形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザのUser-Agentそのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
+<p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（トラック名・検索語・URL などの内容は含みません）。不正アクセスの対策や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは元に戻せない形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザの識別情報（User-Agent）そのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
 
 <h2>3. 外部サービスとの通信</h2>
-<p>楽曲やジャケットの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、Apple Music、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
+<p>トラックやジャケットの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、Apple Music、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
 <p>また、当サイトのサーバーインフラにはRenderを採用しており、共有ファイルの配信・キャッシュにはCloudflareを利用しています。</p>
 
 <h2>4. Cookieおよび広告配信について</h2>
@@ -197,7 +197,7 @@ The latest version is always published on this page.</p>
 <p>ユーザーは、Googleの<a href="https://www.google.com/settings/ads" rel="noopener">広告設定</a>からパーソナライズ広告を無効にできます。また、<a href="https://www.aboutads.info/" rel="noopener">www.aboutads.info</a>にアクセスすることで、第三者配信事業者のCookie使用を無効化できます。詳細につきましては、<a href="https://policies.google.com/technologies/ads?hl=ja" rel="noopener">Googleポリシーと規約</a>をご確認ください。</p>
 
 <h2>5. データの削除依頼</h2>
-<p>作業中のデータは、エディタ上の「マスを全部外す」を実行するか、ブラウザのサイトデータを削除（クリア）することでいつでも初期化できます。共有済みのデータは{days}日後に自動消去されますが、期限前の早期削除をご希望の場合は、該当の共有URLを明記のうえ、<a href="/about">運営者連絡先</a>までご連絡ください。</p>
+<p>作業中のデータは、編集画面の「トラックを全て外す」を押すか、ブラウザのサイトデータを削除（クリア）することでいつでも初期化できます。共有済みのデータは{days}日後に自動消去されますが、期限前の早期削除をご希望の場合は、該当の共有URLを明記のうえ、<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>からご連絡ください。</p>
 
 <h2>6. ポリシーの改定</h2>
 <p>本プライバシーポリシーは、法令の改正やサービスの機能追加・変更に応じて予告なく改定されることがあります。常に最新の内容を本ページに掲載します。</p>
@@ -230,16 +230,16 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 """
     return f"""
 <p>TRACKMENTO は <b>Tobokegao（とぼけがお）</b>が開発・運営しています。2014年よりゲームボーイを用いた作曲活動を行っているチップチューンアーティストで、自主レーベル「TBKgao」の主宰や、Nintendo Switch用ソフト『YARS RISING』への楽曲提供（「Nouveau Monde」）などを手がけています。</p>
-<p>ボカロ曲や音MAD、同人音楽など、サブスクリプションサービスでは配信されていない作品も含めて「私を構成する曲」の画像を作りたい、という自分用のツール開発からスタートし、Webサービスとして一般公開しました。</p>
+<p>ボカロのトラックや音MAD、同人音楽など、サブスクリプションサービスでは配信されていない作品も含めて「私を構成する曲」の画像を作りたい、という自分用のツール開発からスタートし、Webサービスとして一般公開しました。</p>
 
 <h2>お問い合わせ</h2>
-<p>ご質問、不具合のご報告、ご要望、共有データの削除依頼などは、<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>よりお願いいたします。共有データに関するお問い合わせの際は、必ず対象の共有URLを添えてご連絡ください。<a href="{ja_url}" rel="noopener">公式サイト</a>に記載の連絡先からもご連絡いただけます。</p>
+<p>ご質問、不具合のご報告、ご要望、共有データの削除依頼などは、<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>よりお願いいたします。共有データに関するお問い合わせの際は、対象の共有URLを忘れずに添えてご連絡ください。<a href="{ja_url}" rel="noopener">公式サイト</a>に記載の連絡先からもご連絡いただけます。</p>
 
 <h2>開発・運営のサポートについて</h2>
-<p>TRACKMENTO はどなたでも無料でご利用いただけます。サーバー代や開発の継続をご支援いただける方は、<a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" rel="noopener noreferrer">Bandcamp</a>にて楽曲をご購入・ご試聴いただけますと大きな励みになります。</p>
+<p>TRACKMENTO はどなたでも無料でご利用いただけます。サーバー代や開発の継続をご支援いただける方は、<a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" rel="noopener noreferrer">Bandcamp</a>にてトラックをご購入・ご試聴いただけますと大きな励みになります。</p>
 
 <h2>データの出典・権利表記</h2>
-<p>本サービスで表示される楽曲情報は、iTunes Search API、MusicBrainz、Cover Art Archive、VocaDB（CC BY 3.0）、otoDB、ならびに入力されたリンク先の各配信サイトから取得しています。TRACKMENTO は、これらのサービスおよび運営元と提携関係にあるものではありません。</p>
+<p>本サービスで表示されるトラック情報は、iTunes Search API、MusicBrainz、Cover Art Archive、VocaDB（CC BY 3.0）、otoDB、ならびに入力されたリンク先の各配信サイトから取得しています。TRACKMENTO は、これらのサービスおよび運営元と提携関係にあるものではありません。</p>
 """
 
 
@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-23", "画面の言葉を見直しました。「曲」は「トラック」にそろえ（「トラックリスト」「トラックを探す」など）、「マスを全部外す」は「トラックを全て外す」、比率の「設定なし」は「自由」になりました。ファイルを選ぶ窓が開くボタンには「…」を付けています。",
+     "We reviewed the wording on screen. In Japanese, “曲” is now “トラック” everywhere, “Clear all cells” is now “Remove all tracks”, and buttons that open a file picker now end with “…”."),
     ("2026-09-23", "共有ページの左上の「TRACKMENTO」を押すと、編集画面に戻れるようになりました。",
      "Tapping “TRACKMENTO” at the top left of a share page now takes you back to the editor."),
     ("2026-09-22", "スライダーとスクロールバーのつまみを描き直し、スマホで枠線がずれたり縞の太さがそろわなかったりしたのを直しました。縦と横のスクロールバーが交わる角は、斜め線をやめて無地にしています。",
@@ -464,8 +466,8 @@ def _updates(lang: str, days: int) -> str:
 <ul>
 <li><b>古いニコニコ動画の画質：</b>配信元の仕様により低解像度の画像しか存在しないため、ジャケット画像が粗く表示される場合があります。</li>
 <li><b>削除済み動画のジャケット：</b>otoDBに登録のない削除済み動画は、サムネイル等の情報を復元できません。</li>
-<li><b>特殊文字による表示のズレ：</b>一部の特殊な記号（◈ など）を含む曲名は、ご利用の端末やフォント環境によって画像内の文字位置がわずかにずれることがあります。</li>
-<li><b>アプリ内ブラウザでの動作：</b>XやLINEなどのアプリ内ブラウザで開いている場合、画像の共有が遅くなったり失敗したりすることがあります。SafariやChromeなどの標準ブラウザで開き直すと安定します。</li>
+<li><b>特殊文字による表示のズレ：</b>一部の特殊な記号（◈ など）を含むトラック名は、ご利用の端末やフォント環境によって画像内の文字位置がわずかにずれることがあります。</li>
+<li><b>アプリ内ブラウザでの動作：</b>XやLINEなどのアプリ内ブラウザで開いている場合、画像の共有が遅くなったり失敗したりすることがあります。SafariやChromeなどの標準ブラウザで開き直すと安定しやすくなります。</li>
 </ul>
 <h2>うまくいかないとき</h2>
 <ul>

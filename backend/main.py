@@ -560,7 +560,7 @@ async def unhandled_error(request: Request, exc: Exception) -> Response:
         return JSONResponse({"detail": "送信が途中で切れました"}, status_code=400)
     print(f"[error] {request.method} {request.url.path}: {exc!r}")
     print("".join(traceback.format_exception(exc)))
-    return _error_response(request, 500, f"サーバー内部でエラーが起きました（{type(exc).__name__}）。時間をおいて再試行しても直らない場合は連絡先へ")
+    return _error_response(request, 500, "サーバーでエラーが起きました。時間をおいてもう一度お試しください。直らない場合はお問い合わせフォームからお知らせください")
 
 
 # gzip をかける種類。画像・フォント・動画は既に圧縮済みで、かけてもほとんど縮まず CPU だけ使う
@@ -1283,9 +1283,11 @@ async def from_playlist(body: BandcampBody) -> list[Track]:
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     except httpx.HTTPStatusError as e:
-        raise HTTPException(502, f"{playlist.label(url)} が {e.response.status_code} を返しました") from e
+        print(f"[playlist] {playlist.label(url)} {e.response.status_code}")
+        raise HTTPException(502, f"{playlist.label(url)} から取れませんでした。少し待ってからもう一度お試しください") from e
     except httpx.HTTPError as e:
-        raise HTTPException(502, f"取得失敗: {e}") from e
+        print(f"[playlist] {playlist.label(url)} {e!r}")
+        raise HTTPException(502, f"{playlist.label(url)} につながりませんでした。少し待ってからもう一度お試しください") from e
 
 
 @app.post("/from-url", response_model=Track)
@@ -1299,9 +1301,11 @@ async def from_url(body: BandcampBody) -> Track:
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     except httpx.HTTPStatusError as e:
-        raise HTTPException(502, f"{label} が {e.response.status_code} を返しました") from e
+        print(f"[from-url] {label} {e.response.status_code}")
+        raise HTTPException(502, f"{label} から取れませんでした。少し待ってからもう一度お試しください") from e
     except httpx.HTTPError as e:
-        raise HTTPException(502, f"取得失敗: {e}") from e
+        print(f"[from-url] {label} {e!r}")
+        raise HTTPException(502, f"{label} につながりませんでした。少し待ってからもう一度お試しください") from e
 
 
 def _known_image_host(url: str) -> bool:
@@ -1989,7 +1993,7 @@ async def _finish_share(request: Request, coro) -> dict:
         import traceback
         print(f"[share] failed: {e!r}")
         print(traceback.format_exc())
-        raise HTTPException(502, f"共有の保存に失敗しました（{type(e).__name__}）。少し待ってからもう一度お試しください") from e
+        raise HTTPException(502, "共有の保存に失敗しました。少し待ってからもう一度お試しください") from e
     _count_share(request)
     if public_mode() and not storage.get_storage().is_remote:
         housekeeping.prune_shares()   # R2 のときはバケットのライフサイクルルールに任せる
@@ -2046,7 +2050,8 @@ async def share_upload(request: Request) -> dict:
             raw = json.loads(doc)   # {"grid": "u-…", "doc": {...}}（/share の JSON ボディと同じ形）
             body = RenderBody(grid=raw.get("grid", "default"), doc=GridDoc.model_validate(raw["doc"]))
         except Exception as e:
-            raise HTTPException(400, f"並びの JSON が不正です（{type(e).__name__}）") from e
+            print(f"[share] 並びが読めない: {e!r}")
+            raise HTTPException(400, "並びのデータを読めませんでした。ページを読み込み直してからもう一度お試しください") from e
         gdoc = _doc_for_share(body)
         async with _UPLOAD_SEM:   # 検査と保存（CPU と R2。数百 ms で終わる）
             img_b = await image.read(share.MAX_UPLOAD_IMAGE + 1)
