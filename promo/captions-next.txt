@@ -40,7 +40,7 @@
 27 2 つ押すと入れ替わる / Tap two cells to swap them
 28 「大きく見る」で並べ替え / Rearrange in the big view
 29 画像の比率は 5 種類 / 5 aspect ratios to choose from
-30 曲名リストは 3 択 / Three ways to show the track list
+30 トラックリストは 3 択 / Three ways to show the track list
 31 選べる背景色は 8 色 / 8 background colours
 32 つまみで好きな色にできる / Or dial in any colour
 33 パレットで全体の配色を変更 / Palettes change the whole colour scheme
@@ -63,6 +63,6 @@
   「横に／右に出力の設定」… 横（PC）は右端だが縦（スマホ）は下へ送って開くので、縦横共通の字幕に位置は書けない
 - 12「マスの比率」… 29 の画像の比率と混ざる。画面は「マスの形」
 - 24「URL でなく、動画 ID だけでも OK」… 長い
-- 30「曲名の表示方法」… 画面は「曲名リスト」
+- 30「曲名の表示方法」… 画面は「トラックリスト」（2026-09-23 に「曲名リスト」から改名）
 - 32「スライダー」… 画面の説明は「つまみ」
 - 34 の英語は画面の EN 表の「Share these tracks」に合わせた（Gemini 案は "Share Tracks"）
