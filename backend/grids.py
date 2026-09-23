@@ -52,6 +52,9 @@ class GridOptions(BaseModel):
     bg: str = "paper"
     bgCustom: Optional[str] = None
     margin: int = 16
+    # 外側の余白の下限の段。"normal"（内容の短い辺の 3.5%）/ "wide"（7%）/ "xwide"（12%）。render.py の PAD_FRAC。
+    # **既定は normal**（今ある並びと共有画像の見た目を変えないため。2026-09-24 に「余白」のスライダーから替えた）
+    pad: str = "normal"
     gap: int = 16       # マスとマスの間隔（出力 px）
 
     @field_validator("bg")
@@ -68,6 +71,11 @@ class GridOptions(BaseModel):
     @classmethod
     def _cell_fit(cls, v: str) -> str:
         return v if v in ("crop", "blur") else "crop"
+
+    @field_validator("pad")
+    @classmethod
+    def _pad(cls, v: str) -> str:
+        return v if v in ("normal", "wide", "xwide") else "normal"
 
     @field_validator("margin", mode="before")
     @classmethod

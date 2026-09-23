@@ -36,6 +36,8 @@ load_dotenv(ROOT / ".env")
 # 同じ値を `promo/dump_layouts.mjs` にも渡すので、ここを変えれば両方が変わる
 MAX_SIDE = int(os.getenv("COMPARE_MAX_SIDE", "2400"))
 os.environ["MAX_SIDE"] = str(MAX_SIDE)
+# 余白の段（normal / wide / xwide）。両方に同じ段を渡す（2026-09-24 にスライダーから 3 段に替えた）
+PAD = os.getenv("COMPARE_PAD", "normal")
 
 from backend import render as R  # noqa: E402
 from backend.grids import GridDoc  # noqa: E402
@@ -70,7 +72,7 @@ def main() -> int:
     (tmp / "combos.json").write_text(json.dumps(combos), encoding="utf-8")
     (tmp / "tracks.json").write_text(json.dumps(tracks, ensure_ascii=False), encoding="utf-8")
     r = subprocess.run(["node", str(ROOT / "promo" / "dump_layouts.mjs"), str(tmp / "js.json"),
-                        str(tmp / "combos.json"), str(tmp / "tracks.json"), str(MAX_SIDE)],
+                        str(tmp / "combos.json"), str(tmp / "tracks.json"), str(MAX_SIDE), PAD],
                        cwd=ROOT, capture_output=True, text=True)
     if r.returncode:
         print(r.stdout, r.stderr)
@@ -83,7 +85,7 @@ def main() -> int:
         doc = GridDoc(**{**src, "name": "t", "cols": c, "rows": rr, "cells": cells, "stash": [],
                          "title": "私を構成する9選",
                          "options": {**src.get("options", {}), "ratio": q, "showTitle": True,
-                                     "sidebar": True, "numbers": False, "margin": 16, "gap": 16,
+                                     "sidebar": True, "numbers": False, "margin": 16, "pad": PAD, "gap": 16,
                                      "bg": "mustard", "bgCustom": None, "cellRatio": cq}})
         L = R.layout(doc)
         py = [L.W, L.H, round(L.scale * 1e9), L.font_s, L.line_h, L.ox, L.oy, L.title_size, L.title_h,

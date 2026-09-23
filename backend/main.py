@@ -1864,6 +1864,7 @@ class RenderBody(BaseModel):
     bg: str | None = None
     bgCustom: str | None = None
     margin: int | None = None
+    pad: str | None = None
     gap: int | None = None
     # Web が /share で並びをそのまま送る用。サーバーのディスクが消えていても（Render の再起動など）共有できるようにする
     doc: GridDoc | None = None
@@ -1890,7 +1891,7 @@ def apply_render_options(doc: GridDoc, body: RenderBody) -> bool:
         doc.title = body.title[:60]
         changed = True
     opts = doc.options.model_dump()
-    for k in ("ratio", "sidebar", "overlay", "showTitle", "numbers", "bg", "bgCustom", "margin", "gap"):
+    for k in ("ratio", "sidebar", "overlay", "showTitle", "numbers", "bg", "bgCustom", "margin", "pad", "gap"):
         v = getattr(body, k)
         if v is not None and v != opts.get(k):
             opts[k] = v

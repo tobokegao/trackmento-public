@@ -34,7 +34,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.feef78d7.css">
+<link rel="stylesheet" href="app/app.c972fe8d.css">
 </head>
 <body>
 
@@ -332,10 +332,16 @@
         </div>
       </fieldset>
 
-      <div class="field">
-        <label for="margin">余白 <output id="margin-out" for="margin">16</output> px</label>
-        <input type="range" id="margin" min="0" max="160" step="8" value="16">
-      </div>
+      <!-- 余白は 3 段から選ぶ（2026-09-24。前は px のスライダーで、下限の 3.5% と比率合わせの余りに隠れて動かしても変わらないことが多かった）。
+           段は内容の短い辺に対する割合（ふつう 3.5%・ひろめ 7%・たっぷり 12%。backend/render.py の PAD_FRAC） -->
+      <fieldset class="field">
+        <legend>余白</legend>
+        <div class="seg radio" id="pad-seg" role="radiogroup" aria-label="余白">
+          <label><input type="radio" name="pad" value="normal" checked><span>ふつう</span></label>
+          <label><input type="radio" name="pad" value="wide"><span>ひろめ</span></label>
+          <label><input type="radio" name="pad" value="xwide"><span>たっぷり</span></label>
+        </div>
+      </fieldset>
       <div class="field">
         <label for="gap">マスの間隔 <output id="gap-out" for="gap">16</output> px</label>
         <input type="range" id="gap" min="0" max="96" step="4" value="16">
@@ -494,6 +500,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.3f82af97.js"></script>
+<script id="app-js" src="app/app.064689ef.js"></script>
 </body>
 </html>

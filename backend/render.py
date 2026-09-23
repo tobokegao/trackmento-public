@@ -529,6 +529,16 @@ SNAP_LEAD_TOL = 0.15
 # 1/16 は -0.6%・-2.1%）。読み取れる粗さと代償の釣り合いで 1/8 を採った
 MOD_PAD_DIV = 8
 
+# **外側の余白の下限（内容の短い辺に対する割合）を 3 段から選ぶ**（2026-09-24、利用者の判断。frontend の `PAD_FRAC` と同じ値）。
+# 前は「余白」のスライダー（px）だったが、下限の 3.5% と比率合わせの余りに隠れて、動かしても書き出しが変わらないことが多かった
+# （3x3 で下限が約 64、16x16 では約 340 になり、スライダーの上限 160 では届かない）。割合なら並びの大きさによらず差が出る。
+# `margin`（px）はそのまま残り、下限より大きければ効く（CLI の --margin と古い並び）
+PAD_FRAC = {"normal": 0.035, "wide": 0.07, "xwide": 0.12}
+
+
+def _pad_frac(doc: GridDoc) -> float:
+    return PAD_FRAC.get(getattr(doc.options, "pad", "normal"), PAD_FRAC["normal"])
+
 
 def _mod_pad(pad: int, gap: int) -> int:
     """余白をモジュールの 1/MOD_PAD_DIV 刻みに切り上げる。"""
@@ -1060,10 +1070,10 @@ SLAB_CELL_GAIN = 1.02
 SLAB_PREFER = 0.98
 
 
-def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool, gap: int) -> tuple[int, int, int]:
+def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool, gap: int, frac: float = PAD_FRAC["normal"]) -> tuple[int, int, int]:
     """塊が使い切る辺の長さ `fixed` から枠と余白を出す。
 
-    余白は「枠の短いほうの辺の 3.5%」（`_frame` と同じ規則）なので、枠と余白が互いを参照する。
+    余白は「枠の短いほうの辺の `frac`（ふつうは 3.5%）」（`_frame` と同じ規則）なので、枠と余白が互いを参照する。
     余白 0 から始めて 3 回回せば十分収束する。
     `vertical` は塊が縦（高さを使い切る）か横（幅を使い切る）か。
     """
@@ -1075,7 +1085,7 @@ def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool, gap: int) -> t
         else:
             W = fixed + pad * 2
             H = rnd(W / ratio)
-        pad = _mod_pad(max(m, rnd(min(W, H) * 0.035)), gap)
+        pad = _mod_pad(max(m, rnd(min(W, H) * frac)), gap)
     if vertical:
         H = fixed + pad * 2
         W = rnd(H * ratio)
@@ -1165,10 +1175,10 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
             pad = m
             for _ in range(3):
                 W, H = gw + wgap + seg_w + pad * 2, top_h + gh + pad * 2
-                pad = _mod_pad(max(m, rnd(min(W, H) * 0.035)), doc.options.gap)
+                pad = _mod_pad(max(m, rnd(min(W, H) * _pad_frac(doc))), doc.options.gap)
             W, H = gw + wgap + seg_w + pad * 2, top_h + gh + pad * 2
         else:
-            W, H, pad = _slab_frame(gh + top_h, ratio, m, True, doc.options.gap)
+            W, H, pad = _slab_frame(gh + top_h, ratio, m, True, doc.options.gap, _pad_frac(doc))
             seg_w = (W - pad) - (pad + gw + wgap)
         if W <= 0 or H <= 0:
             return None
@@ -1231,7 +1241,7 @@ def _slab_stack(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: i
     n = len(doc.cells)
     if not n or doc.rows > SLAB_STACK_MAX_ROWS:
         return None
-    W, H, pad = _slab_frame(gw, ratio, m, False, doc.options.gap)
+    W, H, pad = _slab_frame(gw, ratio, m, False, doc.options.gap, _pad_frac(doc))
     if W <= 0 or H <= 0:
         return None
     scale = min(1.0, max_side_v / max(W, H))
@@ -1317,7 +1327,7 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         W = H = pad = font_s = line_h = wgap = t_h = t_size = 0
         for _ in range(4):
             fixed = (gh + extra) if vertical else gw
-            W, H, pad = _slab_frame(fixed, ratio, m, vertical, doc.options.gap)
+            W, H, pad = _slab_frame(fixed, ratio, m, vertical, doc.options.gap, _pad_frac(doc))
             if W <= 0 or H <= 0:
                 return None
             scale = min(1.0, max_side_v / max(W, H))
@@ -1396,7 +1406,7 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
     （枠が小さいほど、出力に占めるマスの塊が大きい）。枠の大きさは塊に対する % で二分探索する。
     入らなければ None を返し、呼び出し側は今までの組み方に戻す。
     """
-    pad0 = _mod_pad(max(m, rnd(min(gw, title_h + gh) * 0.035)), doc.options.gap)
+    pad0 = _mod_pad(max(m, rnd(min(gw, title_h + gh) * _pad_frac(doc))), doc.options.gap)
     Wb, Hb = _fit(gw, title_h + gh, pad0, ratio)
 
     def build(pct: int, target: int, fs: int | None = None, seg_fs: int | None = None) -> WrapPlan | None:
@@ -1406,7 +1416,7 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         # **マスの送りの約数に寄せる**（塊の左右に流れる行が、ジャケットの段とそろう）。
         # ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
         line_h = _snap_lead(rnd(font_s * 1.5), cell_h(doc) + doc.options.gap)   # マスの段にそろえる（高さ）
-        pad = _mod_pad(max(m, rnd(min(W, H) * 0.035)), doc.options.gap)
+        pad = _mod_pad(max(m, rnd(min(W, H) * _pad_frac(doc))), doc.options.gap)
         # **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む）。
         # 中央に置くと左右が両方とも「文字を流すには狭い」幅になり、両方とも使えず捨てになる。
         # 片側に寄せれば 2 つぶんの幅が 1 本にまとまる。塊を左・文字を上／右／下に置くと
@@ -1683,12 +1693,12 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         ch = title_top_h + gh + (sb_gap + sbh if side == "bottom" else 0)
         # **四辺に最低でも内容の短辺の 3.5% の余白を残す**。既定の 16px は出力にすると 10px 足らずで、
         # 絵が枠に貼り付いて見える。比率合わせで余りが出る辺だけ広い、という不揃いも無くなる
-        pad = _mod_pad(max(m, rnd(min(cw, ch) * 0.035)), doc.options.gap)
+        pad = _mod_pad(max(m, rnd(min(cw, ch) * _pad_frac(doc))), doc.options.gap)
         w, h = _fit(cw, ch, pad, ratio)
         if ratio is not None and (w, h) != (cw + pad * 2, ch + pad * 2):
             # 比率合わせで余りが出る辺は余白が広がる。反対の辺が狭いままだと上下（縦長なら左右）だけ
             # 極端に狭く見えるため、余りが出るときは「内容の短辺の 4%」まで引き上げる
-            w, h = _fit(cw, ch, _mod_pad(max(m, rnd(min(cw, ch) * 0.04)), doc.options.gap), ratio)
+            w, h = _fit(cw, ch, _mod_pad(max(m, rnd(min(cw, ch) * (_pad_frac(doc) + 0.005))), doc.options.gap), ratio)
         from backend.config import max_side
         return w, h, min(1.0, max_side() / max(w, h))
 

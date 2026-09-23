@@ -634,6 +634,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
    不ぞろいに折れ、列の頭がずれて見えた。列の幅は中身の幅（max-content）。PC の欄に 2 列が入るよう比率の名前を短くした */
 .seg.radio { display: grid; grid-template-columns: repeat(2, max-content); gap: var(--space-1) var(--space-4); }
 .seg.radio label { flex: 0 0 auto; }
+#pad-seg { grid-template-columns: repeat(3, max-content); }   /* 余白の段は名前が短いので 3 つを 1 行に（2 列だと「たっぷり」だけ次の行に落ちる） */
 .seg.radio span {
   display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0;
   border: 0; background: none; text-align: left; font-family: var(--font-body); transform: none;
@@ -1561,10 +1562,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
       </fieldset>
 
-      <div class="field">
-        <label for="margin">余白 <output id="margin-out" for="margin">16</output> px</label>
-        <input type="range" id="margin" min="0" max="160" step="8" value="16">
-      </div>
+      <!-- 余白は 3 段から選ぶ（2026-09-24。前は px のスライダーで、下限の 3.5% と比率合わせの余りに隠れて動かしても変わらないことが多かった）。
+           段は内容の短い辺に対する割合（ふつう 3.5%・ひろめ 7%・たっぷり 12%。backend/render.py の PAD_FRAC） -->
+      <fieldset class="field">
+        <legend>余白</legend>
+        <div class="seg radio" id="pad-seg" role="radiogroup" aria-label="余白">
+          <label><input type="radio" name="pad" value="normal" checked><span>ふつう</span></label>
+          <label><input type="radio" name="pad" value="wide"><span>ひろめ</span></label>
+          <label><input type="radio" name="pad" value="xwide"><span>たっぷり</span></label>
+        </div>
+      </fieldset>
       <div class="field">
         <label for="gap">マスの間隔 <output id="gap-out" for="gap">16</output> px</label>
         <input type="range" id="gap" min="0" max="96" step="4" value="16">
@@ -1959,6 +1966,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "彩度": "Saturation",
         "明度": "Lightness",
         "余白": "Margin",
+        "ふつう": "Normal",
+        "ひろめ": "Wide",
+        "たっぷり": "Extra wide",
         "マスの間隔": "Gap",
         "出力サイズ": "Output size",
         "マスの大きさ": "Cell size",
@@ -2451,7 +2461,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const state = {
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
     ratio: "16:9", showTitle: true, sidebar: true, overlay: false, numbers: false, trimNames: true,
-    cellRatio: "1:1", cellFit: "crop", bg: "paper", bgCustom: null, margin: 16, gap: 16,   // 既定値（比率は X 向けの 16:9）
+    cellRatio: "1:1", cellFit: "crop", bg: "paper", bgCustom: null, margin: 16, pad: "normal", gap: 16,   // 既定値（比率は X 向けの 16:9）
     listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
@@ -2478,7 +2488,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     eOriginField: $("#e-origin-field"), eOriginNote: $("#e-origin-note"), eOriginSeg: $("#e-origin-seg"),
     eOriginFind: $("#e-origin-find"), eOriginMsg: $("#e-origin-msg"),
     swatches: $("#swatches"), bgCustomBtn: $("#bg-custom-btn"), bgCustomPanel: $("#bg-custom-panel"), palImport: $("#pal-import"),
-    hsvH: $("#hsv-h"), hsvS: $("#hsv-s"), hsvV: $("#hsv-v"), hsvHOut: $("#hsv-h-out"), hsvSOut: $("#hsv-s-out"), hsvVOut: $("#hsv-v-out"), hsvHex: $("#hsv-hex"), margin: $("#margin"), marginOut: $("#margin-out"), gap: $("#gap"), gapOut: $("#gap-out"),
+    hsvH: $("#hsv-h"), hsvS: $("#hsv-s"), hsvV: $("#hsv-v"), hsvHOut: $("#hsv-h-out"), hsvSOut: $("#hsv-s-out"), hsvVOut: $("#hsv-v-out"), hsvHex: $("#hsv-hex"), padSeg: $("#pad-seg"), gap: $("#gap"), gapOut: $("#gap-out"),
     specOut: $("#spec-out"), specCell: $("#spec-cell"), specMargin: $("#spec-margin"),
   };
 
@@ -4042,7 +4052,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   els.optTrim.addEventListener("change", () => { state.trimNames = els.optTrim.checked; clearViewCells(); renderGrid(); updateSpec(); });
   els.optListed.addEventListener("change", () => { state.listed = els.optListed.checked; save(); });
   els.findLink.href = api("/find");   // 別オリジンに API を置く構成でも飛べるように
-  els.margin.addEventListener("input", () => { state.margin = Number(els.margin.value); els.marginOut.value = state.margin; updateSpec(); });
+  // 段を選んだら古い px の余白（スライダーだった頃の値・CLI の --margin）は 0 に戻す。残すと段より大きいときに段が効かない
+  els.padSeg.addEventListener("change", () => {
+    state.pad = els.padSeg.querySelector("input:checked").value; state.margin = 0; renderGrid(); updateSpec();
+  });
   els.gap.addEventListener("input", () => { state.gap = Number(els.gap.value); els.gapOut.value = state.gap; updateSpec(); });
   /* カスタムカラー: 色見本のボタンを押すとすぐ色相・彩度・明度のスライダーが開き、動かした色が即反映される */
   const CUSTOM_DEFAULT = "#f2efe6";
@@ -4317,7 +4330,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const lab = el.id ? document.querySelector(`label[for="${el.id}"]`) : null;
     if (lab) lab.addEventListener("pointerdown", (e) => e.preventDefault());
   }
-  for (const el of [els.margin, els.gap, els.hsvH, els.hsvS, els.hsvV, palHsv.h, palHsv.s, palHsv.v]) thumbOnly(el);
+  for (const el of [els.gap, els.hsvH, els.hsvS, els.hsvV, palHsv.h, palHsv.s, palHsv.v]) thumbOnly(el);
 
   /* 指で触る画面だけ、自前のスクロールバーを付ける。
      **スマホのブラウザはスクロールバーを触れる部品として扱わない**ため、ブラウザ任せでは掴めない */
@@ -4680,7 +4693,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         pad = m;
         for (let i = 0; i < 3; i++) {
           W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
-          pad = modPad(Math.max(m, Math.round(Math.min(W, H) * 0.035)), state.gap);
+          pad = modPad(Math.max(m, Math.round(Math.min(W, H) * padFrac())), state.gap);
         }
         W = gw + wgap + segW + pad * 2; H = topH + gh + pad * 2;
       } else {
@@ -4742,7 +4755,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     for (let i = 0; i < 4; i++) {
       if (vertical) { H = fixed + pad * 2; W = Math.round(H * ratio); }
       else { W = fixed + pad * 2; H = Math.round(W / ratio); }
-      if (i < 3) pad = modPad(Math.max(m, Math.round(Math.min(W, H) * 0.035)), gap);
+      if (i < 3) pad = modPad(Math.max(m, Math.round(Math.min(W, H) * padFrac())), gap);
     }
     return [W, H, pad];
   }
@@ -4868,7 +4881,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      出力での文字を FLOW_MIN_FONT に固定し、入る範囲で枠をいちばん小さくする（＝塊をいちばん大きく）。
      入らなければ null を返し、呼び出し側は今までの組み方に戻す */
   function wrapPlan(gw, gh, titleH, ratio, m, maxSide) {
-    const pad0 = modPad(Math.max(m, Math.round(Math.min(gw, titleH + gh) * 0.035)), state.gap);
+    const pad0 = modPad(Math.max(m, Math.round(Math.min(gw, titleH + gh) * padFrac())), state.gap);
     const [Wb, Hb] = fit(gw, titleH + gh, pad0, ratio);
     const build = (pct, target, fs, segFs) => {
       const W = Math.round(Wb * pct / 100), H = Math.round(Hb * pct / 100);
@@ -4877,7 +4890,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       // **マスの送りの約数に寄せる**（塊の左右に流れる行がジャケットの段とそろう）。
       // ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
       const lineH = snapLead(Math.round(fontS * 1.5), cellH() + state.gap);   /* マスの段にそろえる（高さ） */
-      const pad = modPad(Math.max(m, Math.round(Math.min(W, H) * 0.035)), state.gap);
+      const pad = modPad(Math.max(m, Math.round(Math.min(W, H) * padFrac())), state.gap);
       // **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む。下を参照）
       let gx = Math.round((W - gw) / 2);
       // **タイトルの大きさは本文から決める**（マスの幅からだと、マスが多いとき極端に小さくなる）。
@@ -5040,6 +5053,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   // 外側の余白をモジュール（マスの送り）の 1/MOD_PAD_DIV 刻みに切り上げる
   // （backend/render.py の MOD_PAD_DIV / _mod_pad と同じ値・同じ式）
   const MOD_PAD_DIV = 8;
+  // 外側の余白の下限（内容の短い辺に対する割合）を 3 段から選ぶ（backend/render.py の PAD_FRAC / _pad_frac と同じ値。2026-09-24）
+  const PAD_FRAC = { normal: 0.035, wide: 0.07, xwide: 0.12 };
+  const padFrac = () => PAD_FRAC[state.pad] ?? PAD_FRAC.normal;
   const modPad = (pad, gap) => {
     const step = (CELL_PX + gap) / MOD_PAD_DIV;
     return Math.max(pad, Math.round(Math.ceil(pad / step) * step));
@@ -5335,12 +5351,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       const ch = titleTopH + gh + (side === "bottom" ? sbGap + sbh : 0);
       // **四辺に最低でも内容の短辺の 3.5% の余白を残す**（backend/render.py と同じ）。既定の 16px は
       // 出力にすると 10px 足らずで、絵が枠に貼り付いて見える
-      const pad = modPad(Math.max(m, Math.round(Math.min(cw, ch) * 0.035)), state.gap);
+      const pad = modPad(Math.max(m, Math.round(Math.min(cw, ch) * padFrac())), state.gap);
       let [w, h] = fit(cw, ch, pad, ratio);
       if (ratio !== null && (w !== cw + pad * 2 || h !== ch + pad * 2)) {
         // 比率合わせで余りが出る辺は余白が広がる。反対の辺が指定値（既定 16px）のままだと上下（縦長なら左右）だけ
         // 極端に狭く見えるため、余りが出るときは指定値と「内容の短辺の 4%」の大きい方を四辺の最小余白にする
-        [w, h] = fit(cw, ch, modPad(Math.max(m, Math.round(Math.min(cw, ch) * 0.04)), state.gap), ratio);
+        [w, h] = fit(cw, ch, modPad(Math.max(m, Math.round(Math.min(cw, ch) * (padFrac() + 0.005))), state.gap), ratio);
       }
       return [w, h, Math.min(1, maxSide / Math.max(w, h))];
     };
@@ -5614,7 +5630,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (state.ratio) { const i = els.ratioSeg.querySelector(`input[value="${state.ratio}"]`); if (i) i.checked = true; }
     els.optTitle.checked = !!state.showTitle; syncListSeg(); els.optNumbers.checked = !!state.numbers; els.optTrim.checked = state.trimNames !== false;
     setSeg(els.cellRatioSeg, state.cellRatio || "1:1"); setSeg(els.cellFitSeg, state.cellFit || "crop"); syncCellFit();
-    els.margin.value = String(state.margin); els.marginOut.value = String(state.margin);
+    setSeg(els.padSeg, state.pad || "normal");
     els.gap.value = String(state.gap); els.gapOut.value = String(state.gap);
     renderSwatches(); renderGrid(); updateSpec(); syncPreview();
   };
@@ -6075,7 +6091,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
       options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false,
-        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, margin: state.margin, gap: state.gap },
+        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, margin: state.margin, pad: state.pad || "normal", gap: state.gap },
     };
   }
   function applyData(d) {
@@ -6106,6 +6122,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (pid && pid !== activePaletteId) { activePaletteId = pid; savePalettes(); }
     }
     state.margin = clamp(o.margin, 0, 160, 16);
+    state.pad = ["normal", "wide", "xwide"].includes(o.pad) ? o.pad : "normal";
     state.gap = clamp(o.gap, 0, 96, 16);
     state.listed = d.listed === true;   // 読み込んだ並びの指定を引き継ぐ（無ければオフ）
     selected = null; target = null;
@@ -6122,7 +6139,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     els.optListed.checked = state.listed;
     for (const i of els.swatches.querySelectorAll("input")) i.checked = i.value === state.bg;
     syncCustomColor();
-    els.margin.value = state.margin; els.marginOut.value = state.margin;
+    setSeg(els.padSeg, state.pad || "normal");
     els.gap.value = state.gap; els.gapOut.value = state.gap;
   }
   /* 保存先は 2 つ。localStorage（即時）と grids/default.json（サーバー。CLI と共有）。

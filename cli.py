@@ -301,7 +301,7 @@ def cmd_render(a: argparse.Namespace) -> int:
     updates = {
         "ratio": a.ratio, "sidebar": a.sidebar, "overlay": a.overlay, "showTitle": a.show_title, "numbers": a.numbers,
         "trimNames": a.trim_names, "cellRatio": a.cell_ratio, "cellFit": a.cell_fit,
-        "bg": a.bg, "bgCustom": a.bg_custom, "margin": a.margin, "gap": a.gap,
+        "bg": a.bg, "bgCustom": a.bg_custom, "margin": a.margin, "pad": a.pad, "gap": a.gap,
     }
     if a.bg_custom and a.bg is None:
         updates["bg"] = "custom"
@@ -430,6 +430,8 @@ def _render_opts(sp: argparse.ArgumentParser) -> None:
                              "night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta"], help="背景色")
     sp.add_argument("--bg-custom", metavar="#RRGGBB", help="背景色を直接指定")
     sp.add_argument("--margin", type=int, help="余白 px（0〜160）")
+    sp.add_argument("--pad", choices=["normal", "wide", "xwide"],
+                    help="余白の段（ふつう＝内容の短い辺の 3.5%%・ひろめ＝7%%・たっぷり＝12%%。既定 normal）")
     sp.add_argument("--gap", type=int, help="マスとマスの間隔 px（0〜96、既定 16）")
 
 
