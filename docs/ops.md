@@ -237,7 +237,7 @@
     （`el()` が `var(` で始まる値を style に回す）。字は DotGothic16 で、ページの最後の `<style id="fonts">` に
     刈り込んで data: で入れてある（Claude のアプリの中では Google Fonts が読み込まれない）。**db の文言に第 2 水準の字が増えて
     代わりのフォントで出るようになったら** `PYTHONUTF8=1 .venv/Scripts/python scripts/board_font.py` を回し直す。
-    字の指定は **html と body の両方**に付ける（公開のときに付く外側の枠が body に font を直に書く）
+    **字の大きさは `--d` / `--ds` の倍数**（1 目 = 画素比を丸めた数 ÷ 画素比。1 目が端末の画素の整数倍になり、英字の上辺がガタつかない。Pixel の 2.625 倍では 16px が 18.3px になる。9/24）。字の指定は **html と body の両方**に付ける（公開のときに付く外側の枠が body に font を直に書く）
   - ボードの元は `scripts/board/index.html`。**db が読めないときのために作り付けの控えを持っている**ので、
     見た目を直したときはそちらも一度は新しい数字にしておく（控えが古いと、読めなかったときだけ古い数字が出る）
   - **外部サービスの表の実測列は db から来る**（2026-09-21、`board_data.py` の `services` / `SERVICE_DOMAINS` と
