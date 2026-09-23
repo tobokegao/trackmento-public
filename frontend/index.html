@@ -500,6 +500,14 @@ img { max-width: 100%; display: block; }
 /* 入力欄の枠を消すときに**左の線まで消さない**（`.input` の枠を 0 にする指定のほうが強く、升の縦線が消えていた。2026-09-23、利用者のスマホで） */
 .list-row .input { border: 0; border-left: 1px solid var(--color-rule); box-shadow: none; padding: var(--space-1) var(--space-2); }
 .list-sheet + .search-actions { margin-top: var(--space-2); }
+/* 表の最下段の「＋ 行を足す」。表の 1 行に見せる（番号の列の幅だけ字を右へ）。20 行になったら隠す */
+.list-add { display: block; width: 100%; text-align: left; padding: var(--space-1) var(--space-2) var(--space-1) calc(2.25rem + var(--space-2));
+  border: 0; border-top: 1px solid var(--color-rule); background: var(--color-paper-2); color: var(--color-ink-2);
+  font-family: var(--font-display); font-size: var(--text-sm); cursor: pointer; }
+.list-add:hover { background: var(--color-paper-3); color: var(--color-ink); }
+.list-add:active { background: var(--color-ink); color: var(--color-paper); }
+.list-add:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; }
+.list-add[hidden] { display: none; }
 .list-row .input:hover { box-shadow: none; background: var(--color-paper-2); }
 .list-row .input:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; }
 .list-row .input[aria-invalid="true"] { box-shadow: inset 0 0 0 2px var(--color-error); }
@@ -1280,6 +1288,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <div class="list-sheet" role="table" aria-describedby="list-help">
           <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">トラック名</span><span role="columnheader">アーティスト名</span></div>
           <div id="list-rows" role="rowgroup"></div>
+          <button class="list-add" type="button" id="list-add">＋ 行を足す</button>
         </div>
         <div class="search-actions">
           <button class="btn" type="button" id="list-clear">表を空にする</button>
@@ -1776,6 +1785,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "トラック名の一覧から": "From a list of track names",
         "1 行に 1 トラック（一度に 20 行まで）。Excel などの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。": "One track per row (up to 20 rows at a time). Pasting from a spreadsheet such as Excel, or a list made with \"Copy track names\", splits it into rows and columns.",
         "表を空にする": "Clear the table",
+        "＋ 行を足す": "+ Add a row",
         "iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。": "Each line is looked up on iTunes. Exact name matches go into empty cells; for the rest, the closest track goes to Results.",
         "一覧から入れる": "Add from list",
         ": 表にトラック名とアーティスト名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。": ": Enter a track name and artist on each row of the table, and each row is looked up on iTunes. Only exact name matches go into empty cells; for the rest, the closest track is listed in Results. You can also paste from a spreadsheet such as Excel, or a list written by \"Copy track names\".",
@@ -3014,6 +3024,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      貼り付けは Excel など（タブ区切り）と「トラック名をコピー」の形（「1. トラック名 / アーティスト」）の両方を行と列に分ける */
   const LIST_MAX = 20, LIST_MIN_ROWS = 3;
   const listEls = { form: $("#list-form"), rows: $("#list-rows"), btn: $("#list-btn"), msg: $("#list-form-msg") };
+  const listAdd = $("#list-add");
   let listRun = null;   // 走っている間は { stop: false }。もう一度押すと止める
   // 表の中身。swappable は「A - B」の形で貼られ、どちらがアーティストか決めきれない行
   let listData = [];
@@ -3032,6 +3043,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const last = listData[listData.length - 1];
     if ((last.title || last.artist) && listData.length < LIST_MAX) listData.push(blankRow());
     listEls.rows.replaceChildren(...listData.map((r, i) => listRowEl(i)));
+    listAdd.hidden = listData.length >= LIST_MAX;
     if (focus) listCell(...focus)?.focus({ preventScroll: true });
   }
   const listCell = (i, key) => listEls.rows.querySelector(`input[data-row="${i}"][data-key="${key}"]`);
@@ -3058,6 +3070,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (i === listData.length - 1 && listData.length < LIST_MAX) {
       listData.push(blankRow());
       listEls.rows.append(listRowEl(listData.length - 1));
+      listAdd.hidden = listData.length >= LIST_MAX;
     }
   });
   // Return は表計算と同じく 1 つ下の升へ（押すたびに探し始めないように）。Shift+Return は 1 つ上へ
@@ -3092,6 +3105,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const over = lines.length - (i - at);
     renderListRows([Math.min(i, listData.length - 1), fromArtist ? "artist" : "title"]);
     say(listEls.msg, over > 0 ? tr`${LIST_MAX} 行を超えたぶん（${over} 行）は入れませんでした。` : "", over > 0 ? "error" : "");
+  });
+  // 「＋ 行を足す」: 空の行を 1 つ足して、その行のトラック名へ（先に行を用意しておきたい人のため。2026-09-23、利用者の依頼）
+  listAdd.addEventListener("click", () => {
+    if (listData.length >= LIST_MAX) return;
+    listData.push(blankRow());
+    listEls.rows.append(listRowEl(listData.length - 1));
+    listAdd.hidden = listData.length >= LIST_MAX;
+    listCell(listData.length - 1, "title")?.focus();
   });
   $("#list-clear").addEventListener("click", () => { listData = []; renderListRows([0, "title"]); say(listEls.msg, ""); });
   renderListRows();
