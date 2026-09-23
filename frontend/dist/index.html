@@ -130,7 +130,7 @@
         <p class="msg" id="list-help">1 行に 1 トラック（一度に 20 行まで）。Excel などの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。<br>iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</p>
         <!-- 表計算のような 2 列の表。行は入れるにつれて増える（renderListRows） -->
         <div class="list-sheet" role="table" aria-describedby="list-help">
-          <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">トラック名</span><span role="columnheader">アーティスト名</span><span role="columnheader" aria-hidden="true"></span></div>
+          <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">アーティスト名</span><span role="columnheader">トラック名</span><span role="columnheader" aria-hidden="true"></span></div>
           <div id="list-rows" role="rowgroup"></div>
           <button class="list-add" type="button" id="list-add">＋ 行を足す</button>
         </div>
@@ -371,7 +371,7 @@
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>トラック名の一覧から</b>: 表にトラック名とアーティスト名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
+          <p><b>トラック名の一覧から</b>: 表にアーティスト名とトラック名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
@@ -487,6 +487,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.8456c98c.js"></script>
+<script id="app-js" src="app/app.9ae71a64.js"></script>
 </body>
 </html>

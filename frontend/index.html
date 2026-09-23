@@ -1294,7 +1294,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         <p class="msg" id="list-help">1 行に 1 トラック（一度に 20 行まで）。Excel などの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。<br>iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</p>
         <!-- 表計算のような 2 列の表。行は入れるにつれて増える（renderListRows） -->
         <div class="list-sheet" role="table" aria-describedby="list-help">
-          <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">トラック名</span><span role="columnheader">アーティスト名</span><span role="columnheader" aria-hidden="true"></span></div>
+          <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">アーティスト名</span><span role="columnheader">トラック名</span><span role="columnheader" aria-hidden="true"></span></div>
           <div id="list-rows" role="rowgroup"></div>
           <button class="list-add" type="button" id="list-add">＋ 行を足す</button>
         </div>
@@ -1535,7 +1535,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
           <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
           <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify だけはトラック名とジャケットだけで、アーティスト名は手で入れてください。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。sm12345 のような ID だけを貼ってもかまいません。</p>
-          <p><b>トラック名の一覧から</b>: 表にトラック名とアーティスト名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
+          <p><b>トラック名の一覧から</b>: 表にアーティスト名とトラック名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
           <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
@@ -1797,7 +1797,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "{} 行目を消す": "Delete row {0}",
         "iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。": "Each line is looked up on iTunes. Exact name matches go into empty cells; for the rest, the closest track goes to Results.",
         "一覧から入れる": "Add from list",
-        ": 表にトラック名とアーティスト名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。": ": Enter a track name and artist on each row of the table, and each row is looked up on iTunes. Only exact name matches go into empty cells; for the rest, the closest track is listed in Results. You can also paste from a spreadsheet such as Excel, or a list written by \"Copy track names\".",
+        ": 表にアーティスト名とトラック名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。": ": Enter an artist and track name on each row of the table, and each row is looked up on iTunes. Only exact name matches go into empty cells; for the rest, the closest track is listed in Results. You can also paste from a spreadsheet such as Excel, or a list written by \"Copy track names\".",
         "トラック名をコピー": "Copy track names",
         "「1. トラック名 / アーティスト」の形で、番号順にコピーする。X の本文などにそのまま貼れる": "Copy as \"1. Track / Artist\" in cell order, ready to paste into a post on X",
         "手入力（画像 URL＋トラック名）": "By hand (image URL + track name)",
@@ -3046,6 +3046,8 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     return null;
   }
   const blankRow = () => ({ title: "", artist: "" });
+  // 列の順。アーティスト名が先（検索欄と逆だが、利用者の希望。2026-09-23）
+  const LIST_COLS = ["artist", "title"];
   function renderListRows(focus) {
     // 最後の行が埋まったら空の行を 1 つ足す（上限まで）。表計算と同じく、打ち進めれば行が増える
     while (listData.length < LIST_MIN_ROWS) listData.push(blankRow());
@@ -3060,7 +3062,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const row = document.createElement("div"); row.className = "list-row"; row.setAttribute("role", "row");
     const num = document.createElement("span"); num.className = "list-num"; num.setAttribute("role", "rowheader"); num.textContent = String(i + 1);
     row.append(num);
-    for (const key of ["title", "artist"]) {
+    for (const key of LIST_COLS) {
       const inp = document.createElement("input");
       inp.className = "input"; inp.type = "text"; inp.autocomplete = "off"; inp.maxLength = 120;
       inp.setAttribute("role", "cell"); inp.dataset.row = String(i); inp.dataset.key = key;
@@ -3098,25 +3100,25 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const lines = text.replace(/\r\n?/g, "\n").replace(/\n+$/, "").split("\n");
     if (lines.length < 2 && !text.includes("\t") && !parseListLine(text.trim())) return;   // 1 つの升に 1 語貼るだけなら普通に貼る
     e.preventDefault();
-    const at = +e.target.dataset.row, fromArtist = e.target.dataset.key === "artist";
+    const at = +e.target.dataset.row, key = e.target.dataset.key, fromTitle = key === "title";
     let i = at;
     for (const line of lines) {
       if (i >= LIST_MAX) break;
       while (listData.length <= i) listData.push(blankRow());
       const r = listData[i], v = line.trim();
       if (line.includes("\t")) {
-        const cols = line.split("\t").map(c => c.trim());   // Excel などの表: 列の順に入れる
-        if (fromArtist) Object.assign(r, { artist: cols[0], swappable: false });
-        else Object.assign(r, { title: cols[0], artist: cols[1] ?? r.artist, swappable: false });
+        const cols = line.split("\t").map(c => c.trim());   // Excel などの表: 列の順（アーティスト名 → トラック名）に入れる
+        if (fromTitle) Object.assign(r, { title: cols[0], swappable: false });
+        else Object.assign(r, { artist: cols[0], title: cols[1] ?? r.title, swappable: false });
       } else {
         const p = v && parseListLine(v);
         if (p) Object.assign(r, { swappable: false }, p);
-        else r[fromArtist ? "artist" : "title"] = v;   // 区切りの無い 1 列ぶんは、貼った列に縦に入れる
+        else r[key] = v;   // 区切りの無い 1 列ぶんは、貼った列に縦に入れる
       }
       i++;
     }
     const over = lines.length - (i - at);
-    renderListRows([Math.min(i, listData.length - 1), fromArtist ? "artist" : "title"]);
+    renderListRows([Math.min(i, listData.length - 1), key]);
     say(listEls.msg, over > 0 ? tr`${LIST_MAX} 行を超えたぶん（${over} 行）は入れませんでした。` : "", over > 0 ? "error" : "");
   });
   // 「＋ 行を足す」: 空の行を 1 つ足して、その行のトラック名へ（先に行を用意しておきたい人のため。2026-09-23、利用者の依頼）
@@ -3125,7 +3127,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     listData.push(blankRow());
     listEls.rows.append(listRowEl(listData.length - 1));
     listAdd.hidden = listData.length >= LIST_MAX;
-    listCell(listData.length - 1, "title")?.focus();
+    listCell(listData.length - 1, LIST_COLS[0])?.focus();
   });
   // 行の「×」: その行を消して下を詰める（2026-09-23、利用者の依頼）。消した位置の次の行へ移る
   listEls.rows.addEventListener("click", (e) => {
@@ -3133,9 +3135,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (!b || listRun) return;
     const i = +b.dataset.del;
     listData.splice(i, 1);
-    renderListRows([Math.min(i, Math.max(listData.length, LIST_MIN_ROWS) - 1), "title"]);
+    renderListRows([Math.min(i, Math.max(listData.length, LIST_MIN_ROWS) - 1), LIST_COLS[0]]);
   });
-  $("#list-clear").addEventListener("click", () => { listData = []; renderListRows([0, "title"]); say(listEls.msg, ""); });
+  $("#list-clear").addEventListener("click", () => { listData = []; renderListRows([0, LIST_COLS[0]]); say(listEls.msg, ""); });
   renderListRows();
 
   const sameName = (t, p) => nkey(t.title) === nkey(p.title) && !!p.artist && nkey(t.artist) === nkey(p.artist);
