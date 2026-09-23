@@ -497,6 +497,8 @@ img { max-width: 100%; display: block; }
 .list-del:hover { background: var(--color-paper-3); color: var(--color-ink); }
 .list-del:active { background: var(--color-ink); color: var(--color-paper); }
 .list-del:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; }
+/* 3 行しかないときは消しても空の行が補われて何も変わらないので、× を見せない（列と線は残して幅をそろえる。利用者の案） */
+.list-del:disabled { color: transparent; cursor: default; background: var(--color-paper-2); }
 .list-row + .list-row, #list-rows .list-row:first-child { border-top: 1px solid var(--color-rule); }
 .list-row > * { min-width: 0; }
 .list-row > * + * { border-left: 1px solid var(--color-rule); }
@@ -3054,8 +3056,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     const last = listData[listData.length - 1];
     if ((last.title || last.artist) && listData.length < LIST_MAX) listData.push(blankRow());
     listEls.rows.replaceChildren(...listData.map((r, i) => listRowEl(i)));
-    listAdd.hidden = listData.length >= LIST_MAX;
+    syncListRows();
     if (focus) listCell(...focus)?.focus({ preventScroll: true });
+  }
+  // 行の数で変わるもの: 「＋ 行を足す」は 20 行で隠し、× は 4 行以上のときだけ押せるようにする
+  function syncListRows() {
+    listAdd.hidden = listData.length >= LIST_MAX;
+    const few = listData.length <= LIST_MIN_ROWS;
+    for (const b of listEls.rows.querySelectorAll(".list-del")) b.disabled = few;
   }
   const listCell = (i, key) => listEls.rows.querySelector(`input[data-row="${i}"][data-key="${key}"]`);
   function listRowEl(i) {
@@ -3085,7 +3093,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (i === listData.length - 1 && listData.length < LIST_MAX) {
       listData.push(blankRow());
       listEls.rows.append(listRowEl(listData.length - 1));
-      listAdd.hidden = listData.length >= LIST_MAX;
+      syncListRows();
     }
   });
   // Return は表計算と同じく 1 つ下の升へ（押すたびに探し始めないように）。Shift+Return は 1 つ上へ
@@ -3126,7 +3134,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     if (listData.length >= LIST_MAX) return;
     listData.push(blankRow());
     listEls.rows.append(listRowEl(listData.length - 1));
-    listAdd.hidden = listData.length >= LIST_MAX;
+    syncListRows();
     listCell(listData.length - 1, LIST_COLS[0])?.focus();
   });
   // 行の「×」: その行を消して下を詰める（2026-09-23、利用者の依頼）。消した位置の次の行へ移る
