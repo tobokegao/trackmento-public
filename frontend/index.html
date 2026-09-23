@@ -1223,7 +1223,9 @@ output { font-variant-numeric: tabular-nums; }
 .promo .album { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .promo .elsewhere { font-size: var(--text-sm); color: var(--color-ink-2); }   /* 主役は Bandcamp。ほかは従として小さく並べる */
 .spec { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }   /* 幅があれば横に並び、足りなければ折り返す */
-.spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; }   /* 各項目は 8rem を基準に、並んだ行の幅を均等に分け合う */
+.spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; align-content: start; }   /* 各項目は 8rem を基準に、並んだ行の幅を均等に分け合う */
+/* align-content: start … 同じ行の項目は背の高いもの（2 行に折れた「余白」）に合わせて伸びる。上詰めにしないと伸びたぶんが
+   見出しと値の行に割り振られ、短い項目の値だけ下にずれる（2026-09-24、字を 16px のドット字にして折れやすくなり、利用者が「段ズレ」と報告） */
 .spec dt { font-family: var(--font-display); color: var(--color-muted); }
 .spec dd { margin: 0; font-variant-numeric: tabular-nums; }
 
