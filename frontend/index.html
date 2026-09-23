@@ -1227,7 +1227,7 @@ output { font-variant-numeric: tabular-nums; }
 /* align-content: start … 同じ行の項目は背の高いもの（2 行に折れた「余白」）に合わせて伸びる。上詰めにしないと伸びたぶんが
    見出しと値の行に割り振られ、短い項目の値だけ下にずれる（2026-09-24、字を 16px のドット字にして折れやすくなり、利用者が「段ズレ」と報告） */
 .spec dt { font-family: var(--font-display); color: var(--color-muted); }
-.spec dd { margin: 0; font-variant-numeric: tabular-nums; }
+.spec dd { margin: 0; font-variant-numeric: tabular-nums; word-break: keep-all; }   /* 空白の位置でだけ折る（「左／右」と字の間で割れた。数の前後は JS が NBSP にするので、「/」の後でだけ折れる） */
 
 footer { padding: var(--space-3) var(--page-inline); border-top: var(--line) solid var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); display: flex; gap: var(--space-4); flex-wrap: wrap; }
 footer a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
@@ -5646,7 +5646,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
     els.specCell.textContent = cellH() === CELL_W ? `${Math.round(CELL_W * L.scale)} px`
       : `${Math.round(CELL_W * L.scale)} × ${Math.round(cellH() * L.scale)} px`;
-    els.specMargin.textContent = tr`上下 ${Math.round(L.oy * L.scale)} / 左右 ${Math.round(L.ox * L.scale)} px`;
+    /* 数の前後の空白は折らない（2026-09-24）。「上下 193 / 左右 109 px」が 2 行に折れるとき、「px」だけが次の行に落ちていた
+       （利用者がスマホで報告）。折れるのは「/」の前後だけになる */
+    els.specMargin.textContent = tr`上下 ${Math.round(L.oy * L.scale)} / 左右 ${Math.round(L.ox * L.scale)} px`
+      .replace(/ (?=\d)|(?<=\d) /g, " ");
     noteSmallCell(Math.round(cellShort() * L.scale));   /* 潰れて読めなくなるのは**短辺**で決まる */
     // 重ねた曲名が読めない大きさになる並びでは、選べなくする（今選んでいるなら、出さないことを知らせる）
     // **判定は共有画像を描く大きさで行う**。重ねる組み方には曲名リストが無く、流し込みに落ちることも
