@@ -252,6 +252,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-23", "並びを 10 個まで持てるようになりました。グリッドの上の「並び」のメニューで切り替え、「新しい並び」で増やせます。共有 URL を開いたときは、今の並びにトラックが入っていれば、上書きせずに新しい並びとして開きます。",
+     "You can now keep up to 10 layouts. Switch between them with the “Layout” menu above the grid, and add one with “New layout”. When you open a share URL and your current layout already has tracks, it opens as a new layout instead of replacing it."),
     ("2026-09-23", "アーティスト名とトラック名の表から、まとめて入れられるようになりました（検索の「トラック名の一覧から」、一度に 20 行まで）。Excel などの表も貼れます。逆に「トラック名をコピー」で、並びを「1. アーティスト - トラック名」の文章にしてコピーできます。",
      "You can now add tracks all at once from a table of artist and track names (“From a list of track names” under Search, up to 20 rows at a time). You can also paste from a spreadsheet such as Excel. In the other direction, “Copy track names” copies the layout as text in the form “1. Artist - Track”."),
     ("2026-09-23", "キーボードでも並べ替えられるようになりました。Tab キーでグリッドに入り、矢印キーでマスを移ります。Return キーかスペースキーでマスを選び、Option（Alt）＋矢印キーで隣のマスと入れ替えます。",

@@ -568,7 +568,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
    **模様は右下の角を基準に敷く**（`mask-position: right bottom`）。左上を基準にすると、
    実際に見えるのは右辺と下辺なので、**ボタンの幅・高さが奇数のときだけ市松の白黒が入れ替わり**、
    ボタンごとにドットの始まりが違って見えた（実機で報告） */
-.btn::after, .seg span::after {
+.btn::after, .seg span::after, .popup::after {
   content: ""; position: absolute; inset: calc(-1 * var(--line)); pointer-events: none;
   transform: translate(var(--sh), var(--sh));
   background: var(--color-shadow);
@@ -781,6 +781,28 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 
 /* ---------- grid ---------- */
 .grid-head { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+/* 並びの切り替え（grids-multi）。**OS 9 のポップアップメニュー**: 枠の右端に区切り線と下向きの三角、影はボタンと同じ市松。
+   中身はブラウザの select（開いた一覧は端末のものが出る。スマホでは下から出る選択の窓になり、そのほうが押しやすい） */
+.layouts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-3); }
+.layouts > label { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
+.popup { --sh: calc(2 * var(--dot)); --arrow-w: 24px; position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
+.popup select {
+  -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; min-height: 40px; margin: 0;
+  padding: var(--space-1) calc(var(--arrow-w) + var(--space-2)) var(--space-1) var(--space-3);
+  border: var(--line) solid var(--color-ink); border-radius: 0; color: var(--color-ink); cursor: pointer;
+  background: linear-gradient(var(--color-ink), var(--color-ink)) right var(--arrow-w) top 0 / var(--line) 100% no-repeat, var(--color-paper);
+  font-family: var(--font-display); font-size: var(--text-base); text-overflow: ellipsis;
+}
+.popup::before {
+  content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; right: 0; width: var(--arrow-w); pointer-events: none;
+  background: var(--color-ink); transform: rotate(180deg);
+  -webkit-mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat; mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat;
+}
+@media (hover: hover) and (pointer: fine) { .popup select:hover { background-color: var(--color-paper-2); } }
+.popup select:active { background-color: var(--color-paper-2); }
+/* 一覧の中の項目はブラウザが描くので、暗い組でも読めるように色だけ渡す */
+.popup option { background: var(--color-paper); color: var(--color-ink); }
+.layouts .btn { min-height: 40px; }
 /* 縦に長いグリッドはこの枠の中でスクロールする */
 /* **溝のぶんは空けない**（2026-09-16。`scrollbar-gutter: stable` をやめた。スクロールしない並びで右に
    空きが残っていた）。行が列より多いときだけ縦にあふれるので、出る／出ないが行き来することはない
@@ -1355,6 +1377,13 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <section class="pane pane-grid" aria-labelledby="h-grid">
     <div class="pane-title"><h2 id="h-grid">グリッド <span id="grid-size-label">3×3</span></h2><span class="tail"><span class="count" id="grid-count" aria-label="配置数">0/9</span><button class="fold" type="button" aria-expanded="true" aria-label="グリッドを折りたたむ"></button></span></div>
     <div class="pane-body">
+      <!-- 並びの切り替え（2026-09-23、運用ボードの grids-multi）。数が決まらないのでタブではなくポップアップメニュー（HIG） -->
+      <div class="layouts">
+        <label for="layout-sel">並び</label>
+        <span class="popup"><select id="layout-sel"></select></span>
+        <button class="btn" type="button" id="layout-new" title="空の並びをもう 1 つ作る。今の並びはそのまま残る">新しい並び</button>
+        <button class="btn" type="button" id="layout-del" title="いま開いている並びを消す。ほかの並びは残る">この並びを消す</button>
+      </div>
       <div class="grid-head">
         <div class="field">
           <label for="title">タイトル（省略可）</label>
@@ -2085,6 +2114,19 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "何度も失敗する場合はこちらからお知らせください": "If it keeps failing, please let us know here",
         "トラック共有サイト #TRACKMENTO からシェア:「{}」": "Shared from #TRACKMENTO, the track-grid maker: \"{0}\"",
         "共有 {} の並びを読み込みました（{} トラック）。この画面での変更は自分のグリッドとして保存されます。": "Loaded the layout from share {0} ({1} tracks). Changes you make here are saved as your own grid.",
+        "共有 {} の並びを新しい並びとして読み込みました（{} トラック）。前の並びは「並び」のメニューから開けます。": "Loaded share {0} as a new layout ({1} tracks). Your previous layout is still in the “Layout” menu.",
+        "並び": "Layout",
+        "新しい並び": "New layout",
+        "この並びを消す": "Delete layout",
+        "空の並びをもう 1 つ作る。今の並びはそのまま残る": "Start another, empty layout. The current one stays as it is",
+        "いま開いている並びを消す。ほかの並びは残る": "Delete the layout that is open now. Your other layouts stay",
+        "並び {}": "Layout {0}",
+        "並びは {} 個までです。使わない並びを消すと作れます": "You can keep up to {0} layouts. Delete one you no longer use to make room",
+        "「{}」を開きました（{} トラック）。": "Opened “{0}” ({1} tracks).",
+        "新しい並びを作りました。前の並びは「並び」のメニューから開けます。": "Started a new layout. Your previous layout is still in the “Layout” menu.",
+        "「{}」（{} トラック）を消します。元に戻せません。": "This deletes “{0}” ({1} tracks). You can't undo this.",
+        "消す": "Delete",
+        "「{}」を消しました。": "Deleted “{0}”.",
         "共有 {} を読み込めませんでした（{}）。": "Could not load share {0} ({1})."
     };
   /* **共有が消えるまでの日数を表にも入れる**（2026-09-20）。以前はサーバーが HTML 全体を置換していて、
@@ -2160,7 +2202,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      まだ描いていない段階でも呼ばれるので、1 つずつ握りつぶす */
   function reRenderForLang() {
     for (const fn of [() => renderSources(), () => renderSwatches(), () => currentResults.length && renderResults(currentResults),   /* 空のまま描き直すと「該当なし」に変わってしまう */
-                      () => renderGrid(), () => updateSpec(), () => syncControls(), () => paintHealth()]) {
+                      () => renderGrid(), () => renderLayoutMenu(), () => updateSpec(), () => syncControls(), () => paintHealth()]) {
       try { fn(); } catch { /* まだ用意できていないものは飛ばす */ }
     }
   }
@@ -2360,7 +2402,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     shareBtn: $("#share-btn"), shareUrl: $("#share-url"), copyBtn: $("#copy-btn"), nativeShareBtn: $("#native-share-btn"), openShare: $("#open-share"),
     results: $("#results"), resultsCount: $("#results-count"),
     grid: $("#grid"), gridCount: $("#grid-count"), gridMsg: $("#grid-msg"), title: $("#title"), gridSizeLabel: $("#grid-size-label"),
-    clearBtn: $("#clear-btn"), jsonExport: $("#json-export"), jsonImport: $("#json-import"), jsonFile: $("#json-file"),
+    clearBtn: $("#clear-btn"), layoutSel: $("#layout-sel"), layoutNew: $("#layout-new"), layoutDel: $("#layout-del"), jsonExport: $("#json-export"), jsonImport: $("#json-import"), jsonFile: $("#json-file"),
     optListed: $("#opt-listed"), findLink: $("#find-link"),
     editor: $("#editor"), eNum: $("#editor-num"), eTitle: $("#editor-title"), eSource: $("#editor-source"), eTitleIn: $("#e-title"), eArtistIn: $("#e-artist"), eNoteIn: $("#e-note"), eMeta: $("#editor-meta"), eRemove: $("#e-remove"), eClose: $("#e-close"),
     output: $("#output"), outputImg: $("#output-img"), download: $("#download"), footSources: $("#foot-sources"),
@@ -5884,7 +5926,31 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   /* ---- persistence: localStorage + JSON ----
      形式は CLI と共有する grids/<name>.json と同じにする */
-  const STORAGE_KEY = "trackmento:grid:default";
+  /* 並びを複数持つ（2026-09-23、grids-multi）。1 つ目の並びは id "default" で、鍵は前からの "trackmento:grid:default" のまま
+     （入れる前の並びがそのまま 1 つ目になる）。一覧と開いている並びは LAYOUTS_KEY に持つ */
+  const LAYOUTS_KEY = "trackmento:layouts";
+  const LAYOUTS_MAX = 10;   // 256 マスの並びは 1 つ 100KB ほど。localStorage（5MB）に余裕を残す
+  const LAYOUT_ID_RE = /^(default|g[0-9a-f]{6})$/;
+  const storageKey = (id = layouts.active) => `trackmento:grid:${id}`;
+  let layouts = { active: "default", list: [{ id: "default", title: "" }] };
+  (function loadLayouts() {
+    let v = null;
+    try { v = JSON.parse(localStorage.getItem(LAYOUTS_KEY) || "null"); } catch { v = null; }
+    const list = v && Array.isArray(v.list) ? v.list.filter(e => e && LAYOUT_ID_RE.test(e.id)).slice(0, LAYOUTS_MAX)
+      .map(e => ({ id: e.id, title: typeof e.title === "string" ? e.title.slice(0, 60) : "" })) : [];
+    if (!list.length) {
+      // 一覧がまだ無い（入れる前から使っている）なら、1 つ目の題を並びから拾う。共有を開いたときは 1 つ目を読まずに
+      // 新しい並びへ進むので、ここで拾わないとメニューに「並び 1」と出る
+      try { const d = JSON.parse(localStorage.getItem(storageKey("default")) || "null"); if (d && typeof d.title === "string") layouts.list[0].title = d.title.slice(0, 60); } catch { /* ignore */ }
+      return;
+    }
+    layouts = { list, active: list.some(e => e.id === v.active) ? v.active : list[0].id };
+  })();
+  function saveLayouts() {
+    try { localStorage.setItem(LAYOUTS_KEY, JSON.stringify(layouts)); } catch { /* ignore */ }
+  }
+  const layoutEntry = (id = layouts.active) => layouts.list.find(e => e.id === id);
+  const layoutLabel = (e) => e.title.trim() || tr`並び ${layouts.list.indexOf(e) + 1}`;
   const isTrack = (t) => !!t && typeof t === "object" && typeof t.image === "string" && typeof t.title === "string";
   function serialize() {
     return {
@@ -5945,7 +6011,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
      サーバーへは内容が変わったときだけ PUT する（savedAt を除いて比較） */
   /* グリッドの保存名。ローカル運用は "default"（CLI と共有）。公開サーバーや別オリジンの API では
      ブラウザごとのランダム ID にして、他の利用者と混ざらないようにする */
-  let GRID_NAME = "default";
+  /* 2 つ目からの並びは、元の名前の後ろに "-g……" を付けた名前で置く（u-….json の掃除にそのまま乗る） */
+  let GRID_BASE = "default", GRID_NAME = "default";
+  const serverGridName = (id = layouts.active) => (id === "default" ? GRID_BASE : `${GRID_BASE}-${id}`);
   const gridUrl = () => api(`/grids/${GRID_NAME}`);
   function browserGridId() {
     let id = null;
@@ -5963,7 +6031,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       const d = serialize();
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch { /* 容量超過や無効化は無視 */ }
+      try { localStorage.setItem(storageKey(), JSON.stringify(d)); } catch { /* 容量超過や無効化は無視 */ }
+      const e = layoutEntry();
+      if (e && e.title !== state.title) { e.title = state.title; saveLayouts(); renderLayoutMenu(); }
       schedulePush(d);
       warmShareFonts();   // 共有を押す前に、共有画像用のフォントを裏で取っておく
     }, 150);
@@ -5993,7 +6063,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* 起動時: localStorage とサーバーの新しい方を採用する */
   async function restore() {
     let local = null;
-    try { local = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch { local = null; }
+    try { local = JSON.parse(localStorage.getItem(storageKey()) || "null"); } catch { local = null; }
     const server = await fetchServerGrid();
     const ts = (d) => (d && d.savedAt ? Date.parse(d.savedAt) || 0 : 0);
     const pick = server && (!local || ts(server) > ts(local)) ? server : local;
@@ -6004,6 +6074,80 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       if (pick === server && local) say(els.gridMsg, tr("サーバー側の保存（CLI など）の方が新しいので、そちらを読み込みました。"));
       return true;
     } catch { return false; }
+  }
+  /* ---- 並びの切り替え・追加・削除 ----
+     **切り替える前に、今の並びを待たずに書き出す**（保存は 150ms・送信は 1.5 秒遅らせているので、その間に切り替えると
+     前の並びの最後の変更が落ちる）。取り消しの控えは並びごとではないので、切り替えたら捨てる */
+  function flushSave() {
+    if (!ready || MIGRATING) return;
+    clearTimeout(saveTimer);
+    const d = serialize();
+    try { localStorage.setItem(storageKey(), JSON.stringify(d)); } catch { /* ignore */ }
+    pushNow(d);
+  }
+  function resetForLayout() {
+    undoStack = []; redoStack = []; lastPushed = null;
+    els.output.hidden = true;
+    GRID_NAME = serverGridName();
+  }
+  function emptyDoc() {
+    // 出力の設定（比率・色・横 × 縦）は今の並びから引き継ぐ。題とトラックは空
+    const d = serialize();
+    return { ...d, title: "", cells: d.cells.map(() => null), stash: [], listed: false };
+  }
+  async function openLayout(id) {
+    ready = false;
+    layouts.active = id; saveLayouts(); resetForLayout();
+    try { if (!(await restore())) applyData(emptyDoc()); } catch { applyData(emptyDoc()); }
+    ready = true; save(); renderLayoutMenu();
+  }
+  function addLayout() {
+    if (layouts.list.length >= LAYOUTS_MAX) return null;
+    let id;
+    do { id = "g" + [...crypto.getRandomValues(new Uint8Array(3))].map(b => b.toString(16).padStart(2, "0")).join(""); }
+    while (layoutEntry(id));
+    layouts.list.push({ id, title: "" });
+    layouts.active = id; saveLayouts(); resetForLayout();
+    return id;
+  }
+  function renderLayoutMenu() {
+    const sel = els.layoutSel;
+    sel.replaceChildren(...layouts.list.map(e => new Option(layoutLabel(e), e.id, false, e.id === layouts.active)));
+    els.layoutNew.disabled = layouts.list.length >= LAYOUTS_MAX;
+    els.layoutNew.title = els.layoutNew.disabled ? tr`並びは ${LAYOUTS_MAX} 個までです。使わない並びを消すと作れます` : tr("空の並びをもう 1 つ作る。今の並びはそのまま残る");
+    els.layoutDel.disabled = layouts.list.length <= 1;
+  }
+  els.layoutSel.addEventListener("change", async () => {
+    const id = els.layoutSel.value;
+    if (!layoutEntry(id) || id === layouts.active) return;
+    flushSave();
+    await openLayout(id);
+    say(els.gridMsg, tr`「${layoutLabel(layoutEntry())}」を開きました（${state.cells.filter(Boolean).length} トラック）。`);
+  });
+  els.layoutNew.addEventListener("click", () => {
+    flushSave();
+    const d = emptyDoc();
+    if (!addLayout()) return;
+    applyData(d); save(); renderLayoutMenu();
+    say(els.gridMsg, tr("新しい並びを作りました。前の並びは「並び」のメニューから開けます。"));
+  });
+  els.layoutDel.addEventListener("click", () => {
+    if (layouts.list.length <= 1) return;
+    const n = state.cells.filter(Boolean).length + state.stash.length;
+    openConfirm(removeLayout, tr`「${layoutLabel(layoutEntry())}」（${n} トラック）を消します。元に戻せません。`, tr("消す"), els.layoutDel);
+  });
+  async function removeLayout() {
+    const i = layouts.list.findIndex(e => e.id === layouts.active);
+    if (i < 0 || layouts.list.length <= 1) return;
+    const label = layoutLabel(layouts.list[i]);
+    const [gone] = layouts.list.splice(i, 1);
+    // 書き出し待ちを止めてから消す（止めないと、消したあとに送信が走って並びが戻ってくる）
+    clearTimeout(saveTimer); clearTimeout(pushTimer);
+    try { localStorage.removeItem(storageKey(gone.id)); } catch { /* ignore */ }
+    // 手元で動かしているときだけサーバーの控えも消す（公開サーバーは消せない。使われない控えは期限で掃除される）
+    if (!isPublic && !API) fetch(api(`/grids/${serverGridName(gone.id)}`), { method: "DELETE" }).catch(() => {});
+    await openLayout(layouts.list[Math.min(i, layouts.list.length - 1)].id);
+    say(els.gridMsg, tr`「${label}」を消しました。`);
   }
   /* ---- トラックを共有: サーバーで PNG を作り、並びのスナップショットと共有ページ URL を得る ---- */
   /* ================================================================
@@ -6782,9 +6926,16 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       const r = await fetch(api(`/shares/${sid}.json`), { cache: "no-store" });
       if (r.status === 404) throw new Error(tr("期限切れか削除済みです"));
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      applyData(await readJson(r));
+      const d = await readJson(r);
+      /* **今の並びにトラックがあれば、新しい並びとして開く**（上書きしない。並びが上限に達していれば今までどおり今の並びへ） */
+      let cur = null;
+      try { cur = JSON.parse(localStorage.getItem(storageKey()) || "null"); } catch { cur = null; }
+      const added = !!(cur && Array.isArray(cur.cells) && cur.cells.some(Boolean)) && !!addLayout();
+      applyData(d);
       history.replaceState(null, "", location.pathname);
-      say(els.gridMsg, tr`共有 ${sid} の並びを読み込みました（${state.cells.filter(Boolean).length} トラック）。この画面での変更は自分のグリッドとして保存されます。`);
+      say(els.gridMsg, added
+        ? tr`共有 ${sid} の並びを新しい並びとして読み込みました（${state.cells.filter(Boolean).length} トラック）。前の並びは「並び」のメニューから開けます。`
+        : tr`共有 ${sid} の並びを読み込みました（${state.cells.filter(Boolean).length} トラック）。この画面での変更は自分のグリッドとして保存されます。`);
       return true;
     } catch (err) {
       say(els.gridMsg, tr`共有 ${sid} を読み込めませんでした（${err.message}）。`, "error");
@@ -6799,7 +6950,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 
   showInAppNotice();
   loadHealth()
-    .then(() => { if (isPublic || API) GRID_NAME = browserGridId(); })
+    .then(() => { if (isPublic || API) GRID_BASE = browserGridId(); GRID_NAME = serverGridName(); renderLayoutMenu(); })
     .then(restoreFromShare).then(ok => ok ? Promise.resolve() : restore())
     .finally(() => { ready = true; save(); });
   $("#lang-switch").addEventListener("click", () => {

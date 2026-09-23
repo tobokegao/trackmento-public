@@ -34,7 +34,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.eec8870e.css">
+<link rel="stylesheet" href="app/app.56373dd9.css">
 </head>
 <body>
 
@@ -189,6 +189,13 @@
   <section class="pane pane-grid" aria-labelledby="h-grid">
     <div class="pane-title"><h2 id="h-grid">グリッド <span id="grid-size-label">3×3</span></h2><span class="tail"><span class="count" id="grid-count" aria-label="配置数">0/9</span><button class="fold" type="button" aria-expanded="true" aria-label="グリッドを折りたたむ"></button></span></div>
     <div class="pane-body">
+      <!-- 並びの切り替え（2026-09-23、運用ボードの grids-multi）。数が決まらないのでタブではなくポップアップメニュー（HIG） -->
+      <div class="layouts">
+        <label for="layout-sel">並び</label>
+        <span class="popup"><select id="layout-sel"></select></span>
+        <button class="btn" type="button" id="layout-new" title="空の並びをもう 1 つ作る。今の並びはそのまま残る">新しい並び</button>
+        <button class="btn" type="button" id="layout-del" title="いま開いている並びを消す。ほかの並びは残る">この並びを消す</button>
+      </div>
       <div class="grid-head">
         <div class="field">
           <label for="title">タイトル（省略可）</label>
@@ -487,6 +494,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.1b3e336f.js"></script>
+<script id="app-js" src="app/app.a7f1cdd5.js"></script>
 </body>
 </html>
