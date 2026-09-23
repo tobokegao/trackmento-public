@@ -78,10 +78,9 @@
     /* 改行は文節で（lang="ja" は script で付ける）。数字と単位のまとまりは .nw で折らない */
     word-break: auto-phrase; text-wrap: pretty;
   }
-  /* 机の市松（昔の Mac の 50% グレーと同じ 1 目の型抜き） */
-  body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: var(--dither);
-    -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" shape-rendering="crispEdges"><path d="M0 0h1v1H0zM1 1h1v1H1z" fill="%23fff"/></svg>') 0 0 / 2px 2px repeat;
-            mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" shape-rendering="crispEdges"><path d="M0 0h1v1H0zM1 1h1v1H1z" fill="%23fff"/></svg>') 0 0 / 2px 2px repeat; }
+  /* 机の市松（昔の Mac の 50% グレーと同じ 1 目の型抜き）。以前は画面に貼り付けた疑似要素＋mask で描いていたが、
+     スマホで大きく拡大すると画面ごと真っ白（地の色だけ）になった（9/24）。重い層をやめ、body の背景の 2px の市松にした */
+  body { background-image: repeating-conic-gradient(var(--dither) 0 25%, transparent 0 50%); background-size: 2px 2px; }
   .nw { white-space: nowrap; }
   .mono, .nums { font-variant-numeric: tabular-nums; }
   .nums { white-space: nowrap; }
@@ -158,7 +157,7 @@
   .chart p.cap { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
   /* 図は置き場の幅そのままで描く（縮めない）。時系列は 1 点ぶんの幅を守って横に流し、最新の右端を見せる。棒は収めて字を間引く */
   .chart { min-width: 0; }
-  .chart > div[id^="c-"] { overflow-x: auto; scrollbar-color: var(--ink) var(--win-2); }
+  .chart > div[id^="c-"] { overflow-x: auto; scrollbar-color: var(--rule) transparent; scrollbar-width: thin; }   /* つまみは薄く（9/24） */
   .chart svg { display: block; font-family: inherit; }
   .legend { display: flex; gap: 4px 2ch; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 6px; }
   .legend i { display: inline-block; width: 12px; height: 12px; margin-right: .5ch; vertical-align: -1px; border: 1px solid var(--ink); }
@@ -309,6 +308,11 @@
           <h3>2 時間あたりの帯域（GB）</h3>
           <p class="cap">フォントと画像を R2 へ逃がし、text と JSON を gzip にした効果。</p>
           <div id="c-gb"></div>
+        </div>
+        <div class="chart">
+          <h3>2 時間あたりの帯域（GB・09-20 から）</h3>
+          <p class="cap">上の図は 09-16 の山に合わせた目盛りなので、今の値が 0 に貼り付いて見える。09-20 からだけを、今の値に合わせた目盛りで描いたもの。</p>
+          <div id="c-gb2"></div>
         </div>
         <div class="chart">
           <h3>1 日の共有数</h3>
@@ -856,12 +860,14 @@
 
   function drawCharts() {
     if (!SERIES.length) return;
-    ["c-req", "c-gb", "c-share", "c-voca"].forEach(id => { document.getElementById(id).textContent = ""; });
+    ["c-req", "c-gb", "c-gb2", "c-share", "c-voca"].forEach(id => { document.getElementById(id).textContent = ""; });
     const k = v => v >= 1000 ? Math.round(v / 1000) + "k" : String(Math.round(v));
     lineChart(document.getElementById("c-req"), SERIES.map(r => [r[0], r[1]]), { color: "var(--c-api)", fmt: k });
     lineChart(document.getElementById("c-gb"), SERIES.map(r => [r[0], r[2]]), {
       color: "var(--c-gb)", fmt: v => v.toFixed(1), mark: "09-16 06:00", markColor: "var(--c-bad)", markText: "gzip を入れた"
     });
+    const recent = SERIES.filter(r => r[0] >= "09-20");
+    if (recent.length > 1) lineChart(document.getElementById("c-gb2"), recent.map(r => [r[0], r[2]]), { color: "var(--c-gb)", fmt: v => v.toFixed(2) });
     barChart(document.getElementById("c-share"), withShortDates(SHARES), { color: "var(--c-img)", fmt: k, slot: 56 });
     /* いまの棒だけ db の実測（多い日）から取る。手で書くと、次の点検で古くなる */
     const vocaPeak = ((SERVICES.peak || {}).vocadb || {}).api || 0;
