@@ -501,7 +501,9 @@ img { max-width: 100%; display: block; }
 .list-row > * { min-width: 0; }
 .list-row > * + * { border-left: 1px solid var(--color-rule); }
 .list-head { background: var(--color-paper-2); font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
-.list-head > span { padding: var(--space-1) var(--space-2); align-self: end; }   /* 狭い窓で「アーティスト名」が 2 行になっても、見出しの下端をそろえる */
+/* 狭い窓で「アーティスト名」が 2 行になっても、見出しの字の下端をそろえる。**升そのものは伸ばしたまま、中の字だけ下へ寄せる**
+   （升を align-self: end で寄せると、空の升（右上の × の列）が低くなって縦線が途中で切れる。2026-09-23、利用者の指摘） */
+.list-head > span { padding: var(--space-1) var(--space-2); display: flex; align-items: flex-end; }
 .list-num { display: grid; place-items: center; background: var(--color-paper-2); font-family: var(--font-outlier); font-size: var(--text-sm); color: var(--color-ink-2); }
 /* 入力欄の枠を消すときに**左の線まで消さない**（`.input` の枠を 0 にする指定のほうが強く、升の縦線が消えていた。2026-09-23、利用者のスマホで） */
 .list-row .input { border: 0; border-left: 1px solid var(--color-rule); box-shadow: none; padding: var(--space-1) var(--space-2); }
