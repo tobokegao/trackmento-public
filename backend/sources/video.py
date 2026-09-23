@@ -4,9 +4,7 @@
   サムネイルは動画 ID から i.ytimg.com の maxresdefault → sddefault → hqdefault の順に存在するものを使う
 - ニコニコ動画: https://ext.nicovideo.jp/api/getthumbinfo/{sm…} (XML) → title, user_nickname / ch_name, thumbnail_url。
   新しい動画は thumbnail_url + ".L" で大きい画像が取れる（無ければ元のまま）
-- bilibili: 公開 API（x/web-interface/view）は Cookie 無しだと 412 で弾かれるので、動画ページの HTML に埋め込まれた
-  window.__INITIAL_STATE__（videoData.title / owner.name / pic）を読む。無ければ og:title / og:image / meta[name=author]。
-  b23.tv の短縮 URL はリダイレクト先を使う
+- bilibili: 動画ページは叩かない（規約）。otoDB と VocaDB に登録のある動画だけ取る（`fetch_bilibili`）
 サムネイルは 16:9 なので、正方形のマスでは中央が切り出される。
 """
 from __future__ import annotations
@@ -22,7 +20,7 @@ from backend import netguard
 from backend.logutil import brief
 
 from backend.models import Origin, Track
-from backend.sources import vocadb
+from backend.sources import otodb, vocadb
 
 UA = "trackmento/0.1 (+https://trackmento.com)"
 YT_OEMBED = "https://www.youtube.com/oembed"
@@ -105,15 +103,74 @@ def _meta(html: str, attr: str, name: str) -> str | None:
     return m.group(1) if m else None
 
 
-# **bilibili の自動取得はやめた**（2026-09-20）。利用者規約 4.2.11 が「事前の明確な書面許可なしに、
+# **bilibili の動画ページは叩かない**（2026-09-20）。利用者規約 4.2.11 が「事前の明確な書面許可なしに、
 # 自動プログラム・スクリプト等でプラットフォームのサービス・コンテンツ・データを取得すること」を禁じており、
 # `api.bilibili.com` の robots.txt も `User-agent: * / Disallow: /` で全面的に塞いでいる。
-# 許可を求める窓口も見当たらず、正規のやり方が無い。画像 URL の手入力でマスには入れられる。
 # **すでに並びに入っている bilibili の曲はそのまま映る**（画像の URL はグリッドに残っているため）
+#
+# 2026-09-24 から、**よそのデータベースに登録のある動画だけ**取り込む（bilibili には 1 回も問い合わせない）:
+#   1. otoDB（roxy）… 音MAD・YTPMV・鬼畜。BV の URL で登録済みの作品が返る（未登録は roxy が 404 "Cannot fallback"。
+#      roxy は av 番号を受けない（400）ので BV に直して渡す）。サムネイルは otoDB の CDN
+#   2. VocaDB（byPv）… ボカロなど。bilibili の PV を av 番号で持つので BV から直して渡す
+# BV と av の変換は決まった計算なので手元で済む。短縮 URL（b23.tv）は展開に bilibili への問い合わせが要るので受けない
+_BV_TABLE = "FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf"
+_BV_XOR = 23442827791579
+_BV_MASK = (1 << 51) - 1
+
+
+def bv_to_av(bv: str) -> int:
+    c = list(bv)
+    c[3], c[9], c[4], c[7] = c[9], c[3], c[7], c[4]
+    n = 0
+    for ch in c[3:]:
+        n = n * 58 + _BV_TABLE.index(ch)
+    return (n & _BV_MASK) ^ _BV_XOR
+
+
+def av_to_bv(av: int) -> str:
+    c = list("BV1000000000")
+    n, i = ((1 << 51) | av) ^ _BV_XOR, 11
+    while n > 0:
+        c[i], n, i = _BV_TABLE[n % 58], n // 58, i - 1
+    c[3], c[9], c[4], c[7] = c[9], c[3], c[7], c[4]
+    return "".join(c)
+
+
+def bilibili_id(url: str) -> tuple[str, int] | None:
+    """URL の BV と av 番号。読めなければ None"""
+    m = _BILI_ID_RE.search(urlparse(url).path)
+    if not m:
+        return None
+    s = m.group(1)
+    try:
+        if s[:2].lower() == "av":
+            av = int(s[2:])
+            return av_to_bv(av), av
+        return "BV" + s[2:], bv_to_av(s)
+    except ValueError:   # 表に無い字（BV の打ち間違い）
+        return None
+
+
+BILI_NOT_FOUND = ("この bilibili の動画は otoDB にも VocaDB にも登録が無いため、取り込めません。"
+                  "「手入力」で、トラック名・アーティスト名・画像の URL と、リンク先に動画の URL を入れてください")
 
 
 async def fetch_bilibili(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
-    raise ValueError("bilibili には対応していません。手入力で、曲名・アーティスト名・画像の URL と、リンク先に動画の URL を入れてください")
+    if _host(url) == "b23.tv":
+        raise ValueError("bilibili の短縮 URL（b23.tv）は使えません。ブラウザで開いたあとの www.bilibili.com/video/BV… の URL を貼ってください")
+    ids = bilibili_id(url)
+    if not ids:
+        raise ValueError("bilibili は動画ページ（www.bilibili.com/video/BV…）の URL だけ使えます")
+    bv, av = ids
+    page = f"https://www.bilibili.com/video/{bv}"
+    try:
+        return await otodb.roxy_fetch(page, client=client, timeout=15)
+    except (ValueError, httpx.HTTPError):
+        pass
+    t = await vocadb.song_by_pv(str(av), service="Bilibili", external_url=page, client=client)
+    if t:
+        return t
+    raise ValueError(BILI_NOT_FOUND)
 
 
 def youtube_id(url: str) -> str | None:

@@ -53,8 +53,8 @@ album by album. It is completely free, and no sign-up is required.</p>
 <li><b>Set the number of cells:</b> Choose how many cells go down and across (up to 32 per side, 256 cells in total).</li>
 <li><b>Pick a cell and find a track:</b> Tap (or click) a cell and search by track title or artist name. Besides the standard
 iTunes search, you can switch to MusicBrainz, VocaDB (Vocaloid songs) or otoDB (otomad works).</li>
-<li><b>Add directly from a URL:</b> You can paste links from Bandcamp, SoundCloud, YouTube, Niconico, Spotify and
-Apple Music (Spotify gives only the title and the cover, so the artist name is filled in from an iTunes track with the same title; add it yourself if none is found). If a track has no cover, you can
+<li><b>Add directly from a URL:</b> You can paste links from Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify and
+Apple Music (Spotify gives only the title and the cover, so the artist name is filled in from an iTunes track with the same title; add it yourself if none is found. A bilibili video can be added only if it is listed on otoDB or VocaDB). If a track has no cover, you can
 fill it in with an image URL or by uploading an image from your device.</li>
 <li><b>Rearrange:</b> Select two cells one after the other to swap their positions. “Enlarge” shows the grid full-screen,
 so rearranging stays comfortable even with many cells. With a keyboard, move between cells with the arrow keys and
@@ -121,7 +121,7 @@ and share the music they love. When sharing, please follow the terms of use and 
 <ol class="steps">
 <li><b>マスの数を決める：</b>縦・横のマスの数を指定します（1辺最大32マス、合計256マスまで対応）。</li>
 <li><b>マスを選んでトラックを探す：</b>マスをタップ（クリック）してトラック名やアーティスト名で検索します。標準のiTunes検索のほか、MusicBrainz、VocaDB（ボカロのトラック）、otoDB（音MAD）に切り替えて探すこともできます。</li>
-<li><b>URLから直接追加する：</b>Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify、Apple Musicのリンク貼り付けに対応しています（Spotifyはトラック名とジャケットのみのため、アーティスト名はiTunesで同じトラック名のものから補います。見つからないときは手入力してください）。ジャケットがないトラックは、画像URLの指定か「端末から画像を選択」で補えます。</li>
+<li><b>URLから直接追加する：</b>Bandcamp、SoundCloud、YouTube、ニコニコ動画、bilibili、Spotify、Apple Musicのリンク貼り付けに対応しています（Spotifyはトラック名とジャケットのみのため、アーティスト名はiTunesで同じトラック名のものから補います。見つからないときは手入力してください。bilibiliは、otoDBかVocaDBに登録のある動画だけ取り込めます）。ジャケットがないトラックは、画像URLの指定か「端末から画像を選択」で補えます。</li>
 <li><b>並べ替える：</b>2つのマスを順番に選ぶと位置が入れ替わります。「大きく見る」でグリッドを全画面表示にすると、マス数が多い場合でも並べ替えやすくなります。キーボードでは、矢印キーでマスを移り、Option（Alt）＋矢印キーで隣のマスと入れ替えられます。</li>
 <li><b>画像を出力・共有する：</b>画像の比率（1:1、4:5、16:9、9:16、自由）、背景色、トラックリストの表示形式を選んで共有すると、完成画像と専用の共有URLが発行されます。</li>
 </ol>
@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-24", "bilibiliのURLを、また貼れるようにしました。otoDB（音MADなど）かVocaDB（ボカロなど）に登録のある動画だけ、トラック名とサムネイルを取り込めます。bilibiliには問い合わせないため、登録のない動画と短縮URL（b23.tv）は使えません。",
+     "You can paste bilibili URLs again. Only videos listed on otoDB (otomad and the like) or VocaDB (Vocaloid and the like) come in, with their titles and thumbnails. Since we never contact bilibili itself, unlisted videos and short URLs (b23.tv) do not work."),
     ("2026-09-24", "「余白」をスライダーから「ふつう」「ひろめ」「たっぷり」の 3 つから選ぶ形にしました。スライダーは動かしても画像が変わらないことが多かったためです。これまでの見た目は「ふつう」と同じです。",
      "“Margin” is now a choice of “Normal”, “Wide” or “Extra wide” instead of a slider, because moving the slider often left the image unchanged. The previous look is the same as “Normal”."),
     ("2026-09-24", "ボタン以外の操作部品（見出し・チェックボックス・ラジオボタンなど）の文字も、ドット字にそろえました。「比率」の選択肢は「16:9 横長」「9:16 縦長」に名前を短くし、2 列に並べています。",

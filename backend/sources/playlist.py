@@ -154,11 +154,12 @@ async def _soundcloud(url: str, client: httpx.AsyncClient) -> list[Track]:
 
 # ---- bilibili の収藏夹 ----
 # **やめた**（2026-09-20）。理由は `backend/sources/video.py` の fetch_bilibili と同じ
-# （規約 4.2.11 が書面許可を要求、`api.bilibili.com` は robots.txt で全面 Disallow）
+# （規約 4.2.11 が書面許可を要求、`api.bilibili.com` は robots.txt で全面 Disallow）。
+# 動画ごとの URL は 2026-09-24 から otoDB・VocaDB 経由で取れるが、収藏夹の中身は bilibili に聞かないと分からない
 
 
 async def _bilibili(url: str, client: httpx.AsyncClient) -> list[Track]:
-    raise ValueError("bilibili には対応していません。手入力で、曲名・アーティスト名・画像の URL と、リンク先に動画の URL を入れてください")
+    raise ValueError("bilibili の収藏夹はまとめて読み込めません。動画ごとの URL を貼ってください（otoDB か VocaDB に登録のある動画だけ取れます）")
 
 
 # ---- Spotify のプレイリスト ----

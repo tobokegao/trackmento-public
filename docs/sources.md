@@ -25,7 +25,7 @@ YouTube の取得は **Data API（`videos.list`）**が主になった（概要�
   - iTunes `itunes.clamp_size` … `/1000x1000bb.jpg` → `/600x600bb.jpg`（171KB → 77KB）
   - Bandcamp `bandcamp.clamp_size` … 欲しい実寸を満たす最小のサイズコードを選ぶ（`_7` 150px/11KB → `_9` 210px/20KB →
     `_4` 300px/34KB → `_16` 700px/88KB）。**原寸 `_0` は 1 枚 6.5MB あった**。コードと実寸の対応は総当たりで調べた値を `_CODE_PX` に持つ
-  - bilibili `video.clamp_size` … 指定なし（原寸）→ `@600w_600h_1c`（640KB → 50KB）。**2026-09-20 に URL 貼付をやめたので、すでに並びに入っている画像にだけ効く**
+  - bilibili `video.clamp_size` … 指定なし（原寸）→ `@600w_600h_1c`（640KB → 50KB）。**2026-09-20 に動画ページから取るのをやめたので、すでに並びに入っている画像にだけ効く**（2026-09-24 からの取り込みは otoDB・VocaDB の画像で、hdslb は使わない）
   - **うちが知らないホストの画像（利用者が手で貼った URL）も、サーバー側で縮める**（2026-09-15）。
     どこのサイトか分からないので `clamp_size` が効かず、原寸のまま通っていた（実測で 3000x3000 が素通し）。
     `_known_image_host()`（`IMAGE_HOST_ALLOWLIST` に末尾一致するか）で判定し、知らないホストなら otoDB と同じ扱いにする。
@@ -113,7 +113,7 @@ YouTube の取得は **Data API（`videos.list`）**が主になった（概要�
   - **「有名 × 削除済み」は珍しい**。転載の多い作品は誰かが再アップし続けるので生き残り、
     消えるのは 1 本しか上がっていない作品が多い。2026-09-14 に 75 work を調べて、
     ソースが 5 件以上あって削除済みを含むのは 1 件だけだった（動画の素材探しの結論は `video-notes.md`）
-  - **roxy が未登録の動画を各サイトから取りに行くのはニコニコだけ**（2026-09 実測）。YouTube / bilibili（2026-09-20 に対応をやめた）/
+  - **roxy が未登録の動画を各サイトから取りに行くのはニコニコだけ**（2026-09 実測）。YouTube / bilibili /
     SoundCloud は生きている URL でも 404 `Cannot fallback` になる。otoDB に登録済みの作品なら
     他のサイト出典でも引ける可能性はあるが未確認。SoundCloud 対応を足すならここが確認できてから
   - **roxy の応答には Cache-Control が無い**ので、結果を `cache.sqlite3` の search テーブルに
@@ -173,3 +173,21 @@ YouTube の取得は **Data API（`videos.list`）**が主になった（概要�
 - 「曲名 - Remastered 2011」のような Spotify の添え書きは「 - 」の前でも突き合わせる
 - アルバムの URL は題がアルバム名なので引かない。まとめて貼ったときは先頭 5 件を 3 秒おき（iTunes は約 20 回/分）
 - CLI（`cli.py add --url`）はサーバーの `/from-url` を使うので補わない（空のまま）
+
+## bilibili（2026-09-24、otoDB と VocaDB 経由）
+
+bilibili の規約 4.2.11 は自動取得に書面許可を求め、`api.bilibili.com` も robots.txt で全面 Disallow なので、
+**bilibili には一度も問い合わせない**。動画の URL（`www.bilibili.com/video/BV…` / `av…`、ID だけも可）が貼られたら:
+
+1. BV と av を手元で相互に変換する（`video.bv_to_av` / `av_to_bv`。決まった計算。`av170001` ↔ `BV17x411w7KC` で確かめた）
+2. **otoDB（roxy）** に `https://www.bilibili.com/video/<BV>` を渡す。登録済みなら題・サムネイル（otoDB の CDN）・作者。
+   音MAD・YTPMV・鬼畜はここで取れる。roxy は av を受けない（400）。未登録は 404 "Cannot fallback"（roxy も bilibili に取りに行かない）
+3. **VocaDB** の `songs/byPv?pvService=Bilibili&pvId=<av 番号>`（`vocadb.song_by_pv`）。ボカロなど。
+   ジャケットは曲の代表サムネイルで、**hdslb（bilibili の CDN）の画像しか無ければ使わず、見つからなかった扱い**。
+   見つからなかった分も、メモリと R2（`vocadb-song`）に 14 日覚える
+4. どちらにも無ければ「手入力で…」の案内
+
+- 短縮 URL（`b23.tv`）は展開に bilibili への問い合わせが要るので断る（「開いたあとの URL を貼って」）
+- 収藏夹（まとめ）は中身を bilibili に聞かないと分からないので、今までどおり読み込まない
+- リンク先（`external_url`）は `https://www.bilibili.com/video/<BV>` に揃える
+

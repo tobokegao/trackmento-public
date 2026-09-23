@@ -129,7 +129,7 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 | Spotify | 公式 Web API（Client Credentials）。鍵が無ければ公式 oEmbed（曲名とジャケット 300px のみ・アーティスト名は返らない） | Developer Terms IV.2.4 が robot / spider による取得を禁止し、robots.txt も `Disallow: /embed/`。メタデータ／カバーアートは Spotify へのリンクと帰属表示が必須、単独製品として提供不可。2026 年 2 月から開発者アプリの登録に Spotify Premium が要る | **低**（2026-09-20 に公式 API へ移した。本番は鍵なしなので oEmbed の経路で動く） |
 | YouTube | 単体は oEmbed（公式）+ i.ytimg.com のサムネイル、再生リストは Data API v3（`playlistItems.list`。`YOUTUBE_API_KEY` が要る） | API Services 以外でのデータ取得禁止、保存は 30 日まで、YouTube ブランド表示と利用規約リンクが必須。1 日 10,000 ユニット | **中**（2026-09-20 に自動取得を Data API へ移した）。サムネイルを PNG に焼き込む用途は想定外 |
 | ニコニコ動画 | getthumbinfo（公式・公開） | 規約に禁止条項は無いが、robots.txt の `Disallow: /api/` が getthumbinfo を覆う。Snapshot API は非営利限定で代わりにならない | **中**（2026-09-20 に現状維持と判断。人が貼ったときだけ 1 件・1 週間キャッシュ） |
-| bilibili | **対応をやめた**（2026-09-20） | 利用者規約 4.2.11 が自動プログラムによる取得に事前の書面許可を要求し、`api.bilibili.com` の robots.txt も全面 Disallow | — （手入力＋リンク先の URL で並べられる） |
+| bilibili | **bilibili には問い合わせない**。動画の URL は otoDB（roxy）か VocaDB（byPv）に登録があるものだけ取る（2026-09-24。2026-09-20〜23 は対応をやめていた）。収藏夹と短縮 URL は不可 | 利用者規約 4.2.11 が自動プログラムによる取得に事前の書面許可を要求し、`api.bilibili.com` の robots.txt も全面 Disallow | **低**（bilibili へは通信しない。登録の無い動画は手入力＋リンク先の URL で並べられる） |
 | otoDB / roxy | 公式 API（キー不要） | コミュニティ運営。roxy は MIT。データの利用条件は otoDB の運営に確認。問い合わせの頻度は運営から「問題ない」と返答済み（2026-09-13） | **低〜中** |
 | VocaDB | 公式 API（キー不要） | データベースの内容は CC BY（商用も可。取り込んだら VocaDB へのリンクを付ける）。利用者が上げた画像（ジャケットなど）は対象外。API は応答のキャッシュと独自の User-Agent を勧め、**事前の許可なく 1 日数千件を超える問い合わせはサービス妨害とみなし、IP を締め出すことがある**（2026-09-20 に確認） | **低〜中**。2026-09-20 に運営へ問い合わせ、「この量なら問題ない・間隔を空けてほしい」と返答を得た。受けて同時 2 本・0.5 秒間隔に制限済み（CORS の許可は先方で検討中） |
 | Apple Music | 単曲・アルバムは iTunes Lookup API（公式・キー不要）、プレイリストはページに埋まったデータを読む（非公式） | Lookup API は iTunes Search API と同じ条件（要確認） | 単曲・アルバムは **中**（iTunes と同じ）、プレイリストは **高**（規約外の可能性） |
@@ -137,7 +137,7 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 このリポジトリでは Discogs の帰属表示（フッターと候補のバッジ）と 6 時間キャッシュ、YouTube サムネイルの 24 時間キャッシュ、
 画面のフッターの「ソース」から各取得元（Apple Music・MusicBrainz・otoDB・VocaDB）へのリンクを実装済み
 （2026-09-20。CC BY がリンクを求めている VocaDB を含む）。取得方法も 2026-09-20 に各サービスの規約へ合わせて見直した
-（Spotify と YouTube は公式 API へ、SoundCloud のセットと bilibili は対応をやめた）。
+（Spotify と YouTube は公式 API へ、SoundCloud のセットと bilibili は対応をやめた。bilibili は 2026-09-24 に otoDB・VocaDB 経由で戻した）。
 それ以外（ブランド表示など）は公開者の判断で対応すること。
 **個人が手元で使う範囲では問題になりづらいが、不特定多数向けの公開サービスとして各サービスの画像を集めて画像を配布する行為は、
 多くのサービスの想定外**である。公開するなら「自分と友人向け」「iTunes / MusicBrainz / otoDB と手入力に絞る」などの線引きを勧める。

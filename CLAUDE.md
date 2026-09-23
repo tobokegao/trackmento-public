@@ -12,7 +12,7 @@
 
 - **曲単位**で扱う。アルバム単位の似た道具は多いが、曲ごとのジャケットを並べられるものは少ない
 - **出どころを混ぜられる**。iTunes・MusicBrainz・otoDB・VocaDB（Discogs はトークンがあるとき）の検索に加えて、
-  Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music の URL を貼っても入る。
+  Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music の URL を貼っても入る（bilibili は otoDB・VocaDB に登録のある動画だけ。bilibili 本体には問い合わせない）。
   ジャケットが無い曲は画像 URL を手で入れてもいい
 - **プレイリストを丸ごと**入れられる（最大 500 曲）。マイリストや再生リストの URL を 1 本貼るだけ
 - **消えた動画がよみがえる**。削除済みのニコニコ動画でも、otoDB（音MAD データベース）に

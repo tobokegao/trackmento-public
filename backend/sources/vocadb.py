@@ -275,6 +275,73 @@ async def artist_by_pv(pv_id: str, *, service: str = "NicoNicoDouga",
     return name
 
 
+# ---- 動画 ID から曲そのものを引く（bilibili の URL、2026-09-24）----
+# bilibili は規約が自動取得に書面許可を求めるので、動画ページは叩かない（`video.fetch_bilibili`）。
+# VocaDB は bilibili の PV を av 番号で持っているので、登録のある曲だけ題・作者・ジャケットが分かる。
+# ジャケットは曲の代表サムネイル。**hdslb（bilibili の CDN）の画像は使わない**（ほかの PV のサムネイルに替え、
+# 無ければ見つからなかった扱い）。見つからなかった分も `artist_by_pv` と同じく覚える
+_song_cache: dict[tuple[str, str], tuple[float, dict | None]] = {}
+
+
+def _cover(item: dict) -> str:
+    urls = [(item.get("thumbUrl") or "").strip()]
+    urls += [(pv.get("thumbUrl") or "").strip() for pv in item.get("pvs") or [] if pv.get("service") != "Bilibili"]
+    for u in urls:
+        if u and "hdslb.com" not in u:
+            return clamp_size(u)
+    return ""
+
+
+async def song_by_pv(pv_id: str, *, service: str, external_url: str,
+                     client: httpx.AsyncClient | None = None) -> Track | None:
+    """動画 ID に紐づく VocaDB の曲。無い・ジャケットが無い・失敗なら None"""
+    key = (service, pv_id)
+    now = time.monotonic()
+    hit = _song_cache.get(key)
+    if hit and now - hit[0] < PV_TTL:
+        note_call("song_mem")
+        data = hit[1]
+    else:
+        data = None
+        try:
+            rows = await asyncio.to_thread(searchcache.get, "vocadb-song", f"{service}/{pv_id}", "", R2_TTL)
+        except Exception:
+            rows = None
+        if rows is not None:
+            note_call("song_r2")
+            data = rows[0] if rows and isinstance(rows[0], dict) and rows[0].get("title") else None
+        else:
+            note_call("song")
+            own = client is None
+            client = client or httpx.AsyncClient(timeout=PV_TIMEOUT)
+            try:
+                async with _GATE:
+                    await _pace()
+                    r = await client.get(BY_PV, params={"pvService": service, "pvId": pv_id,
+                                                        "fields": "ThumbUrl,PVs,Artists", "lang": "Japanese"},
+                                         headers={"User-Agent": UA}, timeout=PV_TIMEOUT)
+                r.raise_for_status()
+                it = r.json() if r.content.strip() not in (b"", b"null") else None
+            except (httpx.HTTPError, ValueError):
+                return None   # 失敗は覚えない
+            finally:
+                if own:
+                    await client.aclose()
+            if it:
+                title, image = (it.get("name") or "").strip(), _cover(it)
+                if title and image:
+                    data = {"title": title, "artist": artist_name(it), "image": image}
+            # 見つからなかった分は題を空にして置く（put_bg は空の並びを置かない）
+            searchcache.put_bg("vocadb-song", f"{service}/{pv_id}", "", [data or {"title": ""}])
+        if len(_song_cache) >= PV_CACHE_MAX:
+            _song_cache.clear()
+        _song_cache[key] = (now, data)
+    if not data:
+        return None
+    return Track(source="vocadb", title=data["title"], artist=data["artist"], album=None,
+                 image=data["image"], thumb=data["image"], external_url=external_url)
+
+
 # ---- 転載の動画は、題から曲を探して作者を補う ----
 # 転載（再投稿）の動画は VocaDB に動画 ID の登録が無いので `artist_by_pv` では埋まらない。
 # 題には「livetune feat. 初音ミク【Tell Your World】Music Video」のように曲名が入っているので、

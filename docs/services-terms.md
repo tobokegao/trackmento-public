@@ -55,6 +55,11 @@
         **作者本人の OAuth が前提**で、任意の BV から題名やカバーを引く口は無い。載っていない用途の相談先は
         `openplatform-feedback@bilibili.com`（CC `live-open@bilibili.com`、3〜5 営業日）で、「合作内容・双方の定量的な利益・会社情報」を
         書くよう求めている。戻すなら、この窓口に書面許可を頼むか、VocaDB の PV から引く（bilibili を叩かない）かのどちらか
+      - **2026-09-24 に「よそのデータベース経由」で戻した**（利用者と相談。VocaDB だけではボカロに偏り、音MAD・YTPMV が取れないため）。
+        otoDB は bilibili の投稿も登録していて（検索で当たった 36 件中 20 件が bilibili）、roxy に BV の URL を渡すと
+        登録済みなら題とサムネイル（otoDB の CDN）が返る。無ければ VocaDB の byPv（bilibili の PV は av 番号）。
+        **bilibili には一度も問い合わせない**（BV↔av は手元の計算、b23.tv は展開できないので断る、hdslb の画像は使わない）。
+        書面許可のメールは送っていない（送るかは未決）
     - **名乗りを正直にする** … `playlist.py` と `applemusic.py` が素の Chrome の UA を、旧 `spotify.py` が
       facebookexternalhit を名乗っていた。**ブラウザやクローラのふりをすると、相手は誰が来ているか分からず、
       連絡も遮断もできない**。今は全部 `trackmento/0.1 (+https://trackmento.com)`（HTML を読む所は
