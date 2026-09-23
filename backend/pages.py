@@ -278,8 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-24", "Android でホーム画面に追加すると、ほかのアプリの「共有」から TRACKMENTO に URL を送れるようになりました（iPhone では使えません）。",
-     "On Android, after adding TRACKMENTO to your home screen, you can send it URLs from other apps’ “Share” menu (not available on iPhone)."),
+    ("2026-09-24", "Android でホーム画面に追加すると、ほかのアプリの「共有」から TRACKMENTO に URL を送れるようになりました（iPhone では使えません）。前からアプリとして入れていた場合は、一度アンインストールして入れ直すと送り先に出ます。",
+     "On Android, after adding TRACKMENTO to your home screen, you can send it URLs from other apps’ “Share” menu (not available on iPhone). If you had already installed it as an app, uninstall and reinstall it to see it in the list."),
     ("2026-09-24", "「色で並べ替え」を足しました。ジャケットの主な色で、赤から紫の順に並べ替えます。あとから「元に戻す」で戻せます。",
      "Added “Sort by color”, which orders the covers by their main color, from red to purple. You can undo it."),
     ("2026-09-24", "タイトルの下に「お題」を足しました。見本を選ぶとタイトルが入ります（「私を構成する9曲」は横 × 縦も 3 × 3 になります）。同じトラックをもう一度入れたときは、そのことをお知らせするようにしました。",
