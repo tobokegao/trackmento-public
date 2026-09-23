@@ -184,8 +184,11 @@
   th:last-child, td:last-child { border-right: none; }
   thead th { font-weight: 400; background: var(--win-2); border-bottom: 2px solid var(--ink); white-space: nowrap; }
   tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: var(--hover); }
+  @media (hover: hover) { tbody tr:hover { background: var(--hover); } }   /* 触る画面では押した行が色づいたまま残るので付けない */
   td .note { color: var(--muted); font-size: 13px; display: block; }
+  /* 外部サービスの状態の札は名前の横に置く（9/24、利用者の希望。以前は表の右端の列） */
+  td .who + .pill { margin-left: .5ch; vertical-align: 1px; }
+  #svc th:first-child { width: 15em; }
 
   /* スマホでは表を横に流さず、1 行を 1 枚の札に積む。列の名前は JS が data-label に写す（2026-09-24、横の流しは見にくいと言われた） */
   @media (max-width: 640px) {
@@ -202,7 +205,13 @@
     td:first-child::before { display: none; }
     td:first-child { font-size: 16px; }
     .nums { white-space: normal; }
+    /* 外部サービスは 1 社ずつ開け閉めする。閉じていると名前・状態・用途だけ（9/24、利用者の希望） */
+    #svc .rowfold { display: inline-block; }
+    #svc tbody tr:not(.open) td:not(:first-child) { display: none; }
+    #svc tbody tr:not(.open) td:first-child { border-bottom: none; }
   }
+  .rowfold { display: none; float: right; font: inherit; font-size: 14px; color: var(--ink); background: none; border: none; padding: 0 0 0 1ch; cursor: pointer; }
+  .rowfold:hover { background: var(--legend-bg); color: var(--legend-ink); }
 
   /* 状態の札。色の地に字（明るい地で色の字は読めない） */
   .pill { display: inline-block; font-size: 13px; padding: 0 .75ch; white-space: nowrap; background: var(--dim-bg); color: var(--dim-ink); }
@@ -332,20 +341,20 @@
     <div class="bar"><h2>外部サービスの使い方と上限</h2><span class="count" id="svc-src">robots.txt は 7 サイト実取得で確認</span></div>
     <div class="body scroll">
       <table>
-        <thead><tr><th>相手</th><th>弊サイトでの使い方</th><th>公式の上限</th><th>実測（1 日・多い日）</th><th>状態</th></tr></thead>
+        <thead><tr><th>相手</th><th>弊サイトでの使い方</th><th>公式の上限</th><th>実測（1 日・多い日）</th></tr></thead>
         <tbody>
-          <tr><td><span class="who">Apple iTunes Search</span><span class="note">検索・lookup</span></td><td>ブラウザから直接。サーバーは URL を貼ったときの補完・CLI・API だけ</td><td>約 20 回/分<span class="note">1 日の上限は明記なし・キャッシュ推奨</span></td><td class="nums" data-svc="itunes" data-svc-note="ブラウザ直は数えない">264</td><td><span data-pill="itunes" class="pill ok">余裕</span></td></tr>
-          <tr><td><span class="who">MusicBrainz</span><span class="note">iTunes で 0 件のとき</span></td><td>サーバーは 1 req/秒の錠前。ブラウザ直は利用者ごとの IP</td><td>1 回/秒・IP ごと<span class="note">連絡先入り UA 必須・超過は 100% 拒否</span></td><td class="nums" data-svc="musicbrainz" data-svc-note="ブラウザ直は数えない">0</td><td><span data-pill="musicbrainz" class="pill ok">守れている</span></td></tr>
-          <tr><td><span class="who">Cover Art Archive</span><span class="note">ジャケット</span></td><td>coverartarchive.org 経由のみ（転送先を直に叩かない）</td><td>「制限は無い」と明記</td><td class="nums" data-svc="coverart">0</td><td><span data-pill="coverart" class="pill ok">守れている</span></td></tr>
-          <tr><td><span class="who">VocaDB</span><span class="note">ボカロ検索・作者の補完</span></td><td>曲名だけで引く／表記をそろえる／控えを R2 に 14 日／同時 2 本・0.5 秒間隔</td><td>1 日数千件は事前の許可<span class="note">返答「1 分に 2 回なら問題ない。間隔を空けてほしい」</span></td><td class="nums" data-svc="vocadb" data-svc-rate="1">1,728</td><td><span data-pill="vocadb" class="pill ok">確認済み</span></td></tr>
-          <tr><td><span class="who">otoDB / roxy</span><span class="note">音MAD・消えた動画</span></td><td>同時 3・1 リスト 24 件・結果を 1 日覚える</td><td>数字の明記なし<span class="note">開発者から「この量なら問題ない」と返答済み</span></td><td class="nums" data-svc="otodb">1,668</td><td><span data-pill="otodb" class="pill ok">確認済み</span></td></tr>
-          <tr><td><span class="who">YouTube</span><span class="note">単体は oEmbed／再生リスト</span></td><td>再生リストは Data API に移した（<code>playlistItems.list</code>）。鍵は 9/20 に投入済み</td><td>1 日 10,000 ユニット<span class="note">読み取りは 1 件 1 ユニット</span></td><td class="nums" data-svc="youtube" data-svc-note="API は 1 リスト 1〜10 ユニット">2,496</td><td><span data-pill="youtube" class="pill ok">鍵あり</span></td></tr>
-          <tr><td><span class="who">ニコニコ動画</span><span class="note">getthumbinfo・マイリスト</span></td><td>人が貼ったときだけ 1 件。結果は 1 週間覚える</td><td>明記なし<span class="note">robots.txt の Disallow: /api/ が getthumbinfo を覆う</span></td><td class="nums" data-svc="niconico">384</td><td><span data-pill="niconico" class="pill">様子見</span></td></tr>
-          <tr><td><span class="who">Bandcamp</span><span class="note">曲・アルバムのページ</span></td><td>公開ページを 1 回・1 週間キャッシュ・名乗りは trackmento</td><td>明記なし<span class="note">AUP が scraper を名指しで禁止・公開 API 無し</span></td><td class="nums" data-svc="bandcamp">0</td><td><span data-pill="bandcamp" class="pill wait">返答待ち</span></td></tr>
-          <tr><td><span class="who">Spotify</span><span class="note">曲・アルバム</span></td><td>公式 oEmbed のみ（曲名とジャケット 300px。アーティスト名なし）</td><td>明記なし<span class="note">Web API は開発者登録に Premium が必須（2026-02〜）</span></td><td class="nums" data-svc="spotify">432</td><td><span data-pill="spotify" class="pill fix">縮小して対応</span></td></tr>
-          <tr><td><span class="who">SoundCloud</span><span class="note">曲</span></td><td>公式 oEmbed のみ。セットの展開はやめた</td><td>メタデータは明記なし<span class="note">§10 が scraping 禁止・§01 が client ID 必須</span></td><td class="nums" data-svc="soundcloud">108</td><td><span data-pill="soundcloud" class="pill fix">縮小して対応</span></td></tr>
-          <tr><td><span class="who">bilibili</span><span class="note">—</span></td><td>対応をやめた。手入力＋リンク先 URL で並べられる</td><td>事前の書面許可が必要<span class="note">api.bilibili.com は robots.txt で全面 Disallow</span></td><td class="nums" data-svc="bilibili">0</td><td><span data-pill="bilibili" class="pill stop">対応終了</span></td></tr>
-          <tr><td><span class="who">Discogs</span><span class="note">—</span></td><td>本番では未使用（トークン未設定）</td><td>認証あり 60 回/分<span class="note">画像は Restricted Data・6 時間ルール</span></td><td class="nums" data-svc="discogs">0</td><td><span data-pill="discogs" class="pill">未使用</span></td></tr>
+          <tr><td><span class="who">Apple iTunes Search</span> <span data-pill="itunes" class="pill ok">余裕</span><span class="note">検索・lookup</span></td><td>ブラウザから直接。サーバーは URL を貼ったときの補完・CLI・API だけ</td><td>約 20 回/分<span class="note">1 日の上限は明記なし・キャッシュ推奨</span></td><td class="nums" data-svc="itunes" data-svc-note="ブラウザ直は数えない">264</td></tr>
+          <tr><td><span class="who">MusicBrainz</span> <span data-pill="musicbrainz" class="pill ok">守れている</span><span class="note">iTunes で 0 件のとき</span></td><td>サーバーは 1 req/秒の錠前。ブラウザ直は利用者ごとの IP</td><td>1 回/秒・IP ごと<span class="note">連絡先入り UA 必須・超過は 100% 拒否</span></td><td class="nums" data-svc="musicbrainz" data-svc-note="ブラウザ直は数えない">0</td></tr>
+          <tr><td><span class="who">Cover Art Archive</span> <span data-pill="coverart" class="pill ok">守れている</span><span class="note">ジャケット</span></td><td>coverartarchive.org 経由のみ（転送先を直に叩かない）</td><td>「制限は無い」と明記</td><td class="nums" data-svc="coverart">0</td></tr>
+          <tr><td><span class="who">VocaDB</span> <span data-pill="vocadb" class="pill ok">確認済み</span><span class="note">ボカロ検索・作者の補完</span></td><td>曲名だけで引く／表記をそろえる／控えを R2 に 14 日／同時 2 本・0.5 秒間隔</td><td>1 日数千件は事前の許可<span class="note">返答「1 分に 2 回なら問題ない。間隔を空けてほしい」</span></td><td class="nums" data-svc="vocadb" data-svc-rate="1">1,728</td></tr>
+          <tr><td><span class="who">otoDB / roxy</span> <span data-pill="otodb" class="pill ok">確認済み</span><span class="note">音MAD・消えた動画</span></td><td>同時 3・1 リスト 24 件・結果を 1 日覚える</td><td>数字の明記なし<span class="note">開発者から「この量なら問題ない」と返答済み</span></td><td class="nums" data-svc="otodb">1,668</td></tr>
+          <tr><td><span class="who">YouTube</span> <span data-pill="youtube" class="pill ok">鍵あり</span><span class="note">単体は oEmbed／再生リスト</span></td><td>再生リストは Data API に移した（<code>playlistItems.list</code>）。鍵は 9/20 に投入済み</td><td>1 日 10,000 ユニット<span class="note">読み取りは 1 件 1 ユニット</span></td><td class="nums" data-svc="youtube" data-svc-note="API は 1 リスト 1〜10 ユニット">2,496</td></tr>
+          <tr><td><span class="who">ニコニコ動画</span> <span data-pill="niconico" class="pill">様子見</span><span class="note">getthumbinfo・マイリスト</span></td><td>人が貼ったときだけ 1 件。結果は 1 週間覚える</td><td>明記なし<span class="note">robots.txt の Disallow: /api/ が getthumbinfo を覆う</span></td><td class="nums" data-svc="niconico">384</td></tr>
+          <tr><td><span class="who">Bandcamp</span> <span data-pill="bandcamp" class="pill wait">返答待ち</span><span class="note">曲・アルバムのページ</span></td><td>公開ページを 1 回・1 週間キャッシュ・名乗りは trackmento</td><td>明記なし<span class="note">AUP が scraper を名指しで禁止・公開 API 無し</span></td><td class="nums" data-svc="bandcamp">0</td></tr>
+          <tr><td><span class="who">Spotify</span> <span data-pill="spotify" class="pill fix">縮小して対応</span><span class="note">曲・アルバム</span></td><td>公式 oEmbed のみ（曲名とジャケット 300px。アーティスト名なし）</td><td>明記なし<span class="note">Web API は開発者登録に Premium が必須（2026-02〜）</span></td><td class="nums" data-svc="spotify">432</td></tr>
+          <tr><td><span class="who">SoundCloud</span> <span data-pill="soundcloud" class="pill fix">縮小して対応</span><span class="note">曲</span></td><td>公式 oEmbed のみ。セットの展開はやめた</td><td>メタデータは明記なし<span class="note">§10 が scraping 禁止・§01 が client ID 必須</span></td><td class="nums" data-svc="soundcloud">108</td></tr>
+          <tr><td><span class="who">bilibili</span> <span data-pill="bilibili" class="pill fix">DB 経由のみ</span><span class="note">動画</span></td><td>otoDB・VocaDB に登録のある動画だけ（9/24 から）。bilibili 本体には問い合わせない・hdslb の画像も使わない</td><td>事前の書面許可が必要<span class="note">api.bilibili.com は robots.txt で全面 Disallow</span></td><td class="nums" data-svc="bilibili">0</td></tr>
+          <tr><td><span class="who">Discogs</span> <span data-pill="discogs" class="pill">未使用</span><span class="note">—</span></td><td>本番では未使用（トークン未設定）</td><td>認証あり 60 回/分<span class="note">画像は Restricted Data・6 時間ルール</span></td><td class="nums" data-svc="discogs">0</td></tr>
         </tbody>
       </table>
     </div>
@@ -1290,6 +1299,15 @@
   document.querySelectorAll("table").forEach(t => {
     const names = [...t.querySelectorAll("thead th")].map(th => th.textContent);
     t.querySelectorAll("tbody tr").forEach(tr => [...tr.children].forEach((td, i) => { if (names[i]) td.dataset.label = names[i]; }));
+  });
+  /* 外部サービスの札の開け閉め（スマホの札のときだけ見える）。閉じて始める */
+  document.querySelectorAll("#svc tbody tr").forEach(tr => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "rowfold";
+    const set = open => { tr.classList.toggle("open", open); b.textContent = open ? "[−]" : "[+]"; b.setAttribute("aria-expanded", open ? "true" : "false"); b.setAttribute("aria-label", open ? "閉じる" : "開く"); };
+    b.addEventListener("click", () => set(!tr.classList.contains("open")));
+    tr.firstElementChild.prepend(b);
+    set(false);
   });
 
   drawAll();

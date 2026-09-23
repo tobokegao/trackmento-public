@@ -25,7 +25,7 @@
     "bandcamp": ["wait", "返答待ち"],
     "spotify": ["fix", "縮小して対応"],
     "soundcloud": ["fix", "縮小して対応"],
-    "bilibili": ["stop", "対応終了"],
+    "bilibili": ["fix", "DB 経由のみ"],
     "discogs": ["", "未使用"]
   }
 }
