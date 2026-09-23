@@ -247,6 +247,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-23", "確認の窓とパレットの窓が Esc で閉じるようになりました。確認の窓では「やめる」が太い枠で囲まれ、Return キーで押せます。「横 × 縦」の欄には上下の小さな矢印を付け、押し続けると続けて増減します。",
+     "The confirmation and palette windows now close with Esc. In the confirmation window, “Cancel” has a thick outline and can be pressed with Return. The “columns × rows” fields now have small up and down arrows; hold one down to keep counting."),
     ("2026-09-23", "画面の言葉を見直しました。「曲」は「トラック」にそろえ（「トラックリスト」「トラックを探す」など）、「マスを全部外す」は「トラックを全て外す」、比率の「設定なし」は「自由」になりました。ファイルを選ぶ窓が開くボタンには「…」を付けています。",
      "We reviewed the wording on screen. In Japanese, “曲” is now “トラック” everywhere, “Clear all cells” is now “Remove all tracks”, and buttons that open a file picker now end with “…”."),
     ("2026-09-23", "共有ページの左上の「TRACKMENTO」を押すと、編集画面に戻れるようになりました。",

@@ -34,7 +34,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.d5de469f.css">
+<link rel="stylesheet" href="app/app.58d6600b.css">
 </head>
 <body>
 
@@ -228,9 +228,9 @@
       <fieldset class="field">
         <legend>グリッド（横 × 縦）</legend>
         <div class="custom-size" id="custom-size">
-          <label>横 <input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="横のマス数"></label>
+          <label>横 <span class="stepper-wrap"><input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="横のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
           <span aria-hidden="true">×</span>
-          <label>縦 <input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="縦のマス数"></label>
+          <label>縦 <span class="stepper-wrap"><input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="縦のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
         </div>
       </fieldset>
 
@@ -329,7 +329,7 @@
     <div class="modal-body note">
       <p id="pl-summary"></p>
       <div class="pl-choices">
-        <button class="btn btn-primary" type="button" id="pl-to-grid"><span class="label">マスに入れる</span></button>
+        <button class="btn btn-primary btn-default" type="button" id="pl-to-grid"><span class="label">マスに入れる</span></button>
         <button class="btn" type="button" id="pl-to-results">候補に置いて選ぶ</button>
       </div>
       <p id="pl-hint" class="msg"></p>
@@ -383,11 +383,14 @@
   <div class="sheet-backdrop" id="confirm-backdrop"></div>
   <div class="modal-panel modal-narrow">
     <div class="sheet-head"><h2 id="confirm-title">確認</h2></div>
-    <div class="modal-body note">
+    <div class="modal-body note confirm-body">
+      <!-- 「注意」のアイコン（OS 9 の Caution alert にならう 32x32 のドット絵） -->
+      <svg class="caution" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" shape-rendering="crispEdges"><path class="c-fill" d="M15 1h2v1H15zM15 2h2v1H15zM14 3h4v1H14zM14 4h4v1H14zM13 5h6v1H13zM13 6h6v1H13zM12 7h8v1H12zM12 8h8v1H12zM11 9h10v1H11zM11 10h10v1H11zM10 11h12v1H10zM10 12h12v1H10zM9 13h14v1H9zM9 14h14v1H9zM8 15h16v1H8zM8 16h16v1H8zM7 17h18v1H7zM7 18h18v1H7zM6 19h20v1H6zM6 20h20v1H6zM5 21h22v1H5zM5 22h22v1H5zM4 23h24v1H4zM4 24h24v1H4zM3 25h26v1H3zM3 26h26v1H3zM2 27h28v1H2zM2 28h28v1H2zM1 29h30v1H1zM1 30h30v1H1z"/><path class="c-edge" d="M15 1h2v1H15zM15 2h2v1H15zM14 3h1v1H14zM17 3h1v1H17zM14 4h1v1H14zM17 4h1v1H17zM13 5h1v1H13zM18 5h1v1H18zM13 6h1v1H13zM18 6h1v1H18zM12 7h1v1H12zM19 7h1v1H19zM12 8h1v1H12zM19 8h1v1H19zM11 9h1v1H11zM20 9h1v1H20zM11 10h1v1H11zM20 10h1v1H20zM10 11h1v1H10zM21 11h1v1H21zM10 12h1v1H10zM21 12h1v1H21zM9 13h1v1H9zM22 13h1v1H22zM9 14h1v1H9zM22 14h1v1H22zM8 15h1v1H8zM23 15h1v1H23zM8 16h1v1H8zM23 16h1v1H23zM7 17h1v1H7zM24 17h1v1H24zM7 18h1v1H7zM24 18h1v1H24zM6 19h1v1H6zM25 19h1v1H25zM6 20h1v1H6zM25 20h1v1H25zM5 21h1v1H5zM26 21h1v1H26zM5 22h1v1H5zM26 22h1v1H26zM4 23h1v1H4zM27 23h1v1H27zM4 24h1v1H4zM27 24h1v1H27zM3 25h1v1H3zM28 25h1v1H28zM3 26h1v1H3zM28 26h1v1H28zM2 27h1v1H2zM29 27h1v1H29zM2 28h1v1H2zM29 28h1v1H29zM1 29h1v1H1zM30 29h1v1H30zM1 30h30v1H1z"/><path class="c-mark" d="M15 10h2v1H15zM15 11h2v1H15zM15 12h2v1H15zM15 13h2v1H15zM15 14h2v1H15zM15 15h2v1H15zM15 16h2v1H15zM15 17h2v1H15zM15 18h2v1H15zM15 19h2v1H15zM15 20h2v1H15zM15 21h2v1H15zM15 24h2v1H15zM15 25h2v1H15zM15 26h2v1H15z"/></svg>
       <p id="confirm-msg">トラックを全て外します。あとから「元に戻す」で戻せます。</p>
+      <!-- **既定のボタンは「やめる」**（取り消す側。HIG の決まり）。二重の枠で示し、開いたときに焦点を置くので Return で押せる -->
       <div class="confirm-actions">
-        <button class="btn" type="button" id="confirm-no">やめる</button>
-        <button class="btn btn-primary" type="button" id="confirm-yes">全て外す</button>
+        <button class="btn btn-default" type="button" id="confirm-no">やめる</button>
+        <button class="btn" type="button" id="confirm-yes">全て外す</button>
       </div>
     </div>
   </div>
@@ -461,6 +464,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.7cefa658.js"></script>
+<script id="app-js" src="app/app.a2206394.js"></script>
 </body>
 </html>

@@ -109,7 +109,6 @@
   --color-rose:        #f2418f;
   --color-accent:   var(--color-cerulean);
   --color-accent-ink: var(--color-paper);
-  --color-focus:    oklch(58% 0.200 235);
   --color-error:    var(--color-vermilion);
   --color-grain:    oklch(20% 0.012 250 / 0.06);   /* overlay modifier for halftone dots */
   /* **影は「地より暗い色」**。地が暗い組では ink が明るくなるので、影に ink を使うと光って見える */
@@ -126,6 +125,9 @@
 
   --text-xs: 0.64rem; --text-sm: 0.8rem; --text-base: 1rem; --text-md: 1.25rem; --text-lg: 1.5625rem;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
+  /* フォーカスの枠（HIG に寄せた、2026-09-23）。黒 2px を 1px 離して囲む。すき間には下地の紙の色が見える。
+     以前は青 3px を 2px 離していた（今どきのブラウザの見た目） */
+  --focus-ring: 2px solid var(--color-ink); --focus-gap: 1px;
   --line: 2px;
   --page-inline: var(--space-4);   /* ページ左右の基準余白。ヘッダー・ペイン・フッターで共有 */
   --shadow: 4px 4px 0 var(--color-shadow);
@@ -137,6 +139,10 @@
   /* 昔の Mac の 50% グレー: 1 目の市松。**グラデーションではなく SVG の型抜き**で描く。
      `repeating-conic-gradient` は縁が必ずぼけるので、拡大すると目が滲んで見えた（実機で報告）。
      `shape-rendering="crispEdges"` なら縁が立つ。色は型抜きなのでトークンのまま使える */
+  /* 開閉の三角（Finder のリスト表示と同じ。閉じていると右、開いていると下）。9x9 のドット */
+  --disclosure: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" shape-rendering="crispEdges"><path d="M2 0h1v1h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-1v1h-1z" fill="%23fff"/></svg>');
+  /* 小さな矢印（Little Arrows）の上向きの三角。7x4 のドット。下向きは回して使う */
+  --arrow-up: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="7" height="4" shape-rendering="crispEdges"><path d="M3 0h1v1h1v1h1v1h1v1H0V3h1V2h1V1h1z" fill="%23fff"/></svg>');
   --dither-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" shape-rendering="crispEdges"><path d="M0 0h1v1H0zM1 1h1v1H1z" fill="%23fff"/></svg>');
   --check-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="13" shape-rendering="crispEdges"><path d="M16 0h2v1H16zM15 1h3v1H15zM14 2h3v1H14zM13 3h3v1H13zM12 4h3v1H12zM2 5h2v1H2zM11 5h3v1H11zM2 6h3v1H2zM10 6h3v1H10zM3 7h3v1H3zM9 7h3v1H9zM4 8h3v1H4zM8 8h3v1H8zM5 9h5v1H5zM6 10h3v1H6zM7 11h1v1H7z" fill="%23fff"/></svg>');   /* チェック印（18×13 のドット絵。OS 9 の印を 1.5 倍にしたもの。色は background で付ける） */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -163,7 +169,7 @@ h1, h2, h3, legend { font-family: var(--font-display); font-weight: 400; font-st
 button, input, select { font: inherit; color: inherit; }
 img { max-width: 100%; display: block; }
 :focus { outline: none; }
-:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
 /* 背景色に新しい 6 色を選んだときは、画面の装飾色（ワードマークの下線・バッジ・強調）も入れ替える。
    **スロットの名前は変えない**（36 か所の参照をそのまま活かすため。色だけ差し替わる） */
 :root[data-palette="pop"] {
@@ -204,7 +210,6 @@ img { max-width: 100%; display: block; }
      地（24%）と明るい白（74%）の中間あたりで、面取りの並びとは喧嘩しない */
   --color-shadow:   oklch(58% 0.010 250);
   --color-grain:    oklch(95% 0.004 95 / 0.05);
-  --color-focus:    oklch(72% 0.150 235);
   --color-on-light: var(--color-paper);     /* 明るい下地の上に置く文字 ＝ 暗いほう */
   --color-on-dark:  var(--color-ink);       /* 暗い下地の上に置く文字 ＝ 明るいほう */
   --color-on-light-2: var(--color-paper-3); /* 同じく添え字。地よりわずかに明るい暗色 */
@@ -463,8 +468,7 @@ img { max-width: 100%; display: block; }
   font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1;
   background: var(--color-paper); border: var(--line) solid var(--color-ink); cursor: pointer;
 }
-.fold::before { content: "—"; }
-.pane[data-collapsed="true"] .fold::before { content: "+"; }
+.fold::before { content: "—"; }   /* 窓の畳む箱（OS 9 の collapse box）。畳んでも形は変えない（窓の丈で分かる） */
 .pane[data-collapsed="true"] > :not(.pane-title):not(.editor) { display: none; }
 .pane[data-collapsed="true"] { box-shadow: var(--shadow-sm); }
 .pane-body { padding: var(--space-3); }
@@ -475,8 +479,12 @@ img { max-width: 100%; display: block; }
   padding: var(--space-2) var(--space-3); border: 0; background: var(--color-paper-2);
   font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: left; cursor: pointer;
 }
-.sub-title::before { content: "—"; font-family: var(--font-outlier); font-size: var(--text-xs); width: 16px; }
-.sub[data-collapsed="true"] .sub-title::before { content: "+"; }
+.sub-title::before {
+  content: ""; flex: none; width: calc(9 * var(--u)); height: calc(9 * var(--u)); margin-inline: 3px 4px;
+  background: currentColor; -webkit-mask: var(--disclosure) center / 100% 100% no-repeat; mask: var(--disclosure) center / 100% 100% no-repeat;
+  transform: rotate(90deg);
+}
+.sub[data-collapsed="true"] .sub-title::before { transform: none; }
 .sub[data-collapsed="true"] > form { display: none; }
 .sub > form { border-top: 0; }
 
@@ -544,6 +552,12 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; transform: none; }
 .btn:disabled::after { display: block; }
 .btn-primary { --sh: calc(4 * var(--dot)); background: var(--color-ink); color: var(--color-paper); }
+/* 既定のボタン（Return で押されるもの）は二重の枠で示す（HIG、2026-09-23）。紙の色 1px のすき間の外に黒 3px。
+   **ずらした影は出さない**（枠の外に影が重なって枠が欠けて見える。OS 9 の既定のボタンも影は無い）。
+   Return で押せるのは、窓を開いたときにこのボタンへ焦点を置いているため（ブラウザの既定の動き） */
+.btn-default { box-shadow: 0 0 0 1px var(--color-paper), 0 0 0 4px var(--color-ink); margin: 4px; }
+.btn-default::after { display: none; }
+.btn-default:active { transform: none; }
 @media (hover: hover) and (pointer: fine) { .btn-primary:hover { background: var(--color-ink-2); } }
 .btn[data-state="loading"] { cursor: progress; }
 .btn[data-state="loading"] .label::after { content: "…"; }
@@ -574,7 +588,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 @media (hover: hover) and (pointer: fine) { .seg input:not(:disabled):not(:checked) + span:hover { background: var(--color-paper-2); } }
 .seg input:checked + span { background: var(--color-ink); color: var(--color-paper); transform: translate(2px, 2px); }
 .seg input:checked + span::after { display: none; }
-.seg input:focus-visible + span { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.seg input:focus-visible + span { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
 .seg input:disabled + span { opacity: .45; cursor: not-allowed; }
 .seg input:disabled + span::after { display: none; }
 
@@ -677,7 +691,16 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .check-sep a:active { background: rgba(51, 181, 229, .4); }
 /* 確認の窓（「トラックを全て外す」）。幅は文だけなので狭くし、ボタンは右に寄せる */
 .modal-narrow { width: min(100%, 26rem); }
-.confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
+.confirm-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+/* 確認窓は OS 9 の警告（Alert）の組み方: 左上にアイコン、右に文、ボタンは右下 */
+.confirm-body { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-4); align-items: start; }
+.confirm-body > p { margin-top: 0; }
+.confirm-actions { grid-column: 1 / -1; }
+/* 32x32 のドット絵を画素比の整数倍で置く（--u。つまみと同じ）。色はトークンから */
+.caution { width: calc(32 * var(--u)); height: calc(32 * var(--u)); }
+.caution .c-fill { fill: var(--color-mustard); }
+.caution .c-edge { fill: var(--color-ink); }
+.caution .c-mark { fill: var(--color-on-light); }
 /* 行の箱の余白（min-height: 28px）を外して、箱と文字の下端が「トラックを全て外す」の枠の下辺に乗るようにする */
 .grid-foot .check { min-height: 0; }
 .msg-under { margin-top: var(--space-3); }
@@ -905,7 +928,24 @@ body.sheet-open { overflow: hidden; }
 .opts { display: grid; gap: var(--space-4); }
 .custom-size { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .custom-size label { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); }
-.input.num { width: 4.5rem; padding: var(--space-1) var(--space-2); font-variant-numeric: tabular-nums; }
+.input.num { width: 4.5rem; padding: var(--space-1) var(--space-2); font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+.input.num::-webkit-inner-spin-button, .input.num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* 横 × 縦の小さな矢印（OS 9 の Little Arrows、2026-09-23）。欄の右に上下 2 つ。押し続けると続けて増減する。
+   ブラウザの数値欄の上下ボタンは端末ごとに見た目が違うので消して、こちらで描く */
+.stepper-wrap { display: inline-flex; align-items: stretch; gap: 2px; }
+.stepper { display: inline-grid; grid-template-rows: 1fr 1fr; width: 17px; border: var(--line) solid var(--color-ink); background: var(--color-paper); }
+.stepper button {
+  position: relative; padding: 0; border: 0; background: none; color: var(--color-ink); cursor: pointer;
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.stepper button + button { border-top: var(--line) solid var(--color-ink); }
+.stepper button::before {
+  content: ""; position: absolute; inset: 0; margin: auto; width: calc(7 * var(--u)); height: calc(4 * var(--u));
+  background: currentColor; -webkit-mask: var(--arrow-up) center / 100% 100% no-repeat; mask: var(--arrow-up) center / 100% 100% no-repeat;
+}
+.stepper button[data-step="-1"]::before { transform: rotate(180deg); }
+.stepper button:active, .stepper button.is-held { background: var(--color-ink); color: var(--color-paper); }
+@media (pointer: coarse) { .stepper { width: 28px; } }
 /* 「表示」のチェックは横に流し込む。入らないものは次の行へ回る（縦に 1 つずつ積むと場所を食う） */
 .check-row { display: flex; flex-wrap: wrap; column-gap: var(--space-4); row-gap: 0; }
 .check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; min-height: 28px; }
@@ -1015,11 +1055,11 @@ body.sheet-open { overflow: hidden; }
 .swatches input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .swatches span { display: block; width: 100%; height: 100%; border: var(--line) solid var(--color-ink); background: var(--sw); }
 .swatches input:checked + span { outline: 3px solid var(--color-ink); outline-offset: 2px; }
-.swatches input:focus-visible + span { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.swatches input:focus-visible + span { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
 .custom-color { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); font-family: var(--font-display); font-size: var(--text-sm); }
 .custom-color button { width: 28px; height: 28px; padding: 0; border: var(--line) solid var(--color-ink); background: var(--sw, var(--color-paper)); cursor: pointer; }
 .custom-color button.is-on { outline: 3px solid var(--color-ink); outline-offset: 2px; }
-.custom-color button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.custom-color button:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
 /* カスタムカラーの色相・彩度・明度スライダー。つまみの位置が色で分かるよう、溝に色の帯を敷く */
 .hsv { display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-1); border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
 .hsv[hidden] { display: none; }   /* display: grid が hidden 属性の display: none に勝ってしまうため明示 */
@@ -1320,9 +1360,9 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
       <fieldset class="field">
         <legend>グリッド（横 × 縦）</legend>
         <div class="custom-size" id="custom-size">
-          <label>横 <input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="横のマス数"></label>
+          <label>横 <span class="stepper-wrap"><input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="横のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
           <span aria-hidden="true">×</span>
-          <label>縦 <input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="縦のマス数"></label>
+          <label>縦 <span class="stepper-wrap"><input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="縦のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
         </div>
       </fieldset>
 
@@ -1421,7 +1461,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
     <div class="modal-body note">
       <p id="pl-summary"></p>
       <div class="pl-choices">
-        <button class="btn btn-primary" type="button" id="pl-to-grid"><span class="label">マスに入れる</span></button>
+        <button class="btn btn-primary btn-default" type="button" id="pl-to-grid"><span class="label">マスに入れる</span></button>
         <button class="btn" type="button" id="pl-to-results">候補に置いて選ぶ</button>
       </div>
       <p id="pl-hint" class="msg"></p>
@@ -1475,11 +1515,14 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   <div class="sheet-backdrop" id="confirm-backdrop"></div>
   <div class="modal-panel modal-narrow">
     <div class="sheet-head"><h2 id="confirm-title">確認</h2></div>
-    <div class="modal-body note">
+    <div class="modal-body note confirm-body">
+      <!-- 「注意」のアイコン（OS 9 の Caution alert にならう 32x32 のドット絵） -->
+      <svg class="caution" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" shape-rendering="crispEdges"><path class="c-fill" d="M15 1h2v1H15zM15 2h2v1H15zM14 3h4v1H14zM14 4h4v1H14zM13 5h6v1H13zM13 6h6v1H13zM12 7h8v1H12zM12 8h8v1H12zM11 9h10v1H11zM11 10h10v1H11zM10 11h12v1H10zM10 12h12v1H10zM9 13h14v1H9zM9 14h14v1H9zM8 15h16v1H8zM8 16h16v1H8zM7 17h18v1H7zM7 18h18v1H7zM6 19h20v1H6zM6 20h20v1H6zM5 21h22v1H5zM5 22h22v1H5zM4 23h24v1H4zM4 24h24v1H4zM3 25h26v1H3zM3 26h26v1H3zM2 27h28v1H2zM2 28h28v1H2zM1 29h30v1H1zM1 30h30v1H1z"/><path class="c-edge" d="M15 1h2v1H15zM15 2h2v1H15zM14 3h1v1H14zM17 3h1v1H17zM14 4h1v1H14zM17 4h1v1H17zM13 5h1v1H13zM18 5h1v1H18zM13 6h1v1H13zM18 6h1v1H18zM12 7h1v1H12zM19 7h1v1H19zM12 8h1v1H12zM19 8h1v1H19zM11 9h1v1H11zM20 9h1v1H20zM11 10h1v1H11zM20 10h1v1H20zM10 11h1v1H10zM21 11h1v1H21zM10 12h1v1H10zM21 12h1v1H21zM9 13h1v1H9zM22 13h1v1H22zM9 14h1v1H9zM22 14h1v1H22zM8 15h1v1H8zM23 15h1v1H23zM8 16h1v1H8zM23 16h1v1H23zM7 17h1v1H7zM24 17h1v1H24zM7 18h1v1H7zM24 18h1v1H24zM6 19h1v1H6zM25 19h1v1H25zM6 20h1v1H6zM25 20h1v1H25zM5 21h1v1H5zM26 21h1v1H26zM5 22h1v1H5zM26 22h1v1H26zM4 23h1v1H4zM27 23h1v1H27zM4 24h1v1H4zM27 24h1v1H27zM3 25h1v1H3zM28 25h1v1H28zM3 26h1v1H3zM28 26h1v1H28zM2 27h1v1H2zM29 27h1v1H29zM2 28h1v1H2zM29 28h1v1H29zM1 29h1v1H1zM30 29h1v1H30zM1 30h30v1H1z"/><path class="c-mark" d="M15 10h2v1H15zM15 11h2v1H15zM15 12h2v1H15zM15 13h2v1H15zM15 14h2v1H15zM15 15h2v1H15zM15 16h2v1H15zM15 17h2v1H15zM15 18h2v1H15zM15 19h2v1H15zM15 20h2v1H15zM15 21h2v1H15zM15 24h2v1H15zM15 25h2v1H15zM15 26h2v1H15z"/></svg>
       <p id="confirm-msg">トラックを全て外します。あとから「元に戻す」で戻せます。</p>
+      <!-- **既定のボタンは「やめる」**（取り消す側。HIG の決まり）。二重の枠で示し、開いたときに焦点を置くので Return で押せる -->
       <div class="confirm-actions">
-        <button class="btn" type="button" id="confirm-no">やめる</button>
-        <button class="btn btn-primary" type="button" id="confirm-yes">全て外す</button>
+        <button class="btn btn-default" type="button" id="confirm-no">やめる</button>
+        <button class="btn" type="button" id="confirm-yes">全て外す</button>
       </div>
     </div>
   </div>
@@ -1708,6 +1751,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "トラックを全て外す": "Remove all tracks",
         "確認": "Confirm",
         "トラックを全て外します。あとから「元に戻す」で戻せます。": "This removes every track. You can bring them back with “Undo”.",
+        "{} トラックを全て外します。あとから「元に戻す」で戻せます。": "This removes all {0} tracks. You can bring them back with “Undo”.",
         "全て外す": "Remove all",
         "トラックを全て外す。あとから「元に戻す」で戻せる": "Remove every track. You can bring them back with “Undo”",
         "元に戻す": "Undo",
@@ -1767,7 +1811,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
         "トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
         "短くする": "Shorten",
         "短くできるトラック名はありませんでした。": "No titles needed shortening.",
-        "{} マスのトラック名・{} マスのアーティスト名を短くします。あとから「元に戻す」で戻せます。": "This shortens {0} track names and {1} artist names. Are you sure?",
+        "{} マスのトラック名・{} マスのアーティスト名を短くします。あとから「元に戻す」で戻せます。": "This shortens {0} track names and {1} artist names. You can bring them back with “Undo”.",
         "{} マスのトラック名・{} マスのアーティスト名を短くしました。": "Shortened {0} track names and {1} artist names.",
         "背景色": "Background",
         "カスタムカラー": "Custom colour",
@@ -3208,6 +3252,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   els.eClose.addEventListener("click", () => { clearSelection(); say(els.gridMsg, tr("選択を解除しました。")); });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    /* **上に重なっている窓から閉じる**。確認窓は候補のシートの上にも開くので、いちばん先に見る
+       （以前は確認窓とパレットを扱っておらず、確認窓の上で Esc を押すと下のシートだけが閉じた。2026-09-23） */
+    if (!confirmModal.hidden) { closeConfirm(); return; }
+    if (!palModal.hidden) { closePalModal(); return; }
     if (plOpen()) { closePlModal(); say(els.bcMsg, tr("やめました。")); return; }
     if (gridZoomed) { closeZoom(); return; }
     if (!srcModal.hidden) { closeSrcModal(); return; }
@@ -3363,8 +3411,10 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   $("#confirm-yes").addEventListener("click", () => { const f = confirmYes; closeConfirm(); if (f) f(); });
 
   els.clearBtn.addEventListener("click", () => {
-    if (!state.cells.some(Boolean) && !state.stash.length) return;
-    openConfirm(clearAll);
+    const n = state.cells.filter(Boolean).length + state.stash.length;
+    if (!n) return;
+    // 確認文に数を入れる（何がどれだけ消えるかを先に見せる。HIG の確認窓の決まり）
+    openConfirm(clearAll, tr`${n} トラックを全て外します。あとから「元に戻す」で戻せます。`);
   });
   function clearAll() {
     const before = { cells: state.cells.slice(), stash: state.stash.slice() };
@@ -3410,6 +3460,28 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
   /* ---- options ---- */
   // いま触った側は動かさず、もう一方を減らして総数に収める
   els.cols.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value), "cols"));
+  /* 横 × 縦の小さな矢印。押すと 1 つ増減し、押し続けると 0.4 秒後から続けて動く。
+     **並びを組み直すのは離したときだけ**（16x16 だと 1 回の組み直しに 1 秒かかるので、1 段ごとに組むと止まる） */
+  for (const btn of document.querySelectorAll(".stepper button")) {
+    const input = btn.closest(".stepper-wrap").querySelector("input");
+    let timer = 0, moved = false;
+    const step = () => {
+      const v = Math.min(MAX_SIDE_CELLS, Math.max(1, (Number(input.value) || 1) + Number(btn.dataset.step)));
+      if (String(v) !== input.value) { input.value = v; moved = true; }
+    };
+    const stop = () => {
+      if (!timer && !btn.classList.contains("is-held")) return;
+      clearTimeout(timer); clearInterval(timer); timer = 0; btn.classList.remove("is-held");
+      if (moved) { moved = false; input.dispatchEvent(new Event("change")); }
+    };
+    btn.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault(); btn.setPointerCapture(e.pointerId);
+      btn.classList.add("is-held"); step();
+      timer = setTimeout(() => { timer = setInterval(step, 80); }, 400);
+    });
+    for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) btn.addEventListener(ev, stop);
+  }
   els.rows.addEventListener("change", () => resizeGrid(Number(els.cols.value), Number(els.rows.value), "rows"));
   els.ratioSeg.addEventListener("change", () => { state.ratio = els.ratioSeg.querySelector("input:checked").value; updateSpec(); });
   /* セグメントの選択を値で合わせる（既存の `input[value=…]` を探す書き方をまとめたもの） */
