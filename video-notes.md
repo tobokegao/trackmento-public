@@ -3,6 +3,8 @@
 2026-09-10 19:16 に投稿した説明動画（v1）より後に実装したもの。次の動画で紹介する候補。
 実装状況は 2026-09-14 時点。すべて本番（https://trackmento.com/）で動作確認済み。
 **各節は書いた当時の記録**なので、今の対応サイトと数字は `CLAUDE.md` と `docs/services-terms.md` が正。
+
+**次の版の字幕は `promo/captions-next.txt`**（2026-09-23 に決めた。冒頭のキャッチコピーが「AI っぽい」と言われたので全部見直した。まだ動画に入れていない）。
 撮影・書き出しの段取りも 2026-09-20 に変わっている（`capture.mjs` / `render_cached.mjs` / `plan_gen.mjs`。`record.mjs` と `scan_markers.py` は消した）。
 
 ---
