@@ -204,17 +204,23 @@
         </div>
         <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
-      <!-- お題の見本（2026-09-24、運用ボードの ideas-0923）。選ぶとタイトルと横 × 縦が 1 回で入る。
-           題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。大きさは value の「横x縦」 -->
+      <!-- お題の見本（2026-09-24、運用ボードの ideas-0923）。選ぶとタイトルが入る。
+           題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。value が「横x縦」なら大きさも変え、
+           "t" なら大きさはそのまま（曲数の決まっていないお題。縮めると並べたトラックが外れるため。利用者の判断） -->
       <div class="layouts themes">
         <label for="theme-sel">お題</label>
         <span class="popup"><select id="theme-sel">
           <option value="">見本から選ぶ…</option>
           <option value="3x3">私を構成する9曲</option>
-          <option value="5x2">今年よく聴いた10曲</option>
-          <option value="4x3">今年の12か月（1月から順に1曲ずつ）</option>
-          <option value="2x2">春夏秋冬に聴きたい曲</option>
-          <option value="4x4">はじめての人に聴いてほしい16曲</option>
+          <option value="t">推しの「歌ってみた」</option>
+          <option value="t">雨の日に聴く曲</option>
+          <option value="t">好きな音MAD</option>
+          <option value="t">今月かなり聴いた曲</option>
+          <option value="t">好きなボカロ</option>
+          <option value="t">文化祭のセトリ</option>
+          <option value="t">ジャケットが青い曲</option>
+          <option value="t">作業がはかどるBGM</option>
+          <option value="t">ドライブで聴きたい曲</option>
         </select></span>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
@@ -515,6 +521,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.b9f4be41.js"></script>
+<script id="app-js" src="app/app.9812017f.js"></script>
 </body>
 </html>

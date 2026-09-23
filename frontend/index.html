@@ -1434,17 +1434,23 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
         <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
-      <!-- お題の見本（2026-09-24、運用ボードの ideas-0923）。選ぶとタイトルと横 × 縦が 1 回で入る。
-           題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。大きさは value の「横x縦」 -->
+      <!-- お題の見本（2026-09-24、運用ボードの ideas-0923）。選ぶとタイトルが入る。
+           題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。value が「横x縦」なら大きさも変え、
+           "t" なら大きさはそのまま（曲数の決まっていないお題。縮めると並べたトラックが外れるため。利用者の判断） -->
       <div class="layouts themes">
         <label for="theme-sel">お題</label>
         <span class="popup"><select id="theme-sel">
           <option value="">見本から選ぶ…</option>
           <option value="3x3">私を構成する9曲</option>
-          <option value="5x2">今年よく聴いた10曲</option>
-          <option value="4x3">今年の12か月（1月から順に1曲ずつ）</option>
-          <option value="2x2">春夏秋冬に聴きたい曲</option>
-          <option value="4x4">はじめての人に聴いてほしい16曲</option>
+          <option value="t">推しの「歌ってみた」</option>
+          <option value="t">雨の日に聴く曲</option>
+          <option value="t">好きな音MAD</option>
+          <option value="t">今月かなり聴いた曲</option>
+          <option value="t">好きなボカロ</option>
+          <option value="t">文化祭のセトリ</option>
+          <option value="t">ジャケットが青い曲</option>
+          <option value="t">作業がはかどるBGM</option>
+          <option value="t">ドライブで聴きたい曲</option>
         </select></span>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
@@ -2208,12 +2214,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "（{} トラックは絵が取れなかったので最後に置きました）": "({0} covers could not be loaded and were put last.)",
         "お題": "Theme",
         "見本から選ぶ…": "Pick an example…",
-        "私を構成する9曲": "9 songs that made me",
-        "今年よく聴いた10曲": "My 10 most played this year",
-        "今年の12か月（1月から順に1曲ずつ）": "12 months of this year (one song per month)",
-        "春夏秋冬に聴きたい曲": "Songs for the four seasons",
-        "はじめての人に聴いてほしい16曲": "16 songs for someone new to them",
+        "私を構成する9曲": "9 tracks that made me",
+        "推しの「歌ってみた」": "Covers by my favourite singer",
+        "雨の日に聴く曲": "Songs for rainy days",
+        "好きな音MAD": "My favourite otomads",
+        "今月かなり聴いた曲": "On heavy rotation this month",
+        "好きなボカロ": "My favourite Vocaloid songs",
+        "文化祭のセトリ": "Our school festival setlist",
+        "ジャケットが青い曲": "Tracks with blue cover art",
+        "作業がはかどるBGM": "Music that helps me focus",
+        "ドライブで聴きたい曲": "Songs for a drive",
         "お題「{}」にしました（横 {} × 縦 {}）。": "Set the theme to \"{0}\" ({1} × {2}).",
+        "お題「{}」にしました。": "Set the theme to \"{0}\".",
         "この並びを消す": "Delete layout",
         "空の並びをもう 1 つ作る。今の並びはそのまま残る": "Start another, empty layout. The current one stays as it is",
         "いま開いている並びを消す。ほかの並びは残る": "Delete the layout that is open now. Your other layouts stay",
@@ -4109,11 +4121,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const sel = e.target, o = sel.selectedOptions[0];
     sel.value = "";   // メニューは毎回「見本から選ぶ…」に戻す（続けて同じお題を選び直せるように）
     if (!o || !o.value) return;
-    const [c, r] = o.value.split("x").map(Number);
-    const title = o.textContent.replace(/[（(].*$/, "").trim();   // 括弧の中は選ぶときの説明なので題名に入れない
-    resizeGrid(c, r);
+    const title = o.textContent.trim();
+    if (o.value !== "t") {
+      const [c, r] = o.value.split("x").map(Number);
+      resizeGrid(c, r);
+      state.title = title; els.title.value = title; updateSpec();
+      say(els.gridMsg, tr`お題「${title}」にしました（横 ${c} × 縦 ${r}）。`);
+      return;
+    }
     state.title = title; els.title.value = title; updateSpec();
-    say(els.gridMsg, tr`お題「${title}」にしました（横 ${c} × 縦 ${r}）。`);
+    say(els.gridMsg, tr`お題「${title}」にしました。`);
   });
 
   /* ---- options ---- */

@@ -1058,6 +1058,7 @@ MANIFEST = {
     "share_target": {
         "action": "/",
         "method": "GET",
+        "enctype": "application/x-www-form-urlencoded",   # GET の既定と同じ。書かないと Chrome が注意を出す
         "params": {"title": "st_title", "text": "st_text", "url": "st_url"},
     },
 }
