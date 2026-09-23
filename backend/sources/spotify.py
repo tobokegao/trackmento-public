@@ -12,7 +12,8 @@ Spotify Premium が要るようになったため（新しい Client ID は 2/11
 - **鍵があるとき**（`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`）… Client Credentials で access token を取り、
   `api.spotify.com/v1/tracks|albums/<id>` を引く。曲名・アーティスト・アルバム・ジャケット 640px が取れる
 - **鍵が無いとき** … 公式の oEmbed（`open.spotify.com/oembed`、認証不要）に落ちる。
-  曲名とジャケット 300px は取れるが、**アーティスト名は返らない**（利用者が手で入れることになる）
+  曲名とジャケット 300px は取れるが、**アーティスト名は返らない**。画面は曲名で iTunes を引いて補う
+  （2026-09-24。docs/sources.md「Spotify のアーティスト名を iTunes で補う」）
 - spotify.link の短縮 URL と spotify:track:<id> の URI にも対応
 """
 from __future__ import annotations
