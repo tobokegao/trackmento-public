@@ -302,7 +302,7 @@
       <div class="charts">
         <div class="chart">
           <h3>2 時間あたりの要求数</h3>
-          <p class="cap">横は時刻で、1 日の幅はどの日も同じ。段 1 つが点検 1 回ぶん（窓の長さが違う回は 2 時間に直してある）。09-17〜09-19 は点検を回していないので空けてある。</p>
+          <p class="cap">横は時刻で、1 日の幅はどの日も同じ。角 1 つが点検 1 回ぶん（窓の長さが違う回は 2 時間に直してある）。09-17〜09-19 は点検を回していないので空けてある。</p>
           <div id="c-req"></div>
         </div>
         <div class="chart">
@@ -617,7 +617,7 @@
      - 置き場の幅そのままの px で描き、縮めない（縮めると線と字がにじむ）。座標は整数に丸め、角は crispEdges
      - 字は DotGothic16 の本来の大きさ 16px（小さくするとにじむ）。時系列は 1 点ぶんの幅（折れ線 6px・日ごとの棒 52〜56px）を守って横に流し、
        それ以外の棒は収めて重なる字を間引く
-     - 折れ線は階段（斜めの線を使わない）、線は墨、面は 2px の市松、終点は四角
+     - 折れ線は点どうしを斜めにつなぎ（9/24 に階段から戻した。矩形ばかりで硬いと言われた）、線は墨、面は 2px の市松、終点は四角
      - 棒は墨の枠と、窓と同じずらした影。目盛りの線は点線、軸は墨の 2px */
   const FS = 16;                       // 図の字の大きさ
   const LABEL_GAP = 8;                 // x 軸の字どうしの最小のすきま
@@ -701,7 +701,7 @@
     });
   }
 
-  /* 折れ線（面つき・階段）。横軸は時刻で、1 日の幅はどの日も同じ（DAY px）。
+  /* 折れ線（面つき）。横軸は時刻で、1 日の幅はどの日も同じ（DAY px）。
      以前は点検 1 回を等間隔に置いていたので、点検の多い日ほど広く、点検の無い 09-17〜09-20 は詰まって見えた（9/24 に直した）。
      点検どうしが GAP 時間より離れていたら線を切り、記録の無い区間は空けておく。
      rows = [["MM-DD HH:MM", 値], …]、opt.mark は印を付ける時刻（"MM-DD HH:MM"） */
@@ -722,14 +722,14 @@
     yGrid(s, W, L, R, y, max, opt.fmt);
     // 日の境目に短い目盛り
     for (let d = d0; d <= d1; d += 24) s.appendChild(el("rect", { x: x(d) - 1, y: y(0) + 2, width: 2, height: 5, fill: INK }));
-    // 途切れていない区間ごとに、階段の面と線を描く
+    // 途切れていない区間ごとに、面と線を描く（点どうしは斜めにつなぐ。crispEdges なので斜めの線はドットのギザギザになる）
     const fill = dither(s, opt.color);
     let seg = [0];
     const flush = () => {
       if (!seg.length) return;
       const i0 = seg[0], i1 = seg[seg.length - 1];
       const pts = [x(ts[i0]) + "," + y(values[i0])];
-      for (let k = 1; k < seg.length; k++) { const i = seg[k]; pts.push(x(ts[i]) + "," + y(values[i - 1]), x(ts[i]) + "," + y(values[i])); }
+      for (let k = 1; k < seg.length; k++) { const i = seg[k]; pts.push(x(ts[i]) + "," + y(values[i])); }
       s.appendChild(el("polygon", { points: x(ts[i0]) + "," + y(0) + " " + pts.join(" ") + " " + x(ts[i1]) + "," + y(0), fill: fill, stroke: "none" }));
       s.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: INK, "stroke-width": 2, "stroke-linejoin": "miter" }));
     };
