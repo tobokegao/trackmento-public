@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.b00bd1e6.css">
+<link rel="stylesheet" href="app/app.b3fdd435.css">
 </head>
 <body>
 
@@ -238,7 +238,6 @@
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
         <button class="btn" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
         <button class="btn" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
-        <button class="btn" type="button" id="png-save" title="背景を透明にした PNG 画像をこの端末で作って保存する（共有はしない）。文字の色は選んだ背景色に合わせたまま">背景なしで保存</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -346,13 +345,19 @@
 
       <fieldset class="field">
         <legend>背景色</legend>
+        <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットの反対の色」は並んだジャケットから色を取り、
+             並びが変わると取り直す。入る先はカスタムカラーなので、書き出しの描画はそのまま。
+             「背景なし」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
+        <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
+          <label><input type="radio" name="bgMode" value="pick" checked><span>色を選ぶ</span></label>
+          <label><input type="radio" name="bgMode" value="near"><span>ジャケットに近い色</span></label>
+          <label><input type="radio" name="bgMode" value="far"><span>ジャケットの反対の色</span></label>
+          <label><input type="radio" name="bgMode" value="none"><span>背景なし</span></label>
+        </div>
+        <div id="bg-pick">
         <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
         <button class="btn pal-open" type="button" id="palette-btn" aria-haspopup="dialog">配色パレットを選ぶ…</button>
         <div class="custom-color">カスタムカラー <button type="button" id="bg-custom-btn" aria-label="カスタムカラーを設定" aria-expanded="false" aria-controls="bg-custom-panel"></button></div>
-        <!-- ジャケットに多い色を背景色にする（2026-09-25、利用者の案「背景をマスに反応させる」の単色版）。
-             押すたびに次の候補の色になる。入る先はカスタムカラーなので、書き出しの描画には手を入れていない -->
-        <button class="btn" type="button" id="bg-from-covers" title="並んでいるジャケットに多い色を背景色にする。もう一度押すと次の候補の色になる">ジャケットから選ぶ</button>
-        <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
         <div class="hsv" id="bg-custom-panel" hidden>
           <label for="hsv-h">色相 <output id="hsv-h-out">0</output></label>
           <input type="range" id="hsv-h" min="0" max="360" step="1" value="0" style="--track: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
@@ -362,6 +367,9 @@
           <input type="range" id="hsv-v" min="0" max="100" step="1" value="100">
           <div class="hex" id="hsv-hex">#f2efe6</div>
         </div>
+        </div>
+        <button class="btn" type="button" id="bg-next" hidden title="ジャケットから取った色のうち、次の候補にする">ほかの候補</button>
+        <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
       </fieldset>
 
       <!-- 余白は 3 段から選ぶ（2026-09-24。前は px のスライダーで、下限の 3.5% と比率合わせの余りに隠れて動かしても変わらないことが多かった）。
@@ -535,6 +543,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.a8f6e2c6.js"></script>
+<script id="app-js" src="app/app.26cdef9c.js"></script>
 </body>
 </html>

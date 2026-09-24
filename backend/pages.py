@@ -278,10 +278,10 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-25", "グリッドの下に「元に戻す」「やり直す」のボタンを付けました。キーボードが無いスマホでも、30 回まで戻したり、戻したものをやり直したりできます。",
-     "Added “Undo” and “Redo” buttons below the grid. Even on phones without a keyboard, you can go back up to 30 steps and redo what you undid."),
-    ("2026-09-25", "「背景色」に「ジャケットから選ぶ」を付けました。並んだジャケットに多い色を背景色にし、押すたびに次の候補の色になります。グリッドの下の「背景なしで保存」では、背景を透明にした PNG 画像をその端末で作って保存できます（共有はしません）。",
-     "Added “Pick from covers” under “Background color”: it uses a color common in your covers, and each press moves to the next candidate. “Save without background” below the grid makes a PNG with a transparent background on your device (nothing is shared)."),
+    ("2026-09-25", "グリッドの下に小さな「元に戻す」「やり直す」のボタンを付けました。キーボードが無いスマホでも、30 回まで戻したり、戻したものをやり直したりできます。",
+     "Added small “Undo” and “Redo” buttons below the grid. Even on phones without a keyboard, you can go back up to 30 steps and redo what you undid."),
+    ("2026-09-25", "「背景色」で、背景の決め方を「色を選ぶ」「ジャケットに近い色」「ジャケットの反対の色」「背景なし」から選べるようにしました。ジャケットの色は並びを変えると取り直し、「ほかの候補」で別の色にできます。「背景なし」では、共有の画像は白い地になり、「画像を保存」では背景が透明な PNG になります。",
+     "Under “Background color” you can now choose how the background is set: “Choose a color”, “Match the covers”, “Contrast the covers” or “No background”. Cover colors are taken again when the grid changes, and “Another color” switches to a different one. With “No background”, the shared image gets a white background and “Save image” gives you a PNG with a transparent background."),
     ("2026-09-25", "共有する画像で、曲の入っていないマスを灰色で塗らず、背景の色のままにしました。",
      "In shared images, empty cells are no longer filled with gray; they show the background color."),
     ("2026-09-24", "スマホで、グリッドや「トラックを探す」の画面の右に出るスクロールバーに、上下の三角のボタンを付けました。押すと少しずつ送り、押し続けると続けて送ります。「ナイト」など地の暗い配色では、パソコンのものも含めて三角を明るくして見やすくしました。",

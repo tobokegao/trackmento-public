@@ -51,6 +51,10 @@ class GridOptions(BaseModel):
     trimNames: bool = True
     bg: str = "paper"
     bgCustom: Optional[str] = None
+    # 背景の決め方（2026-09-25）。"pick"（色を選ぶ）/ "near"・"far"（ジャケットに近い色・反対の色）/ "none"（背景なし）。
+    # **描くのは bg / bgCustom だけ**（ジャケットの色も背景なしの白い地もブラウザがカスタムカラーに入れて送る）。
+    # これは画面で決め方を覚えておくためのもので、サーバーの描画は見ない
+    bgMode: str = "pick"
     margin: int = 16
     # 外側の余白の下限の段。"normal"（内容の短い辺の 3.5%）/ "wide"（7%）/ "xwide"（12%）。render.py の PAD_FRAC。
     # **既定は normal**（今ある並びと共有画像の見た目を変えないため。2026-09-24 に「余白」のスライダーから替えた）
@@ -61,6 +65,11 @@ class GridOptions(BaseModel):
     @classmethod
     def _bg(cls, v: str) -> str:
         return v if v in BG_KEYS else "paper"
+
+    @field_validator("bgMode")
+    @classmethod
+    def _bg_mode(cls, v: str) -> str:
+        return v if v in ("pick", "near", "far", "none") else "pick"
 
     @field_validator("cellRatio")
     @classmethod
