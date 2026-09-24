@@ -77,7 +77,7 @@
 - **R2 のカスタムドメイン** `img.trackmento.com`。もとは `*.r2.dev` を使っていたが、あちらは
   レート制限があり 256 マスの書き出しで詰まった。ドメインを当ててからは制限が無く、実測で大幅に速くなった。
   **コードの変更は要らず、`R2_PUBLIC_URL` を差し替えるだけ**（CSP も CORS もそこから組む）
-- **GitHub Actions**: `render-check.yml`（2 時間おきの点検、異常なら Issue）、`r2-prune.yml`（共有は 30 日、`imgcache/` と `searchcache/` は 7 日で掃除）、
+- **GitHub Actions**: `render-check.yml`（2 時間おきの点検、異常なら Issue）、`r2-prune.yml`（共有は 30 日、`imgcache/` は 14 日・`searchcache/` は 15 日で掃除）、
   `audit.yml`（依存の脆弱性と起動テスト）、`pages.yml`。`keepalive.yml` は Standard にしてから止めてある
 
 - R2（`backend/storage.py`）: 共有画像・並び JSON・アップロード画像・分割フォントの置き場所。バケット `trackmento-shares`、公開 URL は `R2_PUBLIC_URL`。**転送量が無料なので、Render の課金対象から逃がしたいものはここに置く**

@@ -10,11 +10,11 @@
     {"id": "bilibili-revive", "t": "bilibili の書面許可を頼むか決める", "d": "9/24 に otoDB（roxy）→ VocaDB（byPv）経由で動画の URL を戻した（bilibili には問い合わせない。登録の無い動画・収藏夹・b23.tv は不可）。残りは openplatform-feedback@bilibili.com に書面許可を頼むかどうか（個人・非商用なので望みは薄い）。詳しくは docs/services-terms.md", "when": "未決", "reviewed": "2026-09-24"},
     { "id": "ai-words-ja", "t": "告知文の点検に ai-words-ja を足すか決める", "d": "9/23 に GitHub の日本語添削ツールを比べた。いま試している natural-japanese（lint.py。形態素解析でリズムの単調さ・翻訳調を見る。~/tools に置いた）より明らかに良いものは無かった。p1ass/textlint-rule-preset-ai-words-ja は AI が多用する語（「醸成」など 50 語超）を辞書と kuromojin で活用形ごと拾うもので、natural-japanese と役割が重ならない。natural-japanese を次の告知文で数回試し、効果があれば一緒に入れる（Node は promo 用に入っている。入れる前にソースを grep して外へ通信しないか確かめる）。効果が無ければ両方やめる", "when": "natural-japanese の試行の後", "reviewed": "2026-09-23" },
     { "id": "tracker-retro", "t": "譜割りエディタの縦の表示を BassoonTracker 風にする", "d": "9/23 に見本を作って利用者が「良い感じ」と決めた（見本 https://claude.ai/artifact/GZxHcm2XBRGf8YqykpjvYG 。元の HTML は Artifact の read で取り出せる）。直すのはトラッカー表示（縦の表示）だけ。①今の行を縦の真ん中のマスタードの帯に固定し、中身のほうが流れる（BassoonTracker・ProTracker と同じ）②上の帯は再生・頭へ・ループと 7 セグの数字（小節.拍.Tick・時刻・フレーム・Snap。黒い地にマスタード、後ろに薄い「8」）③レーンの見出しはプラチナの面取りで、押すと選ぶ ④升の書き方: 塊の頭 ■＋名前、続き │、合図 ●＋名前、曲線は値＋小さな棒、空きは ---。色はリソだけ。BassoonTracker（MIT）のコードは借りていない（あちらは Canvas）。エディタの Artifact（KNEULMAUpPGXSYdrCmWC1Q）は db と user を使っているので、出し直すときは read してから、renderTracker / trackerNow / fitTracker まわりを差し替える。Groove・選択・編集の操作は今のまま残す。再生中の流れ方は「行ごと／4 刻み／なめらか」を上の帯のボタンで切り替え、既定は 4 刻み（9/23、行ごとは「ぎこちない」、なめらかは「滑らかすぎる」と利用者）。requestAnimationFrame で位置を出す（setInterval で 1 行ずつ跳ばすとぎこちない）。今の行（帯の色・7 セグ）は元の時刻ではなく**画面に出した位置**から決める（元の時刻で決めると「行ごと」で帯が半行先に進んで行と合わない。9/23 に利用者が見つけた）。フォントはボードと同じく data: で入れる。見本では広い画面を見ていない", "when": "制限のリセット後", "reviewed": "2026-09-23" },
-    { "id": "prune30", "t": "10-09 に共有の 30 日掃除が初めて効く", "d": "09-09 の公開から一度も消えていない。その日 R2 の使用量が初めて減る（はず）。減らなければ r2-prune.yml が効いていない。09-23 の imgcache（14 日）も同じ目で見る", "when": "2026-10-09", "reviewed": "2026-09-22" }
+    { "id": "prune30", "t": "10-09 に共有の 30 日掃除が初めて効く", "d": "09-09 の公開から一度も消えていない。その日 R2 の使用量が初めて減る（はず）。減らなければ r2-prune.yml が効いていない。imgcache（14 日）は 09-13 から置き始めたので初めて効くのは 09-27（09-23・09-24 の掃除では 0 件で正しい）、searchcache（15 日）は 10-04。同じ目で見る", "when": "2026-10-09", "reviewed": "2026-09-24" }
   ],
   "services": {
     "_about": "外部サービスの表の「状態」。[色, 文字]。色は ok / wait / stop / fix / 空",
-    "reviewed": "2026-09-22",
+    "reviewed": "2026-09-24",
     "itunes": ["ok", "余裕"],
     "musicbrainz": ["ok", "守れている"],
     "coverart": ["ok", "守れている"],
