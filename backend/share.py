@@ -372,7 +372,7 @@ header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; bo
 /* ワードマークは本体（frontend/index.html の .wordmark .mark）と同じ規則: Silkscreen 25px、行送り 16px（大文字のインク高）、
    インクの 3px 下にリソ 6 色の太線（5px）、線の頭に離して 5px 角の四角。色も本体の oklch トークンと同値。
    押すと編集画面（トップ）へ戻る。リンクだが色と下線は付けない（ロゴの見た目を変えない） */
-.mark {{ font-family: "TrackmentoMark", "Silkscreen", "DotGothic16", monospace; font-weight: 700; font-size: 1.5625rem; letter-spacing: .04em; white-space: nowrap;
+.mark {{ font-family: "TrackmentoMark", "Silkscreen", "JF Dot MPlus12", monospace; font-weight: 700; font-size: 1.5625rem; letter-spacing: .04em; white-space: nowrap;
   color: inherit; text-decoration: none;
   display: inline-block; line-height: 16px; margin-top: -2px; padding-bottom: 10px;
   margin-left: -10px; padding-left: 10px; margin-right: -3px; padding-right: 3px;

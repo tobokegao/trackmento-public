@@ -24,7 +24,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 /* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
-/* IBM Plex Sans JP と DotGothic16 は unicode-range で分割した断片（fonts/split/、scripts/build_fonts.py が生成）。
+/* IBM Plex Sans JP と JF ドット M+ 12 は unicode-range で分割した断片（fonts/split/、scripts/build_fonts.py が生成）。
    画面と共有画像に出る文字を含む断片だけがダウンロードされる（丸ごと配ると 1 訪問 1.6MB で転送量の主因だった）。
    @font-face は <head> の <!--__FONT_LINK__--> にサーバーが <link> で入れる */
 /* **ここはサーバーが URL を差し替える @font-face だけを置く**（2026-09-20）。本体の CSS は
@@ -38,7 +38,7 @@
 <style id="app-css">
 /* Hallmark · macrostructure: Workbench (app surface, not a tour) · retro-GUI panes: toolbar / results / grid / options
  * theme: custom · vibe: "riso flat, retro GUI, pixel, square corners, cool-leaning" · paper: oklch(97% 0.003 95) · accent: oklch(60% 0.14 235)
- * display: DotGothic16 · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
+ * display: JF Dot MPlus12 (12px) · body: IBM Plex Sans JP · outlier: Silkscreen (wordmark + cell numbers + count badges) · axes: light / risograph-bold / cool
  * studied: no · context: user-provided (audience: self, J-POP · use: search → place → PNG · tone: utilitarian) · v1.1.0
  * Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4
  */
