@@ -2089,8 +2089,10 @@ def render(doc: GridDoc) -> Image.Image:
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
         x, y = sc(L.ox + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + o.gap))
-        d.rectangle((x, y, x + cw - 1, y + ch - 1), fill=cell_bg)
+        # **空きマスは塗らない**（背景の色が見える。2026-09-25、利用者の指摘。灰色の四角が並ぶと「読み込めなかった」ように見える）。
+        # 曲の入ったマスだけ下地を塗る（ジャケットが取れなかったときに、そこに曲があると分かるように）。frontend の renderShareCanvas と同じ
         if t:
+            d.rectangle((x, y, x + cw - 1, y + ch - 1), fill=cell_bg)
             cover = covers[i]
             if cover:
                 im.paste(cover, (x, y))

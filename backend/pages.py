@@ -23,7 +23,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "プライバシーポリシー", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "Privacy policy", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年9月24日", "en": "Last updated: September 24, 2026"}
+UPDATED = {"ja": "最終更新: 2026年9月25日", "en": "Last updated: September 25, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
 
@@ -278,6 +278,12 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "グリッドの下に「元に戻す」「やり直す」のボタンを付けました。キーボードが無いスマホでも、30 回まで戻したり、戻したものをやり直したりできます。",
+     "Added “Undo” and “Redo” buttons below the grid. Even on phones without a keyboard, you can go back up to 30 steps and redo what you undid."),
+    ("2026-09-25", "「背景色」に「ジャケットから選ぶ」を付けました。並んだジャケットに多い色を背景色にし、押すたびに次の候補の色になります。グリッドの下の「背景なしで保存」では、背景を透明にした PNG 画像をその端末で作って保存できます（共有はしません）。",
+     "Added “Pick from covers” under “Background color”: it uses a color common in your covers, and each press moves to the next candidate. “Save without background” below the grid makes a PNG with a transparent background on your device (nothing is shared)."),
+    ("2026-09-25", "共有する画像で、曲の入っていないマスを灰色で塗らず、背景の色のままにしました。",
+     "In shared images, empty cells are no longer filled with gray; they show the background color."),
     ("2026-09-24", "スマホで、グリッドや「トラックを探す」の画面の右に出るスクロールバーに、上下の三角のボタンを付けました。押すと少しずつ送り、押し続けると続けて送ります。「ナイト」など地の暗い配色では、パソコンのものも含めて三角を明るくして見やすくしました。",
      "On phones, the scroll bars beside the grid and in the “Find a track” sheet now have up and down arrow buttons. Tap to scroll a little; hold to keep scrolling. On dark palettes such as “Night”, the arrows (on computers too) are now light so they are easier to see."),
     ("2026-09-24", "パソコンの画面で、ボタンや見出しなど操作部品の字を一回り大きなドット字にしました。スマホの表示は変わりません。",

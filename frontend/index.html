@@ -992,6 +992,8 @@ body.sheet-open { overflow: hidden; }
 /* グリッド列が狭いとき（スマホの PC 表示など）は 2 列だと文字の余白が足りないので、ボタンを 1 列に縦積み */
 /* 幅が 20rem（320px）を切る狭い画面だけ 1 列。412px の端末（欄の幅 348px）は 2×2 のまま */
 @container (max-width: 20rem) { .grid-actions > .btn { grid-column: 1 / -1; } }
+/* 「元に戻す」「やり直す」はいつも 2 つ横に並べる（対のボタンなので、縦に積むと別々の機能に見える。2026-09-25） */
+.grid-actions > .history { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 /* スマホは「曲を探す・共有／保存・読み込み」の 2×2。PC は「曲を探す」が無いので共有だけ 1 行いっぱい */
 @media (min-width: 60rem) { #share-btn { grid-column: 1 / -1; } }
 /* **取り消せない操作は、いちばん押すものから遠く・最後・小さく**（OS 9 の Special メニューの末尾に Empty Trash… があるのと同じ）。
@@ -1483,12 +1485,19 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
+        <!-- 取り消しのボタン（2026-09-25、利用者の依頼）。メッセージの「元に戻す」は次のメッセージで消えるので、
+             キーボードの無いスマホでは 2 手以上戻れず、やり直しもできなかった。戻せないときは押せない -->
+        <div class="history">
+          <button class="btn" type="button" id="undo-btn" disabled title="直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）">元に戻す</button>
+          <button class="btn" type="button" id="redo-btn" disabled title="取り消した操作をやり直す（Ctrl+Y でも）">やり直す</button>
+        </div>
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
         <button class="btn" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
         <button class="btn" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+        <button class="btn" type="button" id="png-save" title="背景を透明にした PNG 画像をこの端末で作って保存する（共有はしない）。文字の色は選んだ背景色に合わせたまま">背景なしで保存</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -1599,6 +1608,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
         <button class="btn pal-open" type="button" id="palette-btn" aria-haspopup="dialog">配色パレットを選ぶ…</button>
         <div class="custom-color">カスタムカラー <button type="button" id="bg-custom-btn" aria-label="カスタムカラーを設定" aria-expanded="false" aria-controls="bg-custom-panel"></button></div>
+        <!-- ジャケットに多い色を背景色にする（2026-09-25、利用者の案「背景をマスに反応させる」の単色版）。
+             押すたびに次の候補の色になる。入る先はカスタムカラーなので、書き出しの描画には手を入れていない -->
+        <button class="btn" type="button" id="bg-from-covers" title="並んでいるジャケットに多い色を背景色にする。もう一度押すと次の候補の色になる">ジャケットから選ぶ</button>
+        <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
         <div class="hsv" id="bg-custom-panel" hidden>
           <label for="hsv-h">色相 <output id="hsv-h-out">0</output></label>
           <input type="range" id="hsv-h" min="0" max="360" step="1" value="0" style="--track: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
@@ -1975,6 +1988,19 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "元に戻せる操作はありません。": "Nothing to undo.",
         "やり直せる操作はありません。": "Nothing to redo.",
         "やり直しました。": "Redone.",
+        "やり直す": "Redo",
+        "直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）": "Undo the last change. Up to 30 steps (Ctrl+Z also works)",
+        "取り消した操作をやり直す（Ctrl+Y でも）": "Redo what you undid (Ctrl+Y also works)",
+        "背景なしで保存": "Save without background",
+        "背景を透明にした PNG 画像をこの端末で作って保存する（共有はしない）。文字の色は選んだ背景色に合わせたまま": "Make a PNG with a transparent background on this device and save it (nothing is shared). Text keeps the colors that suit your chosen background",
+        "背景を透明にした画像を保存しました。": "Saved the image with a transparent background.",
+        "この端末では背景なしの画像を作れませんでした。": "This device couldn't make the image without a background.",
+        "ジャケットから選ぶ": "Pick from covers",
+        "並んでいるジャケットに多い色を背景色にする。もう一度押すと次の候補の色になる": "Use a color common in your covers as the background. Press again for the next candidate",
+        "ジャケットの色を調べています…": "Checking the cover colors…",
+        "ジャケットの色から背景色を選びました。": "Picked a background color from the covers.",
+        "ジャケットの色から背景色を選びました（{}/{}）。もう一度押すと次の候補になります。": "Picked a background color from the covers ({0}/{1}). Press again for the next one.",
+        "ジャケットの色が取れませんでした。": "Couldn't read the cover colors.",
         "トラックを探す": "Find a track",
         "並びを保存": "Save layout",
         "並びを読み込み…": "Load layout…",
@@ -3580,6 +3606,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     undoStack.push(snapGrid());
     if (undoStack.length > HISTORY_MAX) undoStack.shift();
     redoStack = [];
+    syncHistory();
+  }
+  /* 「元に戻す」「やり直す」のボタンを、戻せる・やり直せるときだけ押せるようにする */
+  function syncHistory() {
+    const u = document.getElementById("undo-btn"), r = document.getElementById("redo-btn");
+    if (u) u.disabled = !undoStack.length;
+    if (r) r.disabled = !redoStack.length;
   }
   function applySnap(s) {
     state.cols = s.cols; state.rows = s.rows; state.cells = s.cells; state.stash = s.stash;
@@ -3591,16 +3624,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function undo(msgEl = els.gridMsg) {
     const s = undoStack.pop();
     if (!s) { say(msgEl, tr("元に戻せる操作はありません。")); return; }
-    redoStack.push(snapGrid()); applySnap(s);
+    redoStack.push(snapGrid()); applySnap(s); syncHistory();
     say(msgEl, tr("戻しました。"));
   }
   function redo() {
     const s = redoStack.pop();
     if (!s) { say(els.gridMsg, tr("やり直せる操作はありません。")); return; }
-    undoStack.push(snapGrid()); applySnap(s);
+    undoStack.push(snapGrid()); applySnap(s); syncHistory();
     say(els.gridMsg, tr("やり直しました。"));
   }
   /* メッセージの後ろに「元に戻す」を付ける。次のメッセージで消える（キーボードなら、それより前にも戻れる） */
+  $("#undo-btn").addEventListener("click", () => undo());
+  $("#redo-btn").addEventListener("click", () => redo());
   function undoLink(msgEl = els.gridMsg) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "undo"; b.textContent = tr("元に戻す");
@@ -4117,6 +4152,31 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       say(els.gridMsg, tr`${idx.length} トラックを色の順に並べ替えました。` + (fail ? " " + tr`（${fail} トラックは絵が取れなかったので最後に置きました）` : "")); undoLink();
     } finally { colorRun = false; setBtnState(btn, null); }
   });
+  /* ---- 背景なしで保存（2026-09-25、利用者の依頼）。共有と同じ描き方（renderShareCanvas）で、背景だけ塗らずに PNG にする。
+     端末の中で作って保存するだけで、サーバーには送らない（共有の画像は軽さのため JPEG で、透明にできない）。
+     Canvas の使えない端末ではサーバーで描けない（サーバーの描画は JPEG 用）ので、作れないと知らせる ---- */
+  $("#png-save").addEventListener("click", async () => {
+    if (!state.cells.some(Boolean)) { say(els.gridMsg, tr("トラックを置いてから押してください。"), "error"); return; }
+    const btn = $("#png-save");
+    setBtnState(btn, "loading");
+    try {
+      if (!("createImageBitmap" in window) || !document.fonts) throw new Error("unsupported");
+      await loadShareFonts();
+      CHAR_W.clear(); clearSharePlan();   // 字幅の控えは Web フォントが効いてから取り直す（shareViaBrowser と同じ）
+      say(els.gridMsg, tr("画像を作成中…"));
+      const { canvas } = await renderShareCanvas(sharePlan().side, (i, n) => say(els.gridMsg, tr`画像を作成中… ${i}/${n}`), { transparent: true });
+      const blob = await canvasToBlob(canvas, "image/png");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + ".png";
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+      say(els.gridMsg, tr("背景を透明にした画像を保存しました。"));
+    } catch (err) {
+      console.warn("png-save", err);
+      say(els.gridMsg, tr("この端末では背景なしの画像を作れませんでした。"), "error");
+    } finally { setBtnState(btn, null); }
+  });
   els.jsonImport.addEventListener("click", () => els.jsonFile.click());
   els.jsonFile.addEventListener("change", async () => {
     const f = els.jsonFile.files && els.jsonFile.files[0];
@@ -4311,6 +4371,58 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     else { state.bg = value; }
     syncCustomColor(); updateSpec();
   }
+  /* ---- ジャケットから選ぶ（2026-09-25）。並んだジャケットの鮮やかな画素を色相で 12 に分け、多い組から順に
+     その組の平均の色を候補にする（色で並べ替えと同じ分け方）。押すたびに次の候補へ。鮮やかな画素がほとんど無い
+     並び（白黒のジャケットばかり）は、全体の平均の明るさの灰色を 1 つだけ出す。絵は小さい版（64px）を取る ---- */
+  let coverPal = { key: "", colors: [], i: 0 };
+  async function coverColors(cells) {
+    const list = cells.slice(0, 64);   // 多すぎると待ちが長い。64 枚あれば色の傾向は出る
+    await preloadR2Map(list.map((t) => ({ url: t.image || t.thumb, px: 64 })));
+    const bins = Array.from({ length: 12 }, () => ({ n: 0, r: 0, g: 0, b: 0 }));
+    let vivid = 0, all = 0, sum = 0;
+    for (let p = 0; p < list.length; p += 6) {
+      await Promise.all(list.slice(p, p + 6).map(async (t) => {
+        const bmp = await loadCover(t, 64).catch(() => null);
+        if (!bmp) return;
+        const S = 24, cv = document.createElement("canvas"); cv.width = cv.height = S;
+        const cx = cv.getContext("2d", { willReadFrequently: true });
+        cx.drawImage(bmp, 0, 0, S, S);
+        bmp.close && bmp.close();
+        const px = cx.getImageData(0, 0, S, S).data;
+        for (let i = 0; i < px.length; i += 4) {
+          const r = px[i], g = px[i + 1], b = px[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+          all++; sum += (mx + mn) / 2;
+          if (mx < 51 || d / mx < 0.25) continue;   // 暗すぎる・くすんだ画素は色に数えない（色で並べ替えと同じ）
+          let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+          h = (h * 60 + 360) % 360;
+          const bin = bins[Math.floor(h / 30) % 12];
+          bin.n++; bin.r += r; bin.g += g; bin.b += b; vivid++;
+        }
+      }));
+    }
+    if (!all) return [];
+    const hex = (r, g, b) => "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+    if (vivid < all * 0.1) { const v = sum / all; return [hex(v, v, v)]; }
+    return bins.filter((c) => c.n >= vivid * 0.08).sort((a, b) => b.n - a.n).slice(0, 4).map((c) => hex(c.r / c.n, c.g / c.n, c.b / c.n));
+  }
+  $("#bg-from-covers").addEventListener("click", async () => {
+    const msg = $("#bg-msg"), btn = $("#bg-from-covers");
+    const show = (text, tone) => { msg.hidden = false; say(msg, text, tone); };
+    const cells = state.cells.filter(Boolean);
+    if (!cells.length) { show(tr("トラックを置いてから押してください。"), "error"); return; }
+    const key = cells.map((t) => t.image || t.thumb).join("\n");
+    if (key !== coverPal.key) {
+      setBtnState(btn, "loading"); show(tr("ジャケットの色を調べています…"));
+      try { coverPal = { key, colors: await coverColors(cells), i: 0 }; }
+      finally { setBtnState(btn, null); }
+    }
+    const { colors } = coverPal;
+    if (!colors.length) { show(tr("ジャケットの色が取れませんでした。"), "error"); return; }
+    const n = coverPal.i % colors.length;
+    coverPal.i++;
+    pickBg(colors[n]); renderSwatches();
+    show(colors.length > 1 ? tr`ジャケットの色から背景色を選びました（${n + 1}/${colors.length}）。もう一度押すと次の候補になります。` : tr("ジャケットの色から背景色を選びました。"));
+  });
   const bgIsChosen = (value) => (value.startsWith("#") ? state.bg === "custom" && (state.bgCustom || "").toLowerCase() === value.toLowerCase() : state.bg === value);
   function renderSwatches() {
     els.swatches.innerHTML = "";
@@ -6449,7 +6561,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     pushNow(d);
   }
   function resetForLayout() {
-    undoStack = []; redoStack = []; lastPushed = null;
+    undoStack = []; redoStack = []; lastPushed = null; syncHistory();
     els.output.hidden = true;
     GRID_NAME = serverGridName();
   }
@@ -6783,7 +6895,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (fit === "blur" && Math.abs(bmp.width / bmp.height - cw / ch) > 0.01) coverBlurPad(ctx, bmp, x, y, cw, ch);
     else drawCover(ctx, bmp, x, y, cw, ch);
   }
-  async function renderShareCanvas(maxSide, onProgress) {
+  async function renderShareCanvas(maxSide, onProgress, { transparent = false } = {}) {
     // **描く直前に字幅の控えを捨てる**。読み込み直後の layout() は Web フォントが効く前に測るので、
     // 代替フォントの幅が残っているとサーバー描画と折り返しがずれる
     CHAR_W.clear();
@@ -6793,10 +6905,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const light = isLightRgb(bg);
     const ink = TOKENS_RGB[light ? "ink" : "paper"], badgeBg = TOKENS_RGB[light ? "paper" : "ink"], muted = mixRgb(ink, bg, 0.30), cellBg = TOKENS_RGB[light ? "paper-3" : "ink-2"];
     const canvas = document.createElement("canvas"); canvas.width = sc(L.W); canvas.height = sc(L.H);
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = canvas.getContext("2d", { alpha: transparent });
     if (!ctx) throw new Error("canvas unavailable");
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.textAlign = "left";
-    ctx.fillStyle = cssRgb(bg); ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 「背景なしで保存」は背景だけ塗らない（文字の色は選んだ背景色に合わせたまま。明るい地なら黒い字）
+    if (!transparent) { ctx.fillStyle = cssRgb(bg); ctx.fillRect(0, 0, canvas.width, canvas.height); }
     // タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
     let y0 = L.oy;
     const titleFont = fontBold(Math.max(8, sc(L.titleSize)));
@@ -6837,7 +6950,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     for (let i = 0; i < n; i++) {
       const t = viewCells()[i], c = i % state.cols, r = Math.floor(i / state.cols);
       const x = sc(L.ox + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + state.gap));
-      ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch);
+      // **空きマスは塗らない**（背景の色が見える。backend/render.py と同じ。2026-09-25）
+      if (t) { ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch); }
       const drawOverlay = () => {
         // 帯: 上端 0 → 下端 OVERLAY_ALPHA の直線（backend は 1 行ずつの濃さを同じ式で作る）
         const top = y + ch - ovSh, gr = ctx.createLinearGradient(0, top, 0, top + ovSh);

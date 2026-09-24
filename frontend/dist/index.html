@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.b322f203.css">
+<link rel="stylesheet" href="app/app.b00bd1e6.css">
 </head>
 <body>
 
@@ -226,12 +226,19 @@
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
+        <!-- 取り消しのボタン（2026-09-25、利用者の依頼）。メッセージの「元に戻す」は次のメッセージで消えるので、
+             キーボードの無いスマホでは 2 手以上戻れず、やり直しもできなかった。戻せないときは押せない -->
+        <div class="history">
+          <button class="btn" type="button" id="undo-btn" disabled title="直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）">元に戻す</button>
+          <button class="btn" type="button" id="redo-btn" disabled title="取り消した操作をやり直す（Ctrl+Y でも）">やり直す</button>
+        </div>
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
         <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
         <button class="btn" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
         <button class="btn" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+        <button class="btn" type="button" id="png-save" title="背景を透明にした PNG 画像をこの端末で作って保存する（共有はしない）。文字の色は選んだ背景色に合わせたまま">背景なしで保存</button>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -342,6 +349,10 @@
         <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
         <button class="btn pal-open" type="button" id="palette-btn" aria-haspopup="dialog">配色パレットを選ぶ…</button>
         <div class="custom-color">カスタムカラー <button type="button" id="bg-custom-btn" aria-label="カスタムカラーを設定" aria-expanded="false" aria-controls="bg-custom-panel"></button></div>
+        <!-- ジャケットに多い色を背景色にする（2026-09-25、利用者の案「背景をマスに反応させる」の単色版）。
+             押すたびに次の候補の色になる。入る先はカスタムカラーなので、書き出しの描画には手を入れていない -->
+        <button class="btn" type="button" id="bg-from-covers" title="並んでいるジャケットに多い色を背景色にする。もう一度押すと次の候補の色になる">ジャケットから選ぶ</button>
+        <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
         <div class="hsv" id="bg-custom-panel" hidden>
           <label for="hsv-h">色相 <output id="hsv-h-out">0</output></label>
           <input type="range" id="hsv-h" min="0" max="360" step="1" value="0" style="--track: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
@@ -524,6 +535,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.b1c5542b.js"></script>
+<script id="app-js" src="app/app.a8f6e2c6.js"></script>
 </body>
 </html>
