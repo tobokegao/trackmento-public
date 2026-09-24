@@ -5,9 +5,14 @@
 // - カメラ … 印の四角に寄る（16:9 に広げ、2 倍まで。録画の外は映さない）。移るときは加速・減速する
 // - カーソル … 印の点から点へなめらかに運ぶ（Mac OS 9 風の白黒の矢印。promo/cursor.js と同じ形）
 // - 押した合図 … 押した所に輪が 1 回広がる
+// - 押したキー … 画面の下に OS 9 風のキーの絵で出す（キーボードの操作は画面に跡が残らず、ひとりでに動いたように見えるため。
+//   2026-09-25、利用者の指摘「元に戻すがクリックされていないように見える」）
 // - 終わり … 最後の絵に最初の絵を溶かし込んで、繰り返し再生のつなぎ目を消す
 import React from "react";
 import { AbsoluteFill, CalculateMetadataFunction, Easing, Freeze, OffthreadVideo, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { loadFont } from "@remotion/fonts";
+
+loadFont({ family: "XKey", url: staticFile("fonts/DotGothic16-Regular.ttf"), weight: "400" });
 
 type Rect = { x: number; y: number; w: number; h: number };
 type Ev =
@@ -55,7 +60,38 @@ const Arrow: React.FC<{ size: number; tilt: boolean }> = ({ size, tilt }) => (
   </svg>
 );
 
-/** 1 コマぶんの絵（録画＋カメラ＋カーソル＋輪）。Freeze の中で使えば、そのコマで止まる */
+/** Playwright のキーの名前 → キーの絵に書く字（Mac の人もいるので Ctrl と ⌘ は併記しない。投稿の本文で補う） */
+const KEY_LABEL: Record<string, string> = { Control: "Ctrl", Alt: "Alt", Shift: "Shift", Meta: "⌘", ArrowRight: "→", ArrowLeft: "←", ArrowUp: "↑", ArrowDown: "↓", Enter: "Return", Escape: "Esc", Tab: "Tab" };
+const KEY_SHOW = 20;   // キーの絵を出しておくコマ数
+
+/** 押したキーの絵（画面の下の真ん中）。次のキーが来たら入れ替わる。押した直後の数コマは沈んで見せる */
+const Keys: React.FC<{ events: Ev[]; f: number; unit: number }> = ({ events, f, unit }) => {
+  const e = [...events].reverse().find((x): x is Extract<Ev, { type: "key" }> => x.type === "key" && x.f <= f);
+  if (!e || f >= e.f + KEY_SHOW) return null;
+  const age = f - e.f, down = age < 4;
+  const opacity = interpolate(age, [KEY_SHOW - 5, KEY_SHOW], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const u = unit, sh = down ? 1 : 4;
+  return (
+    // **白い台に載せる**（画面の上にじかに置くと、後ろのボタンの字と「+」が重なって読めない）
+    <div style={{ position: "absolute", left: 0, right: 0, bottom: 32 * u, display: "flex", justifyContent: "center", opacity }}>
+      <div style={{ display: "flex", gap: 12 * u, alignItems: "center", background: "#fff", border: `${2 * u}px solid #111`,
+                    boxShadow: `${5 * u}px ${5 * u}px 0 #111`, padding: `${12 * u}px ${16 * u}px` }}>
+        {e.key.split("+").map((k, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span style={{ fontFamily: "XKey", fontSize: 40 * u, color: "#111" }}>+</span>}
+            <span style={{ fontFamily: "XKey", fontSize: 40 * u, lineHeight: 1, color: "#111", background: "#e4e4e4", border: `${2 * u}px solid #111`,
+                           padding: `${10 * u}px ${18 * u}px`, minWidth: 72 * u, textAlign: "center",
+                           boxShadow: `${sh * u}px ${sh * u}px 0 #111`, transform: `translate(${(4 - sh) * u}px, ${(4 - sh) * u}px)` }}>
+              {KEY_LABEL[k] ?? k.toUpperCase()}
+            </span>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** 1 コマぶんの絵（録画＋カメラ＋カーソル＋輪＋キー）。Freeze の中で使えば、そのコマで止まる */
 const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
   const f = useCurrentFrame();
   const { width } = useVideoConfig();
@@ -89,6 +125,7 @@ const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
                                      border: `${3 * Math.max(1, s * 0.7)}px solid #e5462c`, opacity: 1 - age, boxSizing: "border-box" }} />;
       })}
       {cp && (() => { const p = toScreen(cp.x, cp.y); return <div style={{ position: "absolute", left: p.x, top: p.y }}><Arrow size={size} tilt={pressing} /></div>; })()}
+      <Keys events={events} f={f} unit={width / 1280} />
     </AbsoluteFill>
   );
 };
