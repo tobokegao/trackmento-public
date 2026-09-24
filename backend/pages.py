@@ -278,8 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-24", "スマホで、グリッドや「トラックを探す」の画面の右に出るスクロールバーに、上下の三角のボタンを付けました。押すと少しずつ送り、押し続けると続けて送ります。",
-     "On phones, the scroll bars beside the grid and in the “Find a track” sheet now have up and down arrow buttons. Tap to scroll a little; hold to keep scrolling."),
+    ("2026-09-24", "スマホで、グリッドや「トラックを探す」の画面の右に出るスクロールバーに、上下の三角のボタンを付けました。押すと少しずつ送り、押し続けると続けて送ります。「ナイト」など地の暗い配色では、パソコンのものも含めて三角を明るくして見やすくしました。",
+     "On phones, the scroll bars beside the grid and in the “Find a track” sheet now have up and down arrow buttons. Tap to scroll a little; hold to keep scrolling. On dark palettes such as “Night”, the arrows (on computers too) are now light so they are easier to see."),
     ("2026-09-24", "パソコンの画面で、ボタンや見出しなど操作部品の字を一回り大きなドット字にしました。スマホの表示は変わりません。",
      "On computers, buttons, headings and other controls now use a slightly larger pixel font. Nothing changes on phones."),
     ("2026-09-24", "パソコンの画面で、「候補」の窓が右の設定の列に合わせて下まで伸びていたのを、グリッドの下端でそろえるようにしました。",

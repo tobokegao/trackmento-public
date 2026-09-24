@@ -76,6 +76,11 @@
   --sb-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M0 0h5v1H0zM0 4h5v1H0zM0 0h1v5H0zM4 0h1v5H4z'/%3E%3Cpath fill='oklch(78%25 0.012 250)' d='M1 3h3v1H1zM3 1h1v3H3z'/%3E%3Cpath fill='%23fff' d='M1 1h3v1H1zM1 1h1v3H1z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M3 1h1v1H3zM1 3h1v1H1z'/%3E%3C/svg%3E");
   --sb-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16' viewBox='0 0 9 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM0 6h2v2H0zM0 12h2v2H0z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M2 0h5v2H2zM2 6h5v2H2zM2 12h5v2H2z'/%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M2 2h7v2H2zM2 8h7v2H2zM2 14h7v2H2z'/%3E%3C/svg%3E");
   --sb-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM6 0h2v2H6zM12 0h2v2h-2z'/%3E%3Cpath fill='oklch(96%25 0.008 250)' d='M0 2h2v5H0zM6 2h2v5H6zM12 2h2v5h-2z'/%3E%3Cpath fill='oklch(66%25 0.012 250)' d='M2 2h2v7H2zM8 2h2v7H8zM14 2h2v7h-2z'/%3E%3C/svg%3E");
+  /* スクロールバーの矢印（上・下・左・右）。**塗りは --color-ink の写し**（暗い地の組も同じ行を直す） */
+  --sb-arrow-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 1.5 8 7H1z' fill='%23232a33'/%3E%3C/svg%3E");
+  --sb-arrow-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 7.5 1 2h7z' fill='%23232a33'/%3E%3C/svg%3E");
+  --sb-arrow-left: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1.5 4.5 7 1v7z' fill='%23232a33'/%3E%3C/svg%3E");
+  --sb-arrow-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M7.5 4.5 2 8V1z' fill='%23232a33'/%3E%3C/svg%3E");
   /* ラジオボタンのドット絵だけで使う灰色（Mac OS 8 の図の灰色の段に合わせた。2026-09-22） */
   --color-radio-mid:  oklch(63% 0.008 250);
   --color-radio-deep: oklch(57% 0.008 250);
@@ -205,6 +210,11 @@ img { max-width: 100%; display: block; }
   --sb-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h5v1H0zM0 4h5v1H0zM0 0h1v5H0zM4 0h1v5H4z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 3h3v1H1zM3 1h1v3H3z'/%3E%3Cpath fill='%23fff' d='M1 1h3v1H1zM1 1h1v3H1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M3 1h1v1H3zM1 3h1v1H1z'/%3E%3C/svg%3E");
   --sb-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16' viewBox='0 0 9 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM0 6h2v2H0zM0 12h2v2H0z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M2 0h5v2H2zM2 6h5v2H2zM2 12h5v2H2z'/%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M2 2h7v2H2zM2 8h7v2H2zM2 14h7v2H2z'/%3E%3C/svg%3E");
   --sb-grip-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM6 0h2v2H6zM12 0h2v2h-2z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M0 2h2v5H0zM6 2h2v5H6zM12 2h2v5h-2z'/%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M2 2h2v7H2zM8 2h2v7H8zM14 2h2v7h-2z'/%3E%3C/svg%3E");
+  /* 矢印は明るい文字色にする（2026-09-24、ナイトモードで暗い三角が暗いボタンに沈んで見づらいと報告） */
+  --sb-arrow-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 1.5 8 7H1z' fill='oklch(95%25 0.004 95)'/%3E%3C/svg%3E");
+  --sb-arrow-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 7.5 1 2h7z' fill='oklch(95%25 0.004 95)'/%3E%3C/svg%3E");
+  --sb-arrow-left: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1.5 4.5 7 1v7z' fill='oklch(95%25 0.004 95)'/%3E%3C/svg%3E");
+  --sb-arrow-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M7.5 4.5 2 8V1z' fill='oklch(95%25 0.004 95)'/%3E%3C/svg%3E");
   /* **暗い地では「地より明るい中間のグレー」**。地より暗い色にすると、地がもう十分暗いので
      影がまったく見えない（実機で報告）。中間のグレーなら、暗い面の縁に落ちた影として読める。
      **34% では「見えづらい」と 2 度報告があった**ので 58% まで上げた（地 24% との差が 34%）。
@@ -324,20 +334,20 @@ img { max-width: 100%; display: block; }
   background-color: var(--color-bar);
   background-repeat: no-repeat; background-position: center; background-size: 9px 9px;
   border: 1px solid var(--color-bar-dark);
-  box-shadow: inset 1px 1px 0 var(--color-paper), inset -1px -1px 0 var(--color-bar-dark);
+  box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark);
 }
 ::-webkit-scrollbar-button:active { background-color: var(--color-rule-2); }
 ::-webkit-scrollbar-button:vertical:start:decrement {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 1.5 8 7H1z' fill='%23232a33'/%3E%3C/svg%3E");
+  background-image: var(--sb-arrow-up);
 }
 ::-webkit-scrollbar-button:vertical:end:increment {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 7.5 1 2h7z' fill='%23232a33'/%3E%3C/svg%3E");
+  background-image: var(--sb-arrow-down);
 }
 ::-webkit-scrollbar-button:horizontal:start:decrement {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1.5 4.5 7 1v7z' fill='%23232a33'/%3E%3C/svg%3E");
+  background-image: var(--sb-arrow-left);
 }
 ::-webkit-scrollbar-button:horizontal:end:increment {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M7.5 4.5 2 8V1z' fill='%23232a33'/%3E%3C/svg%3E");
+  background-image: var(--sb-arrow-right);
 }
 /* 縦と横が交わる角は**無地**（2026-09-22）。斜めの線はサイズボックス（窓の大きさを変える所）の印で、
    Mac OS 8/9 でも窓の右下にしか出ない（Inside Macintosh の図）。ここは大きさを変えられないので、
@@ -1087,12 +1097,12 @@ body.sheet-open { overflow: hidden; }
     background-color: var(--color-bar);
     background-repeat: no-repeat; background-position: center; background-size: 13px 13px;
     border: 1px solid var(--color-bar-dark);
-    box-shadow: inset 1px 1px 0 var(--color-paper), inset -1px -1px 0 var(--color-bar-dark); }
+    box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark); }
   .tsb-btn:active, .tsb-btn[data-held] { background-color: var(--color-rule-2); }
   .tsb-up { top: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 1.5 8 7H1z' fill='%23232a33'/%3E%3C/svg%3E"); }
+    background-image: var(--sb-arrow-up); }
   .tsb-down { bottom: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 7.5 1 2h7z' fill='%23232a33'/%3E%3C/svg%3E"); }
+    background-image: var(--sb-arrow-down); }
   .tsb.tsb-short .tsb-btn { display: none; }
 }
 /* 送信中の窓。**上りが細いと 80 秒かかる**ことがあり、何も出ていないと「固まった」と思って
