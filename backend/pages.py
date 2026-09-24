@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-24", "共有画像の曲名リストで、「トラック名の余計な部分を省く」で短くなったトラックがあると、文字が必要以上に小さく組まれることがあったのを直しました。あわせて、フォントに無い字（一部の記号や、タイ文字・ハングルなど）は、どの端末でも画像に描かないようにそろえました。",
+     "In the track list on shared images, text could come out smaller than needed when some track names had been shortened by “Trim needless title text”. This is fixed. Characters the font doesn’t have (some symbols, Thai, Hangul and so on) are now left out of the image on every device."),
     ("2026-09-24", "ボタンや見出しなど操作部品の字を、別のドット字（M+ 12）に替えました。英字の上端がそろって見えます。パソコンでは、これまでより一回り小さくなります。",
      "Buttons, headings and other controls now use a different pixel font (M+ 12), so Latin letters line up evenly at the top. On computers they are a size smaller than before."),
     ("2026-09-24", "Android でホーム画面に追加すると、ほかのアプリの「共有」から TRACKMENTO に URL を送れるようになりました（iPhone では使えません）。前からアプリとして入れていた場合は、一度アンインストールして入れ直すと送り先に出ます。",

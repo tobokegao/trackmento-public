@@ -167,6 +167,51 @@ def write_css(entries: list[tuple[str, int, str, str, int]]) -> str:
     return css
 
 
+# 曲名の描く前の掃除（frontend の oneLine）が使う IBM Plex Sans JP の cmap。backend/render.py の _cmap と同じ 2 本の和集合。
+# ブラウザは無い字を代替フォントで測るので、cmap を持たないとサーバー描画（無い字を落とす）と字幅がずれる（2026-09-24）
+CMAP_FONTS = ("IBMPlexSansJP-Regular.ttf", "IBMPlexSansJP-Bold.ttf")
+CMAP_RE = re.compile(r"/\*__PLEX_CMAP__\*/.*?/\*__PLEX_CMAP_END__\*/", re.S)
+
+
+def _base36(n: int) -> str:
+    d = "0123456789abcdefghijklmnopqrstuvwxyz"
+    out = ""
+    while True:
+        n, r = divmod(n, 36)
+        out = d[r] + out
+        if not n:
+            return out
+
+
+def write_cmap_js() -> bool:
+    """index.html の PLEX_CMAP_BLOCKS / PLEX_CMAP_BITS を作り直す。128 字の区間ごとに、字のある区間だけ 16 バイトのビット列を持つ
+    （全 BMP のビット列 8KB より小さい。16 進で約 6.9KB）。
+    **base64 にしない**: 大文字の並びが偶然「AKIA＋英大文字 16 字」（AWS の鍵の形）になり、コミットの見張り（scripts/scan_secrets.sh）に止められた。
+    小文字の 16 進なら既知の鍵の形に当たらない。中身が同じなら書かない（戻り値は書いたか）"""
+    from fontTools.ttLib import TTFont
+    cps: set[int] = set()
+    for name in CMAP_FONTS:
+        with TTFont(str(FONTS / name), lazy=True) as tt:
+            cps |= set(tt.getBestCmap().keys())
+    blocks: dict[int, bytearray] = {}
+    for cp in cps:
+        bm = blocks.setdefault(cp >> 7, bytearray(16))
+        bm[(cp & 127) >> 3] |= 1 << (cp & 7)
+    order = sorted(blocks)
+    js = ('/*__PLEX_CMAP__*/const PLEX_CMAP_BLOCKS = "' + ",".join(_base36(b) for b in order)
+          + '", PLEX_CMAP_BITS = "' + b"".join(blocks[b] for b in order).hex()
+          + '";/*__PLEX_CMAP_END__*/')
+    html_path = UI_TEXT_FILES[0]
+    html = html_path.read_text(encoding="utf-8")
+    if not CMAP_RE.search(html):
+        raise SystemExit("index.html に /*__PLEX_CMAP__*/ の印がありません")
+    new = CMAP_RE.sub(lambda _: js, html, count=1)
+    if new == html:
+        return False
+    html_path.write_text(new, encoding="utf-8", newline="\n")
+    return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="生成物を数えるだけ")
@@ -184,6 +229,8 @@ def main() -> int:
         for name, size, ranges in build_one(src, family, weight):
             entries.append((name, size, ranges, family, weight))
     css = write_css(entries)
+    if write_cmap_js():
+        print("index.html の PLEX_CMAP を作り直しました（build_app.py も回す）", file=sys.stderr)
     total = sum(e[1] for e in entries)
     print(f"{len(entries)} 断片, 合計 {total / 1024:.0f} KB, fonts.css {len(css)} 文字")
     return 0

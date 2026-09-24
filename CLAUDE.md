@@ -377,15 +377,13 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
   - 曲名の刈り込み: `backend/names.py` と frontend の `trimName`（蛇足を外す規則）。**割り付けを決める前に通す**
     → `scripts/check_trim.py`（期待値の表と冪等性）と `scripts/compare_trim.py`（Python と Chromium の全件一致）
   - 検索の絞り込み: `backend/sources/itunes.py` と frontend の `itunesSearch`（ブラウザから直接 iTunes を叩くため）
-  - 描く前の文字の掃除: `render.py` の `_drawable`（フォントの cmap に無い字を落とす）と frontend の `oneLine`
-    （`STRIP_RE` = 絵文字・私用領域・補助面を落とす）。**Chromium の `\p{Extended_Pictographic}` は ★ ♪ ♡ ♥ も
-    絵文字扱い**なので、フォントにあるものは `KEEP_PICTO`（31 字）で残す（2026-09-16。落としていたときは
-    「ブラック★ロックシューター」の幅がずれて 12x20 の回り込みが別物になり、`compare_layout.py --tracks` で
-    25/200 食い違った）。フォントを替えたら一覧を作り直す（Chromium で測る。Node の判定は ★ を含まない）
-    - **既知の食い違い**（2026-09-17、未対応）: フォントに無い BMP の字（「◈」U+25C8、タミル文字「ஐ」など）は
-      PIL 側（`_drawable`）が落とすが、Chromium は代替フォントで測るので幅がずれ、`compare_layout.py --tracks` で
-      36 曲の組 13/200・25 曲の組 18/200 食い違う。ブラウザ描画どうしは一貫しているので実害は小さい。
-      直すなら JS にもフォントの cmap（`fonts/split/` の unicode-range）を持たせて同じ字を落とす
+  - 描く前の文字の掃除: `render.py` の `_drawable` と frontend の `oneLine`（`drawable`）。**両方とも IBM Plex Sans JP の
+    cmap で決める**（無い字は NFKC で置き換え、それでも無ければ落とす）。JS の cmap（`PLEX_CMAP_BLOCKS` / `PLEX_CMAP_BITS`）は
+    **`scripts/build_fonts.py` が `index.html` に書き込む**（手で直さない）。2026-09-24 までは JS だけ絵文字の正規表現で落としていて、
+    フォントに無い字（「◈」・タミル文字など）を Chromium が代替フォントで測り、変わった字を含む並びで `compare_layout.py --tracks` が
+    118/200 食い違っていた（`unicode-range` は 128 字の区間なので cmap の代わりにならない）。確かめるときは `window.__oneLine`
+  - **割り付けは刈り込み後のセル（`viewCells()`）で測る**。2026-09-24 まで流し込み・1 行型・行数・崩れる曲の数の 4 関数が
+    刈り込み前の `state.cells` を見ていて、刈り込みが起きる曲（「Kino — Gruppa krovi」／Kino）があると割り付けがサーバーと食い違っていた
   - 曲名の正規化: `backend/merge.py` の `_n()` と frontend の `nkey()`。
     **Python の `casefold()` は ß を ss に畳むが JS の `toLowerCase()` は畳まない**ので手で合わせてある。
     **単独の濁点・半濁点（゛゜）は結合文字に置き換えてから NFKC**（「ハ゛」→「バ」。NFKC だけでは合成されない）
