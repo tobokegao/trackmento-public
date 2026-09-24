@@ -156,7 +156,14 @@
   /* 月の見込みは、枠が 2 列に並ぶ幅（スマホ）のときだけ 2 列ぶんを使う（2026-09-24、利用者の希望。内訳の行が長く、1 列だと 4 行に折れる）。
      列の数は枠の幅で決まるので、画面の幅ではなく枠の幅で見る。2 列 = 180 × 2 ＋ すきま 18 以上、3 列 = 180 × 3 ＋ 36 未満 */
   .tiles { container-type: inline-size; }
-  @container (min-width: 378px) and (max-width: 575px) { .tile.money { grid-column: span 2; } }
+  /* 2 列ぶんのときは、合計を左半分に大きく、内訳を右半分に置く（同日、利用者の案）。
+     右半分の字は、下の段の右の列の字と頭をそろえる。すきま 30px ＝ 列のすきま 18 ＋ 右の枠の帯と字の間（6px の帯 ＋ 1ch） */
+  @container (min-width: 378px) and (max-width: 575px) {
+    .tile.money { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; grid-template-areas: "k n" "v n"; }
+    .tile.money .k { grid-area: k; }
+    .tile.money .v { grid-area: v; }
+    .tile.money .n { grid-area: n; align-self: center; }
+  }
 
   /* 図 */
   .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 24px; }
