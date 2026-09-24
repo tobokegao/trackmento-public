@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-24", "パソコンの画面で、ボタンや見出しなど操作部品の字を一回り大きなドット字にしました。スマホの表示は変わりません。",
+     "On computers, buttons, headings and other controls now use a slightly larger pixel font. Nothing changes on phones."),
     ("2026-09-24", "パソコンの画面で、「候補」の窓が右の設定の列に合わせて下まで伸びていたのを、グリッドの下端でそろえるようにしました。",
      "On computers, the “Candidates” window no longer stretches down to match the settings column; it now ends where the grid ends."),
     ("2026-09-24", "スマホでは、ページの右下に「PC 版の表示」を足しました。ホーム画面に追加したアプリの表示でも、パソコンと同じ画面に切り替えられます。「スマホ版の表示」で戻せます。",

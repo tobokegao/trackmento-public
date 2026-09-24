@@ -120,7 +120,8 @@
   --color-on-dark:  var(--color-paper);
   --color-on-light-2: var(--color-ink-2);   /* 明るい下地の上の添え字（見出し・補足） */
 
-  --font-display: "JF Dot MPlus12", "IBM Plex Sans JP", sans-serif;   /* 2026-09-24 に DotGothic16 から（英字の上辺が波打って見えた。運用ボードと同じ字） */
+  --font-display: "JF Dot MPlus12", "IBM Plex Sans JP", sans-serif;   /* 2026-09-24 に DotGothic16 から（英字の上辺が波打って見えた。運用ボードと同じ字）。PC は下の上書きを見る */
+  --dot-size: 12px;   /* 操作部品の字の大きさ。ドット字は升目の大きさでしか使えない（M+ 12 は 12px、PC の TM Dot PC は 15px） */
   --font-body:    "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", sans-serif;
   --font-outlier: "Silkscreen", "JF Dot MPlus12", monospace;
 
@@ -1249,7 +1250,15 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
 footer, .editor-head, .list-head, .bar-status, .pal-open, .share-url .lbl, .promo .lbl, .support .album, .promo .album,
 h1, h2, h3, .wordmark small, .list-del, .list-add, .empty strong,
 .btn, .popup select, span.label, h2[id$="-title"] {
-  font-family: var(--font-display); font-size: 12px; letter-spacing: 0;
+  font-family: var(--font-display); font-size: var(--dot-size); letter-spacing: 0;
+}
+/* **PC だけ 15px の「TM Dot PC」に大きくする**（2026-09-24、利用者が見本で決めた）。12px は PC の画面では小さかった。
+   中身は 2 つのフォントの組: 日本語は Galmuri14（15px の升目のゴシック）を 2 目下げたもの、英数字は東雲ゴシック 14 を
+   size-adjust で 14px に縮めたもの（どちらも 1 目 = 1px。fonts/split/fonts.css、scripts/build_fonts.py の SOURCES）。
+   東雲 14 だけだと はね・はらいが明朝寄りに見え、Galmuri14 だけだと英字がプロポーショナルで背が高く浮いた。
+   縦の位置は描いた点を数えて合わせた（経緯は scripts/make_pc_dot_font.py）。スマホは M+ 12 の 12px のまま */
+@media (min-width: 60rem) {
+  :root { --font-display: "TM Dot PC", "JF Dot MPlus12", "IBM Plex Sans JP", sans-serif; --dot-size: 15px; }
 }
 /* 入力欄の名前でも、長い説明を兼ねているものは本文の字に戻す */
 label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); }

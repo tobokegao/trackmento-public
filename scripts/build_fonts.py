@@ -24,11 +24,23 @@ ROOT = Path(__file__).resolve().parent.parent
 FONTS = ROOT / "fonts"
 OUT = FONTS / "split"
 
-# (元ファイル, CSS の family, weight)
+# PC の操作部品の字（15px）。英数字は東雲ゴシック 14、それ以外は Galmuri14 を 2 目下げたもの（scripts/make_pc_dot_font.py）。
+# 同じ family に 2 つの face を unicode-range で分けて入れる。範囲が重なるとどちらが選ばれるかがブラウザ任せになるので、
+# Galmuri からは英数字の範囲を抜く（2026-09-24）。東雲に回すのは ASCII だけ。Latin-1（× ° ± など）は東雲では JIS の全角の字形で、
+# 「Grid (columns × rows)」の × が大きく見えたので Galmuri に任せる
+PC_DOT_LATIN = [(0x0020, 0x007E)]
+
+# (元ファイル, CSS の family, weight, 追加の指定)
+#   only    … この範囲の字だけ入れる
+#   exclude … この範囲の字を入れない
+#   descriptors … @font-face に足す記述子
 SOURCES = [
-    ("IBMPlexSansJP-Regular.ttf", "IBM Plex Sans JP", 400),
-    ("IBMPlexSansJP-Bold.ttf", "IBM Plex Sans JP", 700),
-    ("JF-Dot-MPlus12.ttf", "JF Dot MPlus12", 400),   # 操作部品のドット字（2026-09-24 に DotGothic16 から）
+    ("IBMPlexSansJP-Regular.ttf", "IBM Plex Sans JP", 400, {}),
+    ("IBMPlexSansJP-Bold.ttf", "IBM Plex Sans JP", 700, {}),
+    ("JF-Dot-MPlus12.ttf", "JF Dot MPlus12", 400, {}),   # 操作部品のドット字（2026-09-24 に DotGothic16 から）。スマホは 12px のまま
+    # 東雲 14 は 14px の升目。PC の字の大きさは 15px なので 14/15 に縮めて 1 目 = 1px にする（ほかの大きさではにじむ）
+    ("JF-Dot-Shinonome14.ttf", "TM Dot PC", 400, {"only": PC_DOT_LATIN, "descriptors": "size-adjust: 93.3333%;"}),
+    ("Galmuri14-Down2.ttf", "TM Dot PC", 400, {"exclude": PC_DOT_LATIN}),
 ]
 # 先頭の断片にまとめる範囲（UI の固定文字が入る: ラテン・記号・かな・全角英数）。ここに無い文字（主に漢字）は
 # コードポイント BLOCK 幅ごとの断片にする
@@ -93,7 +105,11 @@ def _ranges_css(cps: list[int]) -> str:
     return ", ".join(parts)
 
 
-def build_one(src: Path, family: str, weight: int) -> list[tuple[str, int, str]]:
+def _in(cp: int, ranges) -> bool:
+    return any(lo <= cp <= hi for lo, hi in ranges)
+
+
+def build_one(src: Path, family: str, weight: int, extra: dict) -> list[tuple[str, int, str]]:
     """1 フォントを分割。(ファイル名, バイト数, unicode-range) のリストを返す。"""
     from fontTools import subset
     from fontTools.ttLib import TTFont
@@ -101,7 +117,8 @@ def build_one(src: Path, family: str, weight: int) -> list[tuple[str, int, str]]
     base = src.stem
     font = TTFont(src)
     cmap = font.getBestCmap()
-    cps = sorted(cp for cp in cmap if cp >= 0x20)
+    only, exclude = extra.get("only"), extra.get("exclude", [])
+    cps = sorted(cp for cp in cmap if cp >= 0x20 and (only is None or _in(cp, only)) and not _in(cp, exclude))
     ui = _ui_chars()
     core = [cp for cp in cps if _in_core(cp) or cp in ui]
     rest = [cp for cp in cps if not (_in_core(cp) or cp in ui)]
@@ -115,7 +132,8 @@ def build_one(src: Path, family: str, weight: int) -> list[tuple[str, int, str]]
     core_set = set(core)
     groups: list[tuple[list[int], str | None]] = [(core, None)]
     for b in sorted(blocks):
-        span = [cp for cp in range(b * BLOCK, b * BLOCK + BLOCK) if cp not in core_set]
+        span = [cp for cp in range(b * BLOCK, b * BLOCK + BLOCK)
+                if cp not in core_set and not _in(cp, exclude) and (only is None or _in(cp, only))]
         groups.append((blocks[b], _ranges_css(span)))
 
     # 古い生成物を消す（ハッシュ名なので溜まる）
@@ -148,13 +166,13 @@ def build_one(src: Path, family: str, weight: int) -> list[tuple[str, int, str]]
     return out
 
 
-def write_css(entries: list[tuple[str, int, str, str, int]]) -> str:
+def write_css(entries: list[tuple[str, int, str, str, int, str]]) -> str:
     lines = ["/* scripts/build_fonts.py が生成。手で編集しない。unicode-range 付きの断片フォント */"]
-    for name, _, ranges, family, weight in entries:
+    for name, _, ranges, family, weight, desc in entries:
         # URL はルート相対。この CSS は /fonts/split/ から <link> で読まれるので、相対だと /fonts/split/fonts/split/… になる
         lines.append(
             f'@font-face {{ font-family: "{family}"; font-weight: {weight}; font-style: normal; font-display: swap; '
-            f'src: url("/fonts/split/{name}") format("woff2"); unicode-range: {ranges}; }}'
+            f'src: url("/fonts/split/{name}") format("woff2"); unicode-range: {ranges};{" " + desc if desc else ""} }}'
         )
     css = "\n".join(lines) + "\n"
     for old in OUT.glob("fonts.*.css"):
@@ -223,11 +241,11 @@ def main() -> int:
         print(f"{len(files)} 断片, 合計 {total / 1024:.0f} KB, fonts.css {'あり' if (OUT / 'fonts.css').exists() else '無し'}")
         return 0
     entries = []
-    for fname, family, weight in SOURCES:
+    for fname, family, weight, extra in SOURCES:
         src = FONTS / fname
         print(f"{fname}:", file=sys.stderr)
-        for name, size, ranges in build_one(src, family, weight):
-            entries.append((name, size, ranges, family, weight))
+        for name, size, ranges in build_one(src, family, weight, extra):
+            entries.append((name, size, ranges, family, weight, extra.get("descriptors", "")))
     css = write_css(entries)
     if write_cmap_js():
         print("index.html の PLEX_CMAP を作り直しました（build_app.py も回す）", file=sys.stderr)
