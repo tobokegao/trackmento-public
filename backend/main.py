@@ -833,7 +833,7 @@ else:
 _FONT_CSS_FALLBACK = """
 @font-face { font-family: "IBM Plex Sans JP"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Regular.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Sans JP"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/IBMPlexSansJP-Bold.woff2") format("woff2"); }
-@font-face { font-family: "DotGothic16"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/DotGothic16-Regular.woff2") format("woff2"); }
+@font-face { font-family: "JF Dot MPlus12"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/JF-Dot-MPlus12.woff2") format("woff2"); }
 """
 
 

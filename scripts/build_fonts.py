@@ -28,7 +28,7 @@ OUT = FONTS / "split"
 SOURCES = [
     ("IBMPlexSansJP-Regular.ttf", "IBM Plex Sans JP", 400),
     ("IBMPlexSansJP-Bold.ttf", "IBM Plex Sans JP", 700),
-    ("DotGothic16-Regular.ttf", "DotGothic16", 400),
+    ("JF-Dot-MPlus12.ttf", "JF Dot MPlus12", 400),   # 操作部品のドット字（2026-09-24 に DotGothic16 から）
 ]
 # 先頭の断片にまとめる範囲（UI の固定文字が入る: ラテン・記号・かな・全角英数）。ここに無い文字（主に漢字）は
 # コードポイント BLOCK 幅ごとの断片にする

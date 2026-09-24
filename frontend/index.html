@@ -120,9 +120,9 @@
   --color-on-dark:  var(--color-paper);
   --color-on-light-2: var(--color-ink-2);   /* 明るい下地の上の添え字（見出し・補足） */
 
-  --font-display: "DotGothic16", "IBM Plex Sans JP", sans-serif;
+  --font-display: "JF Dot MPlus12", "IBM Plex Sans JP", sans-serif;   /* 2026-09-24 に DotGothic16 から（英字の上辺が波打って見えた。運用ボードと同じ字） */
   --font-body:    "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", sans-serif;
-  --font-outlier: "Silkscreen", "DotGothic16", monospace;
+  --font-outlier: "Silkscreen", "JF Dot MPlus12", monospace;
 
   --text-xs: 0.64rem; --text-sm: 0.8rem; --text-base: 1rem; --text-md: 1.25rem; --text-lg: 1.5625rem;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
@@ -649,7 +649,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
   content: ""; flex: none; width: calc(var(--rp, 1px) * 16); height: calc(var(--rp, 1px) * 16);
   background: var(--radio-off) no-repeat 0 0 / 100% 100%; border: 0; border-radius: 0;
   image-rendering: pixelated;   /* 拡大してもドットをぼかさない */
-  position: relative; top: 0.056em;   /* ドット字のインクは行の中心より 0.056em 下に出るので、丸のほうを合わせる（2026-09-24。チェックの注を見る） */
+  position: relative; top: -0.042em;   /* ドット字（M+ 12）のインクは行の中心より 0.042em 上に出るので、丸のほうを合わせる（2026-09-24。チェックの注を見る） */
 }
 .seg.radio span::after { display: none; }
 .seg.radio input:checked + span { background: none; color: inherit; transform: none; }
@@ -1015,12 +1015,13 @@ body.sheet-open { overflow: hidden; }
 /* 「表示」のチェックは横に流し込む。入らないものは次の行へ回る（縦に 1 つずつ積むと場所を食う） */
 .check-row { display: flex; flex-wrap: wrap; column-gap: var(--space-4); row-gap: 0; }
 .check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; min-height: 28px; }
-/* 文字だけ 0.056em 上げる。**ドット字（DotGothic16）は漢字のインクが行の中心より 0.056em 下**に出る（2026-09-24。
-   フォントの ascent 1160 / descent 288 と漢字の字面 -89〜850 から出した値。16px で 0.9px）。
+/* 文字だけ 0.042em 下げる。**ドット字（M+ 12）は漢字のインクが行の中心より 0.042em 上**に出る（2026-09-24。
+   フォントの ascent 880 / descent 229 と漢字の字面 -144〜880 から出した値。12px で 0.5px）。
+   DotGothic16 のときは逆に 0.056em 下に出ていて、0.056em 上げていた。
    Plex のときは逆に上に出るので 0.15em 下げていたが、ドット字に替えてもそのままだったため箱より 3px 下がり、
    「チェックボックスとのラインが崩れている」と利用者に言われた。**px で 1px と書くとスマホでずれる**
    （画素比 2〜3 で字が端末の画素 2〜3.5 画素ぶん上に出た。em なら 0.5 画素以内）。狭い画面の 13px は下の上書きを見る */
-.check > span { position: relative; top: -0.056em; }
+.check > span { position: relative; top: 0.042em; }
 .check input {
   appearance: none; width: 18px; height: 18px; margin: 0; flex: none;
   border: var(--line) solid var(--color-ink); background: var(--color-paper);
@@ -1234,32 +1235,23 @@ output { font-variant-numeric: tabular-nums; }
 footer { padding: var(--space-3) var(--page-inline); border-top: var(--line) solid var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); display: flex; gap: var(--space-4); flex-wrap: wrap; }
 footer a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
-/* **操作部品の字はドット字（DotGothic16）の 16px にそろえる**（2026-09-24、利用者が見本で決めた）。
-   DotGothic16 は 16px の升目で作られた字なので、--text-sm（12.8px）だとにじみ、チェックとラジオだけ Plex で
-   そこだけ既定の字に見えていた。題名バー・見出し・入力欄の名前・チェックとラジオ・折りたたみの見出し・フッターが対象。
+/* **操作部品の字はドット字（JF ドット M+ 12）の 12px にそろえる**（2026-09-24、利用者が見本で決めた。PC もスマホも同じ）。
+   M+ 12 は 12px の升目で作られた字なので、ほかの大きさ（--text-sm の 12.8px など）ではにじむ。12px か 24px だけを使う。
+   それまでの DotGothic16（PC 16px・スマホ 13px）は英字の A が山形・C/O/R の角が欠けていて、上辺が波打って見えた。
+   題名バー・見出し・入力欄の名前・チェックとラジオ・折りたたみの見出し・フッターが対象。
    **曲名・説明文・メッセージ・書き出し画像は Plex のまま**（長い文はドット字だと読みづらい。書き出しは Plex の字幅で
    render.py と割り付けを合わせてある）。個々の規則を直さずここで上書きするのは、対象を 1 か所で見渡すため */
 .pane-title h2, legend, .field label, .field legend, .sub-title, .seg span, .seg.radio span, .check > span,
 .layouts > label, .custom-color, .custom-size label, .hsv label, .hsv .hex, .lang-switch, .spec dt, .spec dd,
-footer, .editor-head, .list-head, .bar-status, .pal-open, .share-url .lbl, .promo .lbl, .support .album, .promo .album {
-  font-family: var(--font-display); font-size: var(--text-base); letter-spacing: 0;
+footer, .editor-head, .list-head, .bar-status, .pal-open, .share-url .lbl, .promo .lbl, .support .album, .promo .album,
+h1, h2, h3, .wordmark small, .list-del, .list-add, .empty strong,
+.btn, .popup select, span.label, h2[id$="-title"] {
+  font-family: var(--font-display); font-size: 12px; letter-spacing: 0;
 }
 /* 入力欄の名前でも、長い説明を兼ねているものは本文の字に戻す */
 label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); }
-/* **狭い画面（1 列の段組み）では 13px**（2026-09-24、利用者がスマホで「文字がデカく見える」。16・14・13px を並べて選んだ）。
-   升目から外れるが、スマホは画素が細かいのでにじみは目立たない。**高さの補正は 13px で測り直した値**
-   （画素比 2・2.625・3 で 4 倍に撮り、漢字の行で比べた）: 字の置き場所の丸めが 16px と違い、em の補正は 0 に丸められて
-   チェックの字が箱より 1px 上に出る → チェックは 0.5px 下げる。ラジオは補正なしで中心がそろう（字を 1px 下げた版と
-   並べて見せ、利用者が「中心をそろえる」ほうを選んだ） */
 @media not all and (min-width: 60rem) {
-  .pane-title h2, legend, .field label, .field legend, .sub-title, .seg span, .seg.radio span, .check > span,
-  .layouts > label, .custom-color, .custom-size label, .hsv label, .hsv .hex, .lang-switch, .spec dt, .spec dd,
-  footer, .editor-head, .list-head, .bar-status, .pal-open, .share-url .lbl, .promo .lbl, .support .album, .promo .album {
-    font-size: 13px;
-  }
   label[for="bc-url"] { font-size: var(--text-sm); }
-  .check > span { top: 0.5px; }
-  .seg.radio span::before { top: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
