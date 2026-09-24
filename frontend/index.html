@@ -1738,6 +1738,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   <span><a id="contact-link" href="https://forms.gle/2ktpQAXMjJrkFJFz8" target="_blank" rel="noopener noreferrer">お問い合わせフォーム</a></span>
   <!-- 文章のページ（使い方・プライバシーポリシー・運営者。backend/pages.py）。言語は ?lang= で合わせる（applyI18n） -->
   <span class="foot-pages"><a class="foot-page" data-page="guide" href="/guide">使い方</a> / <a class="foot-page" data-page="privacy" href="/privacy">プライバシーポリシー</a> / <a class="foot-page" data-page="about" href="/about">運営者</a> / <a class="foot-page" data-page="updates" href="/updates">更新情報</a></span>
+  <!-- PC 版とスマホ版の表示の切り替え（2026-09-24）。ホーム画面に置いたアプリ表示では、ブラウザの「PC 版サイト」が使えないため。
+       画面の幅が狭い端末と、PC 版にしているときだけ出す（下の VIEW_KEY） -->
+  <span id="view-switch" hidden><a id="view-pc" href="#">PC 版の表示</a><a id="view-sp" href="#" hidden>スマホ版の表示</a></span>
   <a href="/health" id="health-link">/health</a>
   <span id="foot-sources"></span>
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
@@ -1755,6 +1758,27 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const d = window.devicePixelRatio || 1;
     document.documentElement.style.setProperty("--u", dotUnit() + "px");
     try { matchMedia(`(resolution: ${d}dppx)`).addEventListener("change", setDotUnit, { once: true }); } catch (_) {}
+  })();
+
+  /* PC 版の表示（2026-09-24）。割り付けは画面の幅（60rem）だけで変わるので、viewport の幅を 1024px に
+     広げれば PC 版になる。**Cookie ではなく localStorage に覚える**（プライバシーポリシーに「独自の Cookie を使っていない」と書いてある）。
+     そのぶんサーバーは知らないので、ここでできるだけ早く差し替える。PC では viewport の指定が効かないので、切り替えは出さない */
+  const VIEW_KEY = "trackmento.view";
+  const VIEW_PC = (() => { try { return localStorage.getItem(VIEW_KEY) === "pc"; } catch { return false; } })();
+  if (VIEW_PC) { const vp = document.querySelector('meta[name="viewport"]'); if (vp) vp.content = "width=1024"; }
+  (function viewSwitch() {
+    const box = document.getElementById("view-switch");
+    if (!box || !(VIEW_PC || screen.width < 960)) return;
+    box.hidden = false;
+    document.getElementById("view-pc").hidden = VIEW_PC;
+    document.getElementById("view-sp").hidden = !VIEW_PC;
+    const set = (pc) => (e) => {
+      e.preventDefault();
+      try { pc ? localStorage.setItem(VIEW_KEY, "pc") : localStorage.removeItem(VIEW_KEY); } catch { return; }
+      location.reload();   // 読み直す（iOS は viewport を途中で戻しても拡大率が残る）。並びは localStorage にあるので消えない
+    };
+    document.getElementById("view-pc").addEventListener("click", set(true));
+    document.getElementById("view-sp").addEventListener("click", set(false));
   })();
 
   /* ---------- ドメインの引っ越し（旧ドメイン → 新ドメイン） ----------
@@ -2010,6 +2034,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "おかねがたりないときのうた": "Okane ga Tarinai Toki no Uta",
         "（サーバー代のたすけ）": " (helps with the server bills)",
         "お問い合わせフォーム": "Contact form",
+        "PC 版の表示": "Desktop view",
+        "スマホ版の表示": "Mobile view",
         "使い方": "How to use", "プライバシーポリシー": "Privacy policy", "運営者": "About", "更新情報": "Updates",
         "好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。": "Line up the cover art of your favorite tracks in one image. Mix tracks from any site, even ones missing from streaming services.",
         "この案内を閉じる": "Dismiss this notice",

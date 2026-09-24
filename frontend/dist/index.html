@@ -516,11 +516,14 @@
   <span><a id="contact-link" href="https://forms.gle/2ktpQAXMjJrkFJFz8" target="_blank" rel="noopener noreferrer">お問い合わせフォーム</a></span>
   <!-- 文章のページ（使い方・プライバシーポリシー・運営者。backend/pages.py）。言語は ?lang= で合わせる（applyI18n） -->
   <span class="foot-pages"><a class="foot-page" data-page="guide" href="/guide">使い方</a> / <a class="foot-page" data-page="privacy" href="/privacy">プライバシーポリシー</a> / <a class="foot-page" data-page="about" href="/about">運営者</a> / <a class="foot-page" data-page="updates" href="/updates">更新情報</a></span>
+  <!-- PC 版とスマホ版の表示の切り替え（2026-09-24）。ホーム画面に置いたアプリ表示では、ブラウザの「PC 版サイト」が使えないため。
+       画面の幅が狭い端末と、PC 版にしているときだけ出す（下の VIEW_KEY） -->
+  <span id="view-switch" hidden><a id="view-pc" href="#">PC 版の表示</a><a id="view-sp" href="#" hidden>スマホ版の表示</a></span>
   <a href="/health" id="health-link">/health</a>
   <span id="foot-sources"></span>
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.59ccf48e.js"></script>
+<script id="app-js" src="app/app.be66071d.js"></script>
 </body>
 </html>
