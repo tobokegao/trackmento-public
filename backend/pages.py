@@ -278,8 +278,10 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-24", "スマホでは、ページのいちばん下に「PC 版の表示」を足しました。ホーム画面に追加したアプリの表示でも、パソコンと同じ画面に切り替えられます。「スマホ版の表示」で戻せます。",
-     "On phones, a “Desktop view” link now sits at the very bottom of the page, so you can switch to the computer layout even when using TRACKMENTO from your home screen. “Mobile view” switches back."),
+    ("2026-09-24", "パソコンの画面で、「候補」の窓が右の設定の列に合わせて下まで伸びていたのを、グリッドの下端でそろえるようにしました。",
+     "On computers, the “Candidates” window no longer stretches down to match the settings column; it now ends where the grid ends."),
+    ("2026-09-24", "スマホでは、ページの右下に「PC 版の表示」を足しました。ホーム画面に追加したアプリの表示でも、パソコンと同じ画面に切り替えられます。「スマホ版の表示」で戻せます。",
+     "On phones, a “Desktop view” link now sits at the bottom right of the page, so you can switch to the computer layout even when using TRACKMENTO from your home screen. “Mobile view” switches back."),
     ("2026-09-24", "共有画像の曲名リストで、「トラック名の余計な部分を省く」で短くなったトラックがあると、文字が必要以上に小さく組まれることがあったのを直しました。あわせて、フォントに無い字（一部の記号や、タイ文字・ハングルなど）は、どの端末でも画像に描かないようにそろえました。",
      "In the track list on shared images, text could come out smaller than needed when some track names had been shortened by “Trim needless title text”. This is fixed. Characters the font doesn’t have (some symbols, Thai, Hangul and so on) are now left out of the image on every device."),
     ("2026-09-24", "ボタンや見出しなど操作部品の字を、別のドット字（M+ 12）に替えました。英字の上端がそろって見えます。パソコンでは、これまでより一回り小さくなります。",

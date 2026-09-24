@@ -379,8 +379,10 @@ img { max-width: 100%; display: block; }
   /* 候補ペインだけは行の高さいっぱいに伸ばしてグリッドと下端を揃える（他のペインは内容ぶんのまま）。
      height:0 ＋ min-height:100% は、行の高さを決めるときに自分の中身を数えさせないための書き方。
      これが無いと候補が増えたぶんだけ行が伸び、グリッドまで一緒に高くなってしまう。
-     中のリストが余りを埋めるよう、ペイン → 本体 → リストの順に flex で高さを渡す */
-  .pane-results { grid-area: results; align-self: stretch; height: 0; min-height: 100%; display: flex; flex-direction: column; }
+     中のリストが余りを埋めるよう、ペイン → 本体 → リストの順に flex で高さを渡す。
+     **伸ばすのはグリッドの下端まで**（--results-h、JS の fitResults が入れる）。行の高さはオプション列でも決まり、
+     オプションのほうが長いと候補の窓が間延びしていた（2026-09-24、スマホの PC 版表示で利用者が気づいた） */
+  .pane-results { grid-area: results; align-self: stretch; height: 0; min-height: min(100%, var(--results-h, 100%)); display: flex; flex-direction: column; }
   .pane-results .pane-body { flex: 1; min-height: 0; display: flex; }
   .pane-results .results { flex: 1; min-height: 0; max-height: none; }
   .pane-grid { grid-area: grid; }
@@ -1233,6 +1235,7 @@ output { font-variant-numeric: tabular-nums; }
 .spec dd { margin: 0; font-variant-numeric: tabular-nums; word-break: keep-all; }   /* 空白の位置でだけ折る（「左／右」と字の間で割れた。数の前後は JS が NBSP にするので、「/」の後でだけ折れる） */
 
 footer { padding: var(--space-3) var(--page-inline); border-top: var(--line) solid var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); display: flex; gap: var(--space-4); flex-wrap: wrap; }
+#view-switch { order: 1; margin-left: auto; }   /* 右下に置く（ほかの項目より後ろ・右寄せ） */
 footer a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
 /* **操作部品の字はドット字（JF ドット M+ 12）の 12px にそろえる**（2026-09-24、利用者が見本で決めた。PC もスマホも同じ）。
@@ -3648,7 +3651,19 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     else $(".pane-search .pane-title").after(els.editor);
   }
   placeEditor();
-  window.matchMedia("(min-width: 60rem)").addEventListener("change", () => { if (!isMobile()) closeSheet(); placeEditor(); });
+  /* 候補の窓はグリッドの下端までにする（CSS の --results-h）。グリッドと検索欄の高さが変わるたびに測り直す。
+     グリッドが短くても 16rem は残す */
+  function fitResults() {
+    const r = $(".pane-results"), g = $(".pane-grid");
+    if (isMobile() || !r || !g) return;
+    const h = g.getBoundingClientRect().bottom - r.getBoundingClientRect().top;
+    r.style.setProperty("--results-h", Math.max(256, Math.round(h)) + "px");
+  }
+  if (typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(fitResults);
+    ro.observe($(".pane-grid")); ro.observe($(".pane-search"));
+  }
+  window.matchMedia("(min-width: 60rem)").addEventListener("change", () => { if (!isMobile()) closeSheet(); placeEditor(); fitResults(); });
   function removeAt(i) {
     const t = state.cells[i]; if (!t) return;
     checkpoint();
