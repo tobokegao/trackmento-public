@@ -1,20 +1,17 @@
-// X に載せる 1 機能 1 本の動画の台本。撮るのは promo/x_clips.mjs、組むのは scripts/make_x_clips.py。
+// X に載せる 1 機能 1 本の動画の台本。撮るのは promo/x_clips.mjs、動画にするのは promo/render_x.mjs（src/XClip.tsx）。
 //
-// 1 本 = { id, what, device?, viewport?, follow?, setup?(k), clip?(k), run(k, shot) }
-//   what   … 台帳に載せる説明（投稿の本文の下書きにもなる）
-//   follow … 撮る範囲を毎コマ測り直す（既定は最初の 1 回だけ。範囲が伸び縮みすると窓が跳ねる）
-//   device … "pc"（既定。1280x720）か "phone"
-//   clip   … 撮る範囲を返す関数を返す（clip_kit の rect*）。無ければ画面ぜんぶ
-//   run    … 撮る手順。k は clip_kit の makeKit の道具
+// 1 本 = { id, what, setup?(k), run(k) }
+//   what  … 台帳に載せる説明（投稿の本文の下書きにもなる）
+//   setup … 撮る前の準備（曲を入れる・送る・**最初の構図 k.look と最初のカーソル k.park**）
+//   run   … 撮る手順。k は clip_kit の makeKit の道具。カメラは k.look([…]) で行き先を変える
 //
 // 決まり:
 // - **1 本は 3〜8 秒**。最初の 1 秒で「何の画面か」が分かるように、頭に 0.6〜1 秒の「ため」を置く
-// - **終わりは始めと同じ状態に戻す**（X では短い動画が繰り返し再生されるので、つなぎ目で跳ねない）
+// - **終わりは始めと同じ構図に戻す**（X では短い動画が繰り返し再生される。絵の違いは XClip が終わりで溶かしてつなぐ）
 // - 文字は動画に入れない（説明は投稿の本文。2026-09-25 の利用者の判断）
-// - **3×3 のマスは小さい扱い**（1280 幅の画面ではマスが 96px 未満で、× と曲名の帯が隠れる）。
-//   × を押す場面は 2×2 にする
+// - **1280 幅では 3×3 のマスが「小さい扱い」**（96px 未満）で × と曲名の帯が出ない。× を押す場面は 2×2 にする
+// - 画面を送るのは撮る前だけ（k.scrollTo）。撮りながら送るとカメラと二重に動く
 import fs from "node:fs";
-import { rectUnion } from "./clip_kit.mjs";
 
 // 動画サイトのサムネ（16:9）の曲。マスの形・サムネの入れ方の場面で使う
 const NICO = JSON.parse(fs.readFileSync("promo/stills-tracks-nico.json", "utf-8"));
@@ -23,7 +20,7 @@ const NICO = JSON.parse(fs.readFileSync("promo/stills-tracks-nico.json", "utf-8"
 async function ready(k, n, size, opts = {}, list) {
   await k.seed(n, size, opts, list);
   await k.waitArt();
-  await k.page.waitForTimeout(500);
+  await k.hold(0.5);   // 撮影前なので時計だけ進む
 }
 
 /** 並びをかき混ぜる（色で並べ替えの前に。seed は一覧の順に入れるので、そのままだと色がそろって見えない） */
@@ -44,21 +41,18 @@ export default [
     what: "「色で並べ替え」… ジャケットの主な色で、赤から紫の順に並べ直す。白黒のジャケットは最後に明るい順",
     async setup(k) {
       await ready(k, 16, [4, 4], {}, shuffled(k.tracks).slice(0, 16));
-      // グリッドの下のボタンは「色で並べ替え」だけにする（並んだボタンまで入れると縦に長くなり、動画の中で小さくなる）
-      await k.stage(".grid-actions > :not(#color-sort), .pane-grid .note { display: none !important; }");
-      await k.scrollTo("#grid", 70);
-      await k.park(1000, 400);
+      await k.scrollTo("#grid", 60);
+      await k.look(["#grid"]);
+      await k.park(1180, 660);
     },
-    clip: () => rectUnion("#grid", "#grid-msg", "#color-sort"),
-    async run(k, shot) {
-      await k.hold(shot, 1.0);
-      await k.press("#color-sort", shot);
+    async run(k) {
+      await k.hold(1.0);
+      await k.look(["#grid", "#color-sort"], 0.7);
+      await k.press("#color-sort", { sec: 0.7 });
+      await k.look(["#grid"], 0.8);
       // 色を調べ終わるまで撮り続ける（「（n/N）」と数えている間も見せる）
-      for (let i = 0; i < 60; i++) {
-        await shot(); await k.tick();
-        if (!(await k.page.evaluate(() => /\d+\/\d+/.test(document.querySelector("#color-sort").textContent))) && i > 8) break;
-      }
-      await k.hold(shot, 1.8);
+      await k.live(() => k.page.evaluate(() => !/\d+\/\d+/.test(document.querySelector("#color-sort").textContent)), { min: 0.5, timeout: 15 });
+      await k.hold(2.0);
     },
   },
   {
@@ -67,18 +61,16 @@ export default [
     async setup(k) {
       await ready(k, 9, [3, 3], { title: "好きな音MAD" }, NICO);
       await k.scrollTo("#cell-ratio-seg", 200);
+      await k.look(["#grid", "fieldset:has(#cell-ratio-seg)"]);
       await k.park(1100, 600);
     },
-    clip: () => rectUnion("#grid", "fieldset:has(#cell-ratio-seg) legend", "#cell-ratio-seg"),
-    async run(k, shot) {
-      await k.hold(shot, 1.0);
-      await k.press('#cell-ratio-seg label:has(input[value="16:9"])', shot);
-      await k.page.waitForTimeout(300);
+    async run(k) {
+      await k.hold(1.0);
+      await k.press('#cell-ratio-seg label:has(input[value="16:9"])');
       await k.waitArt();
-      await k.hold(shot, 2.0);
-      await k.press('#cell-ratio-seg label:has(input[value="1:1"])', shot);
-      await k.page.waitForTimeout(300);
-      await k.hold(shot, 1.2);
+      await k.hold(2.0);
+      await k.press('#cell-ratio-seg label:has(input[value="1:1"])');
+      await k.hold(1.2);
     },
   },
   {
@@ -87,17 +79,15 @@ export default [
     async setup(k) {
       await ready(k, 9, [3, 3], { title: "好きな音MAD" }, NICO);
       await k.scrollTo("#cell-fit-seg", 260);
+      await k.look(["#grid", "fieldset:has(#cell-fit-seg) legend", "#cell-fit-seg"]);
       await k.park(1100, 600);
     },
-    clip: () => rectUnion("#grid", "fieldset:has(#cell-fit-seg) legend", "#cell-fit-seg"),
-    async run(k, shot) {
-      await k.hold(shot, 1.0);
-      await k.press('#cell-fit-seg label:has(input[value="blur"])', shot);
-      await k.page.waitForTimeout(400);
-      await k.hold(shot, 2.0);
-      await k.press('#cell-fit-seg label:has(input[value="crop"])', shot);
-      await k.page.waitForTimeout(300);
-      await k.hold(shot, 1.2);
+    async run(k) {
+      await k.hold(1.0);
+      await k.press('#cell-fit-seg label:has(input[value="blur"])');
+      await k.hold(2.0);
+      await k.press('#cell-fit-seg label:has(input[value="crop"])');
+      await k.hold(1.2);
     },
   },
   {
@@ -106,19 +96,17 @@ export default [
     async setup(k) {
       await ready(k, 9, [3, 3]);
       await k.scrollTo("#cols", 60);
+      await k.look(["#grid", "#grid-msg", "#cols", "#rows"]);
       await k.park(1100, 500);
     },
-    clip: () => rectUnion("#grid", "#grid-msg", "#cols", "#rows"),
-    async run(k, shot) {
+    async run(k) {
       // **減らすのは縦**。横を減らすとマスが大きくなり、グリッドの枠の中でスクロールして下の段が隠れる
       const down = "#rows ~ .stepper button[data-step='-1']", up = "#rows ~ .stepper button[data-step='1']";
-      await k.hold(shot, 1.0);
-      await k.press(down, shot);
-      await k.page.waitForTimeout(300);
-      await k.hold(shot, 2.0);
-      await k.press(up, shot);
-      await k.page.waitForTimeout(300);
-      await k.hold(shot, 1.6);
+      await k.hold(1.0);
+      await k.press(down);
+      await k.hold(2.0);
+      await k.press(up);
+      await k.hold(1.6);
     },
   },
   {
@@ -126,16 +114,15 @@ export default [
     what: "右上の「EN」で、画面がまるごと英語に。もう一度押すと日本語に戻る",
     async setup(k) {
       await ready(k, 9, [3, 3]);
+      k.wide();
       await k.park(900, 300);
     },
-    async run(k, shot) {
-      await k.hold(shot, 1.0);
-      await k.press("#lang-switch", shot);
-      await k.page.waitForTimeout(300);
-      await k.hold(shot, 2.2);
-      await k.press("#lang-switch", shot);
-      await k.page.waitForTimeout(300);
-      await k.hold(shot, 1.2);
+    async run(k) {
+      await k.hold(1.0);
+      await k.press("#lang-switch");
+      await k.hold(2.2);
+      await k.press("#lang-switch");
+      await k.hold(1.2);
     },
   },
   {
@@ -144,23 +131,20 @@ export default [
     async setup(k) {
       await ready(k, 4, [2, 2]);
       await k.scrollTo("#grid", 90);
-      await k.park(760, 90);
+      await k.look(["#grid", "#grid-msg"]);
+      await k.park(900, 150);
     },
-    clip: () => rectUnion("#grid", "#grid-msg"),
-    async run(k, shot) {
-      await k.hold(shot, 0.8);
+    async run(k) {
+      await k.hold(0.8);
       for (const n of [4, 1]) {
-        await k.page.hover(`#grid .cell:nth-child(${n})`);   // × はマスに乗せたときに出る
-        await k.press(`#grid .cell:nth-child(${n}) .rm`, shot);
-        await k.hold(shot, 0.5);
+        await k.glide(`#grid .cell:nth-child(${n})`, 0.3);   // × はマスに乗せたときに出る
+        await k.press(`#grid .cell:nth-child(${n}) .rm`, { sec: 0.2 });
+        await k.hold(0.5);
       }
-      await k.park(760, 90);
-      await k.hold(shot, 0.6);
-      for (let i = 0; i < 2; i++) {
-        await k.page.keyboard.press("Control+z");
-        await k.hold(shot, 0.7);
-      }
-      await k.hold(shot, 0.8);
+      await k.hideCursor();
+      await k.hold(0.6);
+      for (let i = 0; i < 2; i++) { await k.key("Control+z"); await k.hold(0.7); }
+      await k.hold(0.8);
     },
   },
   {
@@ -169,23 +153,17 @@ export default [
     async setup(k) {
       await ready(k, 9, [3, 3]);
       await k.scrollTo("#grid", 90);
-      await k.park(-50, -50);   // キーボードの場面なので矢印は出さない
-    },
-    clip: () => rectUnion("#grid", "#grid-msg"),
-    async run(k, shot) {
+      await k.look(["#grid", "#grid-msg"]);
+      await k.hideCursor();   // キーボードの場面なので矢印は出さない
       await k.page.focus("#grid .cell");
-      await k.hold(shot, 1.0);
-      for (const key of ["Alt+ArrowRight", "Alt+ArrowRight", "Alt+ArrowDown", "Alt+ArrowDown"]) {
-        await k.page.keyboard.press(key);
-        await k.hold(shot, 0.6);
-      }
-      await k.hold(shot, 0.6);
+    },
+    async run(k) {
+      await k.hold(1.0);
+      for (const key of ["Alt+ArrowRight", "Alt+ArrowRight", "Alt+ArrowDown", "Alt+ArrowDown"]) { await k.key(key); await k.hold(0.6); }
+      await k.hold(0.6);
       // 元の場所へ運び戻す（繰り返し再生のつなぎ目で跳ねないように）
-      for (const key of ["Alt+ArrowUp", "Alt+ArrowUp", "Alt+ArrowLeft", "Alt+ArrowLeft"]) {
-        await k.page.keyboard.press(key);
-        await k.hold(shot, 0.4);
-      }
-      await k.hold(shot, 0.8);
+      for (const key of ["Alt+ArrowUp", "Alt+ArrowUp", "Alt+ArrowLeft", "Alt+ArrowLeft"]) { await k.key(key); await k.hold(0.4); }
+      await k.hold(0.8);
     },
   },
   {
@@ -193,21 +171,21 @@ export default [
     what: "「大きく見る」の中で、2 本指（Ctrl＋ホイール）でマスを拡大・縮小。並びの形ごとに大きさを覚える",
     async setup(k) {
       await ready(k, 64, [8, 8]);
+      k.wide();
       await k.park(900, 300);
     },
-    async run(k, shot) {
-      await k.hold(shot, 0.6);
-      await k.press("#zoom-btn", shot);
-      await k.page.waitForTimeout(400);
-      await k.hold(shot, 0.8);
-      await k.park(640, 380);
-      for (let i = 0; i < 10; i++) { await k.ctrlWheel(640, 380, -50); await shot(); await k.tick(); }
-      await k.hold(shot, 1.0);
-      for (let i = 0; i < 10; i++) { await k.ctrlWheel(640, 380, 50); await shot(); await k.tick(); }
-      await k.hold(shot, 0.6);
-      await k.press("#zoom-modal-close", shot);
-      await k.page.waitForTimeout(300);
-      await k.hold(shot, 0.6);
+    async run(k) {
+      await k.hold(0.6);
+      await k.press("#zoom-btn");
+      await k.hold(0.8);
+      await k.glide("#zoom-slot", 0.4);
+      const [x, y] = [640, 380];
+      for (let i = 0; i < 10; i++) { await k.ctrlWheel(x, y, -50); await k.hold(0.1); }
+      await k.hold(1.0);
+      for (let i = 0; i < 10; i++) { await k.ctrlWheel(x, y, 50); await k.hold(0.1); }
+      await k.hold(0.6);
+      await k.press("#zoom-modal-close");
+      await k.hold(0.6);
     },
   },
 ];

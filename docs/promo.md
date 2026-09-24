@@ -24,13 +24,18 @@ note の記事用の GIF・写真・表の撮り方。動画そのものの作�
     8. アーティファクトを 2 つ更新（story: LqMEwkwDwu6jFkk5N3N3ih、貼り付け用: AVDUx4d3UEsUMdUqEJRXSs）
 
 - **X に載せる 1 機能 1 本の短い動画**（2026-09-25）。機能が増えて 1 本の紹介動画に収まらなくなったので、
-  細かい機能ごとに数秒の動画を作って小分けに投稿する（利用者の方針。16:9・文字は入れない・MP4 と GIF）
-  1. `node promo/x_clips.mjs <出力>/frames [id,id,…|all|pc|phone]` … 台本 `promo/x_catalog.mjs` の場面を撮る
-     （1 場面ずつ新しいページで。道具は `promo/clip_kit.mjs`）。手元のサーバー（`PUBLIC_MODE=1`、8000）が要る
-  2. `scripts/make_x_clips.py <出力>/frames [id …]` … 1280x720 に組んで `<出力>/x/<id>.mp4` と `.gif`。
-     切り取った窓は地の模様の上の真ん中に置く（最大 2 倍）。MP4 は Remotion 同梱の ffmpeg で書く
+  細かい機能ごとに数秒の動画を作って小分けに投稿する（利用者の方針。16:9・文字は入れない・MP4、要れば GIF）。
+  **画面は本物を撮り、演出（カメラ・カーソル・押した合図・繰り返しのつなぎ）は Remotion で足す**（同日、利用者と決めた中間案。
+  画面ごと Remotion で作り直す案は、サイトの 3 つ目の実装になってすぐずれるのでやめた）
+  1. `node promo/x_clips.mjs [id,id,…|all]` … 台本 `promo/x_catalog.mjs` の場面を撮る（道具は `promo/clip_kit.mjs`）。
+     本編の `capture.mjs` と同じく**ページの時計を止めて 30 コマ/秒**で画面ぜんぶ（1280x720、倍率 2）を撮り、
+     `promo/public/xclips/<id>/take.mp4` と `events.json`（カメラの行き先・カーソル・押した印）を書く。手元のサーバー（`PUBLIC_MODE=1`、8000）が要る
+  2. `cd promo && node render_x.mjs [id,…|all] [--gif]` … Remotion の `XClip`（`src/XClip.tsx`）で `promo/out/x/<id>.mp4`。1 本 20 秒ほど
+  - カメラは `k.look([セレクタ…])` の四角に寄る（16:9 に広げ、2 倍まで）。カーソルと輪は Remotion が描く（ページには描かない）
+  - 終わりの 0.5 秒で最初の絵を溶かし込む（X の繰り返し再生のつなぎ目を消す）
   - 曲は `promo/stills-tracks.json`（`grids/` は手元の並びで中身が決まっていない）。16:9 のサムネが要る場面は `stills-tracks-nico.json`
-  - **撮る範囲は最初の 1 回だけ測る**（`follow: true` の場面だけ毎コマ）。毎コマ測ると範囲が伸び縮みして窓が跳ねる
+  - **押したあとにボタンがずれたら矢印もついて行く**（`press`）。色で並べ替えは押すと上の 3 行の説明が 1 行に替わり、ボタンが上がる
   - **1280 幅では 3×3 のマスが「小さい扱い」**（96px 未満）で × と曲名の帯が出ない。× を押す場面は 2×2 にする
   - **Playwright の `mouse.wheel` は Ctrl を押していても ctrlKey が付かない**。拡大の場面は `ctrlWheel`（ページの中で WheelEvent を送る）
+  - Remotion 同梱の ffmpeg には fps・select などのフィルタが無い。GIF は Remotion の `--codec=gif`（`remotion.config.ts` は GIF のとき CRF を渡さない）
   - 候補の元ネタ（細かい機能 104 件の棚卸し）は台帳にまとめる予定

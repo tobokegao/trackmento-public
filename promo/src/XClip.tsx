@@ -1,0 +1,113 @@
+// X に載せる 1 機能 1 本の短い動画（2026-09-25）。素材は promo/x_clips.mjs が撮った
+// public/xclips/<id>/take.mp4（画面ぜんぶ、30 コマ/秒、倍率 2）と events.json（カメラ・カーソル・押した印）。
+//
+// ここでするのは画面の外側の演出だけ（画面そのものは本物の録画。作り直すとサイトとずれるため）:
+// - カメラ … 印の四角に寄る（16:9 に広げ、2 倍まで。録画の外は映さない）。移るときは加速・減速する
+// - カーソル … 印の点から点へなめらかに運ぶ（Mac OS 9 風の白黒の矢印。promo/cursor.js と同じ形）
+// - 押した合図 … 押した所に輪が 1 回広がる
+// - 終わり … 最後の絵に最初の絵を溶かし込んで、繰り返し再生のつなぎ目を消す
+import React from "react";
+import { AbsoluteFill, CalculateMetadataFunction, Easing, Freeze, OffthreadVideo, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+
+type Rect = { x: number; y: number; w: number; h: number };
+type Ev =
+  | { f: number; type: "cam"; rect: Rect; dur: number }
+  | { f: number; type: "cursor"; x: number; y: number; dur: number }
+  | { f: number; type: "down"; x: number; y: number; ring?: boolean }
+  | { f: number; type: "hide" }
+  | { f: number; type: "key"; key: string };
+export type Take = { id: string; fps: number; frames: number; vw: number; vh: number; dpr: number; events: Ev[] };
+export type XClipProps = { id: string; take?: Take };
+
+const LOOP = 15;      // 終わりに最初の絵を溶かし込むコマ数（0.5 秒）
+const MAX_ZOOM = 2;   // 録画は倍率 2 なので、2 倍まではぼやけない
+const PAD = 28;       // 寄る四角のまわりに残す余白（画面の CSS px）
+const ease = Easing.bezier(0.45, 0, 0.2, 1);
+
+/** 印の四角を、画面と同じ縦横比の「映す範囲」にする */
+function fit(r: Rect, vw: number, vh: number): Rect {
+  const A = vw / vh;
+  let w = r.w + PAD * 2, h = r.h + PAD * 2;
+  if (w / h < A) w = h * A; else h = w / A;
+  if (w < vw / MAX_ZOOM) { w = vw / MAX_ZOOM; h = w / A; }
+  if (w > vw) { w = vw; h = vh; }
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+  return { x: Math.min(Math.max(cx - w / 2, 0), vw - w), y: Math.min(Math.max(cy - h / 2, 0), vh - h), w, h };
+}
+const mix = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** 「from から to へ dur コマで移る」を印の順に重ねて、f コマ目の値を出す（移る途中で次の印が来たら、その時点の値から移り直す） */
+function track<T>(marks: { f: number; to: T; dur: number }[], f: number, lerp: (a: T, b: T, t: number) => T): T {
+  let seg = { from: marks[0].to, to: marks[0].to, f0: 0, dur: 0 };
+  const at = (s: typeof seg, x: number) => s.dur <= 0 ? s.to : lerp(s.from, s.to, ease(Math.min(1, Math.max(0, (x - s.f0) / s.dur))));
+  for (const m of marks.slice(1)) {
+    if (m.f > f) break;
+    seg = { from: at(seg, m.f), to: m.to, f0: m.f, dur: m.dur };
+  }
+  return at(seg, f);
+}
+
+const Arrow: React.FC<{ size: number; tilt: boolean }> = ({ size, tilt }) => (
+  <svg width={22 * size} height={30 * size} viewBox="0 0 22 30"
+       style={{ position: "absolute", left: -2 * size, top: -1 * size, transformOrigin: `${2 * size}px ${1 * size}px`,
+                transform: tilt ? "rotate(-12deg)" : undefined, filter: `drop-shadow(${size}px ${2 * size}px 0 rgba(0,0,0,.35))` }}>
+    <path d="M2 1 L2 22 L7.5 17 L11 25.5 L15 24 L11.5 15.5 L19 15 Z" fill="#fff" stroke="#111" strokeWidth={2} strokeLinejoin="round" />
+  </svg>
+);
+
+/** 1 コマぶんの絵（録画＋カメラ＋カーソル＋輪）。Freeze の中で使えば、そのコマで止まる */
+const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
+  const f = useCurrentFrame();
+  const { width } = useVideoConfig();
+  const { vw, vh, events } = take;
+  const k = width / vw;   // 出力の px ÷ 画面の CSS px（引いたとき）
+
+  const cams = events.filter((e): e is Extract<Ev, { type: "cam" }> => e.type === "cam").map((e) => ({ f: e.f, to: fit(e.rect, vw, vh), dur: e.dur }));
+  const cam = cams.length ? track(cams, f, (a, b, t) => ({ x: mix(a.x, b.x, t), y: mix(a.y, b.y, t), w: mix(a.w, b.w, t), h: mix(a.h, b.h, t) }))
+                          : { x: 0, y: 0, w: vw, h: vh };
+  const s = (vw / cam.w) * k;   // 画面の CSS px → 出力の px
+  const toScreen = (x: number, y: number) => ({ x: (x - cam.x) * s, y: (y - cam.y) * s });
+
+  const curs = events.filter((e): e is Extract<Ev, { type: "cursor" }> => e.type === "cursor").map((e) => ({ f: e.f, to: { x: e.x, y: e.y }, dur: e.dur }));
+  const lastVis = [...events].reverse().find((e) => e.f <= f && (e.type === "cursor" || e.type === "hide"));
+  const showCursor = curs.length > 0 && lastVis?.type === "cursor";
+  const cp = showCursor ? track(curs, f, (a, b, t) => ({ x: mix(a.x, b.x, t), y: mix(a.y, b.y, t) })) : null;
+  const downs = events.filter((e): e is Extract<Ev, { type: "down" }> => e.type === "down");
+  const pressing = downs.some((d) => f >= d.f && f < d.f + 6);
+  // 矢印の大きさは寄った倍率に合わせる（画面の部品と釣り合うように。引いたときでも小さくなりすぎないよう下限あり）
+  const size = Math.max(1.3, s * 0.9);
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>
+      <OffthreadVideo src={staticFile(`xclips/${id}/take.mp4`)} muted
+        style={{ position: "absolute", left: 0, top: 0, width: vw * k, height: vh * k, transformOrigin: "0 0",
+                 transform: `translate(${-cam.x * s}px, ${-cam.y * s}px) scale(${vw / cam.w})` }} />
+      {downs.filter((d) => d.ring !== false && f >= d.f && f < d.f + 14).map((d, i) => {
+        const p = toScreen(d.x, d.y), age = (f - d.f) / 14;
+        const r = interpolate(age, [0, 1], [6, 30]) * Math.max(1, s * 0.8);
+        return <div key={i} style={{ position: "absolute", left: p.x - r, top: p.y - r, width: r * 2, height: r * 2, borderRadius: "50%",
+                                     border: `${3 * Math.max(1, s * 0.7)}px solid #e5462c`, opacity: 1 - age, boxSizing: "border-box" }} />;
+      })}
+      {cp && (() => { const p = toScreen(cp.x, cp.y); return <div style={{ position: "absolute", left: p.x, top: p.y }}><Arrow size={size} tilt={pressing} /></div>; })()}
+    </AbsoluteFill>
+  );
+};
+
+export const XClip: React.FC<XClipProps> = ({ id, take }) => {
+  const f = useCurrentFrame();
+  if (!take) return null;
+  const N = take.frames;
+  const fade = interpolate(f, [N, N + LOOP], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+  return (
+    <AbsoluteFill>
+      <Freeze frame={N - 1} active={f >= N}><Scene id={id} take={take} /></Freeze>
+      {f >= N && <AbsoluteFill style={{ opacity: fade }}><Freeze frame={0}><Scene id={id} take={take} /></Freeze></AbsoluteFill>}
+    </AbsoluteFill>
+  );
+};
+
+/** 長さは素材のコマ数＋つなぎ。events.json を読んで props に入れる（描くたびに読み直さないように） */
+export const xclipMetadata: CalculateMetadataFunction<XClipProps> = async ({ props }) => {
+  const take: Take = await (await fetch(staticFile(`xclips/${props.id}/events.json`))).json();
+  return { durationInFrames: take.frames + LOOP, fps: take.fps, props: { ...props, take } };
+};

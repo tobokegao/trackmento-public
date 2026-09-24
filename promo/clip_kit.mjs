@@ -1,138 +1,170 @@
-// 数秒の GIF を撮るための道具箱。X 向けの `x_clips.mjs` が使う。
-// 中身は `gif_windows.mjs`（note の記事用）で詰めた撮り方を、ページごとに持てる形にしたもの。
-// あちらで分かった落とし穴（矢印をコマごとに運ぶ・切り取りを画面の中に収める など）はそのまま残してある。
+// X 向けの短い動画（1 機能 1 本）を撮る道具箱。`x_clips.mjs` が使う。
+//
+// 撮り方は本編の `capture.mjs` と同じ（2026-09-25 に中間案として切り替え）:
+// - **ページの時計を止め**、1/30 秒ずつ進めては画面ぜんぶを 1 枚撮る。CSS のアニメーションも同じ時刻に合わせる
+// - **カーソル・押した合図・カメラの行き先は描かずに、印（events.json）だけ残す**。描くのは Remotion（src/XClip.tsx）。
+//   カメラが操作する所へ寄る・カーソルがなめらかに動く・終わりが始めにつながる、はそちらで作る
+// - 撮ったコマは take.mp4 にまとめ、public/xclips/<id>/ に置く（Remotion が staticFile で読む）
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 
-export const FPS = 10;
+export const FPS = 30;
+const FF = path.resolve("promo/node_modules/@remotion/compositor-win32-x64-msvc/ffmpeg.exe");
+const START_TIME = new Date("2026-09-25T12:00:00+09:00");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** 画面を 1 つ開く。**公開版に無いソースは撮らない**（手元の .env に DISCOGS_TOKEN があると
+/** 画面を 1 つ開く（時計を止めた状態で）。**公開版に無いソースは撮らない**（手元の .env に DISCOGS_TOKEN があると
     候補に出るが、本番では未設定なので画面に出ない） */
 export async function openPage(browser, opts) {
   const c = await browser.newContext({ locale: "ja-JP", ...opts });
-  // **カーソルは自前で描く**（システムのカーソルはスクリーンショットに写らない）。promo/cursor.js
-  await c.addInitScript({ path: "promo/cursor.js" });
   const p = await c.newPage();
-  await p.goto("http://127.0.0.1:8000/", { waitUntil: "networkidle" });
-  await p.waitForFunction(() => window.__setGridUI);
+  await p.clock.install({ time: START_TIME });
+  await p.goto("http://127.0.0.1:8000/", { waitUntil: "domcontentloaded" });
+  for (let i = 0; i < 200 && !(await p.evaluate(() => !!window.__setGridUI)); i++) { await p.clock.runFor(50); await sleep(50); }
   // **消すのではなく隠す**。言語を替えるとソースの欄が描き直され、消した Discogs が戻ってくる
   await p.addStyleTag({ content: '#sources label:has(input[value="discogs"]) { display: none !important; }' });
   return p;
 }
 
-// ---- 撮る範囲（ページの中で評価する関数を返す。画面が動いても追従できるように） ----
-export const rectOf = (sel, pad = 8) => new Function("", `
-  const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect();
-  return { x: r.x - ${pad}, y: r.y - ${pad}, width: r.width + ${pad * 2}, height: r.height + ${pad * 2} };`);
-
-/** a と b を両方含む範囲 */
-export const rectPair = (a, b) => new Function("", `
-  const p = document.querySelector(${JSON.stringify(a)}).getBoundingClientRect();
-  const q = document.querySelector(${JSON.stringify(b)}).getBoundingClientRect();
-  const x = Math.min(p.x, q.x) - 8, y = Math.min(p.y, q.y) - 8;
-  return { x, y, width: Math.max(p.right, q.right) - x + 8, height: Math.max(p.bottom, q.bottom) - y + 8 };`);
-
-/** a の上端から b の下端まで（横幅は a） */
-export const rectSpan = (a, b) => new Function("", `
-  const p = document.querySelector(${JSON.stringify(a)}).getBoundingClientRect();
-  const q = document.querySelector(${JSON.stringify(b)}).getBoundingClientRect();
-  return { x: p.x - 8, y: p.y - 8, width: p.width + 16, height: q.bottom - p.y + 16 };`);
-
-/** 横幅は w の窓、縦は a の上端から b の下端まで */
-export const rectRange = (w, a, b) => new Function("", `
-  const o = document.querySelector(${JSON.stringify(w)}).getBoundingClientRect();
-  const p = document.querySelector(${JSON.stringify(a)}).getBoundingClientRect();
-  const q = document.querySelector(${JSON.stringify(b)}).getBoundingClientRect();
-  return { x: o.x - 8, y: p.y - 8, width: o.width + 16, height: q.bottom - p.y + 16 };`);
-
-/** 横幅は w の窓、縦は a の上端から決め打ちの高さ。**途中で開く部分を入れるときはこちら**
-    （閉じている間は高さが 0 なので、下端を要素から取るとコマごとに切り取りの大きさが変わる） */
-export const rectFixed = (w, a, h) => new Function("", `
-  const o = document.querySelector(${JSON.stringify(w)}).getBoundingClientRect();
-  const p = document.querySelector(${JSON.stringify(a)}).getBoundingClientRect();
-  return { x: o.x - 8, y: p.y - 8, width: o.width + 16, height: ${h} };`);
-
-/** いくつかの要素をまとめて囲む範囲（窓をまたいで、操作する所と結果の出る所を一緒に撮る）。
-    **見えていない要素（高さ 0）は数えない**（閉じている欄を入れると範囲が跳ねる） */
-export const rectUnion = (...sels) => new Function("", `
-  const rs = ${JSON.stringify(sels)}.map(s => document.querySelector(s)?.getBoundingClientRect()).filter(r => r && r.height > 0);
-  const x = Math.min(...rs.map(r => r.x)) - 8, y = Math.min(...rs.map(r => r.y)) - 8;
-  return { x, y, width: Math.max(...rs.map(r => r.right)) + 8 - x, height: Math.max(...rs.map(r => r.bottom)) + 8 - y };`);
-
-/** ページ 1 枚ぶんの道具。矢印の位置（cursorAt）はページごとに持つ */
+/** ページ 1 枚ぶんの道具。コマの数・印・カーソルの位置はここで持つ */
 export function makeKit(page, tracks) {
-  let cursorAt = { x: 640, y: 360 };
-  const tick = () => page.waitForTimeout(1000 / FPS);
+  let frames = 0, frameDir = null, events = [];
+  const vp = page.viewportSize();
+  const nFrames = (sec) => Math.max(1, Math.round(sec * FPS));
+  const ev = (type, extra = {}) => events.push({ f: frames, type, ...extra });
 
-  /** 指定の秒数ぶん、その場のコマを撮る（何も起きていない間の「ため」にも使う） */
-  async function hold(shot, sec) {
-    const n = Math.max(1, Math.round(sec * FPS));
-    for (let i = 0; i < n; i++) { await shot(); await tick(); }
+  /** 1 コマ進めて撮る。撮影前（frameDir が無い間）は時計だけ進める */
+  async function frame() {
+    const dt = Math.round((frames + 1) * 1000 / FPS) - Math.round(frames * 1000 / FPS);
+    await page.clock.runFor(dt);
+    if (!frameDir) return;
+    await page.evaluate(() => {
+      const now = performance.now();
+      for (const a of document.getAnimations()) {
+        if (a.__t0 === undefined) a.__t0 = now - (Number(a.currentTime) || 0);
+        a.pause(); a.currentTime = now - a.__t0;
+      }
+    }).catch(() => {});
+    frames++;
+    fs.writeFileSync(path.join(frameDir, `${String(frames).padStart(5, "0")}.jpg`), await page.screenshot({ type: "jpeg", quality: 92 }));
   }
-
-  /** 矢印をその要素の真ん中まで**コマを撮りながら**運ぶ。`page.click` は一瞬で飛ぶので、
-      何を押したのか見ても分からない */
-  async function glide(sel, shot, steps = 5) {
-    const b = await (await page.$(sel)).boundingBox();
-    const to = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-    for (let i = 1; i <= steps; i++) {
-      await page.mouse.move(cursorAt.x + (to.x - cursorAt.x) * i / steps, cursorAt.y + (to.y - cursorAt.y) * i / steps);
-      await shot(); await tick();
+  /** sec 秒ぶんのコマを撮る */
+  async function hold(sec) { for (let i = 0, n = nFrames(sec); i < n; i++) await frame(); }
+  /** 撮らずに待つ（時計は進める。タイマー待ちの処理が止まらないように） */
+  async function until(fn, label = "", timeout = 60000) {
+    const t0 = Date.now();
+    for (;;) {
+      if (await fn().catch(() => false)) return true;
+      if (Date.now() - t0 > timeout) throw new Error(`待ちきれない: ${label}`);
+      await page.clock.runFor(50); await sleep(50);
     }
-    cursorAt = to;
   }
-
-  /** 運んで押す。**押したあとに画面がずれたら、矢印もボタンについて行く** */
-  async function press(sel, shot) {
-    await glide(sel, shot);
-    await hold(shot, 0.2);
-    await page.mouse.down(); await shot();
-    await page.mouse.up();
-    await page.waitForTimeout(80);
-    const el = await page.$(sel);
-    const b = el && await el.boundingBox();
-    if (b) { cursorAt = { x: b.x + b.width / 2, y: b.y + b.height / 2 }; await page.mouse.move(cursorAt.x, cursorAt.y); }
-  }
-
-  /** 矢印を座標へ置く（撮らない）。場面の頭で、押す所から少し離しておくのに使う */
-  async function park(x, y) { cursorAt = { x, y }; await page.mouse.move(x, y); }
-
-  /** 文字を 1 字ずつ打つ（打つ間もコマを撮る） */
-  async function type(sel, text, shot, perChar = 1) {
-    await page.click(sel);
-    for (const ch of text) {
-      await page.keyboard.type(ch);
-      for (let i = 0; i < perChar; i++) { await shot(); await tick(); }
+  /** 撮りながら待つ（待つ様子を見せたいとき）。実時間とコマをおおよそ合わせる。min 秒は必ず撮る */
+  async function live(fn, { timeout = 30, min = 0 } = {}) {
+    const t0 = Date.now();
+    for (let i = 0; ; i++) {
+      const a = Date.now();
+      await frame();
+      if (i / FPS >= min && await fn().catch(() => false)) return true;
+      if (Date.now() - t0 > timeout * 1000) return false;
+      const rest = 1000 / FPS - (Date.now() - a); if (rest > 0) await sleep(rest);
     }
   }
 
-  /** 折りたたまれている補助フォームを開き、画面の中へ入れる */
-  async function bring(sel) {
-    await page.evaluate((sel) => {
-      const box = document.querySelector(sel);
-      if (box && box.dataset.collapsed === "true") box.querySelector(".sub-title")?.click();
-      box?.scrollIntoView({ block: "center" });
-    }, sel);
-    await page.waitForTimeout(300);
-  }
+  /** 要素をまとめた四角（画面の CSS px）。見えていない要素（大きさ 0）は数えない */
+  const rectOf = (sels) => page.evaluate((sels) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const s of sels) for (const el of document.querySelectorAll(s)) {
+      const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
+      x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
+    }
+    return x1 > x0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+  }, sels);
 
-  /** つまみをマウスで掴んで動かす（矢印キーだと焦点の枠が付き、勝手に動いて見える）。
-      つまみの位置は画面側の thumbOnly と同じ式（つまみの幅 19px） */
-  async function dragThumb(sel, dx, shot, steps = 4) {
+  /** カメラの行き先を決める（sels の要素をまとめた四角に寄る）。sec 秒かけて移る。撮影前なら最初の構図になる */
+  async function look(sels, sec = 0.6) {
+    const rect = await rectOf(sels);
+    if (!rect) throw new Error(`look: ${sels.join(", ")} が見えていない`);
+    ev("cam", { rect, dur: frameDir ? nFrames(sec) : 0 });
+  }
+  /** カメラを引く（画面ぜんぶ） */
+  const wide = (sec = 0.6) => ev("cam", { rect: { x: 0, y: 0, w: vp.width, h: vp.height }, dur: frameDir ? nFrames(sec) : 0 });
+
+  /** カーソルを置く（動かさずにその場へ。撮影前に最初の位置を決めるのに使う） */
+  async function park(x, y) { ev("cursor", { x, y, dur: 0 }); await page.mouse.move(x, y); }
+  /** カーソルを出さない（キーボードの場面）。**ページのマウスも画面の外へ出す**（乗せたままだと × が赤いまま残る） */
+  async function hideCursor() { ev("hide"); await page.mouse.move(-10, -10); }
+  /** 要素の真ん中の座標 */
+  async function centerOf(sel) {
+    const b = await page.locator(sel).first().boundingBox();
+    if (!b) throw new Error(`見えていない: ${sel}`);
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  }
+  /** カーソルを要素まで運ぶ（動きは Remotion が描く。ページのマウスは着く直前に動かして、:hover を出す） */
+  async function glide(sel, sec = 0.45) {
+    const to = await centerOf(sel);
+    const n = nFrames(sec);
+    ev("cursor", { x: to.x, y: to.y, dur: n });
+    for (let i = 0; i < n; i++) {
+      if (i === n - 2) await page.mouse.move(to.x, to.y);
+      await frame();
+    }
+  }
+  /** 運んで押す。押した瞬間が印の時刻（Remotion が波紋を描く） */
+  async function press(sel, { sec = 0.45 } = {}) {
+    await glide(sel, sec);
+    await hold(0.12);
+    const { x, y } = await centerOf(sel);
+    ev("down", { x, y });
+    await page.mouse.down(); await frame();
+    await page.mouse.up(); await frame();
+    // **押したあとにボタンがずれたら、矢印もついて行く**（色で並べ替えを押すと、上の 3 行の説明が 1 行のメッセージに
+    // 替わってボタンが上がる。矢印だけ残ると、下のリンクを押したように見える。gif_windows.mjs で利用者から指摘があった件）
+    const el = page.locator(sel).first();
+    const b = (await el.count()) && await el.boundingBox().catch(() => null);
+    if (b) {
+      const to = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      if (Math.hypot(to.x - x, to.y - y) > 2) { ev("cursor", { ...to, dur: nFrames(0.15) }); await page.mouse.move(to.x, to.y); }
+    }
+  }
+  /** キーを押す（押した印も残す。Remotion で押したキーを出すときに使える） */
+  async function key(k) { ev("key", { key: k }); await page.keyboard.press(k); await frame(); }
+  /** 1 字ずつ打つ */
+  async function type(sel, text, perChar = 0.06) {
+    await page.locator(sel).first().click();
+    for (const ch of text) { await page.keyboard.insertText(ch); await hold(perChar); }
+  }
+  /** つまみを掴んで動かす（つまみの位置は画面側の thumbOnly と同じ式。幅 19px） */
+  async function dragThumb(sel, dx, sec = 0.5) {
     const c = await page.evaluate((sel) => {
       const el = document.querySelector(sel), r = el.getBoundingClientRect(), T = 19;
       const min = +el.min || 0, max = +el.max || 100, t = max > min ? (+el.value - min) / (max - min) : 0;
       return { x: r.left + T / 2 + t * (r.width - T), y: r.top + r.height / 2 };
     }, sel);
-    await page.mouse.move(c.x, c.y);
-    await page.mouse.down();
-    for (let i = 1; i <= steps; i++) {
-      await page.mouse.move(c.x + dx * i / steps, c.y);
-      await shot(); await tick();
+    ev("cursor", { x: c.x, y: c.y, dur: nFrames(0.3) }); await hold(0.3);
+    ev("down", { x: c.x, y: c.y, ring: false });
+    await page.mouse.move(c.x, c.y); await page.mouse.down();
+    const n = nFrames(sec);
+    for (let i = 1; i <= n; i++) {
+      const x = c.x + dx * i / n;
+      ev("cursor", { x, y: c.y, dur: 1 });
+      await page.mouse.move(x, c.y); await frame();
     }
     await page.mouse.up();
-    cursorAt = { x: c.x + dx, y: c.y };
   }
+  /** Ctrl＋ホイール（トラックパッドの 2 本指と同じ）。**Playwright の mouse.wheel は Ctrl を押していても
+      ctrlKey が付かない**ので、ページの中で WheelEvent を送る */
+  const ctrlWheel = (x, y, dy) => page.evaluate(({ x, y, dy }) => {
+    document.elementFromPoint(x, y)?.dispatchEvent(new WheelEvent("wheel", { deltaY: dy, clientX: x, clientY: y, ctrlKey: true, bubbles: true, cancelable: true }));
+  }, { x, y, dy });
+
+  /** 撮るあいだだけ見た目を足す（場面に関係のない部品を隠すなど） */
+  const stage = (css) => page.addStyleTag({ content: css });
+  /** 要素を画面の縦の位置 y（CSS px）へ送る（撮る前に。撮りながら送るとカメラと二重に動く） */
+  const scrollTo = (sel, y = 80) => page.evaluate(({ sel, y }) => {
+    window.scrollBy(0, document.querySelector(sel).getBoundingClientRect().top - y);
+  }, { sel, y });
 
   /** n マスぶん曲を入れる。足りなければ**繰り返して埋める**。list で曲の一覧を差し替えられる */
   const seed = (n, size = [3, 3], opts = {}, list = tracks) => page.evaluate(({ tracks, n, size, opts }) => {
@@ -143,72 +175,30 @@ export function makeKit(page, tracks) {
     window.scrollTo(0, 0);
   }, { tracks: list, n, size, opts });
 
-  /** 要素を画面の縦の位置 y（CSS px）へ送る（切り取る範囲を画面の中に収めるため） */
-  const scrollTo = (sel, y = 80) => page.evaluate(({ sel, y }) => {
-    window.scrollBy(0, document.querySelector(sel).getBoundingClientRect().top - y);
-  }, { sel, y });
-
-  /** 撮るあいだだけ見た目を足す（場面に関係のない部品を隠すなど）。戻すときは返り値の関数を呼ぶ */
-  async function stage(css) {
-    const tag = await page.addStyleTag({ content: css });
-    return () => tag.evaluate((el) => el.remove());
-  }
-
-  /** Ctrl＋ホイール（トラックパッドの 2 本指と同じ）。**Playwright の mouse.wheel は Ctrl を押していても
-      ctrlKey が付かない**ので、ページの中で WheelEvent を送る */
-  const ctrlWheel = (x, y, dy) => page.evaluate(({ x, y, dy }) => {
-    document.elementFromPoint(x, y)?.dispatchEvent(new WheelEvent("wheel", { deltaY: dy, clientX: x, clientY: y, ctrlKey: true, bubbles: true, cancelable: true }));
-  }, { x, y, dy });
-
-  /** マスを空にする（`seed(0)` は「今ある曲で埋め直す」になるので使えない） */
-  async function clearGrid() {
-    await seed(9);
-    await page.click("#clear-btn");
-    await page.click("#confirm-yes");
-    await page.waitForTimeout(200);
-  }
-
   /** ジャケットが出そろうまで待つ（読み込み中の市松が写り込まないように） */
-  const waitArt = () => page.waitForFunction(() => {
+  const waitArt = () => until(() => page.evaluate(() => {
     const imgs = [...document.querySelectorAll("#grid img")];
-    return imgs.length > 0 && imgs.every(i => i.complete && i.naturalWidth > 0);
-  }, null, { timeout: 30000 }).catch(() => {});
+    return imgs.length > 0 && imgs.every((i) => i.complete && i.naturalWidth > 0);
+  }), "ジャケット", 30000).catch(() => {});
 
-  return { page, tracks, scrollTo, stage, ctrlWheel, hold, glide, press, park, type, bring, dragThumb, seed, clearGrid, waitArt, tick };
-}
+  /** 撮り始める（ここから先の印とコマが動画になる）。撮影前に置いた印（最初の構図・カーソル）は 0 コマ目に寄せる */
+  function start(dir) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    frameDir = path.join(dir, "frames");
+    fs.mkdirSync(frameDir, { recursive: true });
+    for (const e of events) e.f = 0;
+    frames = 0;
+  }
+  /** 撮り終える。take.mp4 と events.json を書く */
+  async function finish(dir, meta) {
+    execFileSync(FF, ["-y", "-v", "error", "-framerate", String(FPS), "-i", path.join(frameDir, "%05d.jpg"),
+      "-c:v", "libx264", "-preset", "medium", "-crf", "14", "-pix_fmt", "yuv420p", "-g", "15", "-movflags", "+faststart", path.join(dir, "take.mp4")]);
+    fs.rmSync(frameDir, { recursive: true, force: true });
+    const dpr = await page.evaluate(() => devicePixelRatio);
+    fs.writeFileSync(path.join(dir, "events.json"), JSON.stringify({ ...meta, fps: FPS, frames, vw: vp.width, vh: vp.height, dpr, events }, null, 1));
+    return frames;
+  }
 
-/** 地の模様だけを撮る（窓をすべて隠して、紙の色と粒だけにする）。16:9 に組むときの背景に使う */
-export async function captureDesk(page, file) {
-  const y = await page.evaluate(() => window.scrollY);
-  await page.evaluate(() => window.scrollTo(0, 0));
-  const tag = await page.addStyleTag({ content: "body > * { visibility: hidden !important; }" });
-  await page.screenshot({ path: file });
-  await tag.evaluate((el) => el.remove());
-  await page.evaluate((y) => window.scrollTo(0, y), y);
-}
-
-/** 場面を 1 つ撮る。clipOf は撮る範囲を返す関数（null なら画面ぜんぶ）。
-    コマは <dir>/f000.png…、組むときに要る情報は <dir>/meta.json */
-export async function record(page, dir, clipOf, steps, meta = {}, follow = false) {
-  fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(dir, { recursive: true });
-  await captureDesk(page, path.join(dir, "desk.png"));
-  let i = 0;
-  const vp = page.viewportSize();
-  // **撮る範囲は最初に 1 回だけ決める**（follow のときだけ毎コマ測り直す）。毎コマ測ると、
-  // マスの形を替えたときなどに範囲が伸び縮みして、組んだ動画の中で窓が跳ねる
-  const fixed = clipOf && !follow ? await page.evaluate(clipOf) : null;
-  const shot = async () => {
-    let clip = fixed ? { ...fixed } : clipOf ? await page.evaluate(clipOf) : undefined;
-    // **切り取りは画面の中に収める**。はみ出すと Playwright がその範囲を撮れずに固まる
-    if (clip) {
-      const x = Math.max(0, clip.x), y = Math.max(0, clip.y);
-      clip = { x, y, width: Math.min(clip.x + clip.width, vp.width) - x, height: Math.min(clip.y + clip.height, vp.height) - y };
-    }
-    await page.screenshot({ path: path.join(dir, `f${String(i++).padStart(3, "0")}.png`), clip });
-  };
-  await steps(shot);
-  const dpr = await page.evaluate(() => devicePixelRatio);
-  fs.writeFileSync(path.join(dir, "meta.json"), JSON.stringify({ ...meta, dpr, viewport: vp, frames: i, full: !clipOf }, null, 2));
-  return i;
+  return { page, tracks, frame, hold, until, live, look, wide, park, hideCursor, glide, press, key, type, dragThumb,
+           ctrlWheel, stage, scrollTo, seed, waitArt, start, finish };
 }
