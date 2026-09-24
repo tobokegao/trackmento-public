@@ -153,6 +153,10 @@
   .tile .v { font-size: 24px; line-height: 1.2; font-variant-numeric: tabular-nums; }
   .tile .v small { font-size: 12px; color: var(--muted); margin-left: 2px; }
   .tile .n { font-size: 12px; color: var(--muted); line-height: 1.45; }
+  /* 月の見込みは、枠が 2 列に並ぶ幅（スマホ）のときだけ 2 列ぶんを使う（2026-09-24、利用者の希望。内訳の行が長く、1 列だと 4 行に折れる）。
+     列の数は枠の幅で決まるので、画面の幅ではなく枠の幅で見る。2 列 = 180 × 2 ＋ すきま 18 以上、3 列 = 180 × 3 ＋ 36 未満 */
+  .tiles { container-type: inline-size; }
+  @container (min-width: 378px) and (max-width: 575px) { .tile.money { grid-column: span 2; } }
 
   /* 図 */
   .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 24px; }
@@ -915,9 +919,10 @@
     // 枠の先頭に置く（同日、利用者の希望。いちばん気にする数字なので）
     if (MONEY) {
       const yen = MONEY.jpy != null;
-      box.appendChild(tile("watch", "月の見込み", yen ? "¥" + num(MONEY.jpy) : "$" + MONEY.total_usd.toFixed(2), "",
+      const mt = box.appendChild(tile("watch", "月の見込み", yen ? "¥" + num(MONEY.jpy) : "$" + MONEY.total_usd.toFixed(2), "",
         "$" + MONEY.total_usd.toFixed(2) + " ＝ Render $" + MONEY.instance_usd.toFixed(0) + " ＋ 帯域 " + Math.round(MONEY.bw_gb) + "GB $" + MONEY.bw_usd.toFixed(2)
         + " ＋ R2 $" + MONEY.r2_usd.toFixed(2) + (yen ? "。1 ドル " + MONEY.rate + " 円（" + MONEY.rate_date.slice(5) + "）" : "")));
+      mt.classList.add("money");
     }
 
     const ngList = [];
