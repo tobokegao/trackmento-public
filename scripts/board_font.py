@@ -43,6 +43,9 @@ def wanted_chars() -> set[str]:
                 chars.add(bytes([hi, lo]).decode("euc_jp"))
             except UnicodeDecodeError:
                 pass
+    # ¥ は入れない。M+ 12 の ¥ は「\」の形に描かれていて、ボードの「¥5,597」が「,597」に見えた（9/24）。
+    # 入れなければ代わりのフォントの ¥ で出る。ボードの金額は「5,597 円」の形にしてある
+    chars.discard("¥")
     return chars
 
 
