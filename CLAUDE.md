@@ -141,7 +141,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 4. **起動**
 
    ```bash
-   PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+   APP_FROM_R2=0 PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
    ```
 
    `PYTHONUTF8=1` は必須に近い。付けないと Windows の既定が cp932 で、日本語のタイトルを扱うときに落ちる。
@@ -325,7 +325,7 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
 
 ## 二重実装の一覧（片方だけ直すと壊れる）
 
-- **同じ知識が 2 か所以上にある所の一覧**（今回のバグはすべてここから出た）。片方だけ直すと壊れる:
+- **同じ知識が 2 か所以上にある所の一覧**。片方だけ直すと壊れる:
   - 描画: `backend/render.py` と `frontend/index.html` の `renderShareCanvas`（定数・レイアウト式・文字の省略規則）
     → `scripts/compare_render.py` で突き合わせられる。丸めは `render.py` の `rnd()` が JS の `Math.round` に
     合わせてある（**Python の `round()` は偶数丸めなので使ってはいけない**）
@@ -346,34 +346,7 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
     frontend の `wrapPlan` / `WRAP_*`。下の「曲名の回り込み」を参照
   - 柱・帯（塊を枠の辺に付ける組み方）: `render.py` の `_slab_plan` / `_slab_frame` / `SLAB_*` と
     frontend の `slabPlan` / `slabFrame` / `SLAB_*`
-  - 曲名リストの流し込み: `render.py` の `_flow_rows` / `FLOW_*` と frontend の `flowRows` / `FLOW_*`。
-    **折り返しは字の単位。ただし両端をそろえること**がずれを抑える鍵。
-    字で折ると PIL と Canvas のわずかな計測差で折り返す位置が変わるが、行ごとに右端でそろえていれば
-    そこで吸収され、次の行へ積み上がらない（`compare_render.py` のぼかし後の差: 両端そろえ無し 3.19% →
-    **両端そろえ有り 0.71%**。基準は 1%）。曲の単位で折れば 0.05% まで下がるが、
-    行の頭がいつも番号になって規則的に見えるので採らなかった
-    - **語の尻尾だけが次の行へこぼれるなら、語ごと次の行へ送る**（`FLOW_TAIL` = 2 字・`FLOW_WORD_MAX` = 12 字、`tail_back` / `tailBack`、
-      2026-09-20、利用者の 11x11・16:9・121 曲で「ビリー・アイリッシ／ュ」「La／ur」）。語の区切りは空白と記号（`FLOW_WORD_SEP`）。
-      送った行の末尾の空白は外す。**曲名の最初の語は送らない**（番号だけが行末に取り残される）。こぼれるのが 3 字以上なら今までどおり字の途中で折る
-    - 余りの配分は**空白 1 つぶんまで**。上限を付けないと、1 行の曲数が少ないときに切れ目が間延びする
-    - **曲の切れ目（全角空白 1 つぶん）は必ず描く**。幅だけ取って描かないでいると、余りの無い行で
-      曲と曲がくっつく（利用者の画像で「Chevon06 例え話」のように番号が前の曲名に貼り付いていた。
-      2026-09-14 に直した）。行末に来た切れ目は数に入れない（使っていない送りを幅に含めると余りの配分がずれる）
-    - **折り返しの判定は字幅を 1px に丸めてから行う**。PIL と Canvas の字幅は 1px 未満だけ違い、
-      生の値で足すと境目の字で折る・折らないが入れ替わって、そこから先の行が全部ずれる
-      （丸める前 2.28% → 丸めた後 0.66%）。描くときは実寸のまま
-    - **ブラウザ側の字幅の控え（`CHAR_W`）は、Web フォントが効く前の値を持ち越してはいけない**。
-      読み込み直後の `layout()` はまだ代替フォントで測るので、そのまま残すと**折り返しが
-      サーバーとずれる**（16x16・16:9 の突き合わせで 0.26% → 3.69% になっていた。
-      `renderShareCanvas` の先頭で捨て、`document.fonts` の `loadingdone` でも捨てる）
-    - **行の中身は 1 本のベースラインに乗せる**（`BASELINE` = 0.38。字の大きさに対する比）。
-      PIL の `anchor="lm"` と Canvas の `textBaseline="middle"` は基準が違い、**文字が大きいほど
-      食い違う**（出力 64px で 10px ずれた）。**字面を実測して決めてはいけない**:
-      PIL の `getbbox` と Canvas の `actualBoundingBox` も数 px 違うので、固定比のほうが揃う
-    - **1px に丸める前に 1/64 px にそろえる**（frontend の `snapW`）。PIL は字幅を 1/64 px の固定小数で返すので、
-      実寸がちょうど .5 px になる字（IBM Plex の `e` / `r` / `-`）だけ Canvas の実数と丸めの向きが食い違い、
-      その 1 字から先の折り返しが全部ずれる。**190 字中 3 字の差で、回り込みの突き合わせが
-      6px のぼかしで 0.94% → 0.07% まで変わった**
+  - 曲名リストの流し込み: `render.py` の `_flow_rows` / `FLOW_*` と frontend の `flowRows` / `FLOW_*`。 細則（両端そろえ・語送り・字幅の丸め・ベースライン）と実測は `docs/layout.md` の「曲名リストの流し込み」
   - 曲名の刈り込み: `backend/names.py` と frontend の `trimName`（蛇足を外す規則）。**割り付けを決める前に通す**
     → `scripts/check_trim.py`（期待値の表と冪等性）と `scripts/compare_trim.py`（Python と Chromium の全件一致）
   - 検索の絞り込み: `backend/sources/itunes.py` と frontend の `itunesSearch`（ブラウザから直接 iTunes を叩くため）
