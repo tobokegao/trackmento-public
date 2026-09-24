@@ -1081,6 +1081,19 @@ body.sheet-open { overflow: hidden; }
     background-image: var(--sb-grip-v); background-size: calc(9 * var(--u)) calc(16 * var(--u));
     background-position: center; background-repeat: no-repeat; }
   .tsb-thumb:active { background-color: var(--color-rule-2); }
+  /* 上下の矢印（2026-09-24、スマホで出ていないと指摘）。見た目は ::-webkit-scrollbar-button と同じ作りで、
+     24px に合わせて三角だけ大きくする。溝が短くてつまみと両方は入らないときは出さない（.tsb-short） */
+  .tsb-btn { position: absolute; left: 0; width: 100%; height: 24px; box-sizing: border-box;
+    background-color: var(--color-bar);
+    background-repeat: no-repeat; background-position: center; background-size: 13px 13px;
+    border: 1px solid var(--color-bar-dark);
+    box-shadow: inset 1px 1px 0 var(--color-paper), inset -1px -1px 0 var(--color-bar-dark); }
+  .tsb-btn:active, .tsb-btn[data-held] { background-color: var(--color-rule-2); }
+  .tsb-up { top: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 1.5 8 7H1z' fill='%23232a33'/%3E%3C/svg%3E"); }
+  .tsb-down { bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M4.5 7.5 1 2h7z' fill='%23232a33'/%3E%3C/svg%3E"); }
+  .tsb.tsb-short .tsb-btn { display: none; }
 }
 /* 送信中の窓。**上りが細いと 80 秒かかる**ことがあり、何も出ていないと「固まった」と思って
    押し直される。押し直されると同じ 1MB がもう一度流れるので、進み具合を見せる意味がある */
@@ -4537,7 +4550,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     el.classList.add("tsb-host");
     const bar = document.createElement("div"); bar.className = "tsb";
     const thumb = document.createElement("div"); thumb.className = "tsb-thumb";
-    bar.append(thumb); parent.append(bar);
+    const up = document.createElement("div"); up.className = "tsb-btn tsb-up";
+    const down = document.createElement("div"); down.className = "tsb-btn tsb-down";
+    bar.append(up, thumb, down); parent.append(bar);
+    // 矢印のぶん、つまみの動ける範囲は上下 24px ずつ狭い。溝が短いときは矢印を出さない
+    const BTN = 24;
+    const inset = () => bar.classList.contains("tsb-short") ? 0 : BTN;
 
     /* **出す／消すは慎重に切り替える**。溝を出すと中身の幅が 24px 変わり、`syncPreview` が
        高さを取り直すので、境目では「要る → 要らない → 要る」と往復して枠が痙攣する（実機で報告）。
@@ -4568,11 +4586,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       bar.style.top = (r.top - pr.top + bt) + "px";
       bar.style.left = (r.right - pr.left - brw - 24) + "px";
       bar.style.height = (r.height - bt - bb) + "px";
-      const trackH = bar.clientHeight;
+      bar.classList.toggle("tsb-short", bar.clientHeight < 44 + 2 * BTN);
+      const off = inset(), trackH = bar.clientHeight - 2 * off;
       const th = Math.max(44, Math.round(trackH * h / sh));
       const max = sh - h;
       thumb.style.height = th + "px";
-      thumb.style.top = (max > 0 ? Math.round((trackH - th) * el.scrollTop / max) : 0) + "px";
+      thumb.style.top = (off + (max > 0 ? Math.round((trackH - th) * el.scrollTop / max) : 0)) + "px";
     };
     el.addEventListener("scroll", layout, { passive: true });
     if (window.ResizeObserver) { const ro = new ResizeObserver(layout); ro.observe(el); ro.observe(parent); }
@@ -4587,15 +4606,27 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     });
     thumb.addEventListener("pointermove", (e) => {
       if (!grabbed) return;
-      const trackH = bar.clientHeight, th = thumb.offsetHeight, max = el.scrollHeight - el.clientHeight;
+      const trackH = bar.clientHeight - 2 * inset(), th = thumb.offsetHeight, max = el.scrollHeight - el.clientHeight;
       const per = trackH - th > 0 ? max / (trackH - th) : 0;
       el.scrollTop = grabbed.top + (e.clientY - grabbed.y) * per;
       e.preventDefault();
     });
     for (const t of ["pointerup", "pointercancel"]) thumb.addEventListener(t, () => { grabbed = null; });
     // 溝を押したら 1 画面ぶん送る（Mac OS 9 と同じ）
+    // 矢印は 1 回で 40px 送り、押し続けると 0.35 秒後から続けて送る
+    for (const [btn, dir] of [[up, -1], [down, 1]]) {
+      let timer = 0;
+      const stop = () => { clearTimeout(timer); clearInterval(timer); timer = 0; delete btn.dataset.held; };
+      btn.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        btn.setPointerCapture(e.pointerId); btn.dataset.held = "1";
+        el.scrollBy({ top: dir * 40 });
+        timer = setTimeout(() => { timer = setInterval(() => el.scrollBy({ top: dir * 40 }), 60); }, 350);
+      });
+      for (const t of ["pointerup", "pointercancel", "lostpointercapture"]) btn.addEventListener(t, stop);
+    }
     bar.addEventListener("pointerdown", (e) => {
-      if (e.target === thumb) return;
+      if (e.target !== bar) return;
       const r = thumb.getBoundingClientRect();
       el.scrollBy({ top: (e.clientY < r.top ? -1 : 1) * el.clientHeight * 0.9, behavior: "smooth" });
       e.preventDefault();
