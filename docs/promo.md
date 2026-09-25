@@ -39,4 +39,11 @@ note の記事用の GIF・写真・表の撮り方。動画そのものの作�
   - **1280 幅では 3×3 のマスが「小さい扱い」**（96px 未満）で × と曲名の帯が出ない。× を押す場面は 2×2 にする
   - **Playwright の `mouse.wheel` は Ctrl を押していても ctrlKey が付かない**。拡大の場面は `ctrlWheel`（ページの中で WheelEvent を送る）
   - Remotion 同梱の ffmpeg には fps・select などのフィルタが無い。GIF は Remotion の `--codec=gif`（`remotion.config.ts` は GIF のとき CRF を渡さない）
+  - **背景色の場面（`bg-modes` / `bg-image`）は撮るあいだだけ関係のない欄を隠す**（`STAGE_BG`。グリッドとメッセージ、背景色の欄だけ残す）。
+    背景色の欄は出力オプションのずっと下にあり、そこまで送るとグリッド（色が変わるところ）が画面の上に出て、1280x720 では両方が入らない
+  - `bg-image` の見本の画像は `promo/public/x-bg-sample.jpg`（git の外）。色の塊をぼかした穏やかな画像にしてある（にぎやかな画像だと濃さが 2 割になり、見本で見えない）。
+    無ければ作る: `PYTHONUTF8=1 .venv/Scripts/python -c "from PIL import Image, ImageDraw, ImageFilter; im = Image.new('RGB', (1600, 900), (250, 214, 165)); d = ImageDraw.Draw(im); [d.ellipse((x - r, y - r, x + r, y + r), fill=c) for x, y, r, c in [(200, 150, 420, (244, 132, 95)), (1150, 250, 480, (120, 170, 230)), (700, 750, 520, (150, 210, 160)), (1450, 820, 360, (230, 120, 170))]]; im.filter(ImageFilter.GaussianBlur(120)).save('promo/public/x-bg-sample.jpg', quality=90)"`
+  - **撮影で上げた画像は本番の R2 に残る**（手元のサーバーも .env の R2 を使う）。`x_clips.mjs` が `/upload` の返事を `public/xclips/<id>/uploads.json` に記録するので、
+    撮ったら `PYTHONUTF8=1 .venv/Scripts/python scripts/clean_x_uploads.py` で消す（記録した分だけ。利用者の画像には触れない）
+  - 2026-09-25 の撮り直しで 11 本（前の 8 本＋ `undo-buttons` / `bg-modes` / `bg-image`）
   - 候補の元ネタ（細かい機能 104 件の棚卸し）は台帳にまとめる予定

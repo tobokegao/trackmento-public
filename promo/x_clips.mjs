@@ -28,11 +28,16 @@ for (const c of picked) {
   const page = await openPage(browser, PC);
   const k = makeKit(page, TRACKS);
   const dir = path.join(OUT, c.id);
+  // **撮影で本番の R2 に上げた画像を記録する**（背景の画像の場面は /upload を通る。手元のサーバーも .env の R2 を使うため）。
+  // 消すのは scripts/clean_x_uploads.py（記録した分だけを消す。利用者の画像には触れない）
+  const uploaded = [];
+  page.on("response", async (r) => { if (r.url().endsWith("/upload") && r.ok()) { try { uploaded.push((await r.json()).url); } catch { /* 読めなければ記録しない */ } } });
   try {
     if (c.setup) await c.setup(k);
     k.start(dir);
     await c.run(k);
     const n = await k.finish(dir, { id: c.id, what: c.what });
+    if (uploaded.length) fs.writeFileSync(path.join(dir, "uploads.json"), JSON.stringify(uploaded));
     console.log(c.id, n, "コマ", (n / 30).toFixed(1), "秒");
   } catch (e) {
     failed.push(c.id);

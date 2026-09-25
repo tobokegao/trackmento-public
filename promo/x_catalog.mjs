@@ -16,6 +16,9 @@ import fs from "node:fs";
 // 動画サイトのサムネ（16:9）の曲。マスの形・サムネの入れ方の場面で使う
 const NICO = JSON.parse(fs.readFileSync("promo/stills-tracks-nico.json", "utf-8"));
 
+/** 背景色の場面で隠すもの（グリッドの窓はグリッドとメッセージだけ、出力オプションは背景色の欄だけ残す） */
+const STAGE_BG = ".pane-grid .pane-body > :not(#grid-scroll):not(#grid-msg), .pane-options .pane-body > :not(fieldset:has(#bg-mode-seg)) { display: none !important; }";
+
 /** 曲を n 個入れて、ジャケットがそろうまで待つ */
 async function ready(k, n, size, opts = {}, list) {
   await k.seed(n, size, opts, list);
@@ -186,6 +189,81 @@ export default [
       await k.hold(0.6);
       await k.press("#zoom-modal-close");
       await k.hold(0.6);
+    },
+  },
+  {
+    id: "undo-buttons",
+    what: "グリッドの下の「元に戻す」「やり直す」… スマホでも 30 回まで戻せて、戻したものをやり直せる",
+    async setup(k) {
+      await ready(k, 4, [2, 2]);
+      await k.scrollTo("#grid", 70);
+      await k.look(["#grid", "#grid-msg", ".grid-actions > .history"]);
+      await k.park(900, 150);
+    },
+    async run(k) {
+      await k.hold(0.8);
+      for (const n of [4, 1]) {
+        await k.glide(`#grid .cell:nth-child(${n})`, 0.3);   // × はマスに乗せたときに出る
+        await k.press(`#grid .cell:nth-child(${n}) .rm`, { sec: 0.2 });
+        await k.hold(0.4);
+      }
+      await k.press("#undo-btn");
+      await k.hold(0.6);
+      await k.press("#undo-btn", { sec: 0.2 });
+      await k.hold(0.6);
+      await k.press("#redo-btn");
+      await k.hold(0.6);
+      await k.press("#undo-btn");   // 始めと同じ 4 曲に戻して終わる（繰り返し再生のつなぎ目）
+      await k.hold(1.0);
+    },
+  },
+  {
+    id: "bg-modes",
+    what: "「背景色」の決め方 … 「ジャケットに近い色」「ジャケットと反対の色」を選ぶと、並んだジャケットから色を取る",
+    async setup(k) {
+      // 背景の色が見えるように、マスの間隔と余白を広めにする
+      await ready(k, 9, [3, 3], { gap: 48, margin: 48, bg: "paper" });
+      // **撮るあいだだけ、グリッドと背景色の欄以外を隠して横に並べる**。背景色の欄は出力オプションのずっと下にあり、
+      // そこまで送るとグリッド（色が変わるところ）が画面の上に出て映らない（1280x720 では両方が入らない）
+      await k.stage(STAGE_BG);
+      await k.look(["#grid", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg", "#bg-msg"]);
+      await k.park(1150, 650);
+    },
+    async run(k) {
+      const pick = (v) => `#bg-mode-seg label:has(input[value="${v}"])`;
+      await k.hold(1.0);
+      await k.press(pick("near"));
+      await k.until(() => k.page.evaluate(() => /選びました/.test(document.querySelector("#bg-msg").textContent)), "ジャケットの色", 20000);
+      await k.hold(1.6);
+      await k.press(pick("far"));
+      await k.hold(1.6);
+      await k.press(pick("pick"));   // 元の色に戻して終わる
+      await k.hold(1.0);
+    },
+  },
+  {
+    id: "bg-image",
+    what: "「背景色」の「画像」… 端末の好きな画像を背景に敷く。曲名が読めるように、にぎやかな画像ほど薄く",
+    async setup(k) {
+      await ready(k, 9, [3, 3], { gap: 48, margin: 48, bg: "paper" });
+      // **撮るあいだだけ、グリッドと背景色の欄以外を隠して横に並べる**。背景色の欄は出力オプションのずっと下にあり、
+      // そこまで送るとグリッド（色が変わるところ）が画面の上に出て映らない（1280x720 では両方が入らない）
+      await k.stage(STAGE_BG);
+      await k.look(["#grid", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg", "#bg-image-box", "#bg-msg"]);
+      await k.park(1150, 650);
+    },
+    async run(k) {
+      await k.hold(1.0);
+      // 「画像」を選ぶと、まだ画像が無ければそのまま選ぶ窓が開く。窓は写らないので、選んだあとの見本の変わり方を見せる
+      const fc = k.page.waitForEvent("filechooser");
+      await k.press('#bg-mode-seg label:has(input[value="image"])');
+      await (await fc).setFiles("promo/public/x-bg-sample.jpg");   // 色の塊をぼかした穏やかな画像（濃さが 5 割になり、見本で見える）
+      await k.until(() => k.page.evaluate(() => /画像を背景に/.test(document.querySelector("#bg-msg").textContent)), "背景の画像", 30000);
+      await k.until(() => k.page.evaluate(() => /url\(/.test(document.querySelector("#grid").style.background)), "見本の画像", 10000);
+      await k.hold(0.3);
+      await k.hold(2.2);
+      await k.press('#bg-mode-seg label:has(input[value="pick"])');   // 元の色に戻して終わる
+      await k.hold(1.0);
     },
   },
 ];
