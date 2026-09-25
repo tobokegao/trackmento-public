@@ -59,4 +59,5 @@ note の記事用の GIF・写真・表の撮り方。動画そのものの作�
   - 2026-09-25 の撮り直しで 11 本（前の 8 本＋ `undo-buttons` / `bg-modes` / `bg-image`）
   - `color-sort` は白黒の架空のジャケット（明るさを段階的に）で撮る（カラフルな絵だと色相の順が伝わりにくい、と利用者。白黒は明るい順にそろう）。
     `bg-image` は「できあがりを見る」を押して見本の窓に寄る（グリッドの見本はマスの隙間にしか画像が見えない）
-  - 候補の元ネタ（細かい機能 104 件の棚卸し）は台帳にまとめる予定
+  - 題材の台帳（2026-09-25 夜に今の画面で数え直した 142 件。型・映え・撮り直しの判定付き、撮る／保留／外すは台帳の db に保存）:
+    https://claude.ai/artifact/GZ3kefBb8ouyGpV5fc2MRo 。元は `~/Tools/board-style/pages/x-clips-ledger.html`（データは流し込み。セッションの scratchpad の inventory.json が元なので、直すときは Artifact の read で今の版を取る）
