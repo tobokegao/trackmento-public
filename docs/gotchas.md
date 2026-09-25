@@ -10,7 +10,10 @@
   - **`frontend/index.html` は CRLF と LF が混ざっている**。Python の文字モードで読み書きすると全行の改行がそろい、差分が 1 万 6 千行になる
     （Edit ツールでも起きた）。書き換えは改行を `
 ` にそろえて置き換え、そのあと HEAD と行を `difflib` で突き合わせて、変えていない行は
-    HEAD の改行に戻す。コミットは `git -c core.autocrlf=false add`（`autocrlf=true` のままだと差分が大きく見える）。**差分の行数を毎回見る**
+    HEAD の改行に戻す。コミットは `git -c core.autocrlf=false add`（`autocrlf=true` のままだと差分が大きく見える）。**差分の行数を毎回見る**。
+    **`autocrlf=false` で add してよいのは改行の混ざった `frontend/index.html` だけ**。ほかのファイル（`backend/*.py`・`docs/*.md` など）は
+    リポジトリの中が LF で、作業用コピーが CRLF なので、ふつうの `git add` で LF に戻る。`false` で add すると CRLF のまま入り、
+    全行が差分になる（2026-09-25 に `main.py` で起き、`--renormalize` で戻した）
   - `index.html` には **NUL を区切りにした鍵**がある（`flowRows` の字幅の鍵だった）。grep が「Binary file」と出し、置き換えも空振りした。`grep -a` と `cat -A` で実物を見る
   - **速さの問題は、利用者の操作をそのまま再現して測ってから直す**。「マスの間隔がもっさり」を計算の重さと決めつけ、計算を速くして報告したが、
     本当は指でゆっくり引く間に 180ms 後の計算が走るタイミングの問題だった（`specHold`）。さらに離してすぐページを送ると計算がスクロールの
