@@ -1018,6 +1018,12 @@ async def favicon_png() -> FileResponse:
     return FileResponse(FRONTEND / "favicon.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
+@app.get("/bg-mark.png")
+async def bg_mark_png() -> FileResponse:
+    """背景色の「画像」の既定（TRACKMENTO のロゴを敷き詰めた絵。scripts/build_icons.py が作る）。"""
+    return FileResponse(FRONTEND / "bg-mark.png", media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/no-cover.png")
 async def no_cover_png() -> FileResponse:
     """ジャケットが無い曲のマスに使う画像（scripts/build_icons.py が作る）。"""

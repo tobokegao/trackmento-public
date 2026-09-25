@@ -255,6 +255,8 @@ def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, 
 
 # ---------- 画像取得（キャッシュ → HTTP） ----------
 def fetch_image_bytes(url: str) -> bytes:
+    if url == "/bg-mark.png":   # 背景色の「画像」の既定（同梱）
+        return (ROOT / "frontend" / "bg-mark.png").read_bytes()
     if url == NO_COVER:   # ジャケットが無い曲に使ううちの画像。同梱しているのでそのまま読む
         p = ROOT / "frontend" / "no-cover.png"
         if not p.is_file():

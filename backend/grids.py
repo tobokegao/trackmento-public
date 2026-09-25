@@ -121,7 +121,8 @@ class GridOptions(BaseModel):
     @field_validator("bgImage")
     @classmethod
     def _bg_image(cls, v: Optional[str]) -> Optional[str]:
-        return v if v and _UPLOAD_RE.match(v) else None
+        # うちに上げた画像か、同梱の既定の絵（/bg-mark.png）だけ
+        return v if v and (_UPLOAD_RE.match(v) or v == "/bg-mark.png") else None
 
     @field_validator("cellRatio")
     @classmethod

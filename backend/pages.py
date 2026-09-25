@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "「ジャケットに近い色」「ジャケットと反対の色」で、ジャケットから取った色の候補を四角で並べ、押して選べるようにしました。「画像」を選ぶと、まず TRACKMENTO の模様が敷かれます（「画像を選ぶ…」で好きな画像に替えられます）。",
+     "“Match the covers” and “Contrast the covers” now show the colors taken from your covers as squares you can pick from. Choosing “Image” first lays the TRACKMENTO pattern (switch to any image with “Choose an image…”)."),
     ("2026-09-25", "共有の URL から並びを開いたとき、開いていた並びに上書きされることがあったのを直しました。いつも新しい並びとして開きます（並びが上限のときは、開かずにお知らせします）。お題の一覧で、今のタイトルに印が付くようにしました。グラデーションの切り替えも軽くしました。",
      "Fixed opening a grid from a share URL sometimes overwriting the grid you had open. It now always opens as a new layout (if you're at the layout limit, it tells you instead). The theme list now marks your current title, and switching gradient options is lighter."),
     ("2026-09-25", "「並び」「お題」のプルダウンを押したときの一覧を、サイトの見た目に合わせた窓で出すようにしました（スマホでは画面の真ん中に出ます）。",
