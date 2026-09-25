@@ -10,7 +10,7 @@
                           2026-09-24、Android の「共有」から URL を受け取る Web Share Target のため）。
                           apple-touch-icon.png（180px）と同じ意匠: 3x3 の色ブロックの間を透明にあけ、左下は 7x7 の市松。
 
-  frontend/bg-mark.png … 背景色の「画像」の既定（2026-09-25、利用者の案）。TRACKMENTO のロゴ（TrackmentoMark 書体＋リソの 6 色の線）を
+  frontend/bg-mark.png … 背景色の「画像」の既定（2026-09-25、利用者の案）。favicon のマーク（3x3 の色ブロック）を
                           紙の地に互い違いに敷き詰めた 1600x900。まだ画像を選んでいないときに敷く。
 
 色は frontend/apple-touch-icon.png から取ったもの。意匠を変えるときはここを直して再実行する。
@@ -56,36 +56,20 @@ def app_icon(size: int, block: int, gap: int) -> Image.Image:
     return im
 
 
-BAR = ["#E6B731", "#008BC7", "#E5462C", "#AF9EE4", "#80E2B9", "#F594C3"]   # ロゴの下の線（マスタード〜ピンク。index.html の .wordmark .mark）
 PAPER = "#F6F5F2"
 
 
 def bg_mark() -> Image.Image:
-    """ロゴ 1 つを描き、1600x900 に互い違いに敷き詰める（index.html の .wordmark .mark と同じ形: 字の下に 6 色の線、線の頭に四角）"""
-    from PIL import ImageFont
-    font = ImageFont.truetype(str(ROOT / "fonts" / "TrackmentoMark-Bold.ttf"), 64)
-    text = "TRACKMENTO"
-    bbox = font.getbbox(text)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    u = 4                                   # 1 目（ロゴの線の太さ・四角の大きさの単位。サイトの 5px に当たる）
-    bar_h, gap = 3 * u, 3 * u
-    w, h = tw + 7 * u + 2 * u, th + gap + bar_h
-    tile = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(tile)
-    d.text((7 * u - bbox[0], -bbox[1]), text, font=font, fill=INK)
-    y = th + gap
-    d.rectangle([0, y, bar_h - 1, y + bar_h - 1], fill=BAR[0])   # 線の頭の四角
-    x0, x1 = 7 * u - u, w
-    step = (x1 - x0) / 6
-    for i, c in enumerate(BAR):
-        d.rectangle([round(x0 + i * step), y, round(x0 + (i + 1) * step) - 1, y + bar_h - 1], fill=c)
+    """favicon のマーク（3x3 の色ブロック。ホーム画面のアイコンと同じ描き方）を 1600x900 の紙の地に互い違いに敷き詰める。
+    2026-09-25、利用者の指定（はじめはロゴの字で作ったが、favicon のマークを使いたかった）"""
+    mark = app_icon(120, 36, 6)
     W, H = 1600, 900
     im = Image.new("RGB", (W, H), PAPER)
-    gx, gy = w + 90, h + 70
-    for r, yy in enumerate(range(-h // 2, H, gy)):
-        off = (gx // 2) * (r % 2) - gx // 3
+    gx, gy = 220, 170
+    for r, yy in enumerate(range(-60, H, gy)):
+        off = (gx // 2) * (r % 2) - 40
         for xx in range(off, W, gx):
-            im.paste(tile, (xx, yy), tile)
+            im.paste(mark, (xx, yy), mark)
     return im
 
 
