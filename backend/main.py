@@ -1812,6 +1812,18 @@ def _host_of(url: str) -> str:
         return "?"
 
 
+def _s3_missing(r: httpx.Response) -> bool:
+    """S3 をそのまま公開している配信元の「無い」か。
+
+    一覧の権限を与えていないバケットは、**存在しないキーに 404 ではなく 403 AccessDenied を返す**
+    （cdn.piapro.jp で確かめた。2026-09-25）。502 のまま数えると点検の 5xx に紛れ、
+    別の版の取り直しや「しばらく覚えて取りに行かない」も効かないので、404 と同じに扱う。
+    """
+    if r.status_code != 403 or "xml" not in r.headers.get("content-type", ""):
+        return False
+    return b"<Code>AccessDenied</Code>" in r.content[:512]
+
+
 async def fetch_image(url: str) -> tuple[str, bytes]:
     """画像を取得して (content-type, bytes) を返す。失敗は HTTPException。"""
     client: httpx.AsyncClient = app.state.http
@@ -1825,7 +1837,7 @@ async def fetch_image(url: str) -> tuple[str, bytes]:
         # **配信元のホスト名だけ理由に添える**（2026-09-17）。点検で「404 が 1,039 件」と出ても、どの配信元かが
         # 分からず手が打てなかった。URL 全体は利用者のデータなので出さない（ホストは出どころの種類にすぎない）
         raise HTTPException(502, f"取得失敗 ({_host_of(url)}): {type(e).__name__} {e}"[:120]) from e
-    if r.status_code == 404:
+    if r.status_code == 404 or _s3_missing(r):
         # **配信元に無いものは 404 で返す**（2026-09-17）。こちらの障害ではないのに 502 で数えていたので、
         # 点検の「5xx」に消えた画像（削除された動画のサムネイルなど）が混ざり、本当の障害が埋もれていた
         raise HTTPException(404, f"配信元に画像が無い ({_host_of(url)})")
