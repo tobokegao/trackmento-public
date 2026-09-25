@@ -818,7 +818,7 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 /* ---------- grid ---------- */
 .grid-head { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
 /* 並びの切り替え（grids-multi）。**OS 9 のポップアップメニュー**: 枠の右端に区切り線と下向きの三角、影はボタンと同じ市松。
-   中身はブラウザの select（開いた一覧は端末のものが出る。スマホでは下から出る選択の窓になり、そのほうが押しやすい） */
+   中身はブラウザの select。開いた一覧は自前のメニュー（下の .popup-hit / #popmenu。2026-09-25 までは端末のものが出ていた） */
 .layouts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-3); }
 .layouts > label { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
 .popup { --sh: calc(2 * var(--dot)); --arrow-w: 24px; position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
@@ -841,6 +841,30 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .popup select:active { background-color: var(--color-paper-2); }
 /* 一覧の中の項目はブラウザが描くので、暗い組でも読めるように色だけ渡す */
 .popup option { background: var(--color-paper); color: var(--color-ink); }
+/* **一覧は自前の OS 9 風のメニューで出す**（2026-09-25、利用者の指摘。スマホではブラウザの黒い一覧が出て、サイトの見た目から浮いていた）。
+   select の上に見えない押し口（.popup-hit）を重ね、押したら #popmenu を開く。値は select に入れて change を出すので、今までの処理はそのまま動く。
+   PC はボタンの真下に、スマホは画面の真ん中に題名バー付きの窓で出す */
+.popup-hit { position: absolute; inset: 0; z-index: 2; padding: 0; border: 0; background: none; cursor: pointer; }
+.popmenu { position: fixed; inset: 0; z-index: 70; }
+.popmenu[hidden] { display: none; }
+.popmenu-backdrop { position: absolute; inset: 0; }
+.popmenu-panel { position: absolute; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--line) solid var(--color-ink);
+  background: var(--color-paper); box-shadow: var(--shadow); max-height: 70dvh; }
+.popmenu-panel > .pane-title { cursor: default; }
+.popmenu-list { list-style: none; margin: 0; padding: var(--space-1) 0; overflow-y: auto; overscroll-behavior: contain; }
+.popmenu-list li { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); cursor: pointer;
+  font-family: var(--font-display); font-size: var(--dot-size); color: var(--color-ink); }
+.popmenu-list li::before { content: ""; width: 1em; flex: none; text-align: center; }
+.popmenu-list li[aria-selected="true"]::before { content: "✓"; }
+.popmenu-list li:focus { outline: none; }
+.popmenu-list li.is-active, .popmenu-list li:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+@media (hover: hover) and (pointer: fine) { .popmenu-list li:hover { background: var(--color-ink); color: var(--color-paper); } }
+@media (max-width: 59.99rem) {
+  .popmenu-backdrop { background: color-mix(in oklab, var(--color-ink) 45%, transparent); }
+  .popmenu-panel { left: 50% !important; top: 50% !important; transform: translate(-50%, -50%); width: min(92vw, 26rem) !important; }
+  .popmenu-list li { padding: var(--space-3) var(--space-4); }
+}
+@media (min-width: 60rem) { .popmenu-panel > .pane-title { display: none; } }
 .layouts .btn { min-height: 40px; }
 /* 縦に長いグリッドはこの枠の中でスクロールする */
 /* **溝のぶんは空けない**（2026-09-16。`scrollbar-gutter: stable` をやめた。スクロールしない並びで右に
@@ -1678,12 +1702,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <legend>背景色</legend>
         <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットと反対の色」は並んだジャケットから色を取り、
              並びが変わると取り直す。入る先はカスタムカラーなので、書き出しの描画はそのまま。
-             「背景なし」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
+             「背景を透過」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
         <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
           <label><input type="radio" name="bgMode" value="pick" checked><span>色を選ぶ</span></label>
           <label><input type="radio" name="bgMode" value="near"><span>ジャケットに近い色</span></label>
           <label title="補色（色相環で向かい側の色）"><input type="radio" name="bgMode" value="far"><span>ジャケットと反対の色</span></label>
-          <label><input type="radio" name="bgMode" value="none"><span>背景なし</span></label>
+          <label><input type="radio" name="bgMode" value="none"><span>背景を透過</span></label>
           <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
           <label><input type="radio" name="bgMode" value="gradient"><span>グラデーション</span></label>
         </div>
@@ -1773,6 +1797,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       <p class="msg" id="preview-msg" role="status" aria-live="polite"></p>
       <img id="preview-img" alt="書き出す画像の見本" hidden>
     </div>
+  </div>
+</div>
+<div class="popmenu" id="popmenu" hidden role="dialog" aria-modal="true" aria-labelledby="popmenu-title">
+  <div class="popmenu-backdrop" id="popmenu-backdrop"></div>
+  <div class="popmenu-panel">
+    <div class="pane-title"><h2 id="popmenu-title"></h2></div>
+    <ul class="popmenu-list" id="popmenu-list" role="listbox"></ul>
   </div>
 </div>
 <div class="modal" id="src-modal" hidden role="dialog" aria-modal="true" aria-labelledby="src-modal-title">
@@ -2120,7 +2151,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "ジャケットに近い色": "Match the covers",
         "ジャケットと反対の色": "Contrast the covers",
         "補色（色相環で向かい側の色）": "The complementary color (opposite on the color wheel)",
-        "背景なし": "No background",
+        "背景を透過": "Transparent",
         "画像": "Image",
         "グラデーション": "Gradient",
         "グラデーションの色": "Gradient colors",
@@ -4514,6 +4545,64 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     say(els.gridMsg, tr`${nT} マスのトラック名・${nA} マスのアーティスト名を短くしました。`); undoLink();
   }
   els.title.addEventListener("input", () => { state.title = els.title.value; updateSpec(); });
+  /* ---- ポップアップメニュー（2026-09-25）。.popup の select を自前のメニューで開く（CSS の説明を参照）。
+     値の無い項目（「見本から選ぶ…」）は並べない。キーボードは select に焦点があるとき Return / Space / ↓ で開き、
+     メニューの中は ↑↓ で移り Return で選ぶ。Esc か外を押すと閉じる ---- */
+  const popmenu = $("#popmenu"), popList = $("#popmenu-list");
+  let popSel = null;
+  function closePopmenu(focusBack = true) {
+    if (popmenu.hidden) return;
+    popmenu.hidden = true; unlockScroll();
+    if (focusBack && popSel) popSel.focus({ preventScroll: true });
+    popSel = null;
+  }
+  function openPopmenu(sel) {
+    popSel = sel;
+    const label = document.querySelector(`label[for="${sel.id}"]`);
+    $("#popmenu-title").textContent = label ? label.textContent.trim() : "";
+    // **項目の順番で選ぶ**（お題は値がどれも "t" なので、値で選ぶと最初の項目になる）
+    popList.replaceChildren(...[...sel.options].map((o, idx) => [o, idx]).filter(([o]) => o.value !== "").map(([o, idx]) => {
+      const li = document.createElement("li");
+      li.role = "option"; li.tabIndex = -1; li.textContent = o.textContent; li.dataset.index = idx;
+      li.setAttribute("aria-selected", String(idx === sel.selectedIndex));
+      li.addEventListener("click", () => choose(li));
+      li.addEventListener("pointerenter", () => li.focus({ preventScroll: true }));
+      return li;
+    }));
+    const panel = popmenu.querySelector(".popmenu-panel"), r = sel.getBoundingClientRect();
+    panel.style.left = `${Math.round(r.left)}px`; panel.style.top = `${Math.round(r.bottom + 2)}px`;
+    panel.style.width = `${Math.round(Math.max(r.width, 192))}px`;
+    panel.style.maxHeight = `${Math.round(Math.max(160, innerHeight - r.bottom - 16))}px`;
+    popmenu.hidden = false; lockScroll();
+    const cur = popList.querySelector('[aria-selected="true"]') || popList.firstElementChild;
+    cur?.focus({ preventScroll: true }); cur?.scrollIntoView({ block: "nearest" });
+  }
+  function choose(li) {
+    const sel = popSel;
+    closePopmenu();
+    if (!sel) return;
+    sel.selectedIndex = Number(li.dataset.index);
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  popList.addEventListener("keydown", (e) => {
+    const items = [...popList.children], i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[Math.max(0, Math.min(items.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))]?.focus(); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (items[i]) choose(items[i]); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePopmenu(); }
+    else if (e.key === "Tab") { e.preventDefault(); closePopmenu(); }
+  });
+  $("#popmenu-backdrop").addEventListener("click", () => closePopmenu());
+  for (const wrap of document.querySelectorAll(".popup")) {
+    const sel = wrap.querySelector("select");
+    if (!sel) continue;
+    const hit = document.createElement("button");
+    hit.type = "button"; hit.className = "popup-hit"; hit.tabIndex = -1; hit.setAttribute("aria-hidden", "true");
+    hit.addEventListener("click", () => { if (!sel.disabled) openPopmenu(sel); });
+    wrap.append(hit);
+    sel.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " " || (e.key === "ArrowDown" && e.altKey) || e.key === "F4") { e.preventDefault(); openPopmenu(sel); }
+    });
+  }
   $("#theme-sel").addEventListener("change", (e) => {
     const sel = e.target, o = sel.selectedOptions[0];
     sel.value = "";   // メニューは毎回「見本から選ぶ…」に戻す（続けて同じお題を選び直せるように）
