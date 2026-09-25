@@ -31,6 +31,12 @@ CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフ�
 def _guide(lang: str, days: int) -> str:
     if lang == "en":
         return f"""
+<div class="catch">
+<p class="catch-main">The otomad that takes you back, and the song that moves you right now.<br>
+Let’s line them up together.</p>
+<p class="catch-sub">TRACKMENTO, a memento of your tracks, turns your grid into a save point that is yours alone.</p>
+</div>
+
 <p>TRACKMENTO is a tool that lays out the artwork (cover art) of your favourite tracks in a grid and turns it into a single image.
 You can make images like “9 tracks that made me” by combining tracks from many different music sites, whether or not you
 subscribe to a streaming service. Its distinguishing feature is that you can arrange music freely <b>track by track</b>, not only
@@ -103,6 +109,12 @@ and share the music they love. When sharing, please follow the terms of use and 
 </dl>
 """
     return f"""
+<div class="catch">
+<p class="catch-main">「あの頃を思い出す」音MADも、いま心を突き動かすこの曲も。<br>
+それでは一緒に、並べてみましょう。</p>
+<p class="catch-sub">トラックのメメント「TRACKMENTO」が、あなたのグリッドを、あなただけのセーブポイントにします。</p>
+</div>
+
 <p>TRACKMENTO（トラックメント）は、好きなトラックのサムネイル（ジャケット写真や動画のサムネイル）を格子状に並べて1枚の画像にするツールです。「私を構成する9曲」のような画像を、サブスクリプションへの加入有無に関わらず、さまざまな配信サイトのトラックを組み合わせて作成できます。アルバム単位だけでなく、<b>トラック単位</b>で自由に並べられるのが特徴です。完全無料で、会員登録も不要です。</p>
 
 <h2>こんな使い方も</h2>
@@ -278,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "使い方のページの頭に、TRACKMENTO のひと言を載せました。",
+     "Added a short word from TRACKMENTO at the top of the How to use page."),
     ("2026-09-25", "画面の言葉を見直しました。「ジャケット」は「サムネイル」（見出しや選択肢では「サムネ」）に、トラックリストは「横並び」「重ね表示」「非表示」、背景の「背景を透過」は「透過」、画像の敷き方は「全体表示」「タイル」などに変えています。",
      "Reworded the screen. “Cover” is now “thumbnail,” the track list options are “Beside the grid,” “Over the cells” and “Hidden,” and the background and image options have shorter names."),
     ("2026-09-25", "出力オプションの呼び名をそろえました。「比率」は「全体枠」、「マスの形」は「マス枠」、「サムネの入れ方」は「サムネ余白」（「トリミング」「ぼかし背景」）、「背景色」は「背景」（「色の選択」「ジャケットの近似色」「ジャケットの補色」）です。比率は「横長 16:9」の形で書きます。",
@@ -651,6 +665,10 @@ ol.steps {{ list-style: decimal; }}
 ol.steps li, ul li {{ display: list-item; }}
 dl {{ margin: 0; display: grid; gap: 10px; }}
 dt {{ font-weight: 700; }}
+/* 使い方の頭のキャッチコピー（2026-09-25）。囲みや色は足さず、字の大きさと太さだけで本文と分ける */
+.catch {{ display: grid; gap: 6px; margin: 4px 0 16px; }}
+.catch-main {{ font-size: 1.15rem; font-weight: 700; line-height: 1.6; }}
+.catch-sub {{ font-size: .95rem; }}
 nav.pages {{ display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .9rem; }}
 nav.pages a {{ color: #12171b; }}
 </style></head>
