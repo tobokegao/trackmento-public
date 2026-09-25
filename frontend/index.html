@@ -1366,8 +1366,20 @@ output { font-variant-numeric: tabular-nums; }
 .support .album { font-family: var(--font-display); color: var(--color-ink); }
 /* 広告枠。いまは中身が自分の音楽（つなぎ）で、AdSense の審査が通ったら中身とラベルを差し替える */
 /* body が flex なので、幅を絞るだけだと左に寄る。align-self で中央に置く */
-.promo { width: min(960px, 100%); align-self: center; margin-top: var(--space-5); padding: var(--space-3); border: var(--line) solid var(--color-rule); display: grid; gap: var(--space-2); }
-.promo .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
+/* 見た目は「本体から切り離した、隅の小箱」（2026-09-25）。灰色の平らな見出しの帯に、左は題名、右は小さな札。
+   **警告に見せない**: 帯に縞を引かない（窓に見せない）・閉じるボタンを置かない・赤や黄を使わない・影を付けない
+   （AdSense は広告を OS の画面や通知に見せかける配置を禁じている）。広告を入れたら題名は「広告」か「スポンサーリンク」だけ */
+.promo { width: min(960px, 100%); align-self: center; margin-top: var(--space-4); border: var(--line) solid var(--color-ink); background: var(--color-paper); display: grid; }
+.promo-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 28px; padding: 0 var(--space-2); background: var(--color-bar); border-bottom: var(--line) solid var(--color-ink); }
+.promo-tag { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); border: 1px solid var(--color-rule); padding: 0 var(--space-1); background: var(--color-paper); }
+.promo-body { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); }
+.promo-text { display: grid; gap: var(--space-2); min-width: 0; }
+.promo-btn { flex: none; display: block; line-height: 0; }
+.promo-btn img { width: 88px; height: 31px; image-rendering: pixelated; }
+/* 広告が入る場所。PC は 468×60、スマホは 320×100（どちらも AdSense の固定の大きさ） */
+.ad-slot { width: 468px; height: 60px; max-width: 100%; margin-inline: auto; background: var(--color-paper-2); display: grid; place-items: center; font-size: var(--text-sm); color: var(--color-muted); }
+@media not all and (min-width: 60rem) { .ad-slot { width: 320px; height: 100px; } .promo-body { flex-direction: column; } }
+.promo .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .promo p { margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
 .promo .album { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .promo .elsewhere { font-size: var(--text-sm); color: var(--color-ink-2); }   /* 主役は Bandcamp。ほかは従として小さく並べる */
@@ -1627,7 +1639,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       <section class="pane pane-output" id="output" aria-labelledby="h-output">
         <div class="pane-title"><h2 id="h-output">できあがり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="できあがりを折りたたむ"></button></span></div>
         <div class="pane-body">
-        <p class="msg" id="out-msg" role="status" aria-live="polite">「更新」で見本を作ります（送りません）。</p>
+        <p class="msg" id="out-msg" role="status" aria-live="polite">「更新」で見本を作ります（共有しません）。</p>
         <button type="button" class="out-shot" id="out-shot" hidden title="大きく見る"><img id="output-img" alt="書き出す画像の見本"></button>
         <div class="out-actions">
           <button class="btn btn-sm" type="button" id="out-refresh">更新</button>
@@ -1996,14 +2008,24 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      文言でクリックを促すと AdSense のポリシー違反（アカウント停止）になるため、
      差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。 -->
 <aside class="promo" aria-label="サーバー代のおねがい">
-  <span class="lbl">サーバー代のおねがい</span>
-  <p>予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭</p>
+  <div class="promo-head"><span class="lbl">サーバー代のおねがい</span><span class="promo-tag">PR</span></div>
+  <div class="promo-body">
+  <a class="promo-btn" href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-button" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,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" alt="Tobokegao（Bandcamp）" width="88" height="31"></a>
+  <div class="promo-text">
+  <p>無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
   <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a>（Bandcamp）</span>
   <span class="elsewhere">ほかで聴く:
     <a href="https://soundcloud.com/tobokegao" target="_blank" rel="noopener noreferrer">SoundCloud</a> /
     <a href="https://open.spotify.com/artist/2ZW0H3Dntod1TN6dUFKY3v" target="_blank" rel="noopener noreferrer">Spotify</a> /
     <a href="https://music.apple.com/jp/artist/tobokegao/1532385760" target="_blank" rel="noopener noreferrer">Apple Music</a>
   </span>
+  </div>
+  </div>
+</aside>
+<!-- SAMPLE-AD: 見本用。審査が通ったあとの形 -->
+<aside class="promo" aria-label="広告">
+  <div class="promo-head"><span class="lbl">広告</span><span class="promo-tag">SPONSOR</span></div>
+  <div class="promo-body"><div class="ad-slot">広告が入る場所</div></div>
 </aside>
 
 <footer>
@@ -2221,7 +2243,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "できあがりを見る": "Preview",
         "書き出す画像の見本を「できあがり」の窓に作って見せる（送らない）": "Make a preview of the exported image in the result window (nothing is sent)",
         "更新": "Refresh",
-        "「更新」で見本を作ります（送りません）。": "Press “Refresh” to make a preview (nothing is sent).",
+        "「更新」で見本を作ります（共有しません）。": "Press “Refresh” to make a preview (nothing is shared).",
         "トラックを置くと、ここに書き出す画像の見本が出ます。": "Add tracks and a preview of the exported image appears here.",
         "並びか設定が変わりました。「更新」で見本を作り直します。": "The grid or settings changed. Press “Refresh” to update the preview.",
         "端末から上げた画像は 90 日で消えます。出ていない画像は、もう一度選び直してください。": "Images uploaded from your device are deleted after 90 days. Choose any missing images again.",
@@ -2289,6 +2311,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "共有ページを開く": "Open share page",
         "画像を保存": "Save image",
         "予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭": "This blew up more than I expected and the server bills keep climbing…! Buy my album and help out if you can 😭",
+        "無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
         "Tobokegao「おかねがたりないときのうた」": "Tobokegao \"Okane ga Tarinai Toki no Uta\"",
         "出力オプション": "Output options",
         "横": "Cols",
@@ -3455,7 +3478,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     outRun++; outSig = ""; outCanvas = null; outBg = null;
     if (outUrl) { URL.revokeObjectURL(outUrl); outUrl = ""; }
     $("#out-shot").hidden = true; $("#share-done").hidden = true;
-    say($("#out-msg"), tr("「更新」で見本を作ります（送りません）。"));
+    say($("#out-msg"), tr("「更新」で見本を作ります（共有しません）。"));
   }
   async function refreshOutput() {
     const msg = $("#out-msg"), btn = $("#out-refresh");
@@ -5486,7 +5509,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     pad.addEventListener("pointerdown", (e) => {
       e.preventDefault(); e.stopPropagation();
       if (Math.abs(e.clientX - thumbCenter()) > thumbW() / 2) return;   // つまみの上でなければ何もしない
-      dragging = true;
+      dragging = true; specHold(true);   // 掴んでいる間は「出力サイズ」の重い計算を後回しにする（updateSpec）
       grabDX = e.clientX - thumbCenter();
       try { pad.setPointerCapture(e.pointerId); } catch { /* 古いブラウザ */ }
       el.classList.add("is-grabbed", "no-ring");
@@ -5503,6 +5526,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       el.classList.remove("is-grabbed");
       try { pad.releasePointerCapture(e.pointerId); } catch { /* 解放済み */ }
       el.dispatchEvent(new Event("change", { bubbles: true }));
+      specHold(false);
     };
     pad.addEventListener("pointerup", end);
     pad.addEventListener("pointercancel", end);
@@ -5740,7 +5764,26 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     return b * Number(m[2]) / BASE_PX;
   }
   // 字幅が変われば折り返しも組み方も変わるので、共有画像の大きさの見込み（`sharePlan`）も一緒に捨てる
-  if (document.fonts) document.fonts.addEventListener("loadingdone", () => { CHAR_W.clear(); clearSharePlan(true); });
+  if (document.fonts) document.fonts.addEventListener("loadingdone", () => { CHAR_W.clear(); clearSharePlan(true); warmCharWidths(); });
+  /* **字幅の控えは暇なときに取り直しておく**（2026-09-25）。フォントが効いて控えを捨てた直後は、次の割り付けが全部の字を測り直すので
+     いちばん重い（7x7・49 曲、CPU 1/4 で 1.2 秒。うち 0.7 秒が measureText）。曲名に出る字を 3 書体ぶん、少しずつ先に測っておく。
+     ピクセル字は番号にしか使わないので数字だけ。途中で並びが変わっても、測った値は字ごとなので無駄にならない */
+  let warmCharsId = 0;
+  function warmCharWidths() {
+    if (!window.requestIdleCallback) return;
+    cancelIdleCallback(warmCharsId);
+    const chars = [...new Set(shareFontText())], fonts = [fontBold(24), fontRegular(24)], pix = fontPixel(24);
+    let i = 0;
+    const step = (dl) => {
+      while (i < chars.length && dl.timeRemaining() > 2) {
+        const ch = chars[i++];
+        for (const f of fonts) charWidth(probe, f, ch);
+        if (/[0-9]/.test(ch)) charWidth(probe, pix, ch);
+      }
+      if (i < chars.length) warmCharsId = requestIdleCallback(step, { timeout: 2000 });
+    };
+    warmCharsId = requestIdleCallback(step, { timeout: 2000 });
+  }
   const FLOW_FONT_STEPS = [132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18];
   // 右に置くときは出力での大きさ（px）で選ぶ（枠が先に決まるので）
   const FLOW_TARGET_PX = [56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12];
@@ -6957,7 +7000,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* **出力サイズの表示は、操作が落ち着いてから 1 回だけ計算する**（2026-09-20、利用者から「グリッドの変更がもたつく」）。
      割り付けの計算は大きい並びで 1 回 0.1〜0.4 秒かかり（字幅を大きさごとに測り直すため）、以前はタイトルを 1 字打つたび・
      つまみを少し動かすたびに 2 回ずつ走っていた（16x16 で 1 回の変更に 2〜4 秒）。プレビューと保存はその場で行う */
-  let specTimer = 0;
+  let specTimer = 0, specHeld = false, specPending = false;
+  /* **つまみを掴んでいる間は計算しない**（2026-09-25、利用者のスマホで「マスの間隔」がもっさり）。180ms の間を置いても、
+     指をゆっくり動かすと途中で計算が走り、そのあいだつまみが止まる（7x7・49 曲、CPU 1/4 で 0.5〜1.2 秒）。
+     掴んでいる間（つまみの pointerdown 〜 pointerup）は後回しにし、離したときに 1 回だけ計算する */
+  function specHold(on) { specHeld = on; if (!on && specPending) { specPending = false; scheduleSpec(); } }
+  function scheduleSpec() { clearTimeout(specTimer); specTimer = setTimeout(updateSpecNow, 180); }
   /* 畳んだ「枠とサムネ」の下に今の値を出す（「全体枠・横長 16:9 / マス枠・正方形 1:1 / サムネ余白・トリミング」） */
   function syncCellsSum() {
     // 1 項目ずつ折らない（「サムネ余 / 白」のように語の途中で折れていた）。折るのは「 / 」の所だけ
@@ -6987,8 +7035,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     clearSharePlan();   // 並びか設定が変わった。共有画像の大きさの見込みは組み直す
     clearViewCells();   // 曲名の刈り込みの控えも捨てる（並びが書き換わっているかもしれない）
     syncCellFit();      // マスの形が変わっていれば「絵の入れ方」の出し入れも合わせる
-    clearTimeout(specTimer);
-    specTimer = setTimeout(updateSpecNow, 180);
+    if (specHeld) { specPending = true; clearTimeout(specTimer); } else scheduleSpec();
   }
   /** 「マスに重ねる」ときの縮尺（曲名リストを出さない組み方なので計算が軽い）。判定は共有画像を描く大きさで */
   function overlayScale() {
