@@ -584,6 +584,14 @@ CLIP_GAIN = 0.35          # 右に置くとき、名前が消える曲が 1 つ�
                           # 6x6・36 曲は 1.39 倍しか大きくならないので両方とも増やさない）
 
 
+def _songs(doc: GridDoc) -> list[Track]:
+    """曲の入ったマスだけを、マスの順（左上から右へ、次の段）に並べたもの。
+    **書き出しの番号はこの並びの序数**（01・02・03…。空きマスの番号は飛ばして詰める。2026-09-25、利用者の決定）。
+    マスの位置と結びつかない曲名リスト（サイドバー・表・1 行型・流し込み・縦一列）はこれで組み、
+    空きマスの行を作らない。frontend の listCells と同じ"""
+    return [t for t in doc.cells if t]
+
+
 def _num_w(font_s: int) -> float:
     """番号（2 桁）とその後ろの空きの幅。**字ごとに 1px へ丸めて測る**（PIL と Canvas で食い違わない）"""
     return char_w("pixel", rnd(font_s * 0.8), "0") * 2 + rnd(font_s * 0.8)
@@ -685,10 +693,8 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
     # （利用者の 25 曲を 5x5・16:9 に入れた実測で、サーバー 55px・ブラウザ 57px）
     avail = max(1.0, max_w - _num_w(font_s))
     plan = []
-    for t in doc.cells:
-        if not t:
-            plan.append(1)
-            continue
+    # **曲の入ったマスだけ**（空きマスの行を作らない。2026-09-25）。以前は空きマスにも番号だけの行を 1 つ取っていた
+    for t in _songs(doc):
         # **アーティスト名も 2 行まで折る**。0.8 に縮めれば入るぶんは 1 行のまま（行を増やさない）
         rows = 1 + _artist_rows(_one_line(t.artist), font_s, avail)
         title = _one_line(t.title)
@@ -933,9 +939,8 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
                 cur.append((kind, ch))
             x += w
 
-    for i, t in enumerate(doc.cells):
-        if not t:
-            continue
+    # 番号は曲の入ったマスの序数（空きマスは飛ばして詰める。2026-09-25）
+    for i, t in enumerate(_songs(doc)):
         if full():
             break
         if cur:
@@ -1238,7 +1243,8 @@ def _slab_stack(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: i
     並びは「タイトル → 塊 → 曲名リスト」。曲名の大きさは、縦に全部入って、かつ 1 行が
     `WRAP_MIN_SEG` 字ぶんの幅を持てる中でいちばん大きいものを選ぶ。
     """
-    n = len(doc.cells)
+    # **曲の入ったマスだけを積む**（空きマスの行を作らない。2026-09-25）。段は曲の序数で並ぶ
+    n = len(_songs(doc))
     if not n or doc.rows > SLAB_STACK_MAX_ROWS:
         return None
     W, H, pad = _slab_frame(gw, ratio, m, False, doc.options.gap, _pad_frac(doc))
@@ -1647,8 +1653,10 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     # 右サイドバーのときタイトルはサイドバーの上（曲名リストの前）に置く。グリッドの上に置くと内容が縦長になり、
     # 横長の比率（16:9）で左右の余白ばかり広がるため
     title_top_h = 0 if side == "right" else title_h
-    # 1 曲は「曲名の行 + アーティストの行」の 2 行。まずその前提で行の高さを見積もる
-    base_rows = sum(2 if (t and _one_line(t.artist)) else 1 for t in doc.cells)
+    # 1 曲は「曲名の行 + アーティストの行」の 2 行。まずその前提で行の高さを見積もる。
+    # **数えるのは曲の入ったマスだけ**（空きマスの行を作らない。2026-09-25）
+    songs = _songs(doc)
+    base_rows = sum(2 if _one_line(t.artist) else 1 for t in songs)
     avail_h = gh - title_h
     sb_w = sb_h = 0
     sb_cols = 1
@@ -1779,7 +1787,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         col_w0 = (sb_w - LIST_COL_GAP * (sb_cols - 1)) // sb_cols
         sb_plan = _row_plan(doc, font_s, col_w0)
         avail0 = max(1.0, col_w0 - _num_w(font_s))
-        sb_arows = tuple(_artist_rows(_one_line(t.artist) if t else "", font_s, avail0) for t in doc.cells)
+        sb_arows = tuple(_artist_rows(_one_line(t.artist), font_s, avail0) for t in songs)
         rows_per_col = _plan_rows(sb_plan, sb_cols)
         # **1 曲が列をまたがないので、折らなくても 1 列の行数が見込みより増えることがある**（2026-09-17）。
         # 曲名＋アーティストの 2 行ひと組を 25 曲、2 列に分けると 13 曲 ＝ 26 行で、「50 行 ÷ 2 列 ＝ 25 行」の
@@ -1814,7 +1822,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     # 字が 27.8px の 2 行型に落ちていた。1 行に並べれば 36.8px）。字がはっきり大きくなるときだけ採る
     sb_inline = False
     if side == "right":
-        n_i = len(doc.cells)
+        n_i = len(songs)
         lh_i, fs_i, w_i = _sidebar(1, n_i)
         # 下限は FLOW_MIN_FONT（20px）ではなく FLOW_KEEP_FONT（16px）。20px を割った 1 行型は下で流し込み・
         # 回り込み・柱を試し、そちらが「流し込みの右サイドバー」になるなら 1 行型に戻る（1 曲 1 行と同じ扱い）。
@@ -1844,7 +1852,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         # **1 行型の表を試す**（TABLE_*）。幅は流し込みと同じく比率で余るぶん全部
         w_t = max(sb_w, rnd((title_top_h + gh + m * 2) * ratio) - m * 2 - gw - sb_gap)
         W_t, H_t, sc_t = _frame(w_t, sb_h)
-        n_t = len(doc.cells)
+        n_t = len(songs)
         best = None
         for cols_t in range(2, TABLE_MAX_COLS + 1):
             lh_t = (gh - title_h) // max(1, math.ceil(n_t / cols_t))
@@ -2086,9 +2094,11 @@ def render(doc: GridDoc) -> Image.Image:
         ov_as = max(8, rnd(cs * OVERLAY_ARTIST))
         f_ov_t, f_ov_a = font("bold", ov_ts), font("regular", ov_as)
         ov_pad = rnd(cs * OVERLAY_PAD)
+    k = 0                             # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。2026-09-25）
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
         x, y = sc(L.ox + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + o.gap))
+        k += 1 if t else 0
         # **空きマスは塗らない**（背景の色が見える。2026-09-25、利用者の指摘。灰色の四角が並ぶと「読み込めなかった」ように見える）。
         # 曲の入ったマスだけ下地を塗る（ジャケットが取れなかったときに、そこに曲があると分かるように）。frontend の renderShareCanvas と同じ
         if t:
@@ -2108,8 +2118,9 @@ def render(doc: GridDoc) -> Image.Image:
                 if artist:
                     fa = _shrink_font(d, artist, f_ov_a, ov_as, max_w, kind="regular")
                     d.text((x + ov_pad, ab), _ellipsize(d, artist, fa, max_w), font=fa, fill=OVERLAY_SUB, anchor="ls")
-        if o.numbers:
-            label = f"{i + 1:02d}"
+        # **番号バッジは曲の入ったマスだけ**、曲名リストと同じ序数で（2026-09-25。前は空きマスにも位置の番号を出していた）
+        if o.numbers and t:
+            label = f"{k:02d}"
             # **枠は字面（インク）に四辺の余白を足して作る**。ピクセルフォントは em ボックスの中で
             # 字面が上に寄るので、em の高さで枠を作ると数字が下に寄って見える。余白は 2px を下限にした
             # （マスが小さいときは 2px、大きいときは今までどおり sc(12)）
@@ -2128,18 +2139,21 @@ def render(doc: GridDoc) -> Image.Image:
         f_num = font("pixel", max(8, sc(L.font_s * 0.8)))
         f_t = font("bold", fs)
         f_a = font("regular", max(8, rnd(fs * ARTIST_SCALE)))
-        for i, t in enumerate(doc.cells):
-            if i >= len(L.wrap_segs):
+        # **段の持ち方は 2 通り**（2026-09-25）。マスごと（`_slab_rows`）は段がマスの位置ごとにある（段の数 ＝ マスの数）ので、
+        # 空きマスの段は残して何も描かない。縦一列・表（`_slab_stack`）は曲の入ったマスだけを積んである（段の数 ＝ 曲の数）。
+        # 空きマスが無ければどちらも同じ対応になる。番号はどちらも曲の序数
+        by_pos = len(L.wrap_segs) == len(doc.cells)
+        for k, (i, t) in enumerate((i, t) for i, t in enumerate(doc.cells) if t):
+            si = i if by_pos else k
+            if si >= len(L.wrap_segs):
                 break
-            sx0, sy0, sw = L.wrap_segs[i]
+            sx0, sy0, sw = L.wrap_segs[si]
             x, cy = sc(sx0), sc(sy0 + L.line_h / 2)
-            num = f"{i + 1:02d}"
+            num = f"{k + 1:02d}"
             # ピクセルフォントは em ボックスの中で字面が上に寄るので、字面の中心を行の中心に置く
             _, top, _, bottom = f_num.getbbox(num, anchor="ls")
             d.text((x, rnd(cy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
             nw = d.textlength(num, font=f_num) + sc(L.font_s * 0.8)
-            if not t:
-                continue
             max_w = sc(sw) - nw
             title, artist = _one_line(t.title), _one_line(t.artist)
             if L.wrap_inline:
@@ -2261,7 +2275,9 @@ def render(doc: GridDoc) -> Image.Image:
                     x += rnd(d.textlength(text, font=f))
             _release_memory()
             return im
-        plan = L.sb_plan or tuple(1 for _ in doc.cells)
+        # **曲の入ったマスだけを詰めて並べる**（空きマスの行を作らない。番号は序数。2026-09-25）
+        songs = _songs(doc)
+        plan = L.sb_plan or tuple(1 for _ in songs)
         # 行の割り付け（列・その列の中での行番号）。**1 曲が列をまたがないように**詰める
         rows_per_col = _plan_rows(plan, L.sb_cols)
         places, col, used = [], 0, 0
@@ -2278,7 +2294,7 @@ def render(doc: GridDoc) -> Image.Image:
             # 1 行型: 曲名は番号の後ろ、アーティスト名は列の右端にそろえる。2 つは同じベースラインに乗せる
             # （字の大きさが違うので、行の中心で合わせると下端がずれて見える）
             base = rnd(font_s * BASELINE)
-            per_col = math.ceil(len(doc.cells) / max(1, L.sb_cols))   # 表（2〜3 列）のときの 1 列の曲数
+            per_col = math.ceil(len(songs) / max(1, L.sb_cols))   # 表（2〜3 列）のときの 1 列の曲数
             if L.sb_cols > 1:   # 表は列のあいだを行の高さから決める（TABLE_GAP_LH）
                 tgap = rnd(L.line_h * TABLE_GAP_LH)
                 col_w = (L.sb_w - tgap * (L.sb_cols - 1)) // L.sb_cols
@@ -2286,34 +2302,33 @@ def render(doc: GridDoc) -> Image.Image:
                 tgap = LIST_COL_GAP
             rule = _mix(ink, bg, TABLE_RULE)
             rule_h = max(1, rnd(font_s * 0.04))
-            for i, t in enumerate(doc.cells):
+            for i, t in enumerate(songs):
                 col, row = divmod(i, per_col)
                 cx = sx + col * (col_w + tgap)
                 x = sc(cx)
                 right = sc(cx + col_w)
                 yy = sc(sy + row * L.line_h + L.line_h / 2)
-                if L.sb_cols > 1 and row < per_col - 1 and i < len(doc.cells) - 1:
+                if L.sb_cols > 1 and row < per_col - 1 and i < len(songs) - 1:
                     ly = sc(sy + (row + 1) * L.line_h)
                     d.rectangle((x, ly, right - 1, ly + rule_h - 1), fill=rule)
                 num = f"{i + 1:02d}"
                 _, top, _, bottom = f_num.getbbox(num, anchor="ls")
                 d.text((x, rnd(yy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
                 nw = d.textlength(num, font=f_num) + sc(L.font_s * 0.8)
-                if t:
-                    max_w = col_w * S - nw
-                    title, artist = _one_line(t.title), _one_line(t.artist)
-                    d.text((x + nw, yy + base), _ellipsize(d, title, f_title, max_w), font=f_title, fill=ink, anchor="ls")
-                    if artist:
-                        # 1 行型は全曲が 1 行に並ぶ大きさで組んである（`_inline_one_line`）ので、同じ行の右端に置く
-                        d.text((right, yy + base), _ellipsize(d, artist, f_artist, max_w), font=f_artist,
-                               fill=muted, anchor="rs")
+                max_w = col_w * S - nw
+                title, artist = _one_line(t.title), _one_line(t.artist)
+                d.text((x + nw, yy + base), _ellipsize(d, title, f_title, max_w), font=f_title, fill=ink, anchor="ls")
+                if artist:
+                    # 1 行型は全曲が 1 行に並ぶ大きさで組んである（`_inline_one_line`）ので、同じ行の右端に置く
+                    d.text((right, yy + base), _ellipsize(d, artist, f_artist, max_w), font=f_artist,
+                           fill=muted, anchor="rs")
             _release_memory()
             return im
         # **割り付けで取った行数より少ない行で描けた曲のぶん、その列の後ろの曲を詰める**（2026-09-17）。
         # 割り付けは字ごとに 1px に丸めた幅で「3 行」と見込むが、実際に折ると 2 行で入ることがあり、
         # 空いた 1 行がそのまま隙間になっていた（利用者の 4x4・16:9 で 2 か所）。列の下に余りが出るほうがまし
         shift: dict[int, int] = {}
-        for i, t in enumerate(doc.cells):
+        for i, t in enumerate(songs):
             col, row = places[i]
             row -= shift.get(col, 0)
             x = sc(sx + col * (col_w + LIST_COL_GAP))
@@ -2324,8 +2339,6 @@ def render(doc: GridDoc) -> Image.Image:
             _, top, _, bottom = f_num.getbbox(num, anchor="ls")
             d.text((x, rnd(yy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
             nw = d.textlength(num, font=f_num) + sc(L.font_s * 0.8)
-            if not t:
-                continue
             max_w = col_w * S - nw
             title, artist = _one_line(t.title), _one_line(t.artist)
             # 曲名の行（入らなければ 2 行に折る）。**アーティスト名は必ず次の行**

@@ -992,12 +992,16 @@ body.sheet-open { overflow: hidden; }
 /* グリッド列が狭いとき（スマホの PC 表示など）は 2 列だと文字の余白が足りないので、ボタンを 1 列に縦積み */
 /* 幅が 20rem（320px）を切る狭い画面だけ 1 列。412px の端末（欄の幅 348px）は 2×2 のまま */
 @container (max-width: 20rem) { .grid-actions > .btn { grid-column: 1 / -1; } }
-/* 「元に戻す」「やり直す」は小さく右に寄せて 2 つ並べる（2026-09-25。最初は幅いっぱいの 2 つにしたが、
-   利用者から「存在感が大きすぎる」。字はドット字の升目の大きさから下げられないので、高さと幅で控えめにする） */
+/* **小さいボタン**（2026-09-25、利用者の指定）。よく使う「トラックを探す」「トラックを共有」だけ大きいまま残し、
+   ほか（元に戻す・並びを保存・色で並べ替え・端末から画像を選択…など）は高さ 28px にする。字はドット字の升目の大きさから
+   下げられないので、高さと左右の余白で控えめにする。スマホでも同じ（利用者の判断） */
+.btn.btn-sm { min-height: 28px; padding: 0 var(--space-2); }
+/* 「元に戻す」「やり直す」は右に寄せて 2 つ並べる */
 .grid-actions > .history { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: var(--space-2); }
-.grid-actions > .history .btn { min-height: 28px; padding: 0 var(--space-2); }
+/* 保存・読み込み・コピー・色で並べ替えは 1 つの箱で、幅に合わせて折り返す（2 列の升目だと PC の細い窓で字がはみ出す） */
+.grid-actions > .minor { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 /* 背景なしのできあがりは、透明な所が分かるように市松の上に出す（画像の外の地の模様なので、足さない見た目の「グラデーション」には当たらない） */
-/* 背景の決め方は 1 列に積む（「ジャケットの反対の色」が長く、2 列だと右の列が窓からはみ出す） */
+/* 背景の決め方は 1 列に積む（「ジャケットと反対の色」が長く、2 列だと右の列が窓からはみ出す） */
 #bg-mode-seg { grid-template-columns: max-content; margin-bottom: var(--space-3); }
 #bg-next[hidden] { display: none; }   /* .btn の display が hidden 属性に勝つので明示する */
 #bg-next { margin-top: var(--space-2); }
@@ -1012,6 +1016,9 @@ body.sheet-open { overflow: hidden; }
 /* **「トラックを全て外す」は説明文の下、右端に単独で置く**（2026-09-21、利用者の指定）。
    ボタンの列から縦にも横にも離れるので、続けて押したときに当たりにくい */
 .clear-row { display: flex; justify-content: flex-end; margin-top: var(--space-3); }
+/* **「トラックを全て外す」は線で区切って離す**（2026-09-25）。赤くはしない: 危ないボタンがいちばん目立ってしまい、
+   HIG でも色は付けない（確かめるのは確認窓と「元に戻す」の役目）。利用者と決めた */
+.clear-row { border-top: var(--line) solid var(--color-rule); padding-top: var(--space-3); }
 
 /* ---------- options ---------- */
 .opts { display: grid; gap: var(--space-4); }
@@ -1419,7 +1426,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <label for="m-image">手入力: ジャケット画像の URL</label>
         <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
         <div class="search-actions">
-          <button class="btn" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
+          <button class="btn btn-sm" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
           <input type="file" id="m-file" accept="image/*" hidden>
           <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶと画像が取り込まれ、URL 欄に入ります。</p>
         </div>
@@ -1496,15 +1503,17 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <!-- 取り消しのボタン（2026-09-25、利用者の依頼）。メッセージの「元に戻す」は次のメッセージで消えるので、
              キーボードの無いスマホでは 2 手以上戻れず、やり直しもできなかった。戻せないときは押せない -->
         <div class="history">
-          <button class="btn" type="button" id="undo-btn" disabled title="直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）">元に戻す</button>
-          <button class="btn" type="button" id="redo-btn" disabled title="取り消した操作をやり直す（Ctrl+Y でも）">やり直す</button>
+          <button class="btn btn-sm" type="button" id="undo-btn" disabled title="直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）">元に戻す</button>
+          <button class="btn btn-sm" type="button" id="redo-btn" disabled title="取り消した操作をやり直す（Ctrl+Y でも）">やり直す</button>
         </div>
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
-        <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
-        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
-        <button class="btn" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
-        <button class="btn" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+        <div class="minor">
+          <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
+          <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
+          <button class="btn btn-sm" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
+          <button class="btn btn-sm" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+        </div>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -1515,7 +1524,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
                  英語は語順が変わる（Add to everyone's grids）ので、前の空の span に applyI18n が "Add to " を入れる -->
             <div class="check check-sep"><input type="checkbox" id="opt-listed" aria-labelledby="listed-text"><span id="listed-text"><span id="listed-pre"></span><a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッド</a>に載せる</span></div>
           </div>
-          <button class="btn" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
+          <button class="btn btn-sm" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
         </div>
       </div>
       <p class="msg msg-under">チェックを入れると、共有されたグリッドがトラック名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
@@ -1523,7 +1532,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       <!-- **取り消せない操作は説明文の下に置いて、位置をずらす**（利用者の指定、2026-09-21）。
            すぐ上のボタンの列と離すことで、続けて押したときの誤タップを防ぐ -->
       <div class="clear-row">
-        <button class="btn" type="button" id="clear-btn" title="トラックを全て外す。あとから「元に戻す」で戻せる">トラックを全て外す</button>
+        <button class="btn btn-sm" type="button" id="clear-btn" title="トラックを全て外す。あとから「元に戻す」で戻せる">トラックを全て外す</button>
       </div>
       <section class="pane pane-output" id="output" hidden aria-labelledby="h-output">
         <div class="pane-title"><h2 id="h-output">できあがり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="できあがりを折りたたむ"></button></span></div>
@@ -1612,13 +1621,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 
       <fieldset class="field">
         <legend>背景色</legend>
-        <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットの反対の色」は並んだジャケットから色を取り、
+        <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットと反対の色」は並んだジャケットから色を取り、
              並びが変わると取り直す。入る先はカスタムカラーなので、書き出しの描画はそのまま。
              「背景なし」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
         <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
           <label><input type="radio" name="bgMode" value="pick" checked><span>色を選ぶ</span></label>
           <label><input type="radio" name="bgMode" value="near"><span>ジャケットに近い色</span></label>
-          <label><input type="radio" name="bgMode" value="far"><span>ジャケットの反対の色</span></label>
+          <label title="補色（色相環で向かい側の色）"><input type="radio" name="bgMode" value="far"><span>ジャケットと反対の色</span></label>
           <label><input type="radio" name="bgMode" value="none"><span>背景なし</span></label>
         </div>
         <div id="bg-pick">
@@ -1635,7 +1644,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <div class="hex" id="hsv-hex">#f2efe6</div>
         </div>
         </div>
-        <button class="btn" type="button" id="bg-next" hidden title="ジャケットから取った色のうち、次の候補にする">ほかの候補</button>
+        <button class="btn btn-sm" type="button" id="bg-next" hidden title="ジャケットから取った色のうち、次の候補にする">ほかの候補</button>
         <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
       </fieldset>
 
@@ -2009,7 +2018,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "取り消した操作をやり直す（Ctrl+Y でも）": "Redo what you undid (Ctrl+Y also works)",
         "色を選ぶ": "Choose a color",
         "ジャケットに近い色": "Match the covers",
-        "ジャケットの反対の色": "Contrast the covers",
+        "ジャケットと反対の色": "Contrast the covers",
+        "補色（色相環で向かい側の色）": "The complementary color (opposite on the color wheel)",
         "背景なし": "No background",
         "背景の決め方": "How to set the background",
         "ほかの候補": "Another color",
@@ -2795,6 +2805,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     return _viewCells;
   }
   const clearViewCells = () => { _viewCells = null; _viewSrc = null; _viewKey = null; };
+  /* 曲の入ったマスだけを、マスの順に並べたもの（backend/render.py の _songs と同じ）。
+     **書き出しの番号はこの並びの序数**（空きマスの番号は飛ばして詰める。2026-09-25、利用者の決定）。
+     マスの位置と結びつかない曲名リスト（サイドバー・表・1 行型・流し込み・縦一列）はこれで組み、空きマスの行を作らない。
+     画面（グリッドのバッジ・「N 番に入れました」・編集パネル）は操作用なので位置の番号のまま */
+  const listCells = () => viewCells().filter(Boolean);
 
   /* ---- 曲名の刈り込み ---- */
   /* 曲名とアーティスト名から蛇足を外す。**backend/names.py と対で直すこと**。
@@ -4091,9 +4106,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     say(els.gridMsg, tr("並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。"));
   });
   /* ---- トラック名を文章でコピー（text-copy）。「1. アーティスト - トラック名」を番号順に。
-     番号はマスの番号バッジと同じ（空きマスは飛ばすので番号も飛ぶ）。この形は「トラック名の一覧から」にそのまま貼り戻せる ---- */
+     番号は書き出し画像と同じ**曲の入ったマスの序数**（空きマスは飛ばして 1, 2, 3… と詰める。2026-09-25、利用者の決定。
+     前は位置の番号で、空きマスのぶん番号が飛んでいた）。この形は「トラック名の一覧から」にそのまま貼り戻せる ---- */
   const flat = (v) => (v || "").split(/\s+/).join(" ").trim();   // 描画用の oneLine と違い、絵文字は落とさない（文章として貼るので）
-  const trackLines = () => state.cells.map((t, i) => t && `${i + 1}. ${flat(t.artist) ? `${flat(t.artist)} - ` : ""}${flat(t.title)}`).filter(Boolean);
+  const trackLines = () => state.cells.filter(Boolean).map((t, i) => `${i + 1}. ${flat(t.artist) ? `${flat(t.artist)} - ` : ""}${flat(t.title)}`);
   $("#text-copy").addEventListener("click", async () => {
     const lines = trackLines();
     if (!lines.length) { say(els.gridMsg, tr("まだトラックが入っていません。"), "error"); return; }
@@ -4967,8 +4983,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         x += w;
       }
     };
-    viewCells().forEach((t, i) => {
-      if (!t || full()) return;
+    // 番号は曲の入ったマスの序数（空きマスは飛ばして詰める。backend/render.py と同じ。2026-09-25）
+    listCells().forEach((t, i) => {
+      if (full()) return;
       // 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない送りが入る）
       if (cur.length) { if (x + gap > cw()) flush(); else { x += gap; gaps += 1; } }
       const num = String(i + 1).padStart(2, "0"), title2 = oneLine(t.title);
@@ -5198,7 +5215,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* **塊を上に敷き、曲名を 1 曲 1 行の縦一列で下に置く**割り付け（backend/render.py の _slab_stack）。
      段の少ない横長の並び（7x1 など）だと下に大きな空きが残るので、1 曲 1 行で縦に積んで真ん中に置く */
   function slabStack(gw, gh, titleH, ratio, m, maxSide) {
-    const n = state.cells.length;
+    // **曲の入ったマスだけを積む**（空きマスの行を作らない。backend/render.py と同じ。2026-09-25）
+    const n = listCells().length;
     if (!n || state.rows > SLAB_STACK_MAX_ROWS) return null;
     const [W, H, pad] = slabFrame(gw, ratio, m, false, state.gap);
     if (W <= 0 || H <= 0) return null;
@@ -5512,8 +5530,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 境目の題で「1 行に入る・入らない」が割れて、行数から決まる文字の大きさがずれる）
     const avail = Math.max(1, maxW - numW(fontS));
     const f = fontBold(Math.max(12, fontS));
-    return viewCells().map((t) => {
-      if (!t) return 1;
+    // **曲の入ったマスだけ**（空きマスの行を作らない。backend/render.py と同じ。2026-09-25）
+    return listCells().map((t) => {
       let rows = 1 + artistRows(oneLine(t.artist), fontS, avail);
       const title = oneLine(t.title);
       let w = 0;
@@ -5684,7 +5702,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 横長の比率（16:9）で左右の余白ばかり広がるため
     const titleTopH = side === "right" ? 0 : titleH;
     // 1 曲は「曲名の行 + アーティストの行」の 2 行。まずその前提で行の高さを見積もる
-    const baseRows = viewCells().reduce((a, t) => a + (t && oneLine(t.artist) ? 2 : 1), 0);
+    // **数えるのは曲の入ったマスだけ**（空きマスの行を作らない。backend/render.py と同じ。2026-09-25）
+    const baseRows = listCells().reduce((a, t) => a + (oneLine(t.artist) ? 2 : 1), 0);
     const availH = gh - titleH;
     const pitch = cellH() + state.gap;   // マスの段 1 つぶんの送り（行をこれの約数にそろえる。**高さ**）
     let sbW = 0, sbH = 0, sbCols = 1;
@@ -5792,7 +5811,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       const colW0 = Math.floor((sbW - LIST_COL_GAP * (sbCols - 1)) / sbCols);
       sbPlan = rowPlan(fontS, colW0);
       const avail0 = Math.max(1, colW0 - numW(fontS));
-      sbARows = viewCells().map((t) => artistRows(t ? oneLine(t.artist) : "", fontS, avail0));
+      sbARows = listCells().map((t) => artistRows(oneLine(t.artist), fontS, avail0));
       const rowsPerCol = planRows(sbPlan, sbCols);
       // **1 曲が列をまたがないので、折らなくても 1 列の行数が見込みより増えることがある**
       // （backend/render.py と同じ。25 曲を 2 列にすると 13 曲 ＝ 26 行で、最後の曲がマスの下端からはみ出していた）
@@ -5822,7 +5841,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 字がはっきり大きくなるときだけ採る（2026-09-19。アーティスト名を次の行に落とすのはやめた）
     let sbInline = false;
     if (side === "right") {
-      const nI = viewCells().length;
+      const nI = listCells().length;
       let [lhI, fsI, wI] = sidebar(1, nI);
       // 下限は FLOW_KEEP_FONT（16px）。20px を割ったら下で流し込み・回り込みを試し、流し込みなら 1 行型に戻る
       const floorI = Math.max(Math.ceil(fontS * INLINE_GAIN), Math.ceil(FLOW_KEEP_FONT / scale));
@@ -5849,7 +5868,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       // 1 行型の表を試す（backend/render.py と同じ）。幅は流し込みと同じく比率で余るぶん全部
       const wT = Math.max(sbW, Math.round((titleTopH + gh + m * 2) * ratio) - m * 2 - gw - sbGap);
       const [WT, HT, scT] = frame(wT, sbH);
-      const nT = viewCells().length;
+      const nT = listCells().length;
       let best = null;
       for (let colsT = 2; colsT <= TABLE_MAX_COLS; colsT++) {
         const lhT = Math.floor((gh - titleH) / Math.max(1, Math.ceil(nT / colsT)));
@@ -6983,9 +7002,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const ov = state.overlay && overlayOk(S);
     const ovSh = Math.max(1, Math.round(ch * OVERLAY_SHADE)), ovTs = Math.max(8, Math.round(cs * OVERLAY_TITLE));
     const ovAs = Math.max(8, Math.round(cs * OVERLAY_ARTIST)), ovPad = Math.round(cs * OVERLAY_PAD);
+    let k = 0;   // 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。backend/render.py と同じ。2026-09-25）
     for (let i = 0; i < n; i++) {
       const t = viewCells()[i], c = i % state.cols, r = Math.floor(i / state.cols);
       const x = sc(L.ox + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + state.gap));
+      if (t) k++;
       // **空きマスは塗らない**（背景の色が見える。backend/render.py と同じ。2026-09-25）
       if (t) { ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch); }
       const drawOverlay = () => {
@@ -7014,8 +7035,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         onProgress(i + 1, n);
         await yieldToUI();
       }
-      if (state.numbers) {
-        const label = String(i + 1).padStart(2, "0");
+      // **番号バッジは曲の入ったマスだけ**、曲名リストと同じ序数で（backend/render.py と同じ。2026-09-25）
+      if (state.numbers && t) {
+        const label = String(k).padStart(2, "0");
         // **枠は字面（インク）に四辺の余白を足して作る**（backend/render.py と同じ規則）。
         // ピクセルフォントは em ボックスの中で字面が上に寄るので、em の高さで枠を作ると数字が下に寄る
         ctx.font = numF; ctx.textBaseline = "alphabetic";
@@ -7034,17 +7056,23 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       const fs = Math.max(8, sc(L.fontS));
       const fNum = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
       const fT = fontBold(fs), fA = fontRegular(Math.max(8, Math.round(fs * ARTIST_SCALE)));
-      for (let i = 0; i < viewCells().length && i < L.wrapSegs.length; i++) {
-        const t = viewCells()[i];
-        const [sx0, sy0, sw] = L.wrapSegs[i];
+      // **段の持ち方は 2 通り**（backend/render.py と同じ。2026-09-25）。マスごと（slabRows）は段がマスの位置ごとにある
+      // （段の数 ＝ マスの数）ので、空きマスの段は残して何も描かない。縦一列・表（slabStack）は曲の入ったマスだけを
+      // 積んである（段の数 ＝ 曲の数）。番号はどちらも曲の序数
+      const cellsV = viewCells(), byPos = L.wrapSegs.length === cellsV.length;
+      const entries = [];
+      cellsV.forEach((t, i) => { if (t) entries.push([i, t]); });
+      for (let k2 = 0; k2 < entries.length; k2++) {
+        const [i, t] = entries[k2], si = byPos ? i : k2;
+        if (si >= L.wrapSegs.length) break;
+        const [sx0, sy0, sw] = L.wrapSegs[si];
         const x = sc(sx0), cy = sc(sy0 + L.lineH / 2);
-        const num = String(i + 1).padStart(2, "0");
+        const num = String(k2 + 1).padStart(2, "0");
         // ピクセルフォントは em ボックスの中で字面が上に寄るので、字面の中心を行の中心に置く
         ctx.font = fNum; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(muted);
         const mm = ctx.measureText(num), top = -mm.actualBoundingBoxAscent, bottom = mm.actualBoundingBoxDescent;
         ctx.fillText(num, x, Math.round(cy - (top + bottom) / 2));
         const nw = mm.width + sc(L.fontS * 0.8);
-        if (!t) continue;
         const maxW = sc(sw) - nw;
         const title = oneLine(t.title), artist = oneLine(t.artist);
         if (L.wrapInline) {
@@ -7172,7 +7200,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         });
         return { canvas, bg };
       }
-      const plan = (L.sbPlan && L.sbPlan.length) ? L.sbPlan : viewCells().map(() => 1);
+      // **曲の入ったマスだけを詰めて並べる**（空きマスの行を作らない。番号は序数。backend/render.py と同じ。2026-09-25）
+      const songs = listCells(), ns = songs.length;
+      const plan = (L.sbPlan && L.sbPlan.length) ? L.sbPlan : songs.map(() => 1);
       // 行の割り付け（列・その列の中での行番号）。**1 曲が列をまたがないように**詰める
       const rowsPerCol = planRows(plan, L.sbCols);
       const places = []; let pcol = 0, pused = 0;
@@ -7186,14 +7216,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (L.sbInline) {
         // 1 行型: 曲名は番号の後ろ、アーティスト名は列の右端にそろえる。同じベースラインに乗せる（backend/render.py と同じ）
         const base = Math.round(fontS * BASELINE);
-        const perCol = Math.ceil(n / Math.max(1, L.sbCols));   // 表（2〜3 列）のときの 1 列の曲数
+        const perCol = Math.ceil(ns / Math.max(1, L.sbCols));   // 表（2〜3 列）のときの 1 列の曲数
         const tGap = L.sbCols > 1 ? Math.round(L.lineH * TABLE_GAP_LH) : LIST_COL_GAP;   // 表は列のあいだを行の高さから
         const tColW = L.sbCols > 1 ? Math.floor((L.sbW - tGap * (L.sbCols - 1)) / L.sbCols) : colW;
         const rule = mixRgb(ink, bg, TABLE_RULE), ruleH = Math.max(1, Math.round(fontS * 0.04));
-        for (let i = 0; i < n; i++) {
+        for (let i = 0; i < ns; i++) {
           const col = Math.floor(i / perCol), row = i % perCol, cx = sx + col * (tColW + tGap);
-          const t = viewCells()[i], x = sc(cx), right = sc(cx + tColW), yy = rowY(row);
-          if (L.sbCols > 1 && row < perCol - 1 && i < n - 1) {
+          const t = songs[i], x = sc(cx), right = sc(cx + tColW), yy = rowY(row);
+          if (L.sbCols > 1 && row < perCol - 1 && i < ns - 1) {
             const ly = sc(sy + (row + 1) * L.lineH);
             ctx.fillStyle = cssRgb(rule); ctx.fillRect(x, ly, right - x, ruleH);
           }
@@ -7217,8 +7247,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         return { canvas, bg };
       }
       const shift = {};   // 割り付けより少ない行で描けた曲のぶん、その列の後ろを詰める（backend/render.py と同じ）
-      for (let i = 0; i < n; i++) {
-        const t = viewCells()[i], [col, row0] = places[i];
+      for (let i = 0; i < ns; i++) {
+        const t = songs[i], [col, row0] = places[i];
         const row = row0 - (shift[col] || 0);
         const x = sc(sx + col * (colW + LIST_COL_GAP)), yy = rowY(row);
         const num = String(i + 1).padStart(2, "0");

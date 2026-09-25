@@ -511,9 +511,8 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
     trim_names = ((snap.get("options") or {}).get("trimNames")) is not False
     rows = []
     alt_items = []
-    for i, c in enumerate(snap.get("cells") or [], 1):
-        if not c:
-            continue
+    # 番号は**曲の入ったマスの序数**（空きマスは飛ばして詰める。書き出し画像の番号と同じ。2026-09-25）
+    for i, c in enumerate((c for c in snap.get("cells") or [] if c), 1):
         c_title, c_artist = (c.get("title") or ""), (c.get("artist") or "")
         if trim_names:
             c_title, c_artist = names.trim(c_title, c_artist)

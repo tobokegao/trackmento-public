@@ -278,9 +278,13 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "書き出す画像・共有ページ・「トラック名をコピー」の番号を、曲の入ったマスだけで 1 から振り直すようにしました。画像の曲名リストに、空きマスの番号だけの行は出ません。",
+     "Numbers in the exported image, on the share page and in “Copy track names” now count only cells with a track, starting from 1. The track list in the image no longer has rows that are just the number of an empty cell."),
+    ("2026-09-25", "「トラックを探す」「トラックを共有」以外のボタン（「並びを保存」「色で並べ替え」「端末から画像を選択…」など）を小さくし、「トラックを全て外す」は線で区切って離しました。",
+     "Buttons other than “Find a track” and “Share these tracks” (such as “Save layout”, “Sort by color” and “Choose an image from this device…”) are now smaller, and “Remove all tracks” sits apart below a divider."),
     ("2026-09-25", "グリッドの下に小さな「元に戻す」「やり直す」のボタンを付けました。キーボードが無いスマホでも、30 回まで戻したり、戻したものをやり直したりできます。",
      "Added small “Undo” and “Redo” buttons below the grid. Even on phones without a keyboard, you can go back up to 30 steps and redo what you undid."),
-    ("2026-09-25", "「背景色」で、背景の決め方を「色を選ぶ」「ジャケットに近い色」「ジャケットの反対の色」「背景なし」から選べるようにしました。ジャケットの色は並びを変えると取り直し、「ほかの候補」で別の色にできます。「背景なし」では、共有の画像は白い地になり、「画像を保存」では背景が透明な PNG になります。",
+    ("2026-09-25", "「背景色」で、背景の決め方を「色を選ぶ」「ジャケットに近い色」「ジャケットと反対の色」「背景なし」から選べるようにしました。ジャケットの色は並びを変えると取り直し、「ほかの候補」で別の色にできます。「背景なし」では、共有の画像は白い地になり、「画像を保存」では背景が透明な PNG になります。",
      "Under “Background color” you can now choose how the background is set: “Choose a color”, “Match the covers”, “Contrast the covers” or “No background”. Cover colors are taken again when the grid changes, and “Another color” switches to a different one. With “No background”, the shared image gets a white background and “Save image” gives you a PNG with a transparent background."),
     ("2026-09-25", "共有する画像で、曲の入っていないマスを灰色で塗らず、背景の色のままにしました。",
      "In shared images, empty cells are no longer filled with gray; they show the background color."),

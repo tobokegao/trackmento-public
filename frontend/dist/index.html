@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.b3fdd435.css">
+<link rel="stylesheet" href="app/app.934f17c7.css">
 </head>
 <body>
 
@@ -152,7 +152,7 @@
         <label for="m-image">手入力: ジャケット画像の URL</label>
         <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
         <div class="search-actions">
-          <button class="btn" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
+          <button class="btn btn-sm" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
           <input type="file" id="m-file" accept="image/*" hidden>
           <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶと画像が取り込まれ、URL 欄に入ります。</p>
         </div>
@@ -229,15 +229,17 @@
         <!-- 取り消しのボタン（2026-09-25、利用者の依頼）。メッセージの「元に戻す」は次のメッセージで消えるので、
              キーボードの無いスマホでは 2 手以上戻れず、やり直しもできなかった。戻せないときは押せない -->
         <div class="history">
-          <button class="btn" type="button" id="undo-btn" disabled title="直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）">元に戻す</button>
-          <button class="btn" type="button" id="redo-btn" disabled title="取り消した操作をやり直す（Ctrl+Y でも）">やり直す</button>
+          <button class="btn btn-sm" type="button" id="undo-btn" disabled title="直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）">元に戻す</button>
+          <button class="btn btn-sm" type="button" id="redo-btn" disabled title="取り消した操作をやり直す（Ctrl+Y でも）">やり直す</button>
         </div>
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
-        <button class="btn" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
-        <button class="btn" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
-        <button class="btn" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
-        <button class="btn" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+        <div class="minor">
+          <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
+          <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
+          <button class="btn btn-sm" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
+          <button class="btn btn-sm" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+        </div>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
           <div class="listed">
@@ -248,7 +250,7 @@
                  英語は語順が変わる（Add to everyone's grids）ので、前の空の span に applyI18n が "Add to " を入れる -->
             <div class="check check-sep"><input type="checkbox" id="opt-listed" aria-labelledby="listed-text"><span id="listed-text"><span id="listed-pre"></span><a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッド</a>に載せる</span></div>
           </div>
-          <button class="btn" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
+          <button class="btn btn-sm" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
         </div>
       </div>
       <p class="msg msg-under">チェックを入れると、共有されたグリッドがトラック名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
@@ -256,7 +258,7 @@
       <!-- **取り消せない操作は説明文の下に置いて、位置をずらす**（利用者の指定、2026-09-21）。
            すぐ上のボタンの列と離すことで、続けて押したときの誤タップを防ぐ -->
       <div class="clear-row">
-        <button class="btn" type="button" id="clear-btn" title="トラックを全て外す。あとから「元に戻す」で戻せる">トラックを全て外す</button>
+        <button class="btn btn-sm" type="button" id="clear-btn" title="トラックを全て外す。あとから「元に戻す」で戻せる">トラックを全て外す</button>
       </div>
       <section class="pane pane-output" id="output" hidden aria-labelledby="h-output">
         <div class="pane-title"><h2 id="h-output">できあがり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="できあがりを折りたたむ"></button></span></div>
@@ -345,13 +347,13 @@
 
       <fieldset class="field">
         <legend>背景色</legend>
-        <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットの反対の色」は並んだジャケットから色を取り、
+        <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットと反対の色」は並んだジャケットから色を取り、
              並びが変わると取り直す。入る先はカスタムカラーなので、書き出しの描画はそのまま。
              「背景なし」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
         <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
           <label><input type="radio" name="bgMode" value="pick" checked><span>色を選ぶ</span></label>
           <label><input type="radio" name="bgMode" value="near"><span>ジャケットに近い色</span></label>
-          <label><input type="radio" name="bgMode" value="far"><span>ジャケットの反対の色</span></label>
+          <label title="補色（色相環で向かい側の色）"><input type="radio" name="bgMode" value="far"><span>ジャケットと反対の色</span></label>
           <label><input type="radio" name="bgMode" value="none"><span>背景なし</span></label>
         </div>
         <div id="bg-pick">
@@ -368,7 +370,7 @@
           <div class="hex" id="hsv-hex">#f2efe6</div>
         </div>
         </div>
-        <button class="btn" type="button" id="bg-next" hidden title="ジャケットから取った色のうち、次の候補にする">ほかの候補</button>
+        <button class="btn btn-sm" type="button" id="bg-next" hidden title="ジャケットから取った色のうち、次の候補にする">ほかの候補</button>
         <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
       </fieldset>
 
@@ -543,6 +545,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.26cdef9c.js"></script>
+<script id="app-js" src="app/app.3f0291ee.js"></script>
 </body>
 </html>
