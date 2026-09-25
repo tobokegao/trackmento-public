@@ -290,6 +290,10 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "スマホで、曲の多い並びのトラックリストが段落のようにつながってしまうことがあったので、表の形に収まるなら画像を少し大きく作るようにしました。PC で作った画像と同じ組み方になりやすくなります。",
+     "On phones, the track list of a large grid sometimes ran together like a paragraph. The image is now made a little larger when that keeps the list in neat columns, so it looks more like one made on a PC."),
+    ("2026-09-25", "スマホで並びを切り替えたとき、グリッドのスクロールバーが出たり消えたりを繰り返すことがあったのを止めました。",
+     "Fixed the grid scroll bar on phones flickering on and off after switching layouts."),
     ("2026-09-25", "英語表示の言葉を見直しました（日本語の表示は変わりません）。",
      "Reviewed the English text: “song” is now “track” throughout, several option names are clearer (“Image fit,” “Background type,” “Freeform,” “Black text”), and spelling now follows US English."),
     ("2026-09-25", "使い方のページの頭に、TRACKMENTO のひと言を載せました。",

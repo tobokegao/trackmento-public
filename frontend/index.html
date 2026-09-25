@@ -5552,16 +5552,29 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
        - 出すのは中身が 8px より大きくはみ出すとき、消すのはぴったり収まるとき（遊びを持たせる）
        - 判定が 2 コマ続けて同じときだけ切り替える（幅が変わって高さを取り直す途中の値で反転しない） */
     let pending = null;
+    /* **それでも往復したら、溝を出したまま止める**（2026-09-25、利用者のスマホの 7x7 で「スクロールバーが高速で出たり消えたりする」。
+       エミュレータでは幅 340〜480px・画素比 3 通りで再現せず、原因の値は特定できていない）。
+       1.5 秒に 4 回切り替えたら hold に入り、溝ありで落ち着いた中身の高さと幅を覚える。
+       どちらかが 3px 以上変わったら（並びの切り替え・マスの大きさ・画面の回転）止めるのをやめて判定に戻す */
+    let flips = [], hold = null;
     const layout = () => {
-      const h = el.clientHeight, sh = el.scrollHeight;
+      const h = el.clientHeight, sh = el.scrollHeight, cw = el.clientWidth;
       const pr = parent.getBoundingClientRect(), r = el.getBoundingClientRect();
       const on = el.classList.contains("tsb-on");
       // **大きく見る窓の中では出さない**（2026-09-20）。バーは元の場所（欄）に置いたままなので窓の中では見えず、
       // 溝の 24px だけが並びの右に空いていた（利用者の 1x32 の画面で指摘）。窓の中は指で直接送れる
-      const need = !el.classList.contains("is-zoom") && r.height >= 40 && (on ? sh > h + 1 : sh > h + 8);
+      let need = !el.classList.contains("is-zoom") && r.height >= 40 && (on ? sh > h + 1 : sh > h + 8);
+      if (hold) {
+        if (!hold.sh) { if (on) hold = { sh, cw }; }
+        else if (Math.abs(sh - hold.sh) > 2 || Math.abs(cw - hold.cw) > 2 || el.classList.contains("is-zoom")) hold = null;
+        if (hold) need = true;
+      }
       if (need !== on) {
         if (pending !== need) { pending = need; requestAnimationFrame(layout); return; }
         pending = null;
+        const now = performance.now();
+        flips = flips.filter(t => now - t < 1500); flips.push(now);
+        if (flips.length >= 4 && !hold) { hold = {}; flips = []; need = true; }
         bar.hidden = !need; el.classList.toggle("tsb-on", need);
         if (!need) return;
       } else {
@@ -7733,8 +7746,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      1 段上げれば整列に戻るなら、そのぶん画像を大きくするほうがよい。
      **上げるのは流し込みに落ちる並びだけ**。上げ幅は端末で変える:
      - メモリの少ない端末（`deviceMemory <= 2`）… 上げない
-     - 指で触る端末（スマホ・タブレット）… 2400 まで 1 段だけ。2000 に下げたのは上りの遅さが理由
-       （上のコメント）で、送るバイトが約 1.44 倍に戻るため、2 段目以降は上げない
+     - 指で触る端末（スマホ・タブレット）… 2800 まで。2000 に下げたのは上りの遅さが理由（上のコメント）なので
+       3200 には上げない。2400 までだったのを 2800 にした（2026-09-25、利用者の判断）。7x7・16:9・49 曲の並びが
+       2800 でしか表に戻らず、PC で作った共有は表・スマホの「できあがり」は流し込みになっていた
      - PC … 3200 まで
      **大きくしても流し込みのままなら、いちばん軽い大きさで描く**（曲が多い並びは何 px にしても
      字が下限に届かない。実測では 26 曲以上の並びがそれに当たる） */
@@ -7747,7 +7761,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function shareRenderPlan(base = shareMaxSide(), coarse = window.matchMedia("(pointer: coarse)").matches) {
     const L0 = layout(base), mem = navigator.deviceMemory;
     if (!L0.sbFlow || (mem !== undefined && mem <= 2)) return { side: base, L: L0 };
-    const cap = coarse ? 2400 : 3200;
+    const cap = coarse ? 2800 : 3200;
     // 字の大きさは出力の大きさに比例するので、上限まで上げたときの見込みを割り付けなしで出せる
     if (!(L0.keepFont > 0) || L0.keepFont * (cap / base) < FLOW_KEEP_FONT) return { side: base, L: L0 };
     for (const s of SHARE_SIDE_STEPS) {
