@@ -278,8 +278,10 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-25", "「画像」で、画像を「引き伸ばす」か「並べる」（小・中・大）かを選べるようにし、選んだ画像の見本を出しました。「背景を透過」では「黒い字」「白い字」を選べます（白い字のときは見本の地が暗くなります）。",
-     "Under “Image”, you can now choose “Stretch” or “Tile” (S, M, L), with a preview of the chosen image. “Transparent” now lets you pick “Dark text” or “White text” (the preview turns dark for white text)."),
+    ("2026-09-25", "「画像」の「収める」は、画像の比率を変えずに端まで大きくし、余りを画像のふちの色で埋めるようにしました（書き出す画像の比率に合わせます）。",
+     "“Fit” under “Image” now enlarges the image to the edges without changing its proportions, and fills the rest with the color of the image's edges (matching the shape of the exported image)."),
+    ("2026-09-25", "「画像」で、画像を「収める」か「並べる」（小・中・大）かを選べるようにし、選んだ画像の見本を出しました。「背景を透過」では「黒い字」「白い字」を選べます（白い字のときは見本の地が暗くなります）。",
+     "Under “Image”, you can now choose “Fit” or “Tile” (S, M, L), with a preview of the chosen image. “Transparent” now lets you pick “Dark text” or “White text” (the preview turns dark for white text)."),
     ("2026-09-25", "同じトラックなら、並べ替えても書き出す画像の曲名リストの組み方（表か詰めた並びか・画像の大きさ・字の大きさ）が変わらないようにしました。「色で並べ替え」をすると組み方ががらりと変わることがありました。",
      "With the same tracks, reordering no longer changes how the track list in the exported image is laid out (table or packed text, image size, text size). Using “Sort by color” could change it completely before."),
     ("2026-09-25", "「ジャケットに近い色」「ジャケットと反対の色」で、ジャケットから取った色の候補を四角で並べ、押して選べるようにしました。「画像」を選ぶと、まず TRACKMENTO のマークの模様が敷かれます（「画像を選ぶ…」で好きな画像に替えられます）。",

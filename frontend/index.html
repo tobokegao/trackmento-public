@@ -1767,7 +1767,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
             <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
           </div>
           <div class="seg radio" id="bg-fit-seg" role="radiogroup" aria-label="画像の敷き方">
-            <label><input type="radio" name="bgFit" value="cover" checked><span>引き伸ばす</span></label>
+            <label><input type="radio" name="bgFit" value="cover" checked><span>収める</span></label>
             <label><input type="radio" name="bgFit" value="tile"><span>並べる</span></label>
           </div>
           <div class="seg radio" id="bg-tile-seg" role="radiogroup" aria-label="並べる大きさ" hidden>
@@ -2196,7 +2196,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "白い字": "White text",
         "背景の画像の見本": "Background image preview",
         "画像の敷き方": "How to lay the image",
-        "引き伸ばす": "Stretch",
+        "収める": "Fit",
         "並べる": "Tile",
         "並べる大きさ": "Tile size",
         "小": "S",
@@ -4857,7 +4857,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (m === "image") {
       setSeg($("#bg-fit-seg"), state.bgImageFit || "cover"); setSeg($("#bg-tile-seg"), state.bgImageTile || "m");
       $("#bg-tile-seg").hidden = state.bgImageFit !== "tile";
-      const src = state.bgImageFit === "tile" && tileUrl ? tileUrl : (state.bgImageSrc || state.bgImage);
+      const src = tileUrl && tileCanvas ? tileUrl : (state.bgImageSrc || state.bgImage);
       if (src) $("#bg-image-thumb").src = src.startsWith("blob:") ? src : proxied(src); else $("#bg-image-thumb").removeAttribute("src");
     }
     $("#bg-grad-box").hidden = m !== "gradient";
@@ -5160,33 +5160,67 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     return cv;
   }
   let tileUpTimer = 0;
+  /** 「収める」: 画像の比率を変えずに上下か左右の端まで大きくし、余白は画像のふちの色の平均で埋める（途切れを目立たせない）。
+      絵の縦横比は書き出しの枠に合わせる（16:9 の絵を正方形の枠に敷くと、端が切れて収まらない）。2026-09-25、利用者の案 */
+  function edgeColor(bmp) {
+    const S = 64, cv = document.createElement("canvas"); cv.width = cv.height = S;
+    const cx = cv.getContext("2d", { willReadFrequently: true });
+    cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, S, S);   // 透明な所は白として測る（透明を黒と数えて、マークの余白が茶色くなった）
+    cx.drawImage(bmp, 0, 0, S, S);
+    const px = cx.getImageData(0, 0, S, S).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      if (x > 2 && x < S - 3 && y > 2 && y < S - 3) continue;
+      const i = (y * S + x) * 4; r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
+    }
+    return `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})`;
+  }
+  function drawFit(bmp, aspect, fill) {
+    const W = 1600, H = Math.max(200, Math.min(3200, Math.round(1600 / aspect)));
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const cx = cv.getContext("2d");
+    cx.fillStyle = fill || edgeColor(bmp); cx.fillRect(0, 0, W, H);
+    const s = Math.min(W / bmp.width, H / bmp.height), w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+    cx.imageSmoothingQuality = "high";
+    cx.drawImage(bmp, Math.round((W - w) / 2), Math.round((H - h) / 2), w, h);
+    return cv;
+  }
+  /** 書き出しの枠の縦横比（「収める」の絵をこの比率で描く） */
+  const outAspect = () => { try { const L = sharePlan().L; return Math.round(L.W / L.H * 1000) / 1000; } catch { return 16 / 9; } };
   async function applyImageFit() {
     const src = state.bgImageSrc || state.bgImage;
     if (state.bgMode !== "image" || !src) return;
     state.bgImageSrc = src;
-    if (state.bgImageFit !== "tile") { tileCanvas = null; tileKey = ""; state.bgImage = src; await tintFromBgImage(); syncBgMode(); updateSpec(); return; }
-    const key = JSON.stringify([src, state.bgImageTile]);
-    if (key !== tileKey || !tileCanvas) {
-      // 既定の模様（もともと敷き詰めた絵）を並べると模様の中に模様が並ぶので、既定のときはマーク 1 つ（ホーム画面のアイコン）を並べる
-      const bmp = await loadCover({ image: src === BG_MARK ? "/icon-512.png" : src }, 0).catch(() => null);
-      if (!bmp || state.bgMode !== "image") return;
-      tileCanvas = drawTiled(bmp, state.bgImageTile || "m"); tileKey = key;
-      bmp.close && bmp.close();
-      if (tileUrl) URL.revokeObjectURL(tileUrl);
-      const blob = await canvasToBlob(tileCanvas, "image/jpeg", 0.9);
-      tileUrl = URL.createObjectURL(blob);
-      clearTimeout(tileUpTimer);
-      tileUpTimer = setTimeout(async () => {   // 上げるのは落ち着いてから（大きさを続けて変えたときに毎回上げない）
-        try {
-          const fd = new FormData(); fd.append("file", blob, "tiled.jpg");
-          const r = await fetch(api("/upload"), { method: "POST", body: fd });
-          const d = await readJson(r);
-          if (r.ok && key === tileKey) { state.bgImage = d.url; save(); }
-        } catch { /* 上げられなくても手元の絵で書き出せる */ }
-      }, 900);
-    }
+    const tile = state.bgImageFit === "tile", aspect = tile ? 0 : outAspect();
+    const key = JSON.stringify([src, tile ? state.bgImageTile : "fit", aspect]);
+    if (key === tileKey && tileCanvas) { syncBgMode(); return; }   // 同じ絵（比率も同じ）なら何もしない
+    // 既定の模様（もともと敷き詰めた絵）はマーク 1 つ（ホーム画面のアイコン）で描く（並べると模様の中に模様が並び、収めると敷き詰めた絵が 1 枚出るだけになる）
+    const bmp = await loadCover({ image: src === BG_MARK ? "/icon-512.png" : src }, 0).catch(() => null);
+    if (!bmp || state.bgMode !== "image") return;
+    // 既定のマークは色のブロックが端まで接していて、ふちの色の平均が濁るので、紙の色で埋める
+    tileCanvas = tile ? drawTiled(bmp, state.bgImageTile || "m") : drawFit(bmp, aspect, src === BG_MARK ? "#f6f5f2" : null); tileKey = key;
+    bmp.close && bmp.close();
+    if (tileUrl) URL.revokeObjectURL(tileUrl);
+    const blob = await canvasToBlob(tileCanvas, "image/jpeg", 0.9);
+    tileUrl = URL.createObjectURL(blob);
+    clearTimeout(tileUpTimer);
+    tileUpTimer = setTimeout(async () => {   // 上げるのは落ち着いてから（大きさや比率を続けて変えたときに毎回上げない）
+      try {
+        const fd = new FormData(); fd.append("file", blob, "bg.jpg");
+        const r = await fetch(api("/upload"), { method: "POST", body: fd });
+        const d = await readJson(r);
+        if (r.ok && key === tileKey) { state.bgImage = d.url; save(); }
+      } catch { /* 上げられなくても手元の絵で書き出せる */ }
+    }, 900);
     await tintFromBgImage(tileCanvas);
     syncBgMode(); updateSpec();
+  }
+  let fitTimer = 0;
+  /* 枠の比率が変わったら「収める」の絵を描き直す（save のたびに呼ばれる。比率が同じなら何もしない） */
+  function imageFitSoon() {
+    if (state.bgMode !== "image" || state.bgImageFit === "tile") return;
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => applyImageFit(), 700);
   }
   for (const i of document.querySelectorAll('#bg-fit-seg input')) i.addEventListener("change", () => { state.bgImageFit = i.value; applyImageFit(); });
   for (const i of document.querySelectorAll('#bg-tile-seg input')) i.addEventListener("change", () => { state.bgImageTile = i.value; applyImageFit(); });
@@ -6954,7 +6988,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 背景の画像も見本に敷く（書き出しと同じ濃さ。背景色の幕をかぶせて薄くする）。見本は曲名リストの無い枠なので、切り抜きの位置は書き出しと少し違う
     if (state.bgMode === "image" && state.bgImage) {
       const [r, g, b] = hexToRgb(state.bgCustom || "#ffffff"), a = 1 - (state.bgImageAlpha ?? 0.5), veil = `rgba(${r}, ${g}, ${b}, ${a})`;
-      const isrc = state.bgImageFit === "tile" && tileUrl ? tileUrl : proxied(state.bgImage);
+      const isrc = tileUrl && tileCanvas ? tileUrl : proxied(state.bgImage);
       els.grid.style.background = `linear-gradient(${veil}, ${veil}), center / cover no-repeat url("${isrc}"), ${bgColor()}`;
     }
     // 背景を透過: 見本は市松（白い字なら暗い市松）
@@ -7399,6 +7433,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function save() {
     if (!ready || MIGRATING) return;   // 復元が終わる前・引っ越し中の描画で、空のグリッドを保存してしまわないように
     autoBgSoon();
+    imageFitSoon();
     markOutStale();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -7815,7 +7850,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 好きな画像を背景に（2026-09-25）。枠いっぱいに切り抜き、背景色の上に state.bgImageAlpha の濃さで重ねる（backend/render.py の _paint_bg_image と同じ式）。
     // 取れなければ背景色のまま
     if (!transparent && state.bgMode === "image" && state.bgImage) {
-      const pic = state.bgImageFit === "tile" && tileCanvas ? tileCanvas : await loadCover({ image: state.bgImage }, 0).catch(() => null);
+      const pic = tileCanvas || await loadCover({ image: state.bgImage }, 0).catch(() => null);
       if (pic) { ctx.save(); ctx.globalAlpha = state.bgImageAlpha ?? 0.5; drawCover(ctx, pic, 0, 0, canvas.width, canvas.height); ctx.restore(); pic.close && pic.close(); }
     }
     // グラデーション背景は手元の絵をそのまま敷く（上げた絵はサーバーで描くときのため）。手元に無ければ上げた絵を読む
