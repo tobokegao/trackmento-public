@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.6927c967.css">
+<link rel="stylesheet" href="app/app.6fca7d50.css">
 </head>
 <body>
 
@@ -307,6 +307,10 @@
           </div>
         </fieldset>
 
+        <!-- **比率・マスの形・サムネの入れ方は三角で畳む**（2026-09-25、利用者の案。Mac OS 8 の HIG の disclosure triangle）。
+             畳んでいても今の値は右に出す（16:9 のままか分かるように）。開け閉めは端末に覚える -->
+        <button class="disclose" type="button" id="cells-more-btn" aria-expanded="false" aria-controls="cells-more"><span class="tri" aria-hidden="true"></span><span>比率・マスの形</span><span class="disclose-sum" id="cells-more-sum"></span></button>
+        <div class="disclose-body" id="cells-more" hidden>
         <fieldset class="field">
           <legend>比率</legend>
           <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="出力比率">
@@ -337,6 +341,7 @@
           </div>
           <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。</p>
         </fieldset>
+        </div>
       </section>
 
       <section class="gbox" aria-labelledby="gb-text">
@@ -635,6 +640,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.1da2fbf8.js"></script>
+<script id="app-js" src="app/app.6735b04d.js"></script>
 </body>
 </html>

@@ -1101,6 +1101,16 @@ body.sheet-open { overflow: hidden; }
   border: 1px solid var(--color-bevel); box-shadow: inset 1px 1px 0 var(--color-hl), 1px 1px 0 var(--color-hl); }
 .gbox-title { position: absolute; top: -0.7em; left: 8px; padding: 0 4px; background: var(--color-paper); color: var(--color-ink);
   font-family: var(--font-display); font-size: var(--dot-size); line-height: 1.4; }
+/* 畳む三角（Mac OS 8 の HIG の disclosure triangle）。右向きが閉じ、下向きが開き */
+.disclose { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; padding: var(--space-1) 0; border: 0; background: none;
+  color: var(--color-ink); font-family: var(--font-display); font-size: var(--dot-size); text-align: left; cursor: pointer; }
+.disclose .tri { flex: none; width: 0; height: 0; border-left: 7px solid var(--color-ink); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.disclose[aria-expanded="true"] .tri { transform: rotate(90deg); }
+.disclose:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
+.disclose-sum { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); }
+.disclose[aria-expanded="true"] .disclose-sum { display: none; }
+.disclose-body { display: grid; gap: var(--space-4); }
+.disclose-body[hidden] { display: none; }
 .gbox-sub { display: grid; gap: var(--space-2); margin-top: var(--space-2); padding: 10px; border: 1px solid var(--color-bevel); }
 .custom-size { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .custom-size label { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); }
@@ -1672,6 +1682,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           </div>
         </fieldset>
 
+        <!-- **比率・マスの形・サムネの入れ方は三角で畳む**（2026-09-25、利用者の案。Mac OS 8 の HIG の disclosure triangle）。
+             畳んでいても今の値は右に出す（16:9 のままか分かるように）。開け閉めは端末に覚える -->
+        <button class="disclose" type="button" id="cells-more-btn" aria-expanded="false" aria-controls="cells-more"><span class="tri" aria-hidden="true"></span><span>比率・マスの形</span><span class="disclose-sum" id="cells-more-sum"></span></button>
+        <div class="disclose-body" id="cells-more" hidden>
         <fieldset class="field">
           <legend>比率</legend>
           <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="出力比率">
@@ -1702,6 +1716,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           </div>
           <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。</p>
         </fieldset>
+        </div>
       </section>
 
       <section class="gbox" aria-labelledby="gb-text">
@@ -2219,6 +2234,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "画像": "Image",
         "字の色": "Text color",
         "マス": "Cells",
+        "比率・マスの形": "Ratio and cell shape",
+        "{} トラックを戻しました。": "{0} tracks were put back.",
+        "あと {} トラックは外したままです。": "{0} more are still set aside.",
         "文字": "Text",
         "背景と余白": "Background and spacing",
         "既定に戻す": "Back to default",
@@ -4415,6 +4433,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       const add = [];
       while (add.length < n - cur) add.push(state.stash.length ? state.stash.shift() : null);
       state.cells = state.cells.concat(add);
+      // 戻したら「いったん外しました」の文を書き換える（前は残ったままで、戻ったあとも外れているように読めた。2026-09-25、利用者の指摘）
+      const back = add.filter(Boolean).length;
+      if (back) say(els.gridMsg, tr`${back} トラックを戻しました。` + (state.stash.length ? " " + tr`あと ${state.stash.length} トラックは外したままです。` : ""));
     }
     state.cols = cols; state.rows = rows;
     els.cols.value = cols; els.rows.value = rows;
@@ -6913,7 +6934,23 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      割り付けの計算は大きい並びで 1 回 0.1〜0.4 秒かかり（字幅を大きさごとに測り直すため）、以前はタイトルを 1 字打つたび・
      つまみを少し動かすたびに 2 回ずつ走っていた（16x16 で 1 回の変更に 2〜4 秒）。プレビューと保存はその場で行う */
   let specTimer = 0;
+  /* 畳んだ「比率・マスの形」の右に今の値を出す */
+  function syncCellsSum() {
+    $("#cells-more-sum").textContent = ["#ratio-seg", "#cell-ratio-seg", "#cell-fit-seg"]
+      .map((s) => $(`${s} input:checked + span`)?.textContent.trim()).filter(Boolean).join(" / ");
+  }
+  {
+    const btn = $("#cells-more-btn"), body = $("#cells-more");
+    const setOpen = (on) => { btn.setAttribute("aria-expanded", String(on)); body.hidden = !on; };
+    try { setOpen(localStorage.getItem("trackmento:cells-more") === "1"); } catch { setOpen(false); }
+    btn.addEventListener("click", () => {
+      const on = btn.getAttribute("aria-expanded") !== "true";
+      setOpen(on);
+      try { localStorage.setItem("trackmento:cells-more", on ? "1" : "0"); } catch { /* 覚えられなくても開け閉めはできる */ }
+    });
+  }
   function updateSpec() {
+    syncCellsSum();
     syncPreview();
     save();
     clearSharePlan();   // 並びか設定が変わった。共有画像の大きさの見込みは組み直す
@@ -7275,7 +7312,6 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   // **同じ要素をそのまま動かす**（作り直さないので、選択・掴んでの入れ替え・番号バッジがそのまま効く）。
   // 16x16 だと欄の中では 1 マス 26px しかなく、PC でも狙って掴めない、という報告から
   const zoomModal = $("#zoom-modal"), zoomSlot = $("#zoom-slot");
-  const editorHome = els.editor.parentNode;   // 閉じるときに戻す先（検索ペイン）
   let gridZoomed = false, zoomBaseCell = 0;   // zoomBaseCell … 開く直前に欄の中で見えていたマスの大きさ
   /* ---- 大きく見る窓の 2 本指の拡大・縮小（PC は Ctrl＋ホイール）。並びの形ごとにマスの大きさ（CSS px）を覚える ---- */
   const ZOOM_CELL_KEY = "trackmento:zoomCell";
@@ -7334,7 +7370,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function closeZoom() {
     if (!gridZoomed) return;
     els.gridMsg.parentNode.insertBefore(els.gridScroll, els.gridMsg);   // もとの場所（説明文の上）へ戻す
-    editorHome.append(els.editor);
+    placeEditor();   // スマホはグリッドの説明文の下、PC は検索の窓（以前は窓の末尾に付けていて、閉じたあとスマホで「できあがり」の下に出ていた）
     els.gridScroll.classList.remove("is-zoom");
     gridZoomed = false; zoomModal.hidden = true;
     if (!sheetOpen()) unlockScroll();
