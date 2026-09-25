@@ -363,7 +363,7 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
   - マスの上限: 4 か所（上の表）
   - 文言: 日本語の原文と `EN` 表 → `scripts/check_i18n.py`
   - 色・比率・`CELL_W` / `CELL_H_BY_RATIO` / `GAP_PX` / `MAX_SIDE`: `render.py` と `index.html`
-  - 背景の画像: `render.py` の `_paint_bg_image` / `BG_IMAGE_ALPHA` と frontend の `renderShareCanvas` の頭 / `BG_IMAGE_ALPHA`（枠いっぱいに切り抜き、背景色の上に半分の濃さ）
+  - 背景の画像: `render.py` の `_paint_bg_image` と frontend の `renderShareCanvas` の頭（枠いっぱいに切り抜き、背景色の上に並びの `bgImageAlpha` の濃さ。濃さと背景色はブラウザが画像から決めて並びに入れる）
   - マスへの絵の入れ方: `render.py` の `_cover_blur_pad` / `blur_margin` と frontend の `coverBlurPad` / `blurMargin`。
     **下地はマスより広く作ってから切り取る**（縁がにじんで四角の枠がぼやける）
 

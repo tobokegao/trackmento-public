@@ -1007,8 +1007,12 @@ body.sheet-open { overflow: hidden; }
 .grid-actions > .minor > .br { flex-basis: 100%; height: 0; }
 .grid-actions > .minor.measuring > .btn { flex: 0 0 auto; }
 /* 背景なしのできあがりは、透明な所が分かるように市松の上に出す（画像の外の地の模様なので、足さない見た目の「グラデーション」には当たらない） */
-/* 背景の決め方は 1 列に積む（「ジャケットと反対の色」が長く、2 列だと右の列が窓からはみ出す） */
+/* 背景の決め方は、入る列の数で段ごとの数をそろえて並べる（5 つなら 3＋2 や 2＋2＋1。4＋1 にはしない）。列の数は JS（balanceColumns）が決める。
+   既定は 1 列（JS が動くまで・測れないとき。「ジャケットと反対の色」が長く、はみ出すよりよい） */
 #bg-mode-seg { grid-template-columns: max-content; margin-bottom: var(--space-3); }
+/* ラジオの組はどれも、JS（balanceColumns）が入る列の数を決める（2026-09-25、利用者の指摘「不必要に改行しない」。
+   2 列の決め打ちだと、幅に余裕があっても比率が 2＋2＋1、トラックリストが 2＋1 に折れていた）。上の 2 列は JS が動くまでの既定 */
+.seg.radio.measuring { display: flex; flex-wrap: wrap; }
 #bg-next[hidden], #bg-image-box[hidden] { display: none; }
 #bg-image-box { margin-top: var(--space-2); }   /* .btn の display が hidden 属性に勝つので明示する */
 #bg-next { margin-top: var(--space-2); }
@@ -1240,7 +1244,9 @@ input[type="range"].no-ring:focus-visible { outline: none; }
    すり抜けが残った（2026-09-15、3 回の報告）。キーボード（矢印キー）は今までどおり効く */
 .range-wrap { position: relative; display: block; }
 .range-wrap input[type="range"] { pointer-events: none; }
-.range-pad { position: absolute; inset: 0; touch-action: none; cursor: default; }
+/* **縦のスクロールは通す**（`pan-y`。2026-09-25、利用者の指摘「マスの間隔のあたりでスクロールが空振りする」）。
+   以前は `none` で、溝の上に指が乗っただけでもページが動かなかった。つまみの上で触れたときだけ JS が既定の動きを止める */
+.range-pad { position: absolute; inset: 0; touch-action: pan-y; cursor: default; }
 /* 掴んでいる間の色。`:active` は入力を受け取らなくなったので効かない */
 input[type="range"].is-grabbed::-webkit-slider-thumb { background-color: var(--color-rule-2); }
 output { font-variant-numeric: tabular-nums; }
@@ -1779,16 +1785,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <div class="hex" id="pal-hsv-hex">#ffffff</div>
       </div>
       <div class="pal-actions">
-        <button class="btn" type="button" id="pal-new">いまの色から作る</button>
+        <button class="btn btn-sm" type="button" id="pal-new">いまの色から作る</button>
       </div>
       <div class="pal-io">
-        <label for="pal-import">カラーコードを貼って読み込む</label>
+        <label for="pal-import">カラーコードから作る</label>
         <div class="pal-io-row">
           <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（8 つ）" spellcheck="false" autocomplete="off">
           <button class="btn" type="button" id="pal-import-btn">読み込む</button>
         </div>
         <!-- パレットをファイルで渡す（2026-09-19、利用者の要望）。各組の「保存」で書き出したファイルをここで読む -->
-        <button class="btn" type="button" id="pal-file-btn">ファイルから読み込む…</button>
+        <button class="btn btn-sm" type="button" id="pal-file-btn">ファイルを選ぶ…</button>
         <input type="file" id="pal-file" accept=".json,.txt,application/json,text/plain" hidden>
         <p class="msg" id="pal-msg"></p>
       </div>
@@ -2038,7 +2044,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "画像": "Image",
         "画像を選ぶ…": "Choose an image…",
         "画像を送っています…": "Uploading the image…",
-        "画像を背景にしました。文字が読みやすいように、半分の濃さで敷きます。": "The image is now the background. It is laid at half strength so the text stays readable.",
+        "画像を背景にしました。文字が読みやすいように、画像は薄く敷きます（にぎやかな画像ほど薄く）。": "The image is now the background. It is laid faintly so the text stays readable (busier images more faintly).",
         "「画像を選ぶ…」で、この端末の画像を選んでください。": "Use “Choose an image…” to pick an image on this device.",
         "画像を取り込めませんでした。": "Couldn't use that image.",
         "背景の決め方": "How to set the background",
@@ -2214,8 +2220,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     "背景色に並ぶ 8 色と、画面の配色をまとめて切り替えます。": "Switches the eight background colours and the page's own colours together.",
     "いまの色から作る": "Make one from these colours", "じぶんの色": "My colour",
     "使う": "Use", "消す": "Delete", "リソ": "Riso", "ポップ": "Pop",
-    "コピー": "Copy", "読み込む": "Load", "カラーコードを貼って読み込む": "Paste colour codes to load",
-    "保存": "Save", "ファイルから読み込む…": "Load from a file…", "ファイルに保存しました。": "Saved to a file.",
+    "コピー": "Copy", "読み込む": "Load", "カラーコードから作る": "Make from colour codes",
+    "保存": "Save", "ファイルを選ぶ…": "Choose a file…", "ファイルに保存しました。": "Saved to a file.",
     "パレットのファイルではないようです。": "That doesn't look like a palette file.",
     "コピーしました。": "Copied.", "コピーできなかったので、欄に入れました。": "Could not copy, so we put it in the box.",
     "読み込みました。": "Loaded.", "カラーコードを 8 つ入れてください。": "Eight colour codes are needed.",
@@ -2639,6 +2645,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     cellRatio: "1:1", cellFit: "crop", bg: "paper", bgCustom: null, margin: 16, pad: "normal", gap: 16,   // 既定値（比率は X 向けの 16:9）
     bgMode: "pick",   // 背景の決め方: pick（色を選ぶ）/ near・far（ジャケットに近い色・反対の色）/ none（背景なし）/ image（好きな画像）
     bgImage: null,    // 背景の画像（/uploads/… だけ）
+    bgImageAlpha: 0.5,   // 背景の画像の濃さ（画像のにぎやかさから決める。0.2〜0.5。backend/grids.py の bgImageAlpha）
     listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
@@ -3709,6 +3716,29 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       return;
     }
   }
+  /* ラジオの組を、段ごとの数がそろう列の数で並べる（.seg.radio のすべて）。列の数を多いほうから試し、各列の幅（その列でいちばん長いもの）の
+     合計が箱に入る最初の数を選ぶ。**最後の段が 1 つ以上足りない分け方（5 つを 4 列にして 4＋1 など）は飛ばす** */
+  function balanceColumns(box) {
+    const items = [...box.children].filter((el) => !el.hidden);
+    const n = items.length;
+    if (n < 2 || !box.clientWidth) return;
+    box.classList.add("measuring");
+    const ws = items.map((el) => el.getBoundingClientRect().width);
+    box.classList.remove("measuring");
+    const cs = getComputedStyle(box), gap = parseFloat(cs.columnGap) || 0, W = box.clientWidth;
+    for (let k = n; k >= 1; k--) {
+      const rows = Math.ceil(n / k), last = n - (rows - 1) * k;
+      if (k > 1 && last < k - 1) continue;
+      const cols = Array.from({ length: k }, (_, c) => Math.max(...ws.filter((_, i) => i % k === c)));
+      if (k === 1 || cols.reduce((a, b) => a + b, 0) + gap * (k - 1) <= W + 0.5) { box.style.gridTemplateColumns = `repeat(${k}, max-content)`; return; }
+    }
+  }
+  for (const seg of document.querySelectorAll(".seg.radio")) {
+    const run = () => requestAnimationFrame(() => balanceColumns(seg));
+    new ResizeObserver(run).observe(seg);   // 畳んだ窓を開いたとき・画面の幅が変わったときも測り直す
+    new MutationObserver(run).observe(seg, { subtree: true, characterData: true });   // 英語に切り替えると字の幅が変わる
+    document.fonts?.ready.then(run);
+  }
   {
     const box = document.querySelector(".grid-actions > .minor");
     if (box) {
@@ -4493,26 +4523,44 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     $("#bg-next").hidden = !(m === "near" || m === "far") || coverPal.colors.length < 2;
     const msg = $("#bg-msg");
     if (m === "none") { msg.hidden = false; say(msg, tr("共有の画像は白い地になります。「画像を保存」では背景が透明な PNG になります。")); }
-    else if (m === "image") { msg.hidden = false; say(msg, state.bgImage ? tr("画像を背景にしました。文字が読みやすいように、半分の濃さで敷きます。") : tr("「画像を選ぶ…」で、この端末の画像を選んでください。")); }
+    else if (m === "image") { msg.hidden = false; say(msg, state.bgImage ? tr("画像を背景にしました。文字が読みやすいように、画像は薄く敷きます（にぎやかな画像ほど薄く）。") : tr("「画像を選ぶ…」で、この端末の画像を選んでください。")); }
     else if (m === "pick") msg.hidden = true;
   }
-  /** 画像の平均の色（背景色に入れて、文字の色をそこから決める） */
-  function averageHex(bmp) {
-    const S = 24, cv = document.createElement("canvas"); cv.width = cv.height = S;
+  /* 背景の画像の見立て（2026-09-25）。
+     - 下に敷く色: 画像の平均の色を、**字と反対の側へ 35% 寄せる**（明るければ白へ、暗ければ黒へ）。平均の色が中くらいの明るさだと、
+       黒い字でも白い字でも差が小さく読みづらいため（利用者の「文字が白寄りの場合」）。字の色はこの色の明るさで決まる
+     - 濃さ: 64px に縮めた灰色で、隣の画素との明るさの差の平均（にぎやかさ）を測り、にぎやかなほど薄くする。
+       手元の実測で、無地に近い画像 0.02・写真 0.055〜0.067・寄せ集めの画像 0.075。0.02 で 0.5、0.08 以上で 0.2（5% 刻み）。
+       利用者の「にぎやかな写真ではもっと薄く」。値は並びに入れて送るので、サーバーの描画も同じ濃さになる */
+  function readBgImage(bmp) {
+    const S = 64, cv = document.createElement("canvas"); cv.width = cv.height = S;
     const cx = cv.getContext("2d", { willReadFrequently: true });
     cx.drawImage(bmp, 0, 0, S, S);
     const px = cx.getImageData(0, 0, S, S).data;
     let r = 0, g = 0, b = 0;
-    for (let i = 0; i < px.length; i += 4) { r += px[i]; g += px[i + 1]; b += px[i + 2]; }
-    const n = px.length / 4;
-    return "#" + [r, g, b].map((v) => Math.round(v / n).toString(16).padStart(2, "0")).join("");
+    const lum = new Float32Array(S * S);
+    for (let i = 0, j = 0; i < px.length; i += 4, j++) { r += px[i]; g += px[i + 1]; b += px[i + 2]; lum[j] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]; }
+    let diff = 0, cnt = 0;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const v = lum[y * S + x];
+      if (x < S - 1) { diff += Math.abs(v - lum[y * S + x + 1]); cnt++; }
+      if (y < S - 1) { diff += Math.abs(v - lum[(y + 1) * S + x]); cnt++; }
+    }
+    const busy = diff / cnt / 255, n = S * S;
+    const avg = [r / n, g / n, b / n], to = isLightRgb(avg) ? 255 : 0;
+    const base = avg.map((v) => Math.round(v + (to - v) * 0.35));
+    const alpha = Math.round(Math.min(0.5, Math.max(0.2, 0.5 - (busy - 0.02) * 5)) * 20) / 20;
+    return { hex: "#" + base.map((v) => v.toString(16).padStart(2, "0")).join(""), alpha };
   }
-  /** 画像の平均の色を背景色に入れる（画像を選んだとき・「画像」に戻したとき） */
-  async function tintFromBgImage() {
-    const bmp = await loadCover({ image: state.bgImage }, 0).catch(() => null);
+  /** 画像から下に敷く色と濃さを決めて入れる（画像を選んだとき・「画像」に戻したとき） */
+  async function tintFromBgImage(bmp) {
+    const own = !bmp;
+    bmp = bmp || await loadCover({ image: state.bgImage }, 0).catch(() => null);
     if (!bmp || state.bgMode !== "image") return;
-    pickBg(averageHex(bmp)); renderSwatches();
-    bmp.close && bmp.close();
+    const { hex, alpha } = readBgImage(bmp);
+    state.bgImageAlpha = alpha;
+    pickBg(hex); renderSwatches();
+    if (own && bmp.close) bmp.close();
   }
   $("#bg-image-btn").addEventListener("click", () => $("#bg-image-file").click());
   $("#bg-image-file").addEventListener("change", async () => {
@@ -4527,7 +4575,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
       state.bgImage = d.url;
       if (state.bgMode !== "image") { pickedBg = pickedBg || { bg: state.bg, bgCustom: state.bgCustom }; state.bgMode = "image"; }
-      await tintFromBgImage();
+      // 見立ては手元のファイルで行う（上げた画像を読み直さない。上げた版は縮めてあるだけで、色とにぎやかさはほぼ同じ）
+      const local = await createImageBitmap(f).catch(() => null);
+      await tintFromBgImage(local || undefined);
+      local && local.close && local.close();
       syncBgMode(); updateSpec();
     } catch (err) {
       say(msg, tr("画像を取り込めませんでした。") + ` ${err.message}`, "error");
@@ -4655,18 +4706,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           chips.append(btn);
         }
       });
-      const use = document.createElement("button"); use.type = "button"; use.className = "btn"; use.textContent = tr("使う");
+      const use = document.createElement("button"); use.type = "button"; use.className = "btn btn-sm"; use.textContent = tr("使う");
       use.disabled = p.id === activePaletteId;
       use.addEventListener("click", () => usePalette(p.id));
       // 8 色を書き出す。人に渡したり、別の端末で読み込んだりできるように
-      const copy = document.createElement("button"); copy.type = "button"; copy.className = "btn"; copy.textContent = tr("コピー");
+      const copy = document.createElement("button"); copy.type = "button"; copy.className = "btn btn-sm"; copy.textContent = tr("コピー");
       copy.addEventListener("click", async () => {
         const text = paletteColors(p).map(c => rgbToHex(toRGB(c))).join(", ");
         try { await navigator.clipboard.writeText(text); say($("#pal-msg"), tr("コピーしました。")); }
         catch { els.palImport.value = text; els.palImport.select(); say($("#pal-msg"), tr("コピーできなかったので、欄に入れました。")); }
       });
       // ファイルに保存する（人に渡したり、端末を替えたりするとき用。「ファイルから読み込む」で戻せる）
-      const save = document.createElement("button"); save.type = "button"; save.className = "btn"; save.textContent = tr("保存");
+      const save = document.createElement("button"); save.type = "button"; save.className = "btn btn-sm"; save.textContent = tr("保存");
       save.addEventListener("click", () => {
         const body = JSON.stringify({ trackmento: "palette", v: 1, name: tr(p.name), colors: paletteColors(p).map(c => rgbToHex(toRGB(c))) }, null, 1);
         const a = document.createElement("a");
@@ -4685,7 +4736,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         lane.append(warn);
       }
       if (!p.keys) {
-        const del = document.createElement("button"); del.type = "button"; del.className = "btn"; del.textContent = tr("消す");
+        const del = document.createElement("button"); del.type = "button"; del.className = "btn btn-sm"; del.textContent = tr("消す");
         del.addEventListener("click", () => {
           userPalettes = userPalettes.filter(x => x.id !== p.id);
           if (editing.id === p.id) { editing = { id: null, i: -1 }; palHsv.box.hidden = true; }
@@ -4793,9 +4844,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     pad.addEventListener("pointercancel", end);
     el.addEventListener("keydown", () => el.classList.remove("no-ring"));
     el.addEventListener("blur", () => el.classList.remove("no-ring"));
-    // 指の既定の動き（スクロール・長押しの選択）も受け皿の側で止める
-    pad.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
-    pad.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+    // 指の既定の動き（スクロール・長押しの選択）は、**つまみの上で触れたときだけ**止める。
+    // 溝の上ではスクロールを通す（止めていたので、つまみの近くでページを送ろうとすると空振りしていた）
+    const onThumb = (e) => e.touches && e.touches[0] && Math.abs(e.touches[0].clientX - thumbCenter()) <= thumbW() / 2;
+    pad.addEventListener("touchstart", (e) => { if (onThumb(e)) e.preventDefault(); }, { passive: false });
+    pad.addEventListener("touchmove", (e) => { if (dragging) e.preventDefault(); }, { passive: false });
     // **見出しの文字を押しても反応させない**。<label for> は押すと中の部品を動かす決まりなので、
     // 「余白 16 px」の行を長押しするとつまみが押されたように見えていた
     const lab = el.id ? document.querySelector(`label[for="${el.id}"]`) : null;
@@ -6238,6 +6291,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     els.grid.style.padding = `${pad}px`;
     els.grid.style.gap = `${gap}px`;
     els.grid.style.background = bgColor();
+    // 背景の画像も見本に敷く（書き出しと同じ濃さ。背景色の幕をかぶせて薄くする）。見本は曲名リストの無い枠なので、切り抜きの位置は書き出しと少し違う
+    if (state.bgMode === "image" && state.bgImage) {
+      const [r, g, b] = hexToRgb(state.bgCustom || "#ffffff"), a = 1 - (state.bgImageAlpha ?? 0.5), veil = `rgba(${r}, ${g}, ${b}, ${a})`;
+      els.grid.style.background = `linear-gradient(${veil}, ${veil}), center / cover no-repeat url("${proxied(state.bgImage)}"), ${bgColor()}`;
+    }
     // 欄の中では、枠の大きさは列数・行数によらず 3×3 のときと同じ正方形に固定
     // （行が列より多いとスクロールバーが出る）。拡大窓の高さは上で決めてある
     if (!gridZoomed) els.gridScroll.style.height = `${Math.round(W) + 4}px`;
@@ -6584,7 +6642,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
       options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false,
-        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", bgImage: state.bgImage || null, margin: state.margin, pad: state.pad || "normal", gap: state.gap },
+        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", bgImage: state.bgImage || null, bgImageAlpha: state.bgImageAlpha ?? 0.5, margin: state.margin, pad: state.pad || "normal", gap: state.gap },
     };
   }
   function applyData(d) {
@@ -6610,6 +6668,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     state.bgMode = ["near", "far", "none", "image"].includes(o.bgMode) ? o.bgMode : "pick";
     state.bgImage = /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(o.bgImage || "") ? o.bgImage : null;   // backend/grids.py の _UPLOAD_RE と同じ
     if (state.bgMode === "image" && !state.bgImage) state.bgMode = "pick";
+    state.bgImageAlpha = Number.isFinite(+o.bgImageAlpha) ? Math.round(Math.min(0.6, Math.max(0.1, +o.bgImageAlpha)) * 100) / 100 : 0.5;
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else {
       state.bg = ALL_BG_KEYS.includes(o.bg) ? o.bg : "paper";
@@ -6697,10 +6756,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   async function restore() {
     let local = null;
     try { local = JSON.parse(localStorage.getItem(storageKey()) || "null"); } catch { local = null; }
+    // **手元の控えを先に出す**（2026-09-25、利用者の指摘）。サーバーの返事を待つ間は既定の 3×3 が見えていて、
+    // 49 マスの並びを開くと一瞬 3×3 が出てから切り替わっていた。サーバーのほうが新しいときだけ、返事が来てから差し替える
+    let shown = false;
+    if (local) { try { applyData(local); shown = true; } catch { shown = false; } }
     const server = await fetchServerGrid();
     const ts = (d) => (d && d.savedAt ? Date.parse(d.savedAt) || 0 : 0);
     const pick = server && (!local || ts(server) > ts(local)) ? server : local;
     if (!pick) return false;
+    if (pick === local && shown) return true;
     try {
       if (pick === server) lastPushed = signature(server);
       applyData(pick);
@@ -7049,7 +7113,6 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   }
   /* マスに絵を入れる。**「ぼかして埋める」を選んだマスだけ切らずに収める**（既定は中央で切る）。
      `fit` は "crop" か "blur"（マスごとの `t.fit` が無ければ並び全体の `state.cellFit`） */
-  const BG_IMAGE_ALPHA = 0.5;   // 背景の画像の濃さ（backend/render.py の BG_IMAGE_ALPHA と同じ）
   function paintCover(ctx, bmp, x, y, cw, ch, fit) {
     if (fit === "blur" && Math.abs(bmp.width / bmp.height - cw / ch) > 0.01) coverBlurPad(ctx, bmp, x, y, cw, ch);
     else drawCover(ctx, bmp, x, y, cw, ch);
@@ -7069,11 +7132,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.textAlign = "left";
     // 「背景なしで保存」は背景だけ塗らない（文字の色は選んだ背景色に合わせたまま。明るい地なら黒い字）
     if (!transparent) { ctx.fillStyle = cssRgb(bg); ctx.fillRect(0, 0, canvas.width, canvas.height); }
-    // 好きな画像を背景に（2026-09-25）。枠いっぱいに切り抜き、背景色の上に BG_IMAGE_ALPHA の濃さで重ねる（backend/render.py の _paint_bg_image と同じ式）。
+    // 好きな画像を背景に（2026-09-25）。枠いっぱいに切り抜き、背景色の上に state.bgImageAlpha の濃さで重ねる（backend/render.py の _paint_bg_image と同じ式）。
     // 取れなければ背景色のまま
     if (!transparent && state.bgMode === "image" && state.bgImage) {
       const pic = await loadCover({ image: state.bgImage }, 0).catch(() => null);
-      if (pic) { ctx.save(); ctx.globalAlpha = BG_IMAGE_ALPHA; drawCover(ctx, pic, 0, 0, canvas.width, canvas.height); ctx.restore(); pic.close && pic.close(); }
+      if (pic) { ctx.save(); ctx.globalAlpha = state.bgImageAlpha ?? 0.5; drawCover(ctx, pic, 0, 0, canvas.width, canvas.height); ctx.restore(); pic.close && pic.close(); }
     }
     // タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
     let y0 = L.oy;

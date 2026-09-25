@@ -347,13 +347,12 @@ def _cover_fit(img: Image.Image, w: int, h: int) -> Image.Image:
 
 
 BLUR_RADIUS = 0.06    # 下地のぼかし半径（マスの高さに対する比）。**論理 px ではなく出力 px の高さに掛ける**
-# 背景の画像の濃さ（2026-09-25）。背景色（画像の平均の色）の上に、この割合で画像を重ねる。
-# 濃いままだと曲名が写真に埋もれて読めないので、半分に薄める。frontend の BG_IMAGE_ALPHA と同じ
-BG_IMAGE_ALPHA = 0.5
+# 背景の画像の濃さは並びの `bgImageAlpha`（ブラウザが画像のにぎやかさから決める。0.2〜0.5）。
+# 背景色（画像の平均の色を字と反対の側へ寄せたもの）の上に、この割合で画像を重ねる
 
 
-def _paint_bg_image(im: Image.Image, url: str, bg: tuple[int, int, int]) -> None:
-    """背景の画像を枠いっぱいに切り抜いて敷く（背景色の上に BG_IMAGE_ALPHA の濃さ）。
+def _paint_bg_image(im: Image.Image, url: str, bg: tuple[int, int, int], alpha: float) -> None:
+    """背景の画像を枠いっぱいに切り抜いて敷く（背景色の上に alpha の濃さ）。
     取れなければ背景色のまま（共有を止めない）。frontend の renderShareCanvas と同じ式"""
     try:
         data = fetch_image_bytes(url)
@@ -363,7 +362,7 @@ def _paint_bg_image(im: Image.Image, url: str, bg: tuple[int, int, int]) -> None
             pic = src.convert("RGB")
         fitted = _cover_fit(pic, im.width, im.height)
         pic.close()
-        im.paste(Image.blend(Image.new("RGB", im.size, bg), fitted, BG_IMAGE_ALPHA))
+        im.paste(Image.blend(Image.new("RGB", im.size, bg), fitted, alpha))
         fitted.close()
     except Exception as e:
         print(f"[render] background image failed ({brief(e)})")
@@ -2076,7 +2075,7 @@ def render(doc: GridDoc) -> Image.Image:
 
     im = Image.new("RGB", (sc(L.W), sc(L.H)), bg)
     if o.bgMode == "image" and o.bgImage:
-        _paint_bg_image(im, o.bgImage, bg)   # 好きな画像を背景に（2026-09-25）。文字の色は背景色（画像の平均の色）で決まる
+        _paint_bg_image(im, o.bgImage, bg, o.bgImageAlpha)   # 好きな画像を背景に（2026-09-25）。文字の色は背景色（画像の平均の色）で決まる
     d = ImageDraw.Draw(im)
 
     # タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）

@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.e7b248aa.css">
+<link rel="stylesheet" href="app/app.e4c5e704.css">
 </head>
 <body>
 
@@ -498,16 +498,16 @@
         <div class="hex" id="pal-hsv-hex">#ffffff</div>
       </div>
       <div class="pal-actions">
-        <button class="btn" type="button" id="pal-new">いまの色から作る</button>
+        <button class="btn btn-sm" type="button" id="pal-new">いまの色から作る</button>
       </div>
       <div class="pal-io">
-        <label for="pal-import">カラーコードを貼って読み込む</label>
+        <label for="pal-import">カラーコードから作る</label>
         <div class="pal-io-row">
           <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（8 つ）" spellcheck="false" autocomplete="off">
           <button class="btn" type="button" id="pal-import-btn">読み込む</button>
         </div>
         <!-- パレットをファイルで渡す（2026-09-19、利用者の要望）。各組の「保存」で書き出したファイルをここで読む -->
-        <button class="btn" type="button" id="pal-file-btn">ファイルから読み込む…</button>
+        <button class="btn btn-sm" type="button" id="pal-file-btn">ファイルを選ぶ…</button>
         <input type="file" id="pal-file" accept=".json,.txt,application/json,text/plain" hidden>
         <p class="msg" id="pal-msg"></p>
       </div>
@@ -552,6 +552,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.88caf8af.js"></script>
+<script id="app-js" src="app/app.0aeded05.js"></script>
 </body>
 </html>
