@@ -614,14 +614,16 @@
   </div>
 </div>
 
-<!-- 広告枠。AdSense の審査が通ったら、.lbl を「申し訳ないですが広告表示です」に変え、
-     p と .album を広告のコードに差し替える（枠と CSS はそのまま使える）。
+<!-- 広告枠。いまは作者の音楽の宣伝（見出しの札は「PR」）。AdSense の審査が通ったら、この下にもう 1 つ同じ形の aside を置き、
+     .lbl を「広告」、.promo-tag を「SPONSOR」にして、.promo-body の中身を <div class="ad-slot">（広告のコード）</div> にする。
+     **見出しに使える言葉は「広告」か「スポンサーリンク」だけ**（AdSense の決まり）。
      文言でクリックを促すと AdSense のポリシー違反（アカウント停止）になるため、
-     差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。 -->
+     差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。
+     88×31 のボタンの絵は作者が描いた顔（25×25）を枠に入れたもの。data: URI で埋めてある（R2 に置くほどの大きさではない） -->
 <aside class="promo" aria-label="サーバー代のおねがい">
   <div class="promo-head"><span class="lbl">サーバー代のおねがい</span><span class="promo-tag">PR</span></div>
   <div class="promo-body">
-  <a class="promo-btn" href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-button" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,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" alt="Tobokegao（Bandcamp）" width="88" height="31"></a>
+  <a class="promo-btn" href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-button" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAAAfCAIAAADsqp23AAADIElEQVR4nO1Yv2/TQBR+RRkcxSPNEHlLp3RM9y4dSlAJKh7oUFUIxI+hElDxPzDghCESHsJgqYEq0FAalAYpS/eu3TqaIpU5shkioeSUy8vd+XwJIGySb4jOL++9u/d89+59Xsjm8jAHQAIALs7PZjkVb96+t0pWPxEAsLS88me9n3ZOIFZI/I2lr67dgLjh2r9eQFQwTwR3NFRgZNJk4F5ewYwkwhjGjOFeXhE5/jc0KbRk0DJEJMwjU6d4HTLGA6FbyURCiSwRRiZNY2bixI84KZJ0tJuN9Y3NdrNBl0LGNCSi4/s+DpLXAYBC0aR+iBWOED8KnQS5FSfCGGYh9FXjZEn0k8kk/cUSjDt3t4VWGIWiWa85WE6sWp8/UpNC0cQSFbchxdJVqwLTFQtvACyxK+XXr15qmibRqdecnQePsNCulO1KmYw1TfM8z66Ue70eVXCqtlO15VOLd4TBHQqVrRG6KTBOOyf8Qd2+9xBLhDq6njo82Me7Glt9/fKJN1lcvB46NcFCNpe/OD9bWl4h/6mfCwqqTAf8CYwyjlsdq2SNHQ1jGAlfERkYmXSQHOKJhOTFCtsHHCrRpDuIDIxMGjPa41YHoopbhTXVhsoY7xdwBeEV+EwBwJP7WxBVfPv+QykRBhc231MwZVU+WZQxSoSLYp70qDOtd+zZpzs453y9DO27qS3EFuKGykXlAIfH5GiKuzayCKwRLoqZKQHMy/8PshDyPcLgbgR+/8e3cWAguzXcgCtjIg4+KcuWE20VZq3uaoIvVC7aAqRZCjogcrSbjaMP7+hqCB1uNxv4fiHEUW5IaHi72aDKEleMQ+JKOItqQ+WKtkboZwgMng7zknrNKRRNyqCFrLnb7RIJ5pRBruo15+Ztk1Gr1xzhCsMbKhgg6AZRvDLsStn3f+4+e0ElJBJzaxSDrqdIANjQ8zzf9yk9J1wbAB7vPj082Je4cqq2rqewK6LGCJUSgfGbdyTDsnmCjAPAIa1vbGJDFa4dJBSqBdLwKSLnNeNIw0c7YnW8L87m8oqdsrpmlNHfEXvP92C2YZWsfiJgDoBf925Pr1rdKfoAAAAASUVORK5CYII=" alt="Tobokegao（Bandcamp）" width="88" height="31"></a>
   <div class="promo-text">
   <p>無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
   <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a>（Bandcamp）</span>
@@ -632,11 +634,6 @@
   </span>
   </div>
   </div>
-</aside>
-<!-- SAMPLE-AD: 見本用。審査が通ったあとの形 -->
-<aside class="promo" aria-label="広告">
-  <div class="promo-head"><span class="lbl">広告</span><span class="promo-tag">SPONSOR</span></div>
-  <div class="promo-body"><div class="ad-slot">広告が入る場所</div></div>
 </aside>
 
 <footer>
