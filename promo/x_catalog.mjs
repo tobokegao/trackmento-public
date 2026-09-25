@@ -13,8 +13,9 @@
 // - 画面を送るのは撮る前だけ（k.scrollTo）。撮りながら送るとカメラと二重に動く
 import fs from "node:fs";
 
-// 動画サイトのサムネ（16:9）の曲。マスの形・サムネの入れ方の場面で使う
-const NICO = JSON.parse(fs.readFileSync("promo/stills-tracks-nico.json", "utf-8"));
+// 動画サイトのサムネ風（16:9）の架空の曲。マスの形・サムネの入れ方の場面で使う
+// **使うときに読む**（x_clips.mjs は台本を読み込んでから一覧を作るので、読み込んだ瞬間に読むと一覧がまだ無いことがある）
+const nico = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-wide.json", "utf-8"));   // 架空の 16:9 のサムネ（promo/fake_covers.py）
 
 /** 背景色の場面で隠すもの（グリッドの窓はグリッドとメッセージだけ、出力オプションは背景色の欄だけ残す） */
 const STAGE_BG = ".pane-grid .pane-body > :not(#grid-scroll):not(#grid-msg), .pane-options .pane-body > :not(fieldset:has(#bg-mode-seg)) { display: none !important; }";
@@ -62,7 +63,7 @@ export default [
     id: "cell-ratio",
     what: "「マスの形」を横長 16:9 に … 動画サイトのサムネが左右で切れずに並ぶ",
     async setup(k) {
-      await ready(k, 9, [3, 3], { title: "好きな音MAD" }, NICO);
+      await ready(k, 9, [3, 3], { title: "好きな音MAD" }, nico());
       await k.scrollTo("#cell-ratio-seg", 200);
       await k.look(["#grid", "fieldset:has(#cell-ratio-seg)"]);
       await k.park(1100, 600);
@@ -80,7 +81,7 @@ export default [
     id: "cell-fit",
     what: "「サムネの入れ方」… 「ぼかして埋める」にすると、形の違うサムネも切らずに入る",
     async setup(k) {
-      await ready(k, 9, [3, 3], { title: "好きな音MAD" }, NICO);
+      await ready(k, 9, [3, 3], { title: "好きな音MAD" }, nico());
       await k.scrollTo("#cell-fit-seg", 260);
       await k.look(["#grid", "fieldset:has(#cell-fit-seg) legend", "#cell-fit-seg"]);
       await k.park(1100, 600);

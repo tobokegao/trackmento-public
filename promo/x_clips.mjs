@@ -6,6 +6,7 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { openPage, makeKit } from "./clip_kit.mjs";
 import CATALOG from "./x_catalog.mjs";
 
@@ -16,8 +17,12 @@ const unknown = [...ids].filter((i) => i !== "all" && !CATALOG.some((c) => c.id 
 if (unknown.length) console.warn("台本に無い:", unknown.join(" "));
 const OUT = path.resolve("promo/public/xclips");
 
-// 曲は紹介動画の静止画と同じ一覧から（grids/ は手元の並びで、中身が決まっていない）。**[TEST] の付いた曲は除く**
-const TRACKS = JSON.parse(fs.readFileSync("promo/stills-tracks.json", "utf-8")).filter((t) => !/\[TEST\]/.test(t.artist));
+// **曲は架空のもの**（ジャケットも題も。2026-09-25、利用者の指定「動画に実在のジャケットを映さない」）。
+// 絵と一覧は promo/fake_covers.py が作る（絵は手元の uploads/、一覧は public/）。無ければ先に作る
+if (!fs.existsSync("promo/public/fake-tracks.json") || !fs.existsSync("promo/public/fake-tracks-wide.json")) {
+  execFileSync(".venv/Scripts/python", ["promo/fake_covers.py"], { stdio: "inherit", env: { ...process.env, PYTHONUTF8: "1" } });
+}
+const TRACKS = JSON.parse(fs.readFileSync("promo/public/fake-tracks.json", "utf-8"));
 // **画面は 16:9 で開き、ぜんぶを撮る**（寄るのは Remotion のカメラ）。倍率 2 で撮るので、2 倍まで寄ってもぼやけない
 const PC = { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 };
 
