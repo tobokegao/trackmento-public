@@ -20,8 +20,8 @@ const nico = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-wide.jso
 const mono = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-mono.json", "utf-8"));   // 架空の 16:9 のサムネ（promo/fake_covers.py）
 
 /** 背景色の場面で隠すもの（グリッドの窓はグリッドとメッセージだけ、出力オプションは背景色の欄だけ残す） */
-// 「できあがりを見る」だけは残す（bg-image で押す）
-const STAGE_BG = ".pane-grid .pane-body > :not(#grid-scroll):not(#grid-msg):not(.grid-actions), .grid-actions > :not(.minor), .grid-actions > .minor > :not(#preview-btn), .pane-options .pane-body > :not(fieldset:has(#bg-mode-seg)) { display: none !important; }";
+// 「できあがりを見る」と「できあがり」の窓（見本と状態の一行だけ）は残す（bg-image で押して見せる）
+const STAGE_BG = ".pane-grid > .pane-body > :not(#grid-scroll):not(#grid-msg):not(.grid-actions):not(#output), .grid-actions > :not(#preview-btn), #output .pane-body > :not(#out-shot):not(#out-msg), .pane-options > .pane-body > :not(fieldset:has(#bg-mode-seg)) { display: none !important; }";
 
 /** 曲を n 個入れて、ジャケットがそろうまで待つ */
 async function ready(k, n, size, opts = {}, list) {
@@ -267,16 +267,14 @@ export default [
       await k.until(() => k.page.evaluate(() => /url\(/.test(document.querySelector("#grid").style.background)), "見本の画像", 10000);
       await k.hold(1.2);
       // **書き出しの画像（曲名リスト込み）まで見せる**。見本はマスの隙間にしか画像が見えないので（利用者の指摘）、
-      // 「できあがりを見る」を押して見本の窓に寄る（端末の中で描くだけで、共有は作らない）
+      // 「できあがりを見る」を押して、できあがりの窓の見本に寄る（端末の中で描くだけで、共有は作らない）
       // ボタンはグリッドの下なので、押す前にそこまで引いて映す（枠の外で押すと、何を押したか分からない。利用者の指摘）
       await k.look(["#grid", "#preview-btn", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg"], 0.6);
       await k.press("#preview-btn");
-      await k.until(() => k.page.evaluate(() => !document.querySelector("#preview-img").hidden && document.querySelector("#preview-img").complete), "できあがりの見本", 60000);
-      await k.look(["#preview-modal .modal-panel"], 0.8);
+      await k.until(() => k.page.evaluate(() => !document.querySelector("#out-shot").hidden && document.querySelector("#output-img").complete), "できあがりの見本", 60000);
+      await k.hold(0.3);   // 窓まで送り終わるのを待つ（送るのはページの時計で動く）
+      await k.look(["#output"], 0.8);
       await k.hold(3.0);
-      await k.press("#preview-modal-close");
-      await k.look(["#grid", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg", "#bg-image-box", "#bg-msg"], 0.6);
-      await k.hold(0.6);
     },
   },
 ];
