@@ -4854,11 +4854,22 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     let stops = gradStops(hexes);
     if (stops.length === 1) { const [L, a, b] = stops[0]; stops = [[Math.min(0.97, L + 0.12), a * 0.8, b * 0.8], stops[0], [Math.max(0.2, L - 0.1), a, b]]; }
     const k = stops.length;
-    // 点は左から右へ色の順に置き、縦はばらす（隣どうしの色が隣に来る）
-    const pts = stops.map((lab, i) => ({ x: (i + 0.5) / k + (rand() - 0.5) * 0.2, y: (0.15 + rand() * 0.7) * GH / GW, lab, c: Math.hypot(lab[1], lab[2]) }));
-    const spread = Math.max(0.16, 0.85 / k), inv = 1 / (2 * spread * spread);
+    // **1 色につき点を 2〜4 つ、明るさを少しずつ変えて散らす**（色の数だけ置くと一直線の混ざり方になり、むらが出ない。
+    // promo の見本は 7 点・明るさ違いでむらが出ていた。2026-09-25、利用者の指摘）。点は色の順に左から右の帯へ、縦はばらす
+    const per = Math.max(2, Math.ceil(8 / k)), pts = [];
+    stops.forEach((lab, i) => {
+      for (let j = 0; j < per; j++) {
+        const dl = (rand() - 0.5) * 0.22, l2 = [Math.min(0.98, Math.max(0.05, lab[0] + dl)), lab[1], lab[2]];
+        pts.push({ x: (i + rand()) / k, y: (0.05 + rand() * 0.9) * GH / GW, lab: l2, c: Math.hypot(lab[1], lab[2]) });
+      }
+    });
+    const spread = 0.19, inv = 1 / (2 * spread * spread);
     const octs = [[3, 0.5], [6, 0.25], [12, 0.15], [24, 0.1]].map(([c, a]) => [valueNoise(c, rand), valueNoise(c, rand), a]);
-    const warp = 0.14;
+    const warp = 0.2;
+    // **混ぜたあとの明るさに雲のようなむらをのせる**（点ごとに明るさを揺らしても、隣と混ざって平均されて消えた。2026-09-25）
+    // **明るくする向きだけ**（暗くする向きにも振ると、鮮やかさはそのままで明るさだけ下がり、黒ずんで見えた。同日、利用者の指摘）。
+    // 明るくした所は鮮やかさも少し落とし、霧がかかったように白っぽくする
+    const cloud = [[valueNoise(4, rand), 0.6], [valueNoise(9, rand), 0.4]], CLOUD = 0.32;
     const cv = document.createElement("canvas"); cv.width = GW; cv.height = GH;
     const cx = cv.getContext("2d"), img = cx.createImageData(GW, GH), d = img.data;
     for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
@@ -4869,6 +4880,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       let L = 0, A = 0, B = 0, C = 0, W = 0;
       for (const p of pts) { const w = Math.exp(-((u - p.x) ** 2 + (v - p.y) ** 2) * inv); L += w * p.lab[0]; A += w * p.lab[1]; B += w * p.lab[2]; C += w * p.c; W += w; }
       L /= W; A /= W; B /= W; C /= W;
+      const mist = Math.max(0, Math.min(1, 0.5 + 0.9 * cloud.reduce((acc, [n, a]) => acc + a * n(u, v * GW / GH), 0))) * CLOUD;
+      L = L + (0.97 - L) * mist; A *= 1 - mist * 0.6; B *= 1 - mist * 0.6; C *= 1 - mist * 0.6;
       const cn = Math.hypot(A, B), f = cn > 1e-6 ? Math.min(C / cn, 1.35) : 1;
       const [r, g, b] = fromOklab([L, A * f, B * f]), gr = (rand() - 0.5) * 4, i = (y * GW + x) * 4;   // 粒は弱く（書き出しで 4 倍ほどに引き伸ばすので、強いとざらつく）
       d[i] = r + gr; d[i + 1] = g + gr; d[i + 2] = b + gr; d[i + 3] = 255;
