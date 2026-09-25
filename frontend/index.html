@@ -1060,6 +1060,9 @@ body.sheet-open { overflow: hidden; }
 #bg-cands label { flex: 0 0 32px; }   /* 候補は 4 色まで。背景色の見本のように行いっぱいに広げると大きすぎる */
 #bg-grad-box { display: grid; gap: var(--space-2); justify-items: start; margin-top: var(--space-2); }
 #bg-grad-colors { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.grad-row { display: flex; align-items: center; gap: var(--space-3); }
+#bg-grad-thumb { width: 128px; aspect-ratio: 16 / 9; border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
+#bg-grad-thumb:not([src]) { visibility: hidden; }
 .grad-chip { width: 32px; height: 28px; padding: 0; border: var(--line) solid var(--color-ink); background: none; cursor: pointer; }
 .grad-chip::-webkit-color-swatch-wrapper { padding: 0; } .grad-chip::-webkit-color-swatch { border: 0; }
 #bg-image-box { margin-top: var(--space-2); }   /* .btn の display が hidden 属性に勝つので明示する */
@@ -1740,7 +1743,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
             <button class="btn btn-sm" type="button" id="bg-grad-add">色を足す</button>
             <button class="btn btn-sm" type="button" id="bg-grad-del">色を減らす</button>
           </div>
-          <button class="btn btn-sm" type="button" id="bg-grad-shuffle" title="色はそのままで、模様（ゆらぎの形）だけ変える">ほかの模様</button>
+          <div class="grad-row">
+            <img id="bg-grad-thumb" alt="グラデーションの見本">
+            <button class="btn btn-sm" type="button" id="bg-grad-shuffle" title="色はそのままで、模様（ゆらぎの形）だけ変える">ほかの模様</button>
+          </div>
         </div>
         <div id="bg-image-box" hidden>
           <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
@@ -2162,6 +2168,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "ジャケットから取った色": "Colors from your covers",
         "TRACKMENTO の模様を敷きました。「画像を選ぶ…」で好きな画像に替えられます。": "Laid the TRACKMENTO pattern. Use “Choose an image…” to switch to any image you like.",
         "グラデーション": "Gradient",
+        "グラデーションの見本": "Gradient preview",
         "グラデーションの色": "Gradient colors",
         "ジャケットから": "From covers",
         "自分で選ぶ": "Pick my own",
@@ -5023,7 +5030,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (!colors.length) { show(tr("トラックを置くと、ジャケットから色を取ります。")); return; }
     }
     const key = JSON.stringify([colors, g.seed]);
-    if (key === gradKey && gradCanvas) { syncBgMode(); return; }
+    // 同じ配色なら描き直さない。**案内も書き直す**（「調べています…」のまま残っていた。2026-09-25、利用者の指摘）
+    if (key === gradKey && gradCanvas) { show(tr("グラデーションを作りました。「ほかの模様」で模様だけ変えられます。")); syncBgMode(); return; }
     if (!GRAD_CACHE.has(key)) {
       // ラジオの表示を先に変えてから描く（描いている間は画面が止まるので、押した手応えが遅れて見えた）
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -5036,6 +5044,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const blob = await canvasToBlob(gradCanvas, "image/jpeg", 0.92);
     gradUrl = URL.createObjectURL(blob);
     pickBg(readBgImage(gradCanvas).hex); renderSwatches();   // 文字の色は絵の平均の色（字と反対の側へ寄せた色）で決める
+    $("#bg-grad-thumb").src = gradUrl;   // 小さな見本（グリッドの見本はマスの隙間にしか見えず、「ほかの模様」の違いが分かりにくい）
     show(tr("グラデーションを作りました。「ほかの模様」で模様だけ変えられます。"));
     syncBgMode(); updateSpec();
     // 上げるのは配色が落ち着いてから（触るたびに上げない）

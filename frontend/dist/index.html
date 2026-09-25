@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.429ca5ad.css">
+<link rel="stylesheet" href="app/app.6d169b4b.css">
 </head>
 <body>
 
@@ -395,7 +395,10 @@
             <button class="btn btn-sm" type="button" id="bg-grad-add">色を足す</button>
             <button class="btn btn-sm" type="button" id="bg-grad-del">色を減らす</button>
           </div>
-          <button class="btn btn-sm" type="button" id="bg-grad-shuffle" title="色はそのままで、模様（ゆらぎの形）だけ変える">ほかの模様</button>
+          <div class="grad-row">
+            <img id="bg-grad-thumb" alt="グラデーションの見本">
+            <button class="btn btn-sm" type="button" id="bg-grad-shuffle" title="色はそのままで、模様（ゆらぎの形）だけ変える">ほかの模様</button>
+          </div>
         </div>
         <div id="bg-image-box" hidden>
           <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
@@ -597,6 +600,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.57188632.js"></script>
+<script id="app-js" src="app/app.adf98055.js"></script>
 </body>
 </html>
