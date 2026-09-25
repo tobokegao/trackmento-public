@@ -1328,7 +1328,7 @@ input[type="range"].no-ring:focus-visible { outline: none; }
 .range-wrap input[type="range"] { pointer-events: none; }
 /* **縦のスクロールは通す**（`pan-y`。2026-09-25、利用者の指摘「マスの間隔のあたりでスクロールが空振りする」）。
    以前は `none` で、溝の上に指が乗っただけでもページが動かなかった。つまみの上で触れたときだけ JS が既定の動きを止める */
-.range-pad { position: absolute; inset: 0; touch-action: pan-y; cursor: default; }
+.range-pad { position: absolute; inset: -6px 0; touch-action: pan-y; cursor: default; }   /* 上下 6px は指の遊び（受け皿 22px → 34px。隣の色のスライダーの受け皿とは重ならない） */
 /* 掴んでいる間の色。`:active` は入力を受け取らなくなったので効かない */
 input[type="range"].is-grabbed::-webkit-slider-thumb { background-color: var(--color-rule-2); }
 output { font-variant-numeric: tabular-nums; }
@@ -5505,10 +5505,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const pad = document.createElement("span"); pad.className = "range-pad";
     wrap.append(pad);
 
+    /* **指で触るときは掴める幅を指の大きさ（44px）にする**（2026-09-25）。つまみは 19 マス（約 22px）しかなく、中心から 12px ずれた
+       指は掴めず、そのまま動かすと `pan-y` でページ送りになっていた（利用者のスマホで「マスの間隔がスクロールに引っかかる」。
+       エミュレータで再現）。掴んだ位置のずれは grabDX で保つので、押しただけで値は飛ばない。マウスは正確なので今までどおりつまみの上だけ */
+    const grabHalf = (touch) => touch ? Math.max(thumbW() / 2, 22) : thumbW() / 2;
     let dragging = false, grabDX = 0;
     pad.addEventListener("pointerdown", (e) => {
       e.preventDefault(); e.stopPropagation();
-      if (Math.abs(e.clientX - thumbCenter()) > thumbW() / 2) return;   // つまみの上でなければ何もしない
+      if (Math.abs(e.clientX - thumbCenter()) > grabHalf(e.pointerType !== "mouse")) return;   // つまみの上（指なら近く）でなければ何もしない
       dragging = true; specHold(true);   // 掴んでいる間は「出力サイズ」の重い計算を後回しにする（updateSpec）
       grabDX = e.clientX - thumbCenter();
       try { pad.setPointerCapture(e.pointerId); } catch { /* 古いブラウザ */ }
@@ -5534,7 +5538,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     el.addEventListener("blur", () => el.classList.remove("no-ring"));
     // 指の既定の動き（スクロール・長押しの選択）は、**つまみの上で触れたときだけ**止める。
     // 溝の上ではスクロールを通す（止めていたので、つまみの近くでページを送ろうとすると空振りしていた）
-    const onThumb = (e) => e.touches && e.touches[0] && Math.abs(e.touches[0].clientX - thumbCenter()) <= thumbW() / 2;
+    const onThumb = (e) => e.touches && e.touches[0] && Math.abs(e.touches[0].clientX - thumbCenter()) <= grabHalf(true);
     pad.addEventListener("touchstart", (e) => { if (onThumb(e)) e.preventDefault(); }, { passive: false });
     pad.addEventListener("touchmove", (e) => { if (dragging) e.preventDefault(); }, { passive: false });
     // **見出しの文字を押しても反応させない**。<label for> は押すと中の部品を動かす決まりなので、

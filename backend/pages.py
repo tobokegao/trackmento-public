@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "スマホで「マスの間隔」や色のつまみを掴みやすくしました。つまみの少し横に指を置いても掴めます。",
+     "Made the “Gap” and color slider thumbs easier to grab on phones; a finger slightly off the thumb now grabs it."),
     ("2026-09-25", "トラックリストを横に並べているとき、「マスの間隔」などを動かしたあとに画面が止まる時間を短くしました。スマホで曲の多い並びだと、数秒かかることがありました。",
      "Shortened the pause after moving “Gap” and similar options when the track list is beside the grid. On phones with a large grid it could take a few seconds."),
     ("2026-09-25", "スマホで、曲の多い並びのトラックリストが段落のようにつながってしまうことがあったので、表の形に収まるなら画像を少し大きく作るようにしました。PC で作った画像と同じ組み方になりやすくなります。",
