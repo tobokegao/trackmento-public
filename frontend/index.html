@@ -1061,6 +1061,8 @@ body.sheet-open { overflow: hidden; }
 #bg-image-row { display: flex; align-items: center; gap: var(--space-3); }
 #bg-image-thumb { width: 128px; aspect-ratio: 16 / 9; object-fit: cover; border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
 #bg-image-thumb:not([src]) { visibility: hidden; }
+#bg-image-row { flex-wrap: wrap; }
+#bg-image-reset[hidden] { display: none; }
 #bg-fit-seg, #bg-tile-seg, #bg-ink-seg { margin-top: var(--space-2); }
 #bg-tile-seg[hidden], #bg-none-box[hidden] { display: none; }   /* 候補は 4 色まで。背景色の見本のように行いっぱいに広げると大きすぎる */
 #bg-grad-box { display: grid; gap: var(--space-2); justify-items: start; margin-top: var(--space-2); }
@@ -1765,6 +1767,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <div id="bg-image-row">
             <img id="bg-image-thumb" alt="背景の画像の見本">
             <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
+            <button class="btn btn-sm" type="button" id="bg-image-reset" hidden title="選んだ画像をやめて、TRACKMENTO のマークの模様に戻す">既定に戻す</button>
           </div>
           <div class="seg radio" id="bg-fit-seg" role="radiogroup" aria-label="画像の敷き方">
             <label><input type="radio" name="bgFit" value="cover" checked><span>収める</span></label>
@@ -2191,6 +2194,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "背景を透過": "Transparent",
         "画像": "Image",
         "字の色": "Text color",
+        "既定に戻す": "Back to default",
+        "選んだ画像をやめて、TRACKMENTO のマークの模様に戻す": "Stop using the chosen image and go back to the TRACKMENTO mark pattern",
         "共有の画像は黒い地になります。「画像を保存」では背景が透明な PNG になります。": "The shared image gets a black background. “Save image” gives you a PNG with a transparent background.",
         "黒い字": "Dark text",
         "白い字": "White text",
@@ -4859,6 +4864,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       $("#bg-tile-seg").hidden = state.bgImageFit !== "tile";
       const src = tileUrl && tileCanvas ? tileUrl : (state.bgImageSrc || state.bgImage);
       if (src) $("#bg-image-thumb").src = src.startsWith("blob:") ? src : proxied(src); else $("#bg-image-thumb").removeAttribute("src");
+      $("#bg-image-reset").hidden = !state.bgImageSrc || state.bgImageSrc === BG_MARK;
     }
     $("#bg-grad-box").hidden = m !== "gradient";
     if (m === "gradient") { const g = gradState(); setSeg($("#bg-grad-src"), g.src); $("#bg-grad-colors").hidden = g.src !== "custom"; renderGradColors(); }
@@ -5223,6 +5229,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     fitTimer = setTimeout(() => applyImageFit(), 700);
   }
   for (const i of document.querySelectorAll('#bg-fit-seg input')) i.addEventListener("change", () => { state.bgImageFit = i.value; applyImageFit(); });
+  // 選んだ画像をやめて既定の模様に戻す（2026-09-25、利用者の依頼）。敷き方（収める・並べる）はそのまま
+  $("#bg-image-reset").addEventListener("click", () => { state.bgImageSrc = BG_MARK; state.bgImage = BG_MARK; tileKey = ""; applyImageFit(); });
   for (const i of document.querySelectorAll('#bg-tile-seg input')) i.addEventListener("change", () => { state.bgImageTile = i.value; applyImageFit(); });
   /* ---- 背景を透過のときの字の色（2026-09-25、利用者の案）。黒い字なら下の地は白、白い字なら黒（共有の JPEG はその地で、「画像を保存」は透明）。
      見本の地も合わせる（白い字なら暗い市松） ---- */
