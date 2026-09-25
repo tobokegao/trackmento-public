@@ -279,6 +279,10 @@ img { max-width: 100%; display: block; }
 .win-reset[hidden] { display: none; }
 /* **窓は題名バーを掴んで動かせる**（PC だけ。2026-09-25、利用者の案）。並びの流れからは外さず、ずらして描く（transform）ので
    周りの組み方は崩れない。動かしている間は掴んだ窓を前に出し、影を少し深くする */
+@media (min-width: 60rem) {
+  /* 指でも動かせる（スマホの「PC 版の表示」。2026-09-25、利用者が出先で試して動かなかった）。題名バーの上だけはページをスクロールさせない */
+  .pane-title { touch-action: none; }
+}
 @media (min-width: 60rem) and (pointer: fine) {
   .pane-title { cursor: grab; }
   .pane.is-moving { cursor: grabbing; }
@@ -7819,11 +7823,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   mq.addEventListener("change", applyFold);
   applyFold();
 
-  /* ---- 窓を動かす（2026-09-25、利用者の案）。PC（マウス）だけ。題名バーを掴んで 4px 以上動かしたらドラッグ（それより小さければ今までどおり畳む）。
+  /* ---- 窓を動かす（2026-09-25、利用者の案）。幅の広い画面だけ（マウスでも指でも）。題名バーを掴んで 4px 以上動かしたらドラッグ（それより小さければ今までどおり畳む）。
      位置は並びの流れのままずらして描き（transform）、画面ごとに localStorage に覚える。題名バーが画面の外に出ないように抑える。
      「窓を元に戻す」（上のバー）で全部の窓を戻す。スマホの幅では効かせない（覚えた位置も当てない） ---- */
   const WIN_KEY = "trackmento:winpos";
-  const winMq = window.matchMedia("(min-width: 60rem) and (pointer: fine)");
+  // **幅だけで決める**（指でも動かす）。以前は (pointer: fine) も付けていて、スマホの「PC 版の表示」では効かなかった
+  const winMq = window.matchMedia("(min-width: 60rem)");
   const movables = () => [...document.querySelectorAll(".workbench > .pane, #output")];
   let winDragged = false, winZ = 20;
   const loadWin = () => { try { return JSON.parse(localStorage.getItem(WIN_KEY) || "{}") || {}; } catch { return {}; } };
