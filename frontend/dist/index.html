@@ -11,9 +11,9 @@
 <meta name="trackmento-retention" content="__RETENTION__">
 <title>TRACKMENTO</title>
 <!--__FONT_LINK__-->
-<meta name="description" content="好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
+<meta name="description" content="好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
-<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
+<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:url" content="__BASE__/"><meta property="og:image" content="__BASE__/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="__BASE__/">
@@ -46,7 +46,7 @@
   <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
 <aside class="inapp" id="migrate-notice" hidden>
-  <p>新しいアドレス（trackmento.com）につながらなかったため、このアドレスのまま使っています。お使いの Wi-Fi のフィルタなどで止められている可能性があります。</p>
+  <p>trackmento.com につながらなかったため、予備のアドレスで開いています。学校や職場の Wi-Fi のフィルタなどで止められている可能性があります。</p>
   <div class="btns">
     <button class="btn" type="button" id="migrate-close" aria-label="この案内を閉じる">閉じる</button>
   </div>
@@ -84,7 +84,7 @@
         <div class="field" id="e-fit-field">
           <label>このマスのサムネ余白</label>
           <div class="seg radio" id="e-fit-seg" role="radiogroup" aria-label="このマスのサムネ余白">
-            <label><input type="radio" name="eFit" value="" checked><span>全体に従う</span></label>
+            <label><input type="radio" name="eFit" value="" checked><span>全体と同じ</span></label>
             <label><input type="radio" name="eFit" value="crop"><span>トリミング</span></label>
             <label><input type="radio" name="eFit" value="blur"><span>ぼかし背景</span></label>
           </div>
@@ -150,7 +150,7 @@
     <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋トラック名）</button>
     <form class="pane-body search-form" id="manual-form" novalidate>
       <div class="field">
-        <label for="m-image">手入力: ジャケット画像の URL</label>
+        <label for="m-image">手入力: サムネイル画像の URL</label>
         <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
         <div class="search-actions">
           <button class="btn btn-sm" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
@@ -183,7 +183,7 @@
     <div class="pane-title"><h2 id="h-results">候補</h2><span class="tail"><span class="count" id="results-count" aria-label="候補数">0</span><button class="fold" type="button" aria-expanded="true" aria-label="候補を折りたたむ"></button></span></div>
     <div class="pane-body">
       <ul class="results" id="results">
-        <li class="empty"><strong>まだ候補がありません</strong><span>トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>押すと次の空きマスに入ります。</span></li>
+        <li class="empty"><strong>まだ候補がありません</strong><span>トラック名かアーティスト名を入れて検索すると、ここにサムネイル付きで並びます。</span><span>押すと次の空きマスに入ります。</span></li>
       </ul>
     </div>
   </section>
@@ -224,7 +224,7 @@
           <option value="t">ドライブで聴きたい曲</option>
         </select></span>
       </div>
-      <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
+      <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
         <!-- 取り消しのボタン（2026-09-25、利用者の依頼）。メッセージの「元に戻す」は次のメッセージで消えるので、
@@ -238,7 +238,7 @@
         <div class="minor">
           <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
           <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
-          <button class="btn btn-sm" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+          <button class="btn btn-sm" type="button" id="color-sort" title="サムネイルの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のサムネイルは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
         </div>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
@@ -342,7 +342,7 @@
             <label><input type="radio" name="cellFit" value="crop" checked><span>トリミング</span></label>
             <label><input type="radio" name="cellFit" value="blur"><span>ぼかし背景</span></label>
           </div>
-          <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかし背景」にすると切れずに入ります。マスごとに変えることもできます。</p>
+          <p class="note" id="cell-fit-note">マスと形の違うサムネイルの入れ方です（正方形のマスに動画のサムネイル、横長のマスに正方形のサムネイルを入れるときなど）。「ぼかし背景」にすると切れずに入ります。マスごとに変えることもできます。</p>
         </fieldset>
         </div>
       </section>
@@ -358,16 +358,16 @@
             <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
             <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
             <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
-            <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の余計な部分を省く</span></div>
+            <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の省略表示</span></div>
           </div>
         </fieldset>
 
         <fieldset class="field">
           <legend>トラックリスト</legend>
           <div class="seg radio" id="list-seg" role="radiogroup" aria-label="トラックリスト">
-            <label><input type="radio" name="listmode" value="side" checked><span>横に並べる</span></label>
-            <label><input type="radio" name="listmode" value="overlay"><span>マスに重ねる</span></label>
-            <label><input type="radio" name="listmode" value="none"><span>表示しない</span></label>
+            <label><input type="radio" name="listmode" value="side" checked><span>横並び</span></label>
+            <label><input type="radio" name="listmode" value="overlay"><span>重ね表示</span></label>
+            <label><input type="radio" name="listmode" value="none"><span>非表示</span></label>
           </div>
           <p class="msg" id="list-msg" hidden></p>
         </fieldset>
@@ -383,9 +383,9 @@
                「背景を透過」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
           <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
             <label><input type="radio" name="bgMode" value="pick" checked><span>色の選択</span></label>
-            <label><input type="radio" name="bgMode" value="near"><span>ジャケットの近似色</span></label>
-            <label title="色相環で向かい側の色"><input type="radio" name="bgMode" value="far"><span>ジャケットの補色</span></label>
-            <label><input type="radio" name="bgMode" value="none"><span>背景を透過</span></label>
+            <label><input type="radio" name="bgMode" value="near"><span>サムネの近似色</span></label>
+            <label title="色相環で向かい側の色"><input type="radio" name="bgMode" value="far"><span>サムネの補色</span></label>
+            <label><input type="radio" name="bgMode" value="none"><span>透過</span></label>
             <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
             <label><input type="radio" name="bgMode" value="gradient"><span>グラデーション</span></label>
           </div>
@@ -410,8 +410,8 @@
             <!-- グラデーション背景（2026-09-25）。色はジャケットから取るか、自分で 2〜4 色選ぶ。「ほかの模様」はゆらぎの形だけ変える -->
             <div id="bg-grad-box" hidden>
               <div class="seg radio" id="bg-grad-src" role="radiogroup" aria-label="グラデーションの色">
-                <label><input type="radio" name="bgGradSrc" value="covers" checked><span>ジャケットから</span></label>
-                <label><input type="radio" name="bgGradSrc" value="custom"><span>自分で選ぶ</span></label>
+                <label><input type="radio" name="bgGradSrc" value="covers" checked><span>サムネの色</span></label>
+                <label><input type="radio" name="bgGradSrc" value="custom"><span>色の選択</span></label>
               </div>
               <div id="bg-grad-colors" hidden>
                 <button class="btn btn-sm" type="button" id="bg-grad-add">色を足す</button>
@@ -435,8 +435,8 @@
                 <button class="btn btn-sm" type="button" id="bg-image-reset" hidden title="選んだ画像をやめて、TRACKMENTO のマークの模様に戻す">既定に戻す</button>
               </div>
               <div class="seg radio" id="bg-fit-seg" role="radiogroup" aria-label="画像の敷き方">
-                <label><input type="radio" name="bgFit" value="cover" checked><span>収める</span></label>
-                <label><input type="radio" name="bgFit" value="tile"><span>並べる</span></label>
+                <label><input type="radio" name="bgFit" value="cover" checked><span>全体表示</span></label>
+                <label><input type="radio" name="bgFit" value="tile"><span>タイル</span></label>
               </div>
               <div class="seg radio" id="bg-tile-seg" role="radiogroup" aria-label="並べる大きさ" hidden>
                 <label><input type="radio" name="bgTile" value="s"><span>小</span></label>
@@ -445,9 +445,9 @@
               </div>
               <input type="file" id="bg-image-file" accept="image/*" hidden>
             </div>
-            <!-- ジャケットから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで 1 つずつ送る形だったのを、
+            <!-- サムネイルから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで 1 つずつ送る形だったのを、
                  背景色の見本と同じ四角で全部並べ、今の色に枠を付ける -->
-            <div class="swatches" id="bg-cands" role="radiogroup" aria-label="ジャケットから取った色" hidden></div>
+            <div class="swatches" id="bg-cands" role="radiogroup" aria-label="サムネイルから取った色" hidden></div>
             <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
           </div>
         </fieldset>
@@ -457,9 +457,9 @@
         <fieldset class="field">
           <legend>余白</legend>
           <div class="seg radio" id="pad-seg" role="radiogroup" aria-label="余白">
-            <label><input type="radio" name="pad" value="normal" checked><span>ふつう</span></label>
-            <label><input type="radio" name="pad" value="wide"><span>ひろめ</span></label>
-            <label><input type="radio" name="pad" value="xwide"><span>たっぷり</span></label>
+            <label><input type="radio" name="pad" value="normal" checked><span>標準</span></label>
+            <label><input type="radio" name="pad" value="wide"><span>広め</span></label>
+            <label><input type="radio" name="pad" value="xwide"><span>特大</span></label>
           </div>
         </fieldset>
         <div class="field">
@@ -522,10 +522,10 @@
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。</p>
           <p><b>VocaDB</b>: ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
-          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
-          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify はトラック名とジャケットしか取れないので、アーティスト名は iTunes で同じトラック名のものから補います（見つからないときは手で入れてください）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。bilibili の動画は、otoDB（音MAD など）か VocaDB（ボカロなど）に登録があるものだけ取れます（bilibili には問い合わせません）。sm12345 や BV… のような ID だけを貼ってもかまいません。</p>
+          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、トラックの入っていない空きマスに、番号の若い順で入ります。入りきらない分（マスは最大 256）は候補に残ります。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
+          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、サムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify はトラック名とサムネイルしか取れないので、アーティスト名は iTunes で同じトラック名のものから補います（見つからないときは手で入れてください）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。bilibili の動画は、otoDB（音MAD など）か VocaDB（ボカロなど）に登録があるものだけ取れます（bilibili には問い合わせません）。sm12345 や BV… のような ID だけを貼ってもかまいません。</p>
           <p><b>トラック名の一覧から</b>: 表にアーティスト名とトラック名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したサムネイル画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
 </div>
@@ -643,6 +643,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.d60a6993.js"></script>
+<script id="app-js" src="app/app.34cc4851.js"></script>
 </body>
 </html>

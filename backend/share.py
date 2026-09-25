@@ -253,7 +253,7 @@ TEXT = {
         "save_img": "画像を保存",
         "open_in": "TRACKMENTO で開く（この並びを読み込む）",
         "tracks": "{n} トラック",
-        "img_alt": "{cols}×{rows} に並べたジャケット",
+        "img_alt": "{cols}×{rows} に並べたサムネイル",
         "img_alt_more": "ほか {n} トラック",
         "share_id": "共有 ID",
         "this_url": "この URL",

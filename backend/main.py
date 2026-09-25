@@ -1050,7 +1050,7 @@ async def app_icon(request: Request) -> FileResponse:
 MANIFEST = {
     "name": "TRACKMENTO",
     "short_name": "TRACKMENTO",
-    "description": "好きなトラックのジャケットを並べて 1 枚の画像に。",
+    "description": "好きなトラックのサムネイルを並べて 1 枚の画像に。",
     "lang": "ja",
     "start_url": "/",
     "scope": "/",

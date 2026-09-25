@@ -11,9 +11,9 @@
 <meta name="trackmento-retention" content="__RETENTION__">
 <title>TRACKMENTO</title>
 <!--__FONT_LINK__-->
-<meta name="description" content="好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
+<meta name="description" content="好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
-<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
+<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:url" content="__BASE__/"><meta property="og:image" content="__BASE__/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="__BASE__/">
@@ -1423,7 +1423,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
 <aside class="inapp" id="migrate-notice" hidden>
-  <p>新しいアドレス（trackmento.com）につながらなかったため、このアドレスのまま使っています。お使いの Wi-Fi のフィルタなどで止められている可能性があります。</p>
+  <p>trackmento.com につながらなかったため、予備のアドレスで開いています。学校や職場の Wi-Fi のフィルタなどで止められている可能性があります。</p>
   <div class="btns">
     <button class="btn" type="button" id="migrate-close" aria-label="この案内を閉じる">閉じる</button>
   </div>
@@ -1461,7 +1461,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <div class="field" id="e-fit-field">
           <label>このマスのサムネ余白</label>
           <div class="seg radio" id="e-fit-seg" role="radiogroup" aria-label="このマスのサムネ余白">
-            <label><input type="radio" name="eFit" value="" checked><span>全体に従う</span></label>
+            <label><input type="radio" name="eFit" value="" checked><span>全体と同じ</span></label>
             <label><input type="radio" name="eFit" value="crop"><span>トリミング</span></label>
             <label><input type="radio" name="eFit" value="blur"><span>ぼかし背景</span></label>
           </div>
@@ -1527,7 +1527,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋トラック名）</button>
     <form class="pane-body search-form" id="manual-form" novalidate>
       <div class="field">
-        <label for="m-image">手入力: ジャケット画像の URL</label>
+        <label for="m-image">手入力: サムネイル画像の URL</label>
         <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
         <div class="search-actions">
           <button class="btn btn-sm" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
@@ -1560,7 +1560,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     <div class="pane-title"><h2 id="h-results">候補</h2><span class="tail"><span class="count" id="results-count" aria-label="候補数">0</span><button class="fold" type="button" aria-expanded="true" aria-label="候補を折りたたむ"></button></span></div>
     <div class="pane-body">
       <ul class="results" id="results">
-        <li class="empty"><strong>まだ候補がありません</strong><span>トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。</span><span>押すと次の空きマスに入ります。</span></li>
+        <li class="empty"><strong>まだ候補がありません</strong><span>トラック名かアーティスト名を入れて検索すると、ここにサムネイル付きで並びます。</span><span>押すと次の空きマスに入ります。</span></li>
       </ul>
     </div>
   </section>
@@ -1601,7 +1601,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <option value="t">ドライブで聴きたい曲</option>
         </select></span>
       </div>
-      <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="ジャケットの並び" style="--cols:3;--rows:3"></ol></div>
+      <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
         <!-- 取り消しのボタン（2026-09-25、利用者の依頼）。メッセージの「元に戻す」は次のメッセージで消えるので、
@@ -1615,7 +1615,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <div class="minor">
           <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
           <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
-          <button class="btn btn-sm" type="button" id="color-sort" title="ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+          <button class="btn btn-sm" type="button" id="color-sort" title="サムネイルの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のサムネイルは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
         </div>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
         <div class="grid-foot">
@@ -1719,7 +1719,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
             <label><input type="radio" name="cellFit" value="crop" checked><span>トリミング</span></label>
             <label><input type="radio" name="cellFit" value="blur"><span>ぼかし背景</span></label>
           </div>
-          <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかし背景」にすると切れずに入ります。マスごとに変えることもできます。</p>
+          <p class="note" id="cell-fit-note">マスと形の違うサムネイルの入れ方です（正方形のマスに動画のサムネイル、横長のマスに正方形のサムネイルを入れるときなど）。「ぼかし背景」にすると切れずに入ります。マスごとに変えることもできます。</p>
         </fieldset>
         </div>
       </section>
@@ -1735,16 +1735,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
             <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
             <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
             <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
-            <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の余計な部分を省く</span></div>
+            <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の省略表示</span></div>
           </div>
         </fieldset>
 
         <fieldset class="field">
           <legend>トラックリスト</legend>
           <div class="seg radio" id="list-seg" role="radiogroup" aria-label="トラックリスト">
-            <label><input type="radio" name="listmode" value="side" checked><span>横に並べる</span></label>
-            <label><input type="radio" name="listmode" value="overlay"><span>マスに重ねる</span></label>
-            <label><input type="radio" name="listmode" value="none"><span>表示しない</span></label>
+            <label><input type="radio" name="listmode" value="side" checked><span>横並び</span></label>
+            <label><input type="radio" name="listmode" value="overlay"><span>重ね表示</span></label>
+            <label><input type="radio" name="listmode" value="none"><span>非表示</span></label>
           </div>
           <p class="msg" id="list-msg" hidden></p>
         </fieldset>
@@ -1760,9 +1760,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
                「背景を透過」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
           <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
             <label><input type="radio" name="bgMode" value="pick" checked><span>色の選択</span></label>
-            <label><input type="radio" name="bgMode" value="near"><span>ジャケットの近似色</span></label>
-            <label title="色相環で向かい側の色"><input type="radio" name="bgMode" value="far"><span>ジャケットの補色</span></label>
-            <label><input type="radio" name="bgMode" value="none"><span>背景を透過</span></label>
+            <label><input type="radio" name="bgMode" value="near"><span>サムネの近似色</span></label>
+            <label title="色相環で向かい側の色"><input type="radio" name="bgMode" value="far"><span>サムネの補色</span></label>
+            <label><input type="radio" name="bgMode" value="none"><span>透過</span></label>
             <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
             <label><input type="radio" name="bgMode" value="gradient"><span>グラデーション</span></label>
           </div>
@@ -1787,8 +1787,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
             <!-- グラデーション背景（2026-09-25）。色はジャケットから取るか、自分で 2〜4 色選ぶ。「ほかの模様」はゆらぎの形だけ変える -->
             <div id="bg-grad-box" hidden>
               <div class="seg radio" id="bg-grad-src" role="radiogroup" aria-label="グラデーションの色">
-                <label><input type="radio" name="bgGradSrc" value="covers" checked><span>ジャケットから</span></label>
-                <label><input type="radio" name="bgGradSrc" value="custom"><span>自分で選ぶ</span></label>
+                <label><input type="radio" name="bgGradSrc" value="covers" checked><span>サムネの色</span></label>
+                <label><input type="radio" name="bgGradSrc" value="custom"><span>色の選択</span></label>
               </div>
               <div id="bg-grad-colors" hidden>
                 <button class="btn btn-sm" type="button" id="bg-grad-add">色を足す</button>
@@ -1812,8 +1812,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
                 <button class="btn btn-sm" type="button" id="bg-image-reset" hidden title="選んだ画像をやめて、TRACKMENTO のマークの模様に戻す">既定に戻す</button>
               </div>
               <div class="seg radio" id="bg-fit-seg" role="radiogroup" aria-label="画像の敷き方">
-                <label><input type="radio" name="bgFit" value="cover" checked><span>収める</span></label>
-                <label><input type="radio" name="bgFit" value="tile"><span>並べる</span></label>
+                <label><input type="radio" name="bgFit" value="cover" checked><span>全体表示</span></label>
+                <label><input type="radio" name="bgFit" value="tile"><span>タイル</span></label>
               </div>
               <div class="seg radio" id="bg-tile-seg" role="radiogroup" aria-label="並べる大きさ" hidden>
                 <label><input type="radio" name="bgTile" value="s"><span>小</span></label>
@@ -1822,9 +1822,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
               </div>
               <input type="file" id="bg-image-file" accept="image/*" hidden>
             </div>
-            <!-- ジャケットから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで 1 つずつ送る形だったのを、
+            <!-- サムネイルから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで 1 つずつ送る形だったのを、
                  背景色の見本と同じ四角で全部並べ、今の色に枠を付ける -->
-            <div class="swatches" id="bg-cands" role="radiogroup" aria-label="ジャケットから取った色" hidden></div>
+            <div class="swatches" id="bg-cands" role="radiogroup" aria-label="サムネイルから取った色" hidden></div>
             <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
           </div>
         </fieldset>
@@ -1834,9 +1834,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <fieldset class="field">
           <legend>余白</legend>
           <div class="seg radio" id="pad-seg" role="radiogroup" aria-label="余白">
-            <label><input type="radio" name="pad" value="normal" checked><span>ふつう</span></label>
-            <label><input type="radio" name="pad" value="wide"><span>ひろめ</span></label>
-            <label><input type="radio" name="pad" value="xwide"><span>たっぷり</span></label>
+            <label><input type="radio" name="pad" value="normal" checked><span>標準</span></label>
+            <label><input type="radio" name="pad" value="wide"><span>広め</span></label>
+            <label><input type="radio" name="pad" value="xwide"><span>特大</span></label>
           </div>
         </fieldset>
         <div class="field">
@@ -1899,10 +1899,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。</p>
           <p><b>VocaDB</b>: ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
           <p><b>組み合わせ</b>: ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。</p>
-          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
-          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify はトラック名とジャケットしか取れないので、アーティスト名は iTunes で同じトラック名のものから補います（見つからないときは手で入れてください）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。bilibili の動画は、otoDB（音MAD など）か VocaDB（ボカロなど）に登録があるものだけ取れます（bilibili には問い合わせません）。sm12345 や BV… のような ID だけを貼ってもかまいません。</p>
+          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、トラックの入っていない空きマスに、番号の若い順で入ります。入りきらない分（マスは最大 256）は候補に残ります。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
+          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、サムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify はトラック名とサムネイルしか取れないので、アーティスト名は iTunes で同じトラック名のものから補います（見つからないときは手で入れてください）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。bilibili の動画は、otoDB（音MAD など）か VocaDB（ボカロなど）に登録があるものだけ取れます（bilibili には問い合わせません）。sm12345 や BV… のような ID だけを貼ってもかまいません。</p>
           <p><b>トラック名の一覧から</b>: 表にアーティスト名とトラック名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したサムネイル画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
 </div>
@@ -2161,7 +2161,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "URL をコピー": "Copy URL",
         "新しいアドレスへ移っています…": "Moving to the new address…",
         "前のアドレスから引き継いでいます…": "Bringing your grid over from the old address…",
-        "新しいアドレス（trackmento.com）につながらなかったため、このアドレスのまま使っています。お使いの Wi-Fi のフィルタなどで止められている可能性があります。": "Couldn’t reach the new address (trackmento.com), so you’re staying on this one. A filter on your Wi-Fi or network may be blocking it.",
+        "trackmento.com につながらなかったため、予備のアドレスで開いています。学校や職場の Wi-Fi のフィルタなどで止められている可能性があります。": "Couldn’t reach the new address (trackmento.com), so you’re staying on this one. A filter on your Wi-Fi or network may be blocking it.",
         "閉じる": "Close",
         "検索": "Search",
         "選択中のマス": "Selected cell",
@@ -2191,13 +2191,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "トラック名をコピー": "Copy track names",
         "「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる": "Copy as \"1. Artist - Track\" in cell order, ready to paste into a post on X",
         "手入力（画像 URL＋トラック名）": "By hand (image URL + track name)",
-        "手入力: ジャケット画像の URL": "By hand: cover image URL",
+        "手入力: サムネイル画像の URL": "By hand: cover image URL",
         "端末から画像を選択…": "Choose an image from this device…",
         "選ぶと画像が取り込まれ、URL 欄に入ります。": "The image is uploaded and its URL fills the field above.",
         "手入力で追加": "Add by hand",
         "候補": "Results",
         "まだ候補がありません": "No results yet",
-        "トラック名かアーティスト名を入れて検索すると、ここにジャケット付きで並びます。": "Search by track or artist and the matches appear here with their covers.",
+        "トラック名かアーティスト名を入れて検索すると、ここにサムネイル付きで並びます。": "Search by track or artist and the matches appear here with their covers.",
         "押すと次の空きマスに入ります。": "Press one to drop it into the next empty cell.",
         "グリッド": "Grid",
         "タイトル（省略可）": "Title (optional)",
@@ -2232,10 +2232,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）": "Undo the last change. Up to 30 steps (Ctrl+Z also works)",
         "取り消した操作をやり直す（Ctrl+Y でも）": "Redo what you undid (Ctrl+Y also works)",
         "色の選択": "Choose a color",
-        "ジャケットの近似色": "Match the covers",
-        "ジャケットの補色": "Complement the covers",
+        "サムネの近似色": "Match the thumbnails",
+        "サムネの補色": "Complement the thumbnails",
         "色相環で向かい側の色": "The color opposite on the color wheel",
-        "背景を透過": "Transparent",
+        "透過": "Transparent",
         "画像": "Image",
         "字の色": "Text color",
         "マス": "Cells",
@@ -2251,19 +2251,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "白い字": "White text",
         "背景の画像の見本": "Background image preview",
         "画像の敷き方": "How to lay the image",
-        "収める": "Fit",
-        "並べる": "Tile",
+        "全体表示": "Fit",
+        "タイル": "Tile",
         "並べる大きさ": "Tile size",
         "小": "S",
         "中": "M",
         "大": "L",
-        "ジャケットから取った色": "Colors from your covers",
-        "TRACKMENTO の模様を敷きました。「画像を選ぶ…」で好きな画像に替えられます。": "Laid the TRACKMENTO pattern. Use “Choose an image…” to switch to any image you like.",
+        "サムネイルから取った色": "Colors from your covers",
+        "TRACKMENTO の模様を敷きました。「画像を選ぶ」で好きな画像に替えられます。": "Laid the TRACKMENTO pattern. Use “Choose an image” to switch to any image you like.",
         "グラデーション": "Gradient",
         "グラデーションの見本": "Gradient preview",
         "グラデーションの色": "Gradient colors",
-        "ジャケットから": "From covers",
-        "自分で選ぶ": "Pick my own",
+        "サムネの色": "From thumbnails",
         "色を足す": "Add a color",
         "色を減らす": "Remove a color",
         "ほかの模様": "Another pattern",
@@ -2273,14 +2272,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "画像を選ぶ…": "Choose an image…",
         "画像を送っています…": "Uploading the image…",
         "画像を背景にしました。文字が読みやすいように、画像は薄く敷きます（にぎやかな画像ほど薄く）。": "The image is now the background. It is laid faintly so the text stays readable (busier images more faintly).",
-        "「画像を選ぶ…」で、この端末の画像を選んでください。": "Use “Choose an image…” to pick an image on this device.",
+        "「画像を選ぶ」で、この端末の画像を選んでください。": "Use “Choose an image” to pick an image on this device.",
         "画像を取り込めませんでした。": "Couldn't use that image.",
         "背景の決め方": "How to set the background",
-        "ジャケットの色を調べています…": "Checking the cover colors…",
-        "ジャケットの色から背景色を選びました（{}/{}）。": "Picked a background color from the covers ({0}/{1}).",
-        "ジャケットの色が取れませんでした。": "Couldn't read the cover colors.",
+        "サムネイルの色を調べています…": "Checking the cover colors…",
+        "サムネイルの色から背景色を選びました（{}/{}）。": "Picked a background color from the covers ({0}/{1}).",
+        "サムネイルの色が取れませんでした。": "Couldn't read the cover colors.",
         "共有の画像は白い地になります。「画像を保存」では背景が透明な PNG になります。": "The shared image gets a white background. “Save image” gives you a PNG with a transparent background.",
-        "トラックを置くと、ジャケットから色を取ります。": "Add tracks and the color will be taken from the covers.",
+        "トラックを置くと、サムネイルから色を取ります。": "Add tracks and the color will be taken from the covers.",
         "トラックを探す": "Find a track",
         "並びを保存": "Save layout",
         "並びを読み込み…": "Load layout…",
@@ -2304,12 +2303,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "表示": "Show",
         "タイトル": "Title",
         "トラックリスト": "Track list",
-        "横に並べる": "Beside the grid",
-        "マスに重ねる": "On the covers",
-        "表示しない": "Hidden",
+        "横並び": "Beside the grid",
+        "重ね表示": "Over the cells",
+        "非表示": "Hidden",
         "この並びだとマスが小さく、重ねたトラック名が読めない大きさになるので、トラック名は出しません。マスを減らすか、横に並べてください。": "The covers are too small in this layout for readable titles on top, so no titles will be drawn. Use fewer cells or put the list beside the grid.",
         "番号バッジ": "Number badges",
-        "トラック名の余計な部分を省く": "Trim needless title text",
+        "トラック名の省略表示": "Trim needless title text",
         "アーティスト名の候補": "Artist name suggestions",
         "アーティスト名の候補:": "Artist name suggestions:",
         "元の投稿を探す": "Find the original post",
@@ -2328,8 +2327,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "このマスのサムネ余白": "Thumbnail fill for this cell",
         "メモ（共有ページのトラックリストに出ます）": "Note (shown in the track list on the share page)",
         "このトラックを選んだ理由など": "Why you picked this track, etc.",
-        "全体に従う": "Follow the setting",
-        "マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかし背景」にすると切れずに入ります。マスごとに変えることもできます。": "How to fit thumbnails whose shape differs from the cell (for example, video thumbnails in square cells or square covers in 16:9 cells). Choose “Blurred backdrop” to fit them in without cutting. You can also change it for a single cell.",
+        "全体と同じ": "Follow the setting",
+        "マスと形の違うサムネイルの入れ方です（正方形のマスに動画のサムネイル、横長のマスに正方形のサムネイルを入れるときなど）。「ぼかし背景」にすると切れずに入ります。マスごとに変えることもできます。": "How to fit thumbnails whose shape differs from the cell (for example, video thumbnails in square cells or square covers in 16:9 cells). Choose “Blurred backdrop” to fit them in without cutting. You can also change it for a single cell.",
         "トラック名を短くする": "Shorten all titles",
         "トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
         "短くする": "Shorten",
@@ -2343,9 +2342,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "彩度": "Saturation",
         "明度": "Lightness",
         "余白": "Margin",
-        "ふつう": "Normal",
-        "ひろめ": "Wide",
-        "たっぷり": "Extra wide",
+        "標準": "Normal",
+        "広め": "Wide",
+        "特大": "Extra wide",
         "マスの間隔": "Gap",
         "出力サイズ": "Output size",
         "マスの大きさ": "Cell size",
@@ -2361,12 +2360,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "組み合わせ": "Combining sources",
         ": ソースは複数選べます。結果はボタンの並び順（iTunes → MusicBrainz → …）に並び、同じトラックは先のソースのものを残します（iTunes は速く安定、MusicBrainz は混雑しやすいため）。選択は記憶されます。": ": you can pick several. Results follow the order of the buttons (iTunes → MusicBrainz → …), and for duplicates the earlier source wins, since iTunes is fast and steady while MusicBrainz gets busy. Your choice is remembered.",
         "まとめて取る": "Fetching a whole list",
-        ": ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、すでにトラックがあるマスを飛ばして、番号の若い空きマスへリストの順に入ります。マス（最大 256）に入りきらない分は候補に残るので、そこから選んで絞り込めます。": ": paste a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or an Apple Music URL, and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results and pick\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
+        ": ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、トラックの入っていない空きマスに、番号の若い順で入ります。入りきらない分（マスは最大 256）は候補に残ります。": ": paste a Niconico mylist, a YouTube playlist, a Bandcamp album or playlist, or an Apple Music URL, and every track inside comes in at once (up to 500). Then choose \"Fill the grid\" or \"Put in results and pick\". Filling skips cells that already hold a track and works through the empty ones in order, lowest number first. Anything that will not fit in the grid (256 cells) stays in the results, so you can pick from there.",
         "SoundCloud のセットと Spotify のプレイリストはまとめて取れません": "SoundCloud sets and Spotify playlists can't be pulled in at once",
         "（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。": " — we took that out to follow their rules, though a URL for one track still works. Put URLs on separate lines to mix several sites in one go.",
-        ": Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、ジャケットやサムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify はトラック名とジャケットしか取れないので、アーティスト名は iTunes で同じトラック名のものから補います（見つからないときは手で入れてください）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。bilibili の動画は、otoDB（音MAD など）か VocaDB（ボカロなど）に登録があるものだけ取れます（bilibili には問い合わせません）。sm12345 や BV… のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track), SoundCloud (track), Spotify (track or album), Apple Music (song), YouTube (video) or Niconico and it picks up the cover or thumbnail along with the title and the artist (or uploader). Spotify gives only the title and the cover, so the artist name is filled in from an iTunes track with the same title (add it yourself if none is found). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bilibili video works only if it is listed on otoDB (otomad and the like) or VocaDB (Vocaloid and the like); we never contact bilibili itself. A bare ID such as sm12345 or BV… works too.",
+        ": Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、サムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify はトラック名とサムネイルしか取れないので、アーティスト名は iTunes で同じトラック名のものから補います（見つからないときは手で入れてください）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。bilibili の動画は、otoDB（音MAD など）か VocaDB（ボカロなど）に登録があるものだけ取れます（bilibili には問い合わせません）。sm12345 や BV… のような ID だけを貼ってもかまいません。": ": paste a URL from Bandcamp (track), SoundCloud (track), Spotify (track or album), Apple Music (song), YouTube (video) or Niconico and it picks up the cover or thumbnail along with the title and the artist (or uploader). Spotify gives only the title and the cover, so the artist name is filled in from an iTunes track with the same title (add it yourself if none is found). Video thumbnails are 16:9, so a square cell shows the middle of them. If a video is deleted or private, it falls back to otoDB (roxy) when the work is registered there. A bilibili video works only if it is listed on otoDB (otomad and the like) or VocaDB (Vocaloid and the like); we never contact bilibili itself. A bare ID such as sm12345 or BV… works too.",
         "保存されるもの": "What gets stored",
-        ": 検索語と取得したジャケット画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched covers are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
+        ": 検索語と取得したサムネイル画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched covers are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
         "01 番に入れるトラックを探す": "Find a track for cell 01",
         "サーバー代のおねがい": "A word about server bills",
         "無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
@@ -2377,7 +2376,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "PC 版の表示": "Desktop view",
         "スマホ版の表示": "Mobile view",
         "使い方": "How to use", "プライバシーポリシー": "Privacy policy", "運営者": "About", "更新情報": "Updates",
-        "好きなトラックのジャケットを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。": "Line up the cover art of your favorite tracks in one image. Mix tracks from any site, even ones missing from streaming services.",
+        "好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。": "Line up the cover art of your favorite tracks in one image. Mix tracks from any site, even ones missing from streaming services.",
         "この案内を閉じる": "Dismiss this notice",
         "検索を折りたたむ": "Collapse search",
         "例: 感電": "e.g. Never Gonna Give You Up",
@@ -2398,7 +2397,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "例: ジャケットが青い曲": "e.g. Tracks with blue cover art",
         "例: 作業がはかどるBGM": "e.g. Music that helps me focus",
         "例: ドライブで聴きたい曲": "e.g. Songs for a drive",
-        "ジャケットの並び": "Cover grid",
+        "サムネイルの並び": "Cover grid",
         "画像を作り、今の並びと一緒に共有 URL にする": "Render an image and put it, with the current layout, behind a share URL",
         "並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる": "Save the layout (tracks, image URLs and output settings) to a JSON file on this device. Load it to get the same layout back",
         "「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す": "Load a JSON file written by \"Save layout\" to restore that layout",
@@ -2464,7 +2463,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "うまく取得できませんでした（少し待ってからもう一度お試しください）": "failed with an error",
         "iTunes に無かったので MusicBrainz でも探しました。": "Nothing on iTunes, so we searched MusicBrainz too.",
     "見つかりませんでした。表記を変えるか、別のソースを試してください。": "Nothing found. Try a different spelling, or another source.",
-        "「マスに入れる」で、番号の若い空きマスから順に全部入ります。": "\"Fill the grid\" puts every one of them into the empty cells, lowest number first.",
+        "「マスに入れる」で、番号の若い空きマスから順に全て入ります。": "\"Fill the grid\" puts every one of them into the empty cells, lowest number first.",
         "やめました。": "Cancelled.",
         "https:// から始まるページの URL（Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music）か、動画 ID（sm… / BV… / YouTube の 11 文字）を貼ってください。複数入れるときは 1 行に 1 つ。": "Paste a page URL starting with https:// (Bandcamp, SoundCloud, YouTube, Niconico, bilibili, Spotify or Apple Music), or a video ID (sm…, BV… or the 11-character YouTube one). Put one per line for several.",
         "画像は https:// から始まる URL を入れるか、「端末から画像を選択」で選んでください。": "Enter an image URL starting with https://, or pick one with “Choose an image from this device”.",
@@ -2540,7 +2539,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "{} 番を選択中。別のマスを押すと入れ替わります（空きマスなら移動）。もう一度押すと解除します。": "Cell {0} is selected. Tap another cell to swap, or an empty one to move. Tap again to deselect.",
         "{} 番を {} 番に移しました。": "Moved cell {0} to cell {1}.",
         "アルバム: {}": "Album: {0}",
-        "マスは全部で {} 個までです（{} × {} にしました）。": "The grid holds at most {0} cells, so this is now {1} × {2}.",
+        "マスは合計 {} 個までです（{} × {} にしました）。": "The grid holds at most {0} cells, so this is now {1} × {2}.",
         "{} トラックをいったん外しました。サイズを戻すと復帰します。": "{0} tracks were set aside. They come back if you restore the size.",
         "{} 番: {} / {}": "Cell {0}: {1} by {2}",
         "{} 番の {} を外す": "Remove {1} from cell {0}",
@@ -2548,7 +2547,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "並びを読み込みました（{} トラック）。この画面での変更は自分のグリッドとして保存されます。": "Layout loaded ({0} tracks). Changes you make here are saved as your own grid.",
         "並びを読み込めませんでした: {}": "Could not load the layout: {0}",
         "上下 {} / 左右 {} px": "top & bottom {0} / sides {1} px",
-    "この並びと比率だとジャケットが {}px になります。正方形に近い比率にすると大きくなります。":
+    "この並びと比率だとサムネイルが {}px になります。正方形に近い比率にすると大きくなります。":
       "Cover art comes out at just {0}px with this grid and ratio. A squarer ratio makes it bigger.",
         "画像を作成中… {}/{}": "Rendering the image… {0}/{1}",
         "アップロード中…（{} MB）": "Uploading… ({0} MB)",
@@ -2562,13 +2561,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "新しい並び": "New layout",
         "共有された文字に URL が見つかりませんでした。": "No URL was found in what was shared.",
         "色で並べ替え": "Sort by color",
-        "ジャケットの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のジャケットは最後に明るい順。あとから「元に戻す」で戻せる": "Sort by the main color of each cover: red → yellow → green → blue → purple. Black-and-white covers go last, lightest first. You can undo it.",
+        "サムネイルの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のサムネイルは最後に明るい順。あとから「元に戻す」で戻せる": "Sort by the main color of each cover: red → yellow → green → blue → purple. Black-and-white covers go last, lightest first. You can undo it.",
         "2 トラック以上入れてから押してください。": "Add at least 2 tracks first.",
-        "ジャケットの色を調べています…（{}/{}）": "Checking cover colors… ({0}/{1})",
+        "サムネイルの色を調べています…（{}/{}）": "Checking cover colors… ({0}/{1})",
         "調べている間に並びが変わったので、並べ替えをやめました。もう一度押してください。": "The grid changed while checking, so sorting was stopped. Press again.",
         "もう色の順に並んでいます。": "Already in color order.",
         "{} トラックを色の順に並べ替えました。": "Sorted {0} tracks by color.",
-        "（{} トラックは絵が取れなかったので最後に置きました）": "({0} covers could not be loaded and were put last.)",
+        "（{} トラックはサムネイルを読み込めなかったので、最後に置きました）": "({0} covers could not be loaded and were put last.)",
         "お題": "Theme",
         "見本から選ぶ…": "Pick an example…",
         "私を構成する9曲": "9 tracks that made me",
@@ -3531,7 +3530,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const fit = Math.min(empty, tracks.length);
     $("#pl-summary").textContent = tr`${tracks.length} トラック 取れました。いまの空きマスは ${empty} 個です。`;
     $("#pl-hint").textContent = fit >= tracks.length
-      ? tr("「マスに入れる」で、番号の若い空きマスから順に全部入ります。")
+      ? tr("「マスに入れる」で、番号の若い空きマスから順に全て入ります。")
       : tr`「マスに入れる」で ${fit} トラックが入り、残り ${tracks.length - fit} トラックは候補に置きます。`;
     plModal.hidden = false;
     lockScroll();
@@ -4423,7 +4422,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function resizeGrid(cols, rows, keep) {
     const asked = [cols | 0, rows | 0];
     [cols, rows] = clampGrid(cols, rows, keep);
-    if (asked[0] * asked[1] > MAX_CELLS) say(els.gridMsg, tr`マスは全部で ${MAX_CELLS} 個までです（${cols} × ${rows} にしました）。`);
+    if (asked[0] * asked[1] > MAX_CELLS) say(els.gridMsg, tr`マスは合計 ${MAX_CELLS} 個までです（${cols} × ${rows} にしました）。`);
     const n = cols * rows, cur = state.cells.length;
     if (cols !== state.cols || rows !== state.rows) checkpoint();
     if (n < cur) {
@@ -4589,7 +4588,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       // 6 本ずつ並行して取る（256 マスでも待ちすぎず、サーバーにも一度に押し寄せない）
       for (let p = 0; p < idx.length; p += 6) {
         await Promise.all(idx.slice(p, p + 6).map(async (i) => { keys.set(i, await colorKey(before[i]).catch(() => [3, 0])); done++; }));
-        say(els.gridMsg, tr`ジャケットの色を調べています…（${done}/${idx.length}）`);
+        say(els.gridMsg, tr`サムネイルの色を調べています…（${done}/${idx.length}）`);
       }
       // 調べている間に並びが変わっていたら、古い並びで上書きしない
       if (state.cells.length !== before.length || state.cells.some((c, i) => c !== before[i])) {
@@ -4603,7 +4602,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       state.cells = next; selected = null; target = null;
       clearViewCells(); renderGrid(); save();
       const fail = sorted.filter(i => keys.get(i)[0] === 3).length;
-      say(els.gridMsg, tr`${idx.length} トラックを色の順に並べ替えました。` + (fail ? " " + tr`（${fail} トラックは絵が取れなかったので最後に置きました）` : "")); undoLink();
+      say(els.gridMsg, tr`${idx.length} トラックを色の順に並べ替えました。` + (fail ? " " + tr`（${fail} トラックはサムネイルを読み込めなかったので、最後に置きました）` : "")); undoLink();
     } finally { colorRun = false; setBtnState(btn, null); }
   });
   els.jsonImport.addEventListener("click", () => els.jsonFile.click());
@@ -4922,7 +4921,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     $("#bg-cands").hidden = !(m === "near" || m === "far") || !coverPal.colors.length;
     const msg = $("#bg-msg");
     if (m === "none") { msg.hidden = false; say(msg, isLightRgb(hexToRgb(state.bgCustom || "#ffffff")) ? tr("共有の画像は白い地になります。「画像を保存」では背景が透明な PNG になります。") : tr("共有の画像は黒い地になります。「画像を保存」では背景が透明な PNG になります。")); }
-    else if (m === "image") { msg.hidden = false; say(msg, state.bgImage ? (state.bgImage === BG_MARK ? tr("TRACKMENTO の模様を敷きました。「画像を選ぶ…」で好きな画像に替えられます。") : tr("画像を背景にしました。文字が読みやすいように、画像は薄く敷きます（にぎやかな画像ほど薄く）。")) : tr("「画像を選ぶ…」で、この端末の画像を選んでください。")); }
+    else if (m === "image") { msg.hidden = false; say(msg, state.bgImage ? (state.bgImage === BG_MARK ? tr("TRACKMENTO の模様を敷きました。「画像を選ぶ」で好きな画像に替えられます。") : tr("画像を背景にしました。文字が読みやすいように、画像は薄く敷きます（にぎやかな画像ほど薄く）。")) : tr("「画像を選ぶ」で、この端末の画像を選んでください。")); }
     else if (m === "pick") msg.hidden = true;
   }
   /* 背景の画像の見立て（2026-09-25）。
@@ -4989,16 +4988,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (m !== "near" && m !== "far") return;
     const show = (text, tone) => { msg.hidden = false; say(msg, text, tone); };
     const cells = state.cells.filter(Boolean);
-    if (!cells.length) { show(tr("トラックを置くと、ジャケットから色を取ります。")); return; }
+    if (!cells.length) { show(tr("トラックを置くと、サムネイルから色を取ります。")); return; }
     const key = cells.map((t) => t.image || t.thumb).join("\n");
     if (key !== coverPal.key) {
-      show(tr("ジャケットの色を調べています…"));
+      show(tr("サムネイルの色を調べています…"));
       const colors = await coverColors(cells).catch(() => []);
       coverPal = { key, colors, i: 0 };
       if (state.bgMode !== m) return;   // 調べている間に決め方を変えられた
     } else if (next) coverPal.i++;
     const { colors } = coverPal;
-    if (!colors.length) { show(tr("ジャケットの色が取れませんでした。"), "error"); syncBgMode(); return; }
+    if (!colors.length) { show(tr("サムネイルの色が取れませんでした。"), "error"); syncBgMode(); return; }
     const n = coverPal.i % colors.length, pick = (h) => (m === "far" ? oppositeColor(h) : h), c = pick(colors[n]);
     // 候補を四角で並べ、今の色に枠を付ける（押すとその色に）
     const box = $("#bg-cands");
@@ -5010,7 +5009,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       l.title = pick(h); l.append(i, sp); return l;
     }));
     if (!(state.bg === "custom" && (state.bgCustom || "").toLowerCase() === c.toLowerCase())) { pickBg(c); renderSwatches(); }
-    show(tr`ジャケットの色から背景色を選びました（${n + 1}/${colors.length}）。`);
+    show(tr`サムネイルの色から背景色を選びました（${n + 1}/${colors.length}）。`);
     syncBgMode();
   }
   let autoBgTimer = 0;
@@ -5149,10 +5148,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (reseed) g.seed = (g.seed % 999999) + 1;
     let colors = g.colors;
     if (g.src === "covers") {
-      show(tr("ジャケットの色を調べています…"));
+      show(tr("サムネイルの色を調べています…"));
       colors = await gradCoverColors();
       if (state.bgMode !== "gradient") return;
-      if (!colors.length) { show(tr("トラックを置くと、ジャケットから色を取ります。")); return; }
+      if (!colors.length) { show(tr("トラックを置くと、サムネイルから色を取ります。")); return; }
     }
     const key = JSON.stringify([colors, g.seed]);
     // 同じ配色なら描き直さない。**案内も書き直す**（「調べています…」のまま残っていた。2026-09-25、利用者の指摘）
@@ -6901,7 +6900,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function noteSmallCell(cellPx) {
     const show = cellPx < SMALL_CELL_PX;
     els.ratioMsg.hidden = !show;
-    if (show) els.ratioMsg.textContent = tr`この並びと比率だとジャケットが ${cellPx}px になります。正方形に近い比率にすると大きくなります。`;
+    if (show) els.ratioMsg.textContent = tr`この並びと比率だとサムネイルが ${cellPx}px になります。正方形に近い比率にすると大きくなります。`;
   }
   // 突き合わせ用（promo/dump_layouts.mjs）: 比率を差し替えて割り付けだけ取る
   window.__renderShare = (ms) => renderShareCanvas(ms || 2400, () => {});   // 描画の確認用（promo の点検スクリプトから呼ぶ。絵を data URL にして比べる）
