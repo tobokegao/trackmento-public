@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "サムネイルを取れなかったマスに「画像取得失敗」と出すようにしました（マスが小さいときは「失敗」）。前は番号だけの空のマスになり、入れていないマスと見分けがつきませんでした。",
+     "Tiles whose thumbnail could not be loaded now say “Load failed” (“Failed” on small tiles). Before, they looked the same as empty tiles."),
     ("2026-09-25", "スマホで「マスの間隔」や色のつまみを掴みやすくしました。つまみの少し横に指を置いても掴めます。",
      "Made the “Gap” and color slider thumbs easier to grab on phones; a finger slightly off the thumb now grabs it."),
     ("2026-09-25", "トラックリストを横に並べているとき、「マスの間隔」などを動かしたあとに画面が止まる時間を短くしました。スマホで曲の多い並びだと、数秒かかることがありました。",

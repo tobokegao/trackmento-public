@@ -1029,6 +1029,19 @@ body.sheet-open { overflow: hidden; }
    情報は失われないし、マスに乗せればツールチップでも分かる。
    **小さくして出すのは駄目**。番号はピクセルフォントなので、10px まで落とすと字形が潰れて読めない */
 .grid[data-dense="true"] .cell .num { display: none; }
+/* 画像が取れなかったマス（2026-09-25、利用者の希望）。取れないと番号だけの空マスになり、入れ忘れと見分けがつかなかった。
+   真ん中に幅いっぱいの帯で「画像取得失敗」を出す（帯を幅いっぱいにすれば、PC の 15px × 6 字 = 90px でも 96px のマスに収まる）。
+   ドット字は縮められないので、小さいマス（dense、96px 未満）では「失敗」の 2 字に替える。書き出しの画像は今までどおり空のマス */
+.cell .fail { display: none; }
+.cell.is-broken > img { visibility: hidden; }
+.cell.is-broken .fail { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; pointer-events: none; }
+.cell .fail-band {
+  width: 100%; padding: 2px 0; text-align: center; white-space: nowrap; overflow: hidden;
+  font-family: var(--font-display); font-size: var(--dot-size); line-height: calc(var(--dot-size) + 4px);   /* 帯の高さを整数の px に（ドット字がにじまない） */
+  background: var(--color-paper); color: var(--color-ink); border-block: var(--line) solid var(--color-ink);
+}
+.cell .fail-short, .grid[data-dense="true"] .cell .fail-long { display: none; }
+.grid[data-dense="true"] .cell .fail-short { display: inline; }
 
 .grid-actions { container-type: inline-size; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }   /* グリッドと同じ幅いっぱい（上限を付けると右に空きが残る） */
 .grid-actions .btn { padding-inline: var(--space-2); }
@@ -2501,6 +2514,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。": "Layout saved to a JSON file. \"Load layout\" brings it back, though images you uploaded from this device may have expired by then.",
         "トラックを全て外しました。": "Removed every track.",
         "画像の取得に失敗": "Could not fetch the image",
+        "画像取得失敗": "Load failed",
+        "失敗": "Failed",
         "TRACKMENTO の並びのファイルではないようです。": "This does not look like a TRACKMENTO layout file.",
         "サーバー側の保存（CLI など）の方が新しいので、そちらを読み込みました。": "The copy saved on the server (from the CLI, say) was newer, so that one was loaded.",
         "コピーしました": "Copied",
@@ -4499,6 +4514,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         const img = document.createElement("img");
         img.src = proxied(t.thumb || t.image); img.alt = ""; img.draggable = false;
         if ((t.thumb || t.image || "").startsWith("/uploads/")) img.addEventListener("error", uploadGone);   // 表示は小さい方（転送量）。フル解像度は共有画像を描くときだけ
+        // 取れなかったら「画像取得失敗」の帯を出す（/image-proxy の 404・502 など。2026-09-25）
+        img.addEventListener("error", () => li.classList.add("is-broken"));
+        const fail = document.createElement("span"); fail.className = "fail";
+        const band = document.createElement("span"); band.className = "fail-band";
+        const failLong = document.createElement("span"); failLong.className = "fail-long"; failLong.textContent = tr("画像取得失敗");
+        const failShort = document.createElement("span"); failShort.className = "fail-short"; failShort.textContent = tr("失敗");
+        band.append(failLong, failShort); fail.append(band);
         // **「ぼかして埋める」のマスは、同じ絵をぼかした下地を敷く**（書き出しと同じ見た目にする）。
         // マスごとの `t.fit` が無ければ並び全体の設定に従う
         li.dataset.fit = t.fit || state.cellFit || "crop";
@@ -4511,7 +4533,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         rm.addEventListener("click", (e) => { e.stopPropagation(); removeAt(i); });
         const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = `${t.title} / ${t.artist}`;
         li.title = `${String(i + 1).padStart(2, "0")}. ${t.title} / ${t.artist}`;   // マスが小さいと番号も曲名も出さないので、乗せれば分かるように
-        li.append(img, rm, cap);
+        li.append(img, fail, rm, cap);
       } else {
         li.setAttribute("aria-label", tr`${i + 1} 番: 空`);
       }
