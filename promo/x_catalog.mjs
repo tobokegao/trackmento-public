@@ -28,6 +28,21 @@ const ARRANGE_BG = {
 };
 const ARRANGE_BG_CSS = ".gbox:has(#bg-mode-seg) > :not(.gbox-title):not(fieldset:has(#bg-mode-seg)), .grid-actions > :not(#preview-btn), #output .pane-body > :not(#out-shot):not(#out-msg) { display: none !important; } .grid-actions > #preview-btn { grid-column: 1 / -1; }";
 
+/** グリッドに寄る場面の窓の置き方。グリッドの窓だけを真ん中に置く（2026-09-26、利用者の指摘。
+    そのままだと 16:9 に広げた右の端に出力オプションの窓が半分だけ映り、字が途中で切れていた） */
+const ARRANGE_GRID = {
+  ".pane-grid": { x: 390, y: 16, w: 500, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] },
+};
+/** 「マスを減らしても曲は消えない」の窓の置き方。左にグリッド、右に横 × 縦の欄だけ（2026-09-26。
+    欄は出力オプションの上の端、グリッドは真ん中の窓の下のほうで、両方を入れるとカメラが引きすぎて字が小さかった） */
+const ARRANGE_STASH = {
+  ".pane-grid": { x: 150, y: 60, w: 520, only: ["#grid-scroll", "#grid-msg"] },
+  ".pane-options": { x: 720, y: 60, w: 330, only: [".gbox:has(#cols)"] },
+};
+/** 並べ直した窓のタイトルバー（カメラの範囲に入れる。入れないと上で切れる） */
+const GT = ".pane-grid > .pane-title", OT = ".pane-options > .pane-title";
+const ARRANGE_STASH_CSS = ".gbox:has(#cols) > :not(.gbox-title):not(fieldset:has(#cols)) { display: none !important; }";
+
 /** 曲を n 個入れて、ジャケットがそろうまで待つ */
 async function ready(k, n, size, opts = {}, list) {
   await k.seed(n, size, opts, list);
@@ -59,15 +74,15 @@ export default [
     async setup(k) {
       // **白黒のジャケットで見せる**（明るい順にそろうのがひと目で分かる。カラフルな絵だと色相の順は伝わりにくい、と利用者）
       await ready(k, 16, [4, 4], {}, shuffled(mono()));
-      await k.scrollTo("#grid", 60);
-      await k.look(["#grid"]);
+      await k.arrange(ARRANGE_GRID);
+      await k.look([GT, "#grid"]);
       await k.park(1180, 660);
     },
     async run(k) {
       await k.hold(1.0);
-      await k.look(["#grid", "#color-sort"], 0.7);
+      await k.look([GT, "#grid", "#color-sort"], 0.7);
       await k.press("#color-sort", { sec: 0.7 });
-      await k.look(["#grid"], 0.8);
+      await k.look([GT, "#grid"], 0.8);
       // 色を調べ終わるまで撮り続ける（「（n/N）」と数えている間も見せる）
       await k.live(() => k.page.evaluate(() => !/\d+\/\d+/.test(document.querySelector("#color-sort").textContent)), { min: 0.5, timeout: 15 });
       await k.hold(2.0);
@@ -115,8 +130,8 @@ export default [
     what: "マスを減らしても曲は消えない … いったん外して取っておき、サイズを戻すと帰ってくる",
     async setup(k) {
       await ready(k, 9, [3, 3]);
-      await k.scrollTo("#cols", 60);
-      await k.look(["#grid", "#grid-msg", "#cols", "#rows"]);
+      await k.arrange(ARRANGE_STASH); await k.stage(ARRANGE_STASH_CSS);
+      await k.look([GT, OT, "#grid", "#grid-msg", "#cols", "#rows"]);
       await k.park(1100, 500);
     },
     async run(k) {
@@ -150,8 +165,8 @@ export default [
     what: "外したトラックは Ctrl+Z（Mac は ⌘+Z）で 1 手ずつ戻せる。30 手まで",
     async setup(k) {
       await ready(k, 4, [2, 2]);
-      await k.scrollTo("#grid", 90);
-      await k.look(["#grid", "#grid-msg"]);
+      await k.arrange(ARRANGE_GRID);
+      await k.look([GT, "#grid", "#grid-msg"]);
       await k.park(900, 150);
     },
     async run(k) {
@@ -172,8 +187,8 @@ export default [
     what: "キーボードだけで並べ替え … 矢印でマスを移り、Alt（Option）＋矢印でトラックを持ったまま運ぶ",
     async setup(k) {
       await ready(k, 9, [3, 3]);
-      await k.scrollTo("#grid", 90);
-      await k.look(["#grid", "#grid-msg"]);
+      await k.arrange(ARRANGE_GRID);
+      await k.look([GT, "#grid", "#grid-msg"]);
       await k.hideCursor();   // キーボードの場面なので矢印は出さない
       await k.page.focus("#grid .cell");
     },
@@ -213,8 +228,8 @@ export default [
     what: "グリッドの下の「元に戻す」「やり直す」… スマホでも 30 回まで戻せて、戻したものをやり直せる",
     async setup(k) {
       await ready(k, 4, [2, 2]);
-      await k.scrollTo("#grid", 70);
-      await k.look(["#grid", "#grid-msg", ".grid-actions > .history"]);
+      await k.arrange(ARRANGE_GRID);
+      await k.look([GT, "#grid", "#grid-msg", ".grid-actions > .history"]);
       await k.park(900, 150);
     },
     async run(k) {
