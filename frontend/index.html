@@ -851,11 +851,14 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .popmenu-panel { position: absolute; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--line) solid var(--color-ink);
   background: var(--color-paper); box-shadow: var(--shadow); max-height: 70dvh; }
 .popmenu-panel > .pane-title { cursor: default; }
-.popmenu-list { list-style: none; margin: 0; padding: var(--space-1) 0; overflow-y: auto; overscroll-behavior: contain; }
+.popmenu-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; }
 .popmenu-list li { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); cursor: pointer;
   font-family: var(--font-display); font-size: var(--dot-size); color: var(--color-ink); }
-.popmenu-list li::before { content: ""; width: 1em; flex: none; text-align: center; }
-.popmenu-list li[aria-selected="true"]::before { content: "✓"; }
+/* 頭の印は出力オプションと同じ **OS 8 の HIG のラジオボタンのドット絵**（2026-09-25、利用者の指定。✓ の字は書体で形が変わり、ドット絵に見えなかった）。
+   大きさとずらしは .seg.radio span::before と同じ */
+.popmenu-list li::before { content: ""; flex: none; width: calc(var(--rp, 1px) * 16); height: calc(var(--rp, 1px) * 16);
+  background: var(--radio-off) no-repeat 0 0 / 100% 100%; image-rendering: pixelated; position: relative; top: -0.042em; }
+.popmenu-list li[aria-selected="true"]::before { background-image: var(--radio-on); } /* 項目ごとに線で区切る（利用者の指定） */ .popmenu-list li + li { border-top: var(--line) solid var(--color-rule); }
 .popmenu-list li:focus { outline: none; }
 .popmenu-list li.is-active, .popmenu-list li:focus-visible { background: var(--color-ink); color: var(--color-paper); }
 @media (hover: hover) and (pointer: fine) { .popmenu-list li:hover { background: var(--color-ink); color: var(--color-paper); } }
