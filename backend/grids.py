@@ -33,6 +33,38 @@ _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 _UPLOAD_RE = re.compile(r"^/uploads/[a-f0-9]{16}\.(jpg|png|webp|gif)$")   # uploads._NAME_RE と同じ形
 
 
+class BgGrad(BaseModel):
+    """グラデーション背景（2026-09-25）。**絵はブラウザが描いて上げる**（image）。サーバーはそれを敷くだけで、色や模様からは描かない
+    （ノイズの乱数まで 2 系統でそろえるのは壊れやすいため）。src・colors・seed は画面で作り直すための控え"""
+    src: str = "covers"            # "covers"（ジャケットから）/ "custom"（自分で選ぶ）
+    colors: list[str] = []         # 自分で選んだ色（2〜4 色、#rrggbb）
+    seed: int = 1                  # 模様の番号（「ほかの模様」で変わる）
+    image: Optional[str] = None    # 描いて上げた絵（/uploads/… だけ）
+
+    @field_validator("src")
+    @classmethod
+    def _src(cls, v: str) -> str:
+        return v if v in ("covers", "custom") else "covers"
+
+    @field_validator("colors", mode="before")
+    @classmethod
+    def _colors(cls, v) -> list[str]:
+        return [c for c in (v or []) if isinstance(c, str) and _HEX_RE.match(c)][:4]
+
+    @field_validator("seed", mode="before")
+    @classmethod
+    def _seed(cls, v) -> int:
+        try:
+            return max(1, min(1_000_000, int(v)))
+        except (TypeError, ValueError):
+            return 1
+
+    @field_validator("image")
+    @classmethod
+    def _image(cls, v: Optional[str]) -> Optional[str]:
+        return v if v and _UPLOAD_RE.match(v) else None
+
+
 class GridOptions(BaseModel):
     ratio: Ratio = "16:9"
     showTitle: bool = True
@@ -61,6 +93,7 @@ class GridOptions(BaseModel):
     # 背景の画像の濃さ（0.2〜0.5）。**ブラウザが画像のにぎやかさから決めて送る**（にぎやかなほど薄い）。
     # サーバーはこの値で描くだけなので、2 系統の絵がずれない
     bgImageAlpha: float = 0.5
+    bgGrad: Optional[BgGrad] = None   # グラデーション背景（bgMode == "gradient" のとき）
     margin: int = 16
     # 外側の余白の下限の段。"normal"（内容の短い辺の 3.5%）/ "wide"（7%）/ "xwide"（12%）。render.py の PAD_FRAC。
     # **既定は normal**（今ある並びと共有画像の見た目を変えないため。2026-09-24 に「余白」のスライダーから替えた）
@@ -75,7 +108,7 @@ class GridOptions(BaseModel):
     @field_validator("bgMode")
     @classmethod
     def _bg_mode(cls, v: str) -> str:
-        return v if v in ("pick", "near", "far", "none", "image") else "pick"
+        return v if v in ("pick", "near", "far", "none", "image", "gradient") else "pick"
 
     @field_validator("bgImageAlpha", mode="before")
     @classmethod

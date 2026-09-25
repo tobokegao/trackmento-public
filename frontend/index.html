@@ -1029,7 +1029,11 @@ body.sheet-open { overflow: hidden; }
 /* ラジオの組はどれも、JS（balanceColumns）が入る列の数を決める（2026-09-25、利用者の指摘「不必要に改行しない」。
    2 列の決め打ちだと、幅に余裕があっても比率が 2＋2＋1、トラックリストが 2＋1 に折れていた）。上の 2 列は JS が動くまでの既定 */
 .seg.radio.measuring { display: flex; flex-wrap: wrap; }
-#bg-next[hidden], #bg-image-box[hidden] { display: none; }
+#bg-next[hidden], #bg-image-box[hidden], #bg-grad-box[hidden], #bg-grad-colors[hidden] { display: none; }
+#bg-grad-box { display: grid; gap: var(--space-2); justify-items: start; margin-top: var(--space-2); }
+#bg-grad-colors { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.grad-chip { width: 32px; height: 28px; padding: 0; border: var(--line) solid var(--color-ink); background: none; cursor: pointer; }
+.grad-chip::-webkit-color-swatch-wrapper { padding: 0; } .grad-chip::-webkit-color-swatch { border: 0; }
 #bg-image-box { margin-top: var(--space-2); }   /* .btn の display が hidden 属性に勝つので明示する */
 #bg-next { margin-top: var(--space-2); }
 /* できあがりの見本（2026-09-25、利用者の案）。共有と同じ描き方で端末の中で作って見せる。送らない */
@@ -1681,6 +1685,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <label title="補色（色相環で向かい側の色）"><input type="radio" name="bgMode" value="far"><span>ジャケットと反対の色</span></label>
           <label><input type="radio" name="bgMode" value="none"><span>背景なし</span></label>
           <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
+          <label><input type="radio" name="bgMode" value="gradient"><span>グラデーション</span></label>
         </div>
         <div id="bg-pick">
         <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
@@ -1698,6 +1703,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
         <!-- 好きな画像を背景に（2026-09-25、利用者の案）。端末の画像を /upload で上げ（撮影日時などは消して保存）、
              枠いっぱいに切り抜いて半分の濃さで敷く。文字の色は画像の平均の色で決める（それを背景色に入れる） -->
+        <!-- グラデーション背景（2026-09-25）。色はジャケットから取るか、自分で 2〜4 色選ぶ。「ほかの模様」はゆらぎの形だけ変える -->
+        <div id="bg-grad-box" hidden>
+          <div class="seg radio" id="bg-grad-src" role="radiogroup" aria-label="グラデーションの色">
+            <label><input type="radio" name="bgGradSrc" value="covers" checked><span>ジャケットから</span></label>
+            <label><input type="radio" name="bgGradSrc" value="custom"><span>自分で選ぶ</span></label>
+          </div>
+          <div id="bg-grad-colors" hidden>
+            <button class="btn btn-sm" type="button" id="bg-grad-add">色を足す</button>
+            <button class="btn btn-sm" type="button" id="bg-grad-del">色を減らす</button>
+          </div>
+          <button class="btn btn-sm" type="button" id="bg-grad-shuffle" title="色はそのままで、模様（ゆらぎの形）だけ変える">ほかの模様</button>
+        </div>
         <div id="bg-image-box" hidden>
           <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
           <input type="file" id="bg-image-file" accept="image/*" hidden>
@@ -2105,6 +2122,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "補色（色相環で向かい側の色）": "The complementary color (opposite on the color wheel)",
         "背景なし": "No background",
         "画像": "Image",
+        "グラデーション": "Gradient",
+        "グラデーションの色": "Gradient colors",
+        "ジャケットから": "From covers",
+        "自分で選ぶ": "Pick my own",
+        "色を足す": "Add a color",
+        "色を減らす": "Remove a color",
+        "ほかの模様": "Another pattern",
+        "色はそのままで、模様（ゆらぎの形）だけ変える": "Keep the colors and change only the pattern",
+        "グラデーションを作りました。「ほかの模様」で模様だけ変えられます。": "Made a gradient. “Another pattern” changes only the pattern.",
+        "{} 色目": "Color {0}",
         "画像を選ぶ…": "Choose an image…",
         "画像を送っています…": "Uploading the image…",
         "画像を背景にしました。文字が読みやすいように、画像は薄く敷きます（にぎやかな画像ほど薄く）。": "The image is now the background. It is laid faintly so the text stays readable (busier images more faintly).",
@@ -2707,7 +2734,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     cellRatio: "1:1", cellFit: "crop", bg: "paper", bgCustom: null, margin: 16, pad: "normal", gap: 16,   // 既定値（比率は X 向けの 16:9）
     bgMode: "pick",   // 背景の決め方: pick（色を選ぶ）/ near・far（ジャケットに近い色・反対の色）/ none（背景なし）/ image（好きな画像）
     bgImage: null,    // 背景の画像（/uploads/… だけ）
-    bgImageAlpha: 0.5,   // 背景の画像の濃さ（画像のにぎやかさから決める。0.2〜0.5。backend/grids.py の bgImageAlpha）
+    bgImageAlpha: 0.5,
+    bgGrad: null,     // グラデーション背景 { src, colors, seed, image }（backend/grids.py の BgGrad）   // 背景の画像の濃さ（画像のにぎやかさから決める。0.2〜0.5。backend/grids.py の bgImageAlpha）
     listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
@@ -4661,6 +4689,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     setSeg($("#bg-mode-seg"), m);
     $("#bg-pick").hidden = m !== "pick";
     $("#bg-image-box").hidden = m !== "image";
+    $("#bg-grad-box").hidden = m !== "gradient";
+    if (m === "gradient") { const g = gradState(); setSeg($("#bg-grad-src"), g.src); $("#bg-grad-colors").hidden = g.src !== "custom"; renderGradColors(); }
     $("#bg-next").hidden = !(m === "near" || m === "far") || coverPal.colors.length < 2;
     const msg = $("#bg-msg");
     if (m === "none") { msg.hidden = false; say(msg, tr("共有の画像は白い地になります。「画像を保存」では背景が透明な PNG になります。")); }
@@ -4748,9 +4778,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   let autoBgTimer = 0;
   /* 並びが変わったら取り直す（save のたびに呼ばれる。ジャケットの並びが同じなら何もしない） */
   function autoBgSoon() {
-    if (state.bgMode !== "near" && state.bgMode !== "far") return;
+    const gradCovers = state.bgMode === "gradient" && gradState().src === "covers";
+    if (state.bgMode !== "near" && state.bgMode !== "far" && !gradCovers) return;
     clearTimeout(autoBgTimer);
-    autoBgTimer = setTimeout(() => applyAutoBg(), 600);
+    autoBgTimer = setTimeout(() => (gradCovers ? applyGradient() : applyAutoBg()), 600);
   }
   function setBgMode(m) {
     const was = state.bgMode || "pick";
@@ -4762,7 +4793,149 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     updateSpec();
     if (m === "near" || m === "far") { coverPal.i = 0; applyAutoBg(); }
     if (m === "image") { if (state.bgImage) tintFromBgImage(); else $("#bg-image-file").click(); }   // まだ画像が無ければそのまま選ぶ窓を開く
+    if (m === "gradient") applyGradient();
   }
+  /* ---- グラデーション背景（2026-09-25、利用者の案）。**ブラウザが絵を描いて /upload に上げ**、あとは画像の背景と同じ道で敷く（サーバーは描かない）。
+     作り方は利用者が挙げた作例から（promo/fake_covers.py の mesh_gradient と同じ考え）:
+     ① 色は OKLab で混ぜ、鮮やかさは別に平均して保つ（sRGB のまま混ぜると境目が濁る。持ち上げは 1.35 倍まで）
+     ② 色は色相の順に並べ、離れた色（60° 超）のあいだには中間色を挟む（直接つなぐと濁るか筋になる）
+     ③ 座標をフラクタルノイズ（粗い〜細かい 4 段）でゆらす（水彩や雲のようなむらになる）。仕上げに細かい粒（JPEG の縞よけ）
+     絵は 640x360 で描く（書き出しでは拡大して敷く。なめらかな絵なので粗さは目立たない） ---- */
+  const GW = 640, GH = 360;
+  const srgbToLin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const linToSrgb = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+  function toOklab([r, g, b]) {
+    const [R, G, B] = [r, g, b].map((v) => srgbToLin(v / 255));
+    const l = Math.cbrt(0.4122214708 * R + 0.5363325363 * G + 0.0514459929 * B);
+    const m = Math.cbrt(0.2119034982 * R + 0.6806995451 * G + 0.1073969566 * B);
+    const s = Math.cbrt(0.0883024619 * R + 0.2817188376 * G + 0.6299787005 * B);
+    return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s];
+  }
+  function fromOklab([L, A, B]) {
+    const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3, m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3, s = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3;
+    const rgb = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+    return rgb.map((v) => Math.round(255 * Math.min(1, Math.max(0, linToSrgb(Math.min(1, Math.max(0, v)))))));
+  }
+  const hueOf = ([, a, b]) => (Math.atan2(b, a) * 180 / Math.PI + 360) % 360;
+  function rng32(seed) {   // mulberry32（同じ番号なら同じ模様）
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  /** なめらかなノイズ（cells 升の乱数を smoothstep で補間）。-1〜1 */
+  function valueNoise(cells, rand) {
+    const cw = cells, ch = Math.max(2, Math.round(cells * GH / GW)), g = Array.from({ length: (cw + 1) * (ch + 1) }, () => rand() * 2 - 1);
+    const sm = (t) => t * t * (3 - 2 * t);
+    return (u, v) => {
+      const x = Math.min(cw - 1e-6, Math.max(0, u * cw)), y = Math.min(ch - 1e-6, Math.max(0, v * ch));
+      const x0 = Math.floor(x), y0 = Math.floor(y), fx = sm(x - x0), fy = sm(y - y0), at = (i, j) => g[j * (cw + 1) + i];
+      const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * fx, b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * fx;
+      return a + (b - a) * fy;
+    };
+  }
+  /** 色の並べ方: 色相の順、離れた色のあいだに中間色（OKLab の中点で、鮮やかさは両端の平均） */
+  function gradStops(hexes) {
+    const labs = hexes.map((h) => toOklab(hexToRgb(h))).sort((p, q) => hueOf(p) - hueOf(q));
+    const out = [];
+    labs.forEach((p, i) => {
+      out.push(p);
+      const q = labs[i + 1];
+      if (!q) return;
+      let d = Math.abs(hueOf(q) - hueOf(p)); d = Math.min(d, 360 - d);
+      if (d > 60) {
+        const mid = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2], c = (Math.hypot(p[1], p[2]) + Math.hypot(q[1], q[2])) / 2, cm = Math.hypot(mid[1], mid[2]) || 1e-6;
+        out.push([mid[0], mid[1] * c / cm, mid[2] * c / cm]);
+      }
+    });
+    return out;
+  }
+  /** グラデーションを描く（色 1〜4＋中間色、模様の番号）。キャンバスを返す */
+  function drawGradient(hexes, seed) {
+    const rand = rng32(seed * 2654435761);
+    let stops = gradStops(hexes);
+    if (stops.length === 1) { const [L, a, b] = stops[0]; stops = [[Math.min(0.97, L + 0.12), a * 0.8, b * 0.8], stops[0], [Math.max(0.2, L - 0.1), a, b]]; }
+    const k = stops.length;
+    // 点は左から右へ色の順に置き、縦はばらす（隣どうしの色が隣に来る）
+    const pts = stops.map((lab, i) => ({ x: (i + 0.5) / k + (rand() - 0.5) * 0.2, y: (0.15 + rand() * 0.7) * GH / GW, lab, c: Math.hypot(lab[1], lab[2]) }));
+    const spread = Math.max(0.16, 0.85 / k), inv = 1 / (2 * spread * spread);
+    const octs = [[3, 0.5], [6, 0.25], [12, 0.15], [24, 0.1]].map(([c, a]) => [valueNoise(c, rand), valueNoise(c, rand), a]);
+    const warp = 0.14;
+    const cv = document.createElement("canvas"); cv.width = GW; cv.height = GH;
+    const cx = cv.getContext("2d"), img = cx.createImageData(GW, GH), d = img.data;
+    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+      const u0 = x / GW, v0 = y / GH;
+      let du = 0, dv = 0;
+      for (const [nu, nv, a] of octs) { du += a * nu(u0, v0); dv += a * nv(u0, v0); }
+      const u = u0 + warp * du, v = v0 * GH / GW + warp * dv;
+      let L = 0, A = 0, B = 0, C = 0, W = 0;
+      for (const p of pts) { const w = Math.exp(-((u - p.x) ** 2 + (v - p.y) ** 2) * inv); L += w * p.lab[0]; A += w * p.lab[1]; B += w * p.lab[2]; C += w * p.c; W += w; }
+      L /= W; A /= W; B /= W; C /= W;
+      const cn = Math.hypot(A, B), f = cn > 1e-6 ? Math.min(C / cn, 1.35) : 1;
+      const [r, g, b] = fromOklab([L, A * f, B * f]), gr = (rand() - 0.5) * 4, i = (y * GW + x) * 4;   // 粒は弱く（書き出しで 4 倍ほどに引き伸ばすので、強いとざらつく）
+      d[i] = r + gr; d[i + 1] = g + gr; d[i + 2] = b + gr; d[i + 3] = 255;
+    }
+    cx.putImageData(img, 0, 0);
+    return cv;
+  }
+  // 手元の絵（上げ終わるまでも見本と書き出しに使う）と、上げている途中の約束（共有の前に待つ）
+  let gradCanvas = null, gradUrl = "", gradKey = "", gradPending = Promise.resolve(), gradUpTimer = 0;
+  const gradState = () => (state.bgGrad ||= { src: "covers", colors: ["#ffb3a0", "#b8a6ff"], seed: 1, image: null });
+  /** ジャケットの色（背景向けに少し明るく・やわらかく。色で並べ替えと同じ取り方） */
+  async function gradCoverColors() {
+    const cells = state.cells.filter(Boolean);
+    if (!cells.length) return [];
+    const key = cells.map((t) => t.image || t.thumb).join("\n");
+    if (key !== coverPal.key) coverPal = { key, colors: await coverColors(cells).catch(() => []), i: 0 };
+    return coverPal.colors.slice(0, 4).map((h) => { const [L, a, b] = toOklab(hexToRgb(h)); return "#" + fromOklab([L + (0.86 - L) * 0.45, a * 0.8, b * 0.8]).map((v) => v.toString(16).padStart(2, "0")).join(""); });
+  }
+  async function applyGradient({ reseed = false } = {}) {
+    if (state.bgMode !== "gradient") return;
+    const g = gradState(), msg = $("#bg-msg");
+    const show = (text, tone) => { msg.hidden = false; say(msg, text, tone); };
+    if (reseed) g.seed = (g.seed % 999999) + 1;
+    let colors = g.colors;
+    if (g.src === "covers") {
+      show(tr("ジャケットの色を調べています…"));
+      colors = await gradCoverColors();
+      if (state.bgMode !== "gradient") return;
+      if (!colors.length) { show(tr("トラックを置くと、ジャケットから色を取ります。")); return; }
+    }
+    const key = JSON.stringify([colors, g.seed]);
+    if (key === gradKey && gradCanvas) { syncBgMode(); return; }
+    gradCanvas = drawGradient(colors, g.seed); gradKey = key;
+    if (gradUrl) URL.revokeObjectURL(gradUrl);
+    const blob = await canvasToBlob(gradCanvas, "image/jpeg", 0.92);
+    gradUrl = URL.createObjectURL(blob);
+    pickBg(readBgImage(gradCanvas).hex); renderSwatches();   // 文字の色は絵の平均の色（字と反対の側へ寄せた色）で決める
+    show(tr("グラデーションを作りました。「ほかの模様」で模様だけ変えられます。"));
+    syncBgMode(); updateSpec();
+    // 上げるのは配色が落ち着いてから（触るたびに上げない）
+    clearTimeout(gradUpTimer);
+    gradPending = new Promise((done) => {
+      gradUpTimer = setTimeout(async () => {
+        try {
+          const fd = new FormData(); fd.append("file", blob, "gradient.jpg");
+          const r = await fetch(api("/upload"), { method: "POST", body: fd });
+          const d = await readJson(r);
+          if (r.ok && key === gradKey) { gradState().image = d.url; save(); }
+        } catch { /* 上げられなくても手元の絵で書き出せる。サーバーで描く端末だけ背景色になる */ }
+        done();
+      }, 900);
+    });
+  }
+  function renderGradColors() {
+    const box = $("#bg-grad-colors"), g = gradState();
+    box.querySelectorAll("input[type=color]").forEach((el) => el.remove());
+    g.colors.forEach((c, i) => {
+      const el = document.createElement("input"); el.type = "color"; el.value = c; el.className = "grad-chip"; el.setAttribute("aria-label", tr`${i + 1} 色目`);
+      el.addEventListener("change", () => { gradState().colors[i] = el.value; applyGradient(); });
+      box.insertBefore(el, $("#bg-grad-add"));
+    });
+    $("#bg-grad-add").disabled = g.colors.length >= 4; $("#bg-grad-del").disabled = g.colors.length <= 2;
+  }
+  for (const i of document.querySelectorAll('#bg-grad-src input')) i.addEventListener("change", () => { gradState().src = i.value; syncBgMode(); applyGradient(); });
+  $("#bg-grad-add").addEventListener("click", () => { const g = gradState(); if (g.colors.length < 4) { g.colors.push(g.colors[g.colors.length - 1]); renderGradColors(); applyGradient(); } });
+  $("#bg-grad-del").addEventListener("click", () => { const g = gradState(); if (g.colors.length > 2) { g.colors.pop(); renderGradColors(); applyGradient(); } });
+  $("#bg-grad-shuffle").addEventListener("click", () => applyGradient({ reseed: true }));
   for (const i of document.querySelectorAll('#bg-mode-seg input')) i.addEventListener("change", () => setBgMode(i.value));
   $("#bg-next").addEventListener("click", () => applyAutoBg({ next: true }));
   const bgIsChosen = (value) => (value.startsWith("#") ? state.bg === "custom" && (state.bgCustom || "").toLowerCase() === value.toLowerCase() : state.bg === value);
@@ -6451,6 +6624,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       const [r, g, b] = hexToRgb(state.bgCustom || "#ffffff"), a = 1 - (state.bgImageAlpha ?? 0.5), veil = `rgba(${r}, ${g}, ${b}, ${a})`;
       els.grid.style.background = `linear-gradient(${veil}, ${veil}), center / cover no-repeat url("${proxied(state.bgImage)}"), ${bgColor()}`;
     }
+    // グラデーションは手元の絵（上げる前でも出る）、無ければ上げた絵
+    const gsrc = state.bgMode === "gradient" ? (gradUrl && gradCanvas ? gradUrl : state.bgGrad?.image ? proxied(state.bgGrad.image) : "") : "";
+    if (gsrc) els.grid.style.background = `center / cover no-repeat url("${gsrc}"), ${bgColor()}`;
     // 欄の中では、枠の大きさは列数・行数によらず 3×3 のときと同じ正方形に固定
     // （行が列より多いとスクロールバーが出る）。拡大窓の高さは上で決めてある
     if (!gridZoomed) els.gridScroll.style.height = `${Math.round(W) + 4}px`;
@@ -6797,7 +6973,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
       options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false,
-        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", bgImage: state.bgImage || null, bgImageAlpha: state.bgImageAlpha ?? 0.5, margin: state.margin, pad: state.pad || "normal", gap: state.gap },
+        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", bgImage: state.bgImage || null, bgImageAlpha: state.bgImageAlpha ?? 0.5, bgGrad: state.bgGrad || null, margin: state.margin, pad: state.pad || "normal", gap: state.gap },
     };
   }
   function applyData(d) {
@@ -6820,7 +6996,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     state.showTitle = o.showTitle !== false; state.overlay = o.overlay === true; state.sidebar = !state.overlay && o.sidebar !== false; state.numbers = o.numbers === true; state.trimNames = o.trimNames !== false; clearViewCells();
     state.cellRatio = o.cellRatio === "16:9" ? "16:9" : "1:1";
     state.cellFit = o.cellFit === "blur" ? "blur" : "crop";
-    state.bgMode = ["near", "far", "none", "image"].includes(o.bgMode) ? o.bgMode : "pick";
+    state.bgMode = ["near", "far", "none", "image", "gradient"].includes(o.bgMode) ? o.bgMode : "pick";
+    { const g = o.bgGrad && typeof o.bgGrad === "object" ? o.bgGrad : null, hex = /^#[0-9a-f]{6}$/i;
+      state.bgGrad = g ? { src: g.src === "custom" ? "custom" : "covers", colors: (Array.isArray(g.colors) ? g.colors : []).filter((c) => hex.test(c)).slice(0, 4),
+                           seed: Math.max(1, Math.min(1e6, Math.round(+g.seed) || 1)), image: /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(g.image || "") ? g.image : null } : null;
+      if (state.bgGrad && state.bgGrad.colors.length < 2) state.bgGrad.colors = ["#ffb3a0", "#b8a6ff"]; }
+    gradCanvas = null; gradKey = "";
     state.bgImage = /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(o.bgImage || "") ? o.bgImage : null;   // backend/grids.py の _UPLOAD_RE と同じ
     if (state.bgMode === "image" && !state.bgImage) state.bgMode = "pick";
     state.bgImageAlpha = Number.isFinite(+o.bgImageAlpha) ? Math.round(Math.min(0.6, Math.max(0.1, +o.bgImageAlpha)) * 100) / 100 : 0.5;
@@ -7293,6 +7474,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (!transparent && state.bgMode === "image" && state.bgImage) {
       const pic = await loadCover({ image: state.bgImage }, 0).catch(() => null);
       if (pic) { ctx.save(); ctx.globalAlpha = state.bgImageAlpha ?? 0.5; drawCover(ctx, pic, 0, 0, canvas.width, canvas.height); ctx.restore(); pic.close && pic.close(); }
+    }
+    // グラデーション背景は手元の絵をそのまま敷く（上げた絵はサーバーで描くときのため）。手元に無ければ上げた絵を読む
+    if (!transparent && state.bgMode === "gradient") {
+      const pic = gradCanvas || (state.bgGrad?.image ? await loadCover({ image: state.bgGrad.image }, 0).catch(() => null) : null);
+      if (pic) { drawCover(ctx, pic, 0, 0, canvas.width, canvas.height); if (pic !== gradCanvas && pic.close) pic.close(); }
     }
     // タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
     let y0 = L.oy;

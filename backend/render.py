@@ -2076,6 +2076,8 @@ def render(doc: GridDoc) -> Image.Image:
     im = Image.new("RGB", (sc(L.W), sc(L.H)), bg)
     if o.bgMode == "image" and o.bgImage:
         _paint_bg_image(im, o.bgImage, bg, o.bgImageAlpha)   # 好きな画像を背景に（2026-09-25）。文字の色は背景色（画像の平均の色）で決まる
+    elif o.bgMode == "gradient" and o.bgGrad and o.bgGrad.image:
+        _paint_bg_image(im, o.bgGrad.image, bg, 1.0)   # グラデーション背景（2026-09-25）。ブラウザが描いて上げた絵をそのまま敷く
     d = ImageDraw.Draw(im)
 
     # タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
