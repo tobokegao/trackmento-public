@@ -11,12 +11,15 @@
     { "id": "ai-words-ja", "t": "告知文の点検に ai-words-ja を足すか決める", "d": "9/23 に GitHub の日本語添削ツールを比べた。いま試している natural-japanese（lint.py。形態素解析でリズムの単調さ・翻訳調を見る。~/tools に置いた）より明らかに良いものは無かった。p1ass/textlint-rule-preset-ai-words-ja は AI が多用する語（「醸成」など 50 語超）を辞書と kuromojin で活用形ごと拾うもので、natural-japanese と役割が重ならない。natural-japanese を次の告知文で数回試し、効果があれば一緒に入れる（Node は promo 用に入っている。入れる前にソースを grep して外へ通信しないか確かめる）。効果が無ければ両方やめる", "when": "natural-japanese の試行の後", "reviewed": "2026-09-24" },
     { "id": "prune30", "t": "10-09 に共有の 30 日掃除が初めて効く", "d": "09-09 の公開から一度も消えていない。その日 R2 の使用量が初めて減る（はず）。減らなければ r2-prune.yml が効いていない。imgcache（14 日）は 09-13 から置き始めたので初めて効くのは 09-27（09-23・09-24 の掃除では 0 件で正しい）、searchcache（15 日）は 10-04。同じ目で見る", "when": "2026-10-09", "reviewed": "2026-09-24" },
     { "id": "sherbet-perf", "t": "譜割りエディタの速度を測るスクリプト（_perf.mjs）を ~/Tools/sherbet-editor に置いた", "d": "9/25 に promo/ から移した（使い捨てを promo/ に置かない決まりのため）。Playwright でスマホ幅・CPU 1/4 にして、表示切り替え（#view）の ms を 3 回測る。そのままでは動かない: 渡したフォルダの editor/test.html を開く作りだが sherbet-editor に editor/ は無い（いまは index.html と orig.html）。また Playwright を import するので、promo/ のように node_modules があるフォルダから実行する。要らなくなったら消す", "when": "使うとき", "reviewed": "2026-09-25" },
+    { "id": "logo", "t": "ドット絵のロゴの納品を待つ", "d": "9/24 に相談を始めた。Skeb の @mghc0 が受けられると返事（着手は 10 月中旬〜下旬、締切は 90 日で遅ければ 1 月下旬）。候補はもう 1 人（skima の SakeSalmon）。仕様は 128×24 ドット以内・サイトの 8 色＋透過・AA なし・商用利用前提。届いたらツールバーでランダムに出す（favicon と og.png は固定）。依頼文の控えと仕様はメモリの logo-commission", "when": "10 月中旬以降", "reviewed": "2026-09-25" },
+    { "id": "x-clips", "t": "X 用の短い動画のうち、出力オプションが映るものを撮り直す", "d": "9/25 に機能ごとの短い動画を作った（promo/clip_kit.mjs・x_clips.mjs・render_x.mjs）。同じ日に出力オプションの見た目（グループボックス・三角・呼び名）を変えたので、そこが映るクリップは古い。カタログを 104 本に広げる案と、その台帳（ボードの見た目）は保留", "when": "使う前に", "reviewed": "2026-09-25" },
+    { "id": "device-check", "t": "スマホの実機で見る: 出力オプションの三角と新しい呼び名", "d": "9/25 に入れた三角の開け閉めと、呼び名の見直し（ジャケット→サムネイルほか）のあとの見た目。Playwright の 412px では確認済み、実機はまだ", "when": "次にスマホで開いたとき", "reviewed": "2026-09-25" },
     { "id": "browserskill", "t": "Tencent/BrowserSkill を入れるか決める", "d": "9/25 に調べた。CLI 常駐＋Chrome/Edge 拡張＋スキル（bsk install-skill）。MIT。Claude in Chrome と役割が重なるが、作業用の別ウィンドウで動く（こちらのタブを取らない）・Edge 可・操作の記録が手元に残る・シェルから呼べる。TRACKMENTO で新しくできることは少ない。普段のプロファイルのログイン状態を共有する（隔離なし）。「外部送信なし」は README の記述だけなので、入れる前にソースを grep する。導入は curl | sh なので Windows の手順を確かめる", "when": "未決", "reviewed": "2026-09-25" },
     { "id": "desktop-control", "t": "エクスプローラーなどのデスクトップ操作を任せる道具を決める", "d": "9/25 に調べた。CLI の Claude Code は Windows では computer use 非対応。公式は Claude デスクトップアプリ（Cowork／アプリ内の Claude Code）の computer use。CLI から使うならコミュニティ製の MCP: Windows-MCP（UI Automation の部品一覧でクリック。PowerShell・レジストリも触れる）か sshh12/windows-computer-use-mcp（撮影・入力・録画、claude -p 可）。どちらも PC 全体を触れるので、入れる前にソースを grep し、削除やレジストリ操作は許可制のままにする", "when": "未決", "reviewed": "2026-09-25" }
   ],
   "services": {
     "_about": "外部サービスの表の「状態」。[色, 文字]。色は ok / wait / stop / fix / 空",
-    "reviewed": "2026-09-24",
+    "reviewed": "2026-09-25",
     "itunes": ["ok", "余裕"],
     "musicbrainz": ["ok", "守れている"],
     "coverart": ["ok", "守れている"],
