@@ -5062,7 +5062,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const charW1 = (f, ch) => {
     const key = f + " " + ch;
     let w = CHAR_W.get(key);
-    if (w === undefined) { probe.font = f; CHAR_W.set(key, w = snapW1(probe.measureText(ch).width)); }
+    if (w === undefined) CHAR_W.set(key, w = snapW1(charWidth(probe, f, ch)));
     return w;
   };
   /* タイトルの大きさを枠に収まる範囲に抑える（backend/render.py の _title_cap）。
@@ -5099,6 +5099,20 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   // 読み込み直後の layout() はまだ代替フォントで測るため、そのまま残すとサーバー描画と
   // 折り返しがずれる（16x16・16:9 の突き合わせで 0.26% → 3.69% になっていた）
   const CHAR_W = new Map();
+  /* **1 字の幅は 256px で 1 回だけ測り、ほかの大きさは掛け算で出す**（2026-09-25、利用者の指摘「マスの間隔を変えると一瞬固まる」）。
+     割り付けは字の大きさを何十通りも試すので、大きさごとに全部の字を測ると measureText が何万回になり、49 マスで 1.8 秒止まっていた
+     （プロファイルで 1.66 秒が measureText）。Canvas の字幅は大きさに比例する: IBM Plex の太字・細字と Silkscreen で、
+     8〜120px の 113 通り × 63 字を実際に測った値と比べ、1/64px にそろえて 1px に丸めた結果は 7,119 通りとも同じだった。
+     控えは CHAR_W に "base …" の鍵で入れる（Web フォントが効いたときに一緒に捨てられる） */
+  const BASE_PX = 256;
+  function charWidth(ctx, f, ch) {
+    const m = /^(\d+) ([\d.]+)px (.+)$/.exec(f);
+    if (!m) { ctx.font = f; return ctx.measureText(ch).width; }
+    const bk = `base ${m[1]} ${m[3]} ${ch}`;
+    let b = CHAR_W.get(bk);
+    if (b === undefined) { ctx.font = `${m[1]} ${BASE_PX}px ${m[3]}`; CHAR_W.set(bk, b = ctx.measureText(ch).width); }
+    return b * Number(m[2]) / BASE_PX;
+  }
   // 字幅が変われば折り返しも組み方も変わるので、共有画像の大きさの見込み（`sharePlan`）も一緒に捨てる
   if (document.fonts) document.fonts.addEventListener("loadingdone", () => { CHAR_W.clear(); clearSharePlan(); });
   const FLOW_FONT_STEPS = [132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18];
@@ -5136,7 +5150,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const cw1 = (f, ch) => {
       const key = f + " " + ch;
       let w = CHAR_W.get(key);
-      if (w === undefined) { ctx.font = f; CHAR_W.set(key, w = snapW(ctx.measureText(ch).width)); }
+      if (w === undefined) CHAR_W.set(key, w = snapW(charWidth(ctx, f, ch)));
       return w;
     };
     const gap = snapW(width("title", "　"));   // 曲と曲のあいだは全角空白 1 つぶん
@@ -7758,6 +7772,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   else if (MIGRATE_TO && MIGRATE_TO !== "__MIGRATE" + "__") handoffOut(MIGRATE_TO);
 
   showInAppNotice();
+  /* **手元の並びを、サーバーへの問い合わせより先に出す**（2026-09-25、利用者の指摘「起動時に一瞬 3×3 が出る」）。
+     下の流れは /health の返事を待ってから並びを読むので、その間は既定の 3×3 が見えていた（restore の中で先に出すだけでは足りなかった）。
+     手元の鍵は並びの ID だけで決まるので、返事を待たずに読める。共有の URL で開いたとき・引っ越しの途中は、下の流れに任せる */
+  if (!new URLSearchParams(location.search).has("share") && !MIGRATING) {
+    try { const d = JSON.parse(localStorage.getItem(storageKey()) || "null"); if (d) applyData(d); } catch { /* 下の restore が読み直す */ }
+  }
   loadHealth()
     .then(() => { if (isPublic || API) GRID_BASE = browserGridId(); GRID_NAME = serverGridName(); renderLayoutMenu(); })
     .then(restoreFromShare).then(ok => ok ? Promise.resolve() : restore())

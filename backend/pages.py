@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "「マスの間隔」などの設定を変えたときに、画面が一瞬固まっていたのを軽くしました（49 マスで約 1 秒 → 0.1 秒ほど）。開いたときに一瞬 3×3 が出ることがあったのも、あわせて直しました。",
+     "Changing settings such as “Gap” no longer freezes the screen for a moment (about 1 second → 0.1 seconds with 49 cells). Also fixed a 3×3 grid that could still flash briefly on opening."),
     ("2026-09-25", "グリッドの下に「できあがりを見る」を付けました。共有する前に、書き出す画像（曲名リストや背景も含めて）をその端末で作って確かめられます。見るだけなので、共有はされません。",
      "Added “Preview” below the grid. Before sharing, you can make the exported image on your device (including the track list and background) and check it. It only shows the image; nothing is shared."),
     ("2026-09-25", "背景の画像は、にぎやかな画像ほど薄く敷き、下に敷く色を文字と反対の明るさに寄せて、曲名が読みやすくなるようにしました。編集画面のグリッドの見本にも背景の画像が出ます。",
