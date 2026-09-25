@@ -452,7 +452,8 @@
         <div>
           <h3>外の道具</h3>
           <dl class="kv">
-            <dt>添削</dt><dd>Gemini 3.8 flash が枠切れなら回さず、下書きを手で通す</dd>
+            <dt>添削</dt><dd>Gemini 3.8 flash が枠切れなら回さず、下書きを手で通す。Gemma 4 は代わりにならない（09-25 に比較。<code>docs/writing.md</code>）</dd>
+            <dt>ブラウザ</dt><dd>画面の確認は claude-in-chrome。性能・ネットワークを詳しく見るときは chrome-devtools-mcp（09-25 に追加。外へ送る機能は止めてある）</dd>
             <dt>点検</dt><dd><code>gh workflow run render-check.yml</code>（2 時間おきに自動）</dd>
           </dl>
         </div>
@@ -512,7 +513,7 @@
         <table>
           <thead><tr><th>ファイル（推定トークン）</th><th>中身</th><th>読むとき</th></tr></thead>
           <tbody>
-            <tr><td><span class="who"><code>CLAUDE.md</code></span> <span class="pill est" data-doc="claude">8.0k</span></td><td>核。全体の仕組み・起動・CLI・変更したら回すもの・二重実装の一覧・索引</td><td>毎回</td></tr>
+            <tr><td><span class="who"><code>CLAUDE.md</code></span> <span class="pill est" data-doc="claude">8.0k</span></td><td>核。全体の仕組み・変更したら回すもの・二重実装の一覧・索引（09-25 に 386 → 218 行）</td><td>毎回</td></tr>
             <tr><td><span class="who"><code>docs/layout.md</code></span> <span class="pill est" data-doc="layout">10.2k</span></td><td>割り付け（回り込み・柱と帯・曲名リスト）</td><td>render.py / renderShareCanvas を触るとき</td></tr>
             <tr><td><span class="who"><code>docs/ui.md</code></span> <span class="pill est" data-doc="ui">8.6k</span></td><td>画面（スライダー・スクロールバー・パレット・日本語と英語）</td><td>index.html を触るとき</td></tr>
             <tr><td><span class="who"><code>docs/ops.md</code></span> <span class="pill est" data-doc="ops">6.4k</span></td><td>本番・点検・引っ越し・画像の中継・過去の数字</td><td>デプロイや点検のとき</td></tr>
@@ -520,7 +521,8 @@
             <tr><td><span class="who"><code>docs/sources.md</code></span> <span class="pill est" data-doc="sources">4.2k</span></td><td>取得元と画像の大きさ</td><td>sources/ を触るとき</td></tr>
             <tr><td><span class="who"><code>docs/services-terms.md</code></span> <span class="pill est" data-doc="terms">2.0k</span></td><td>各サービスの規約・上限と問い合わせの記録</td><td>取得のしかたを変えるとき</td></tr>
             <tr><td><span class="who"><code>docs/history.md</code></span> <span class="pill est" data-doc="history">2.8k</span></td><td>経緯と保留していること</td><td>「なぜこうなっているのか」を知りたいとき</td></tr>
-            <tr><td><span class="who"><code>docs/share.md</code> / <code>env.md</code> / <code>promo.md</code></span> <span class="pill est" data-doc="misc">3.8k</span></td><td>共有・環境変数・記事の素材</td><td>その作業のとき</td></tr>
+            <tr><td><span class="who"><code>docs/cli.md</code></span> <span class="pill est" data-doc="cli">1.6k</span></td><td>スマホからの依頼の手順と CLI（09-25 に核から移した）</td><td>スマホから「追加して」「共有して」と頼まれたとき</td></tr>
+            <tr><td><span class="who"><code>docs/share.md</code> / <code>env.md</code> / <code>promo.md</code> / <code>setup.md</code> / <code>writing.md</code></span> <span class="pill est" data-doc="misc">7.1k</span></td><td>共有・環境変数・記事の素材・はじめて動かすまで・更新情報と添削</td><td>その作業のとき</td></tr>
             <tr><td><span class="who">メモリ（<code>MEMORY.md</code> ほか）</span> <span class="pill est" data-doc="memory">0.5k</span></td><td>利用者の好み・進捗・引き継ぎ</td><td>毎回（索引のみ）</td></tr>
             <tr><td><span class="who"><code>metrics/series.jsonl</code></span></td><td>点検 1 回 1 行の記録。上の図の元</td><td>推移を見るとき</td></tr>
           </tbody>

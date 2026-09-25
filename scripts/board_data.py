@@ -379,7 +379,8 @@ DOC_FILES = {
     "sources": ("docs/sources.md",),
     "terms": ("docs/services-terms.md",),
     "history": ("docs/history.md",),
-    "misc": ("docs/share.md", "docs/env.md", "docs/promo.md"),
+    "cli": ("docs/cli.md",),
+    "misc": ("docs/share.md", "docs/env.md", "docs/promo.md", "docs/setup.md", "docs/writing.md"),
 }
 # メモリの索引はリポジトリの外。手元で回したときだけ数える
 MEMORY_INDEX = Path.home() / ".claude" / "projects" / "C--Users-amisi-musicgrid-local" / "memory" / "MEMORY.md"
