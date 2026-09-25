@@ -19,7 +19,7 @@ const OUT = path.resolve("promo/public/xclips");
 
 // **曲は架空のもの**（ジャケットも題も。2026-09-25、利用者の指定「動画に実在のジャケットを映さない」）。
 // 絵と一覧は promo/fake_covers.py が作る（絵は手元の uploads/、一覧は public/）。無ければ先に作る
-if (!fs.existsSync("promo/public/fake-tracks.json") || !fs.existsSync("promo/public/fake-tracks-wide.json")) {
+if (!["fake-tracks.json", "fake-tracks-wide.json", "fake-tracks-mono.json"].every((f) => fs.existsSync(`promo/public/${f}`))) {
   execFileSync(".venv/Scripts/python", ["promo/fake_covers.py"], { stdio: "inherit", env: { ...process.env, PYTHONUTF8: "1" } });
 }
 const TRACKS = JSON.parse(fs.readFileSync("promo/public/fake-tracks.json", "utf-8"));
@@ -35,14 +35,19 @@ for (const c of picked) {
   const dir = path.join(OUT, c.id);
   // **撮影で本番の R2 に上げた画像を記録する**（背景の画像の場面は /upload を通る。手元のサーバーも .env の R2 を使うため）。
   // 消すのは scripts/clean_x_uploads.py（記録した分だけを消す。利用者の画像には触れない）
-  const uploaded = [];
-  page.on("response", async (r) => { if (r.url().endsWith("/upload") && r.ok()) { try { uploaded.push((await r.json()).url); } catch { /* 読めなければ記録しない */ } } });
+  const uploaded = [], shares = [];
+  page.on("response", async (r) => {
+    if (!r.ok()) return;
+    const u = r.url();
+    if (u.endsWith("/upload")) { try { uploaded.push((await r.json()).url); } catch { /* 読めなければ記録しない */ } }
+    if (/\/share(\/upload)?$/.test(u)) { try { shares.push((await r.json()).id); } catch { /* 同上 */ } }   // 共有を押す場面（bg-image）
+  });
   try {
     if (c.setup) await c.setup(k);
     k.start(dir);
     await c.run(k);
     const n = await k.finish(dir, { id: c.id, what: c.what });
-    if (uploaded.length) fs.writeFileSync(path.join(dir, "uploads.json"), JSON.stringify(uploaded));
+    if (uploaded.length || shares.length) fs.writeFileSync(path.join(dir, "uploads.json"), JSON.stringify({ uploads: uploaded, shares: shares.filter(Boolean) }));
     console.log(c.id, n, "コマ", (n / 30).toFixed(1), "秒");
   } catch (e) {
     failed.push(c.id);

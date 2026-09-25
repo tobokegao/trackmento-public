@@ -1016,7 +1016,10 @@ body.sheet-open { overflow: hidden; }
 #bg-next[hidden], #bg-image-box[hidden] { display: none; }
 #bg-image-box { margin-top: var(--space-2); }   /* .btn の display が hidden 属性に勝つので明示する */
 #bg-next { margin-top: var(--space-2); }
-#output-img.is-clear { background: repeating-conic-gradient(var(--color-paper-3) 0 25%, var(--color-paper) 0 50%) 0 0 / 16px 16px; }
+/* できあがりの見本（2026-09-25、利用者の案）。共有と同じ描き方で端末の中で作って見せる。送らない */
+#preview-img { display: block; width: 100%; height: auto; border: var(--line) solid var(--color-ink); }
+#preview-img[hidden] { display: none; }
+#preview-img.is-clear, #output-img.is-clear { background: repeating-conic-gradient(var(--color-paper-3) 0 25%, var(--color-paper) 0 50%) 0 0 / 16px 16px; }
 /* スマホは「曲を探す・共有／保存・読み込み」の 2×2。PC は「曲を探す」が無いので共有だけ 1 行いっぱい */
 @media (min-width: 60rem) { #share-btn { grid-column: 1 / -1; } }
 /* **取り消せない操作は、いちばん押すものから遠く・最後・小さく**（OS 9 の Special メニューの末尾に Empty Trash… があるのと同じ）。
@@ -1522,6 +1525,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <div class="minor">
+          <button class="btn btn-sm" type="button" id="preview-btn" title="共有する前に、書き出す画像をこの端末で作って見る（送らない）">できあがりを見る</button>
           <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
           <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
           <button class="btn btn-sm" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
@@ -1708,6 +1712,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   </div>
 </div>
 
+<!-- できあがりの見本（2026-09-25、利用者の案「トラックを共有する前に web 上でプレビューする方法」）。
+     共有と同じ renderShareCanvas で端末の中で描いて見せるだけで、サーバーには送らない（R2 にも何も残らない） -->
+<div class="modal" id="preview-modal" hidden role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
+  <div class="sheet-backdrop" id="preview-modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="sheet-head"><h2 id="preview-modal-title">できあがりの見本</h2><button class="btn" type="button" id="preview-modal-close">閉じる</button></div>
+    <div class="modal-body">
+      <p class="msg" id="preview-msg" role="status" aria-live="polite"></p>
+      <img id="preview-img" alt="書き出す画像の見本" hidden>
+    </div>
+  </div>
+</div>
 <div class="modal" id="src-modal" hidden role="dialog" aria-modal="true" aria-labelledby="src-modal-title">
   <div class="sheet-backdrop" id="src-modal-backdrop"></div>
   <div class="modal-panel">
@@ -2034,6 +2050,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "やり直せる操作はありません。": "Nothing to redo.",
         "やり直しました。": "Redone.",
         "やり直す": "Redo",
+        "できあがりを見る": "Preview",
+        "共有する前に、書き出す画像をこの端末で作って見る（送らない）": "See the exported image on this device before sharing (nothing is sent)",
+        "できあがりの見本": "Preview",
+        "書き出す画像の見本": "Preview of the exported image",
+        "{} × {} px。「トラックを共有」を押すと、この画像と共有 URL ができます。": "{0} × {1} px. Press “Share these tracks” to make this image and a share URL.",
+        "この端末では見本を作れませんでした。「トラックを共有」ではサーバーで作ります。": "This device couldn't make the preview. “Share these tracks” will make the image on the server.",
         "直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）": "Undo the last change. Up to 30 steps (Ctrl+Z also works)",
         "取り消した操作をやり直す（Ctrl+Y でも）": "Redo what you undid (Ctrl+Y also works)",
         "色を選ぶ": "Choose a color",
@@ -3194,6 +3216,43 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
   });
 
+  /* ---- できあがりの見本（2026-09-25）。共有と同じ描き方（renderShareCanvas）で端末の中で作って見せる。送らない。
+     背景なしのときは透明な PNG を市松の上に出す。作っている途中で閉じたら、できた絵は捨てる（previewRun で見分ける） ---- */
+  const previewModal = $("#preview-modal"), previewImg = $("#preview-img"), previewMsg = $("#preview-msg");
+  let previewRun = 0, previewUrl = "";
+  function closePreview() {
+    previewRun++;
+    previewModal.hidden = true;
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = ""; }
+    previewImg.hidden = true; previewImg.removeAttribute("src");
+    if (!sheetOpen()) unlockScroll();
+    $("#preview-btn").focus({ preventScroll: true });
+  }
+  async function openPreview() {
+    if (!state.cells.some(Boolean)) { say(els.gridMsg, tr("トラックを置いてから押してください。"), "error"); return; }
+    const run = ++previewRun;
+    previewModal.hidden = false; lockScroll(); $("#preview-modal-close").focus({ preventScroll: true });
+    previewImg.hidden = true; say(previewMsg, tr("画像を作成中…"));
+    try {
+      if (!("createImageBitmap" in window) || !document.fonts) throw new Error("unsupported");
+      await loadShareFonts();
+      CHAR_W.clear(); clearSharePlan();   // 字幅の控えは Web フォントが効いてから取り直す（shareViaBrowser と同じ）
+      const clear = state.bgMode === "none";
+      const { canvas } = await renderShareCanvas(sharePlan().side, (i, n) => { if (run === previewRun) say(previewMsg, tr`画像を作成中… ${i}/${n}`); }, { transparent: clear });
+      const blob = await canvasToBlob(canvas, clear ? "image/png" : "image/jpeg", 0.9);
+      if (run !== previewRun) return;   // 作っている間に閉じられた
+      previewUrl = URL.createObjectURL(blob);
+      previewImg.src = previewUrl; previewImg.classList.toggle("is-clear", clear); previewImg.hidden = false;
+      say(previewMsg, tr`${canvas.width} × ${canvas.height} px。「トラックを共有」を押すと、この画像と共有 URL ができます。`);
+    } catch (err) {
+      if (run !== previewRun) return;
+      console.warn("preview", err);
+      say(previewMsg, tr("この端末では見本を作れませんでした。「トラックを共有」ではサーバーで作ります。"), "error");
+    }
+  }
+  $("#preview-btn").addEventListener("click", openPreview);
+  $("#preview-modal-close").addEventListener("click", closePreview);
+  $("#preview-modal-backdrop").addEventListener("click", closePreview);
   const srcModal = $("#src-modal");
   const openSrcModal = () => { srcModal.hidden = false; lockScroll(); $("#src-modal-close").focus({ preventScroll: true }); };
   const closeSrcModal = () => { srcModal.hidden = true; if (!sheetOpen()) unlockScroll(); $("#src-hint-btn").focus({ preventScroll: true }); };
@@ -4062,6 +4121,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (plOpen()) { closePlModal(); say(els.bcMsg, tr("やめました。")); return; }
     if (gridZoomed) { closeZoom(); return; }
     if (!srcModal.hidden) { closeSrcModal(); return; }
+    if (!previewModal.hidden) { closePreview(); return; }
     if (sheetOpen()) { closeSheet(); return; }
     if (selected !== null) { clearSelection(); say(els.gridMsg, tr("選択を解除しました。")); return; }
     if (target !== null) { clearTarget(); say(els.gridMsg, tr("入れる先の指定を解除しました。")); }
@@ -4075,7 +4135,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const el = e.target;
     if (el.isContentEditable || /^(TEXTAREA|SELECT)$/.test(el.tagName)
         || (el.tagName === "INPUT" && !/^(checkbox|radio|range|button|submit|color)$/.test(el.type))) return;
-    if (!confirmModal.hidden || !palModal.hidden || plOpen() || !srcModal.hidden) return;
+    if (!confirmModal.hidden || !palModal.hidden || plOpen() || !srcModal.hidden || !previewModal.hidden) return;
     e.preventDefault();
     if (k === "y" || e.shiftKey) redo(); else undo();
   });

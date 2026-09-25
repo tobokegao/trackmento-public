@@ -7,7 +7,8 @@
   （色で並べ替えが映えるよう色相を散らし、白黒も 3 枚混ぜる）
 - 絵は手元の `uploads/`（git の外）に置く。サーバーは R2 に無いアップロード画像を手元から読むので、
   **本番の R2 には上げない**（uploads.read_bytes の手元への逃げ道）。名前は uploads の形（16 進 16 桁）で、頭を fa4e にしてある
-- 曲の一覧は `promo/public/fake-tracks.json` と `fake-tracks-wide.json`（x_clips.mjs が読む）
+- 白黒のジャケット 16 枚（明るさを段階的に。色で並べ替えの場面用）
+- 曲の一覧は `promo/public/fake-tracks.json`・`fake-tracks-wide.json`・`fake-tracks-mono.json`（x_clips.mjs と台本が読む）
 何度回しても同じ絵になる（乱数の種を固定）。
 """
 from __future__ import annotations
@@ -33,6 +34,14 @@ SQUARE = [
     ("朝焼けエスカレーター", "カラクリ座"), ("ミントの約束", "ふたば"), ("Orange Tape", "Hiro Sato"),
     ("星座のない夜", "ルル"), ("こはく色の街", "ユウグレ"), ("Blue Envelope", "Akane"),
     ("ねこじゃらし", "まるいち"), ("灰色のキャンバス", "モノクロ舎"), ("Snow Signal", "Kuro"),
+]
+# 白黒のジャケット（明るさを段階的に変える）。色で並べ替えの場面で、明るい順に並ぶのを見せる
+# （カラフルな絵だと色相の順は伝わりにくい、と利用者。白黒のジャケットは明るい順に並ぶ決まり）
+MONO = [
+    ("影のワルツ", "ヨル"), ("炭の街", "スミ"), ("鉄の鳥", "Grey Harbor"), ("雨の音階", "しとしと"),
+    ("鉛筆の夢", "エンピツ"), ("霧の駅", "Mist"), ("石畳", "カタコト"), ("曇り空", "くもり堂"),
+    ("銀の鈴", "Silver"), ("雪明かり", "ユキノ"), ("白いノート", "Paper"), ("朝もや", "アサギ"),
+    ("月の砂", "Luna"), ("紙飛行機", "カミ"), ("まっしろ", "しろくま"), ("光の粒", "Hikari"),
 ]
 WIDE = [
     ("踊ってみた【夏まつり】", "こはる"), ("ピアノで弾いてみた", "ゆびさき"), ("自作シンセで1曲", "ラボ32"),
@@ -102,6 +111,25 @@ def label(im: Image.Image, title: str, ink, bg) -> None:
     d.text((pad, im.height - pad), title, font=f, fill=ink, anchor="ls")
 
 
+def make_mono(items, size: int, tag: str, rng: random.Random) -> list[dict]:
+    """白黒のジャケット。地の明るさを暗い → 明るいに等分し、図形は少しだけ明るさを変える（色を入れない）"""
+    out = []
+    n = len(items)
+    for i, (title, artist) in enumerate(items):
+        g = int(20 + (235 - 20) * i / (n - 1))
+        bg = (g, g, g)
+        f = g + (28 if g < 128 else -28)
+        fg = (f, f, f)
+        ink = (245, 245, 245) if g < 128 else (20, 20, 20)
+        im = draw_art(size, size, bg, fg, i % 5, rng)
+        label(im, title, ink, bg)
+        name = f"fa4e{tag}{i:010x}.jpg"
+        im.save(UPLOADS / name, quality=90)
+        url = f"/uploads/{name}"
+        out.append({"source": "manual", "title": title, "artist": artist, "image": url, "thumb": url, "external_url": None})
+    return out
+
+
 def make(items, w: int, h: int, tag: str, rng: random.Random) -> list[dict]:
     out = []
     for i, (title, artist) in enumerate(items):
@@ -121,9 +149,11 @@ def main() -> None:
     rng = random.Random(20260925)
     square = make(SQUARE, 600, 600, "01", rng)
     wide = make(WIDE, 640, 360, "02", rng)
+    mono = make_mono(MONO, 600, "03", rng)
+    (OUT / "fake-tracks-mono.json").write_text(json.dumps(mono, ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "fake-tracks.json").write_text(json.dumps(square, ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "fake-tracks-wide.json").write_text(json.dumps(wide, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"正方形 {len(square)} 枚・16:9 {len(wide)} 枚 → uploads/、一覧 → {OUT}")
+    print(f"正方形 {len(square)} 枚・16:9 {len(wide)} 枚・白黒 {len(mono)} 枚 → uploads/、一覧 → {OUT}")
 
 
 if __name__ == "__main__":

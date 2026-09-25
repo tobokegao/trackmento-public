@@ -15,10 +15,13 @@ import fs from "node:fs";
 
 // 動画サイトのサムネ風（16:9）の架空の曲。マスの形・サムネの入れ方の場面で使う
 // **使うときに読む**（x_clips.mjs は台本を読み込んでから一覧を作るので、読み込んだ瞬間に読むと一覧がまだ無いことがある）
-const nico = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-wide.json", "utf-8"));   // 架空の 16:9 のサムネ（promo/fake_covers.py）
+const nico = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-wide.json", "utf-8"));
+// 白黒の架空のジャケット（明るさを段階的に）。色で並べ替えの場面で使う
+const mono = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-mono.json", "utf-8"));   // 架空の 16:9 のサムネ（promo/fake_covers.py）
 
 /** 背景色の場面で隠すもの（グリッドの窓はグリッドとメッセージだけ、出力オプションは背景色の欄だけ残す） */
-const STAGE_BG = ".pane-grid .pane-body > :not(#grid-scroll):not(#grid-msg), .pane-options .pane-body > :not(fieldset:has(#bg-mode-seg)) { display: none !important; }";
+// 「できあがりを見る」だけは残す（bg-image で押す）
+const STAGE_BG = ".pane-grid .pane-body > :not(#grid-scroll):not(#grid-msg):not(.grid-actions), .grid-actions > :not(.minor), .grid-actions > .minor > :not(#preview-btn), .pane-options .pane-body > :not(fieldset:has(#bg-mode-seg)) { display: none !important; }";
 
 /** 曲を n 個入れて、ジャケットがそろうまで待つ */
 async function ready(k, n, size, opts = {}, list) {
@@ -42,9 +45,10 @@ function shuffled(list, seed = 7) {
 export default [
   {
     id: "color-sort",
-    what: "「色で並べ替え」… ジャケットの主な色で、赤から紫の順に並べ直す。白黒のジャケットは最後に明るい順",
+    what: "「色で並べ替え」… ジャケットの主な色で、赤から紫の順に並べ直す。白黒のジャケットは明るい順",
     async setup(k) {
-      await ready(k, 16, [4, 4], {}, shuffled(k.tracks).slice(0, 16));
+      // **白黒のジャケットで見せる**（明るい順にそろうのがひと目で分かる。カラフルな絵だと色相の順は伝わりにくい、と利用者）
+      await ready(k, 16, [4, 4], {}, shuffled(mono()));
       await k.scrollTo("#grid", 60);
       await k.look(["#grid"]);
       await k.park(1180, 660);
@@ -261,10 +265,16 @@ export default [
       await (await fc).setFiles("promo/public/x-bg-sample.jpg");   // 色の塊をぼかした穏やかな画像（濃さが 5 割になり、見本で見える）
       await k.until(() => k.page.evaluate(() => /画像を背景に/.test(document.querySelector("#bg-msg").textContent)), "背景の画像", 30000);
       await k.until(() => k.page.evaluate(() => /url\(/.test(document.querySelector("#grid").style.background)), "見本の画像", 10000);
-      await k.hold(0.3);
-      await k.hold(2.2);
-      await k.press('#bg-mode-seg label:has(input[value="pick"])');   // 元の色に戻して終わる
-      await k.hold(1.0);
+      await k.hold(1.2);
+      // **書き出しの画像（曲名リスト込み）まで見せる**。見本はマスの隙間にしか画像が見えないので（利用者の指摘）、
+      // 「できあがりを見る」を押して見本の窓に寄る（端末の中で描くだけで、共有は作らない）
+      await k.press("#preview-btn");
+      await k.until(() => k.page.evaluate(() => !document.querySelector("#preview-img").hidden && document.querySelector("#preview-img").complete), "できあがりの見本", 60000);
+      await k.look(["#preview-modal .modal-panel"], 0.8);
+      await k.hold(3.0);
+      await k.press("#preview-modal-close");
+      await k.look(["#grid", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg", "#bg-image-box", "#bg-msg"], 0.6);
+      await k.hold(0.6);
     },
   },
 ];

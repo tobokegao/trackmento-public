@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.e4c5e704.css">
+<link rel="stylesheet" href="app/app.303278ed.css">
 </head>
 <body>
 
@@ -235,6 +235,7 @@
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
         <div class="minor">
+          <button class="btn btn-sm" type="button" id="preview-btn" title="共有する前に、書き出す画像をこの端末で作って見る（送らない）">できあがりを見る</button>
           <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
           <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
           <button class="btn btn-sm" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
@@ -421,6 +422,18 @@
   </div>
 </div>
 
+<!-- できあがりの見本（2026-09-25、利用者の案「トラックを共有する前に web 上でプレビューする方法」）。
+     共有と同じ renderShareCanvas で端末の中で描いて見せるだけで、サーバーには送らない（R2 にも何も残らない） -->
+<div class="modal" id="preview-modal" hidden role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
+  <div class="sheet-backdrop" id="preview-modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="sheet-head"><h2 id="preview-modal-title">できあがりの見本</h2><button class="btn" type="button" id="preview-modal-close">閉じる</button></div>
+    <div class="modal-body">
+      <p class="msg" id="preview-msg" role="status" aria-live="polite"></p>
+      <img id="preview-img" alt="書き出す画像の見本" hidden>
+    </div>
+  </div>
+</div>
 <div class="modal" id="src-modal" hidden role="dialog" aria-modal="true" aria-labelledby="src-modal-title">
   <div class="sheet-backdrop" id="src-modal-backdrop"></div>
   <div class="modal-panel">
@@ -552,6 +565,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.0aeded05.js"></script>
+<script id="app-js" src="app/app.c18946c4.js"></script>
 </body>
 </html>
