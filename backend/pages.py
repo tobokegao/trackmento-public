@@ -34,10 +34,10 @@ def _guide(lang: str, days: int) -> str:
 <div class="catch">
 <p class="catch-main">The otomad that takes you back, and the song that moves you right now.<br>
 Let’s line them up together.</p>
-<p class="catch-sub">TRACKMENTO, a memento of your tracks, turns your grid into a save point that is yours alone.</p>
+<p class="catch-sub">TRACKMENTO, a memento of your tracks, turns your grid into a save point all your own.</p>
 </div>
 
-<p>TRACKMENTO is a tool that lays out the artwork (cover art) of your favourite tracks in a grid and turns it into a single image.
+<p>TRACKMENTO is a tool that lays out the artwork (cover art) of your favorite tracks in a grid and turns it into a single image.
 You can make images like “9 tracks that made me” by combining tracks from many different music sites, whether or not you
 subscribe to a streaming service. Its distinguishing feature is that you can arrange music freely <b>track by track</b>, not only
 album by album. It is completely free, and no sign-up is required.</p>
@@ -46,10 +46,10 @@ album by album. It is completely free, and no sign-up is required.</p>
 <p>Any theme is fine. Not just “9 tracks that made me” — here are a few other angles:</p>
 <ul>
 <li>Pick by season or weather (“Songs for rainy days”, “Songs for the end of summer”)</li>
-<li>Match cover art by colour or design (“Tracks with blue cover art”)</li>
+<li>Match cover art by color or design (“Tracks with blue cover art”)</li>
 <li>Keep a record of a live show or school festival setlist</li>
-<li>Collect covers sung or played by your favourite creator</li>
-<li>Line up the songs sampled in your favourite otomads</li>
+<li>Collect covers sung or played by your favorite creator</li>
+<li>Line up the songs sampled in your favorite otomads</li>
 <li>Look back on the tracks you played most this year</li>
 </ul>
 <p>Ideas not on this list are very welcome too.</p>
@@ -64,7 +64,7 @@ Apple Music (Spotify gives only the title and the cover, so the artist name is f
 fill it in with an image URL or by uploading an image from your device.</li>
 <li><b>Rearrange:</b> Select two cells one after the other to swap their positions. “Enlarge” shows the grid full-screen,
 so rearranging stays comfortable even with many cells. With a keyboard, move between cells with the arrow keys and
-press Option (Alt) + an arrow key to swap a track with its neighbour.</li>
+press Option (Alt) + an arrow key to swap a track with its neighbor.</li>
 <li><b>Export and share the image:</b> Choose the “Image frame” (the aspect ratio: 1:1, 4:5, 16:9, 9:16 or free), the “Background”
 and how the track list is shown, then share. You get the finished image and a dedicated share URL.</li>
 </ol>
@@ -78,10 +78,10 @@ row is looked up on iTunes and added at once (up to 20 rows; you can also paste 
 direction, “Copy track names” copies the layout as text in the form “1. Artist - Track”.</li>
 <li><b>Automatic recovery of deleted videos:</b> Even if a Niconico video has been deleted, TRACKMENTO automatically restores the
 official title, creator name and thumbnail when the work is registered in otoDB (the otomad database).</li>
-<li><b>Three track list styles:</b> Choose from “beside the grid”, “on the covers” or “hidden”. When cells are too small and the
-text would be unreadable, the “on the covers” style turns off automatically.</li>
-<li><b>Colour palettes:</b> Switch the colour theme of the whole screen. You can also create your own set of eight colours, copy
-the colour codes and share them with others.</li>
+<li><b>Three track list styles:</b> Choose from “Beside the grid”, “Over the cells” or “Hidden”. When cells are too small and the
+text would be unreadable, the “Over the cells” style turns off automatically.</li>
+<li><b>Color palettes:</b> Switch the color theme of the whole screen. You can also create your own set of eight colors, copy
+the color codes and share them with others.</li>
 <li><b>Everyone's grids:</b> If you turn on “Add to everyone's grids” when sharing, other users can find your grid by track title or
 artist name (shares without the check are not listed).</li>
 <li><b>Japanese and English:</b> Switch the language with the button at the top right of the screen. In English, iTunes track
@@ -201,7 +201,7 @@ each platform's privacy policy.</p>
 <p>The Site itself does not use its own cookies (settings are saved in your browser's local storage).</p>
 <p>The Site uses (or plans to use) Google AdSense, a third-party advertising service. Third-party vendors, including Google, use
 cookies to serve ads based on a user's prior visits to this website or other websites.</p>
-<p>You can opt out of personalised advertising in Google's <a href="https://www.google.com/settings/ads" rel="noopener">Ads Settings</a>.
+<p>You can opt out of personalized advertising in Google's <a href="https://www.google.com/settings/ads" rel="noopener">Ads Settings</a>.
 You can also opt out of third-party vendors' use of cookies by visiting <a href="https://www.aboutads.info/" rel="noopener">www.aboutads.info</a>.
 For details, please see <a href="https://policies.google.com/technologies/ads" rel="noopener">Google's Privacy &amp; Terms</a>.</p>
 
@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "英語表示の言葉を見直しました（日本語の表示は変わりません）。",
+     "Reviewed the English text: “song” is now “track” throughout, several option names are clearer (“Image fit,” “Background type,” “Freeform,” “Black text”), and spelling now follows US English."),
     ("2026-09-25", "使い方のページの頭に、TRACKMENTO のひと言を載せました。",
      "Added a short word from TRACKMENTO at the top of the How to use page."),
     ("2026-09-25", "画面の言葉を見直しました。「ジャケット」は「サムネイル」（見出しや選択肢では「サムネ」）に、トラックリストは「横並び」「重ね表示」「非表示」、背景の「背景を透過」は「透過」、画像の敷き方は「全体表示」「タイル」などに変えています。",
@@ -303,7 +305,7 @@ CHANGES: list[tuple[str, str, str]] = [
     ("2026-09-25", "「画像」の「収める」は、画像の比率を変えずに端まで大きくし、余りを画像のふちの色で埋めるようにしました（書き出す画像の比率に合わせます）。",
      "“Fit” under “Image” now enlarges the image to the edges without changing its proportions, and fills the rest with the color of the image's edges (matching the shape of the exported image)."),
     ("2026-09-25", "「画像」で、画像を「収める」か「並べる」（小・中・大）かを選べるようにし、選んだ画像の見本を出しました。「背景を透過」では「黒い字」「白い字」を選べます（白い字のときは見本の地が暗くなります）。",
-     "Under “Image”, you can now choose “Fit” or “Tile” (S, M, L), with a preview of the chosen image. “Transparent” now lets you pick “Dark text” or “White text” (the preview turns dark for white text)."),
+     "Under “Image”, you can now choose “Fit” or “Tile” (S, M, L), with a preview of the chosen image. “Transparent” now lets you pick “Black text” or “White text” (the preview turns dark for white text)."),
     ("2026-09-25", "同じトラックなら、並べ替えても書き出す画像の曲名リストの組み方（表か詰めた並びか・画像の大きさ・字の大きさ）が変わらないようにしました。「色で並べ替え」をすると組み方ががらりと変わることがありました。",
      "With the same tracks, reordering no longer changes how the track list in the exported image is laid out (table or packed text, image size, text size). Using “Sort by color” could change it completely before."),
     ("2026-09-25", "「ジャケットに近い色」「ジャケットと反対の色」で、ジャケットから取った色の候補を四角で並べ、押して選べるようにしました。「画像」を選ぶと、まず TRACKMENTO のマークの模様が敷かれます（「画像を選ぶ…」で好きな画像に替えられます）。",
@@ -327,7 +329,7 @@ CHANGES: list[tuple[str, str, str]] = [
     ("2026-09-25", "背景の画像は、にぎやかな画像ほど薄く敷き、下に敷く色を文字と反対の明るさに寄せて、曲名が読みやすくなるようにしました。編集画面のグリッドの見本にも背景の画像が出ます。",
      "Background images are now laid more faintly the busier they are, and the color underneath leans away from the text color so track names stay readable. The grid preview in the editor now shows the background image too."),
     ("2026-09-25", "出力オプションのラジオボタンは、幅に収まるだけ横に並べ、折り返すときは段ごとの数をそろえるようにしました。パレットの窓のボタンを小さくし、「カラーコードから作る」「ファイルを選ぶ…」に名前を変えました。",
-     "Radio buttons in the output options now sit side by side as far as the width allows, and wrap into rows of even length. Buttons in the palette window are smaller, renamed to “Make from colour codes” and “Choose a file…”."),
+     "Radio buttons in the output options now sit side by side as far as the width allows, and wrap into rows of even length. Buttons in the palette window are smaller, renamed to “Make from color codes” and “Choose a file…”."),
     ("2026-09-25", "開いたときに、一瞬 3×3 のグリッドが出てから保存した並びに切り替わっていたのを直しました。スマホで「マスの間隔」のつまみの近くを触ってスクロールしようとすると、動かないことがあったのも直しました。",
      "Fixed a 3×3 grid flashing briefly before your saved grid appeared on opening. On phones, scrolling with a finger near the “Gap” slider no longer gets stuck."),
     ("2026-09-25", "「背景色」に「画像」を足しました。「画像を選ぶ…」で端末の好きな画像を選ぶと、書き出す画像の背景に敷きます。曲名が読みやすいように、画像は半分の濃さにします。",
@@ -379,7 +381,7 @@ CHANGES: list[tuple[str, str, str]] = [
     ("2026-09-23", "アーティスト名とトラック名の表から、まとめて入れられるようになりました（検索の「トラック名の一覧から」、一度に 20 行まで）。Excel などの表も貼れます。逆に「トラック名をコピー」で、並びを「1. アーティスト - トラック名」の文章にしてコピーできます。",
      "You can now add tracks all at once from a table of artist and track names (“From a list of track names” under Search, up to 20 rows at a time). You can also paste from a spreadsheet such as Excel. In the other direction, “Copy track names” copies the layout as text in the form “1. Artist - Track”."),
     ("2026-09-23", "キーボードでも並べ替えられるようになりました。Tab キーでグリッドに入り、矢印キーでマスを移ります。Return キーかスペースキーでマスを選び、Option（Alt）＋矢印キーで隣のマスと入れ替えます。",
-     "You can now rearrange with the keyboard. Press Tab to reach the grid and move between cells with the arrow keys. Return or Space selects a cell, and Option (Alt) + an arrow key swaps the track with the neighbouring cell."),
+     "You can now rearrange with the keyboard. Press Tab to reach the grid and move between cells with the arrow keys. Return or Space selects a cell, and Option (Alt) + an arrow key swaps the track with the neighboring cell."),
     ("2026-09-23", "共有ページの画像に、題名と先頭 10 トラックの曲名を代替テキストとして付けました。読み上げを使っているときや、画像が表示されないときも、何の並びか分かります。",
      "The image on a share page now has alt text with its title and the first 10 track names, so screen reader users, or anyone whose image fails to load, can tell what the grid contains."),
     ("2026-09-23", "トラックを外す・入れ替える・動かすなどの操作を、Ctrl+Z（Mac は ⌘Z）で 1 つずつ戻せるようになりました（30 回まで）。Ctrl+Shift+Z でやり直せます。スマホでは、操作のあとに出る「元に戻す」を押すと戻ります。",
@@ -501,7 +503,7 @@ CHANGES: list[tuple[str, str, str]] = [
     ("2026-09-16", "BandcampのアルバムURLを貼り付けると、収録曲を各マスに一括で追加できるようになりました。",
      "Pasting a Bandcamp album URL now adds each of its tracks to the grid in one go."),
     ("2026-09-16", "カラーパレットを8色1組で管理できるようにし、画面全体の背景色ごと切り替えられるようにしました。暗い配色の「ナイト」も選べます。",
-     "Colour palettes now come in sets of eight and switch the background of the whole interface too, including the dark “Night” palette."),
+     "Color palettes now come in sets of eight and switch the background of the whole interface too, including the dark “Night” palette."),
     ("2026-09-16", "画像共有時に、アップロードの進捗状況（プログレスバー）を表示するようにしました。途中でキャンセルすることも可能です。",
      "Sharing now shows an upload progress bar, and you can cancel partway through."),
     ("2026-09-16", "「マスを全部外す」ボタンを誤タップしづらい位置へ移動し、実行後も「元に戻す」で復元できるようにしました。",
@@ -513,7 +515,7 @@ CHANGES: list[tuple[str, str, str]] = [
     ("2026-09-16", "完成画像のプレビューと保存を端末内（ローカル）で直接処理するように改善しました。通信状態が不安定な環境でも保存に失敗しづらくなります。",
      "The finished image is now previewed and saved directly on your device, so saving is less likely to fail on an unstable connection."),
     ("2026-09-15", "カラーパレット機能を追加しました。好みのパレットを自作でき、カラーコードをコピーして他の人と共有することも可能です。",
-     "Added colour palettes. You can make your own and share it by copying its colour codes."),
+     "Added color palettes. You can make your own and share it by copying its color codes."),
     ("2026-09-15", "共有ページの曲名から、各配信元（YouTube、ニコニコ動画、Bandcampなど）の元ページへ直接リンクで飛べるようにしました。",
      "Track titles on share pages now link to their original pages (YouTube, Niconico, Bandcamp and so on)."),
     ("2026-09-15", "共有画像および共有ページの保存期間を、7日間から30日間に延長しました。",
@@ -527,7 +529,7 @@ CHANGES: list[tuple[str, str, str]] = [
     ("2026-09-15", "URLの末尾に「?lang=en」「?lang=ja」を付けることで、表示言語を直接指定できるようにしました。",
      "Adding “?lang=en” or “?lang=ja” to a URL now sets the display language."),
     ("2026-09-15", "スマートフォンでの誤操作を防ぐため、スライダー（余白・マスの間隔・色調など）はつまみを正しくドラッグした時のみ動くように改善しました。",
-     "To prevent accidental changes on phones, sliders (margin, cell spacing, colour and so on) now move only when you drag the handle."),
+     "To prevent accidental changes on phones, sliders (margin, cell spacing, color and so on) now move only when you drag the handle."),
     ("2026-09-14", "長い曲名が2行に折り返されるよう調整し、続くアーティスト名が見切れたり消えたりしないようにしました。",
      "Long titles now wrap onto two lines so the artist name that follows is no longer cut off or lost."),
     ("2026-09-14", "曲数が多い場合、曲名リストを文章のように連続して流し込み、画像内に無駄なく収めるレイアウトを追加しました。",
@@ -549,7 +551,7 @@ CHANGES: list[tuple[str, str, str]] = [
     ("2026-09-11", "画像の既定比率をX（旧Twitter）に適した「16:9」に変更しました。Instagram投稿向けの「4:5」も選択可能です。",
      "The default image ratio is now 16:9, which suits X (formerly Twitter). 4:5 for Instagram posts is also available."),
     ("2026-09-11", "カスタムカラー設定に、色相・彩度・明度を微調整できるスライダーを追加しました。",
-     "Custom colours now have hue, saturation and brightness sliders for fine-tuning."),
+     "Custom colors now have hue, saturation and brightness sliders for fine-tuning."),
     ("2026-09-11", "共有ページ上に、ページの有効期限（掲載終了予定日）を表示するようにしました。",
      "Share pages now show when they will expire."),
     ("2026-09-09", "TRACKMENTOを一般公開しました。iTunes、MusicBrainz、Discogs、otoDBからの楽曲検索に加え、Bandcamp、SoundCloud、YouTube、ニコニコ動画、bilibili、SpotifyのURL貼り付けに対応。ジャケットが無い曲は手動で画像をアップロードして設定できます。",
