@@ -9,6 +9,7 @@
   **本番の R2 には上げない**（uploads.read_bytes の手元への逃げ道）。名前は uploads の形（16 進 16 桁）で、頭を fa4e にしてある
 - 白黒のジャケット 16 枚（明るさを段階的に。色で並べ替えの場面用）
 - 曲の一覧は `promo/public/fake-tracks.json`・`fake-tracks-wide.json`・`fake-tracks-mono.json`（x_clips.mjs と台本が読む）
+- 背景の画像の場面の見本 `promo/public/x-bg-sample.jpg`（メッシュグラデーション）も作る
 何度回しても同じ絵になる（乱数の種を固定）。
 """
 from __future__ import annotations
@@ -111,6 +112,68 @@ def label(im: Image.Image, title: str, ink, bg) -> None:
     d.text((pad, im.height - pad), title, font=f, fill=ink, anchor="ls")
 
 
+def _srgb_to_oklab(rgb):
+    """sRGB（0〜1）→ OKLab。色を混ぜるのはこの空間で行う（sRGB のまま混ぜると、境目が灰色に濁る）"""
+    import numpy as np
+    c = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    m1 = np.array([[0.4122214708, 0.5363325363, 0.0514459929], [0.2119034982, 0.6806995451, 0.1073969566], [0.0883024619, 0.2817188376, 0.6299787005]])
+    lms = np.cbrt(c @ m1.T)
+    m2 = np.array([[0.2104542553, 0.7936177850, -0.0040720468], [1.9779984951, -2.4285922050, 0.4505937099], [0.0259040371, 0.7827717662, -0.8086757660]])
+    return lms @ m2.T
+
+
+def _oklab_to_srgb(lab):
+    import numpy as np
+    m2i = np.array([[1.0, 0.3963377774, 0.2158037573], [1.0, -0.1055613458, -0.0638541728], [1.0, -0.0894841775, -1.2914855480]])
+    lms = (lab @ m2i.T) ** 3
+    m1i = np.array([[4.0767416621, -3.3077115913, 0.2309699292], [-1.2684380046, 2.6097574011, -0.3413193965], [-0.0041960863, -0.7034186147, 1.7076147010]])
+    c = np.clip(lms @ m1i.T, 0, 1)
+    return np.where(c <= 0.0031308, c * 12.92, 1.055 * c ** (1 / 2.4) - 0.055)
+
+
+def _smooth_noise(w: int, h: int, cells: int, rng) -> "object":
+    """なめらかなノイズ（粗い乱数の升目を拡大して補間）。-1〜1"""
+    import numpy as np
+    small = Image.fromarray(((rng.random((cells, max(2, int(cells * w / h)))) * 255)).astype("uint8"), "L")
+    return np.asarray(small.resize((w, h), Image.BICUBIC), dtype=float) / 127.5 - 1
+
+
+def mesh_gradient(w: int, h: int, points, grain: float = 0.018, seed: int = 7, warp: float = 0.07) -> Image.Image:
+    """メッシュグラデーション（2026-09-25。色の塊をぼかしただけの版は濁って美しくない、と利用者）。
+    - 色は **OKLab で混ぜる**（点からの距離のガウスで重みを付けた平均）。境目がくすまず、明るさがなめらかにつながる
+    - **細かい粒を足す**（±grain）。なめらかな面は JPEG で縞（階段）が出るので、粒でならす
+    - **座標をなめらかなノイズでゆらす**（warp。After Effects のタービュレントディスプレイスと同じ考え。
+      色が四隅から直線的に移るだけだと単調なので、境目を少しずつずらして自然に混ぜる。利用者が挙げた作例から）
+    - 離れた色（黄と青など）を隣に置くときは、**あいだに中間色の点を置く**（直接つなぐと濁る。同じく作例から）
+    points は (x 0〜1, y 0〜1, (r, g, b), 広がり 0〜1)"""
+    import numpy as np
+    ys, xs = np.mgrid[0:h, 0:w]
+    u, v = xs / w, ys / h * (h / w)   # 縦横比をそろえた座標
+    rng0 = np.random.default_rng(seed + 1)
+    # ゆらぎは粗いものから細かいものまで 4 段を重ねる（フラクタルノイズ）。1 段だけだと大きくうねるだけで、
+    # 水彩や雲のような「大小のむら」にならない（利用者が挙げた「液体系」のグラデーション背景の作例から）
+    fbm = lambda: sum(a * _smooth_noise(w, h, c, rng0) for c, a in ((3, 0.5), (6, 0.25), (12, 0.15), (24, 0.1)))
+    u = u + warp * fbm()
+    v = v + warp * fbm()
+    acc = np.zeros((h, w, 3)); wsum = np.zeros((h, w, 1)); chroma = np.zeros((h, w, 1))
+    for (px, py, rgb, spread) in points:
+        d2 = (u - px) ** 2 + (v - py * h / w) ** 2
+        wt = np.exp(-d2 / (2 * spread ** 2))[..., None]
+        lab = _srgb_to_oklab(np.array(rgb, dtype=float) / 255)
+        acc += wt * lab
+        chroma += wt * np.hypot(lab[1], lab[2])
+        wsum += wt
+    mix = acc / np.maximum(wsum, 1e-9)
+    # **鮮やかさは別に平均して保つ**（a・b をそのまま平均すると、反対どうしの色が打ち消し合って真ん中が灰色になる）
+    c_now = np.hypot(mix[..., 1:2], mix[..., 2:3])
+    # 持ち上げは 1.35 倍まで（上限が無いと、混ぜた色の向きが入れ替わる所に筋が出る）。**色は色相の近いものどうしで組む**こと
+    mix[..., 1:] *= np.minimum((chroma / np.maximum(wsum, 1e-9)) / np.maximum(c_now, 1e-6), 1.35)
+    rgb = _oklab_to_srgb(mix)
+    rng = np.random.default_rng(seed)
+    rgb = np.clip(rgb + rng.normal(0, grain, (h, w, 1)), 0, 1)
+    return Image.fromarray((rgb * 255 + 0.5).astype("uint8"), "RGB")
+
+
 def make_mono(items, size: int, tag: str, rng: random.Random) -> list[dict]:
     """白黒のジャケット。地の明るさを暗い → 明るいに等分し、図形は少しだけ明るさを変える（色を入れない）"""
     out = []
@@ -150,6 +213,13 @@ def main() -> None:
     square = make(SQUARE, 600, 600, "01", rng)
     wide = make(WIDE, 640, 360, "02", rng)
     mono = make_mono(MONO, 600, "03", rng)
+    # 背景の画像の見本（穏やかなメッシュグラデーション。にぎやかさが低いので、濃さ 5 割で見本にも見える）
+    mesh_gradient(1600, 900, [
+        # 色相の近い並び（青緑 → 緑 → 若草 → クリーム）。反対どうしの色を隣に置くと、境目が濁るか筋になる
+        (0.05, 0.85, (40, 170, 170), 0.20), (0.30, 0.55, (110, 210, 190), 0.18), (0.55, 0.20, (160, 230, 170), 0.20),
+        (0.85, 0.35, (200, 240, 185), 0.18), (0.95, 0.90, (250, 245, 205), 0.22), (0.20, 0.10, (150, 225, 200), 0.18),
+        (0.60, 0.80, (90, 195, 175), 0.16),
+    ], warp=0.16).save(OUT / "x-bg-sample.jpg", quality=92)
     (OUT / "fake-tracks-mono.json").write_text(json.dumps(mono, ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "fake-tracks.json").write_text(json.dumps(square, ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "fake-tracks-wide.json").write_text(json.dumps(wide, ensure_ascii=False, indent=1), encoding="utf-8")

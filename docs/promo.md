@@ -45,8 +45,11 @@ note の記事用の GIF・写真・表の撮り方。動画そのものの作�
   - Remotion 同梱の ffmpeg には fps・select などのフィルタが無い。GIF は Remotion の `--codec=gif`（`remotion.config.ts` は GIF のとき CRF を渡さない）
   - **背景色の場面（`bg-modes` / `bg-image`）は撮るあいだだけ関係のない欄を隠す**（`STAGE_BG`。グリッドとメッセージ、背景色の欄だけ残す）。
     背景色の欄は出力オプションのずっと下にあり、そこまで送るとグリッド（色が変わるところ）が画面の上に出て、1280x720 では両方が入らない
-  - `bg-image` の見本の画像は `promo/public/x-bg-sample.jpg`（git の外）。色の塊をぼかした穏やかな画像にしてある（にぎやかな画像だと濃さが 2 割になり、見本で見えない）。
-    無ければ作る: `PYTHONUTF8=1 .venv/Scripts/python -c "from PIL import Image, ImageDraw, ImageFilter; im = Image.new('RGB', (1600, 900), (250, 214, 165)); d = ImageDraw.Draw(im); [d.ellipse((x - r, y - r, x + r, y + r), fill=c) for x, y, r, c in [(200, 150, 420, (244, 132, 95)), (1150, 250, 480, (120, 170, 230)), (700, 750, 520, (150, 210, 160)), (1450, 820, 360, (230, 120, 170))]]; im.filter(ImageFilter.GaussianBlur(120)).save('promo/public/x-bg-sample.jpg', quality=90)"`
+  - `bg-image` の見本の画像は `promo/public/x-bg-sample.jpg`（git の外。`promo/fake_covers.py` の `mesh_gradient` が作る）。
+    グラデーションは利用者が挙げた作例（After Effects の作例 4 件）から 3 つの決まりで作る: ① **色は OKLab で混ぜ、鮮やかさを別に平均して保つ**
+    （sRGB のまま混ぜると境目が濁る） ② **色相の近い色で組み、離れた色を隣に置くなら中間色を挟む**（オレンジと青を隣に置いたら境目に筋が出た）
+    ③ **座標をフラクタルノイズ（粗い〜細かい 4 段）でゆらす**（タービュレントディスプレイスと同じ考え。直線的な移り変わりが水彩や雲のようなむらになる）。
+    仕上げに細かい粒を足して JPEG の縞を消す。穏やかな画像なので濃さが 5 割になり、見本でも見える
   - **撮影で上げた画像は本番の R2 に残る**（手元のサーバーも .env の R2 を使う）。`x_clips.mjs` が `/upload` の返事を `public/xclips/<id>/uploads.json` に記録するので、
     撮ったら `PYTHONUTF8=1 .venv/Scripts/python scripts/clean_x_uploads.py` で消す（記録した分だけ。利用者の画像には触れない）
   - 2026-09-25 の撮り直しで 11 本（前の 8 本＋ `undo-buttons` / `bg-modes` / `bg-image`）
