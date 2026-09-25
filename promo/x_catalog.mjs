@@ -19,9 +19,14 @@ const nico = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-wide.jso
 // 白黒の架空のジャケット（明るさを段階的に）。色で並べ替えの場面で使う
 const mono = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-mono.json", "utf-8"));   // 架空の 16:9 のサムネ（promo/fake_covers.py）
 
-/** 背景色の場面で隠すもの（グリッドの窓はグリッドとメッセージだけ、出力オプションは背景色の欄だけ残す） */
-// 「できあがりを見る」と「できあがり」の窓（見本と状態の一行だけ）は残す（bg-image で押して見せる）
-const STAGE_BG = ".pane-grid > .pane-body > :not(#grid-scroll):not(#grid-msg):not(.grid-actions):not(#output), .grid-actions > :not(#preview-btn), #output .pane-body > :not(#out-shot):not(#out-msg), .pane-options > .pane-body > :not(fieldset:has(#bg-mode-seg)) { display: none !important; }";
+/** 背景色の場面の窓の置き方（k.arrange）。左にグリッドの窓（グリッドとメッセージと「できあがりを見る」）、右に出力オプション（背景色の欄だけ）、
+    その下に「できあがり」の窓（見本と状態の一行）。1280x720 の画面にぜんぶ入る */
+const ARRANGE_BG = {
+  ".pane-grid": { x: 40, y: 40, w: 330, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] },
+  ".pane-options": { x: 400, y: 40, w: 330, only: ["fieldset:has(#bg-mode-seg)"] },
+  "#output": { x: 760, y: 40, w: 480 },
+};
+const ARRANGE_BG_CSS = ".grid-actions > :not(#preview-btn), #output .pane-body > :not(#out-shot):not(#out-msg) { display: none !important; } .grid-actions > #preview-btn { grid-column: 1 / -1; }";
 
 /** 曲を n 個入れて、ジャケットがそろうまで待つ */
 async function ready(k, n, size, opts = {}, list) {
@@ -228,9 +233,9 @@ export default [
     async setup(k) {
       // 背景の色が見えるように、マスの間隔と余白を広めにする
       await ready(k, 9, [3, 3], { gap: 48, margin: 48, bg: "paper" });
-      // **撮るあいだだけ、グリッドと背景色の欄以外を隠して横に並べる**。背景色の欄は出力オプションのずっと下にあり、
-      // そこまで送るとグリッド（色が変わるところ）が画面の上に出て映らない（1280x720 では両方が入らない）
-      await k.stage(STAGE_BG);
+      // **撮るあいだだけ、窓を並べ直す**（k.arrange）。背景色の欄は出力オプションのずっと下にあり、
+      // そのままだとグリッド（色が変わるところ）と同じ画面に入らない
+      await k.arrange(ARRANGE_BG); await k.stage(ARRANGE_BG_CSS);
       await k.look(["#grid", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg", "#bg-msg"]);
       await k.park(1150, 650);
     },
@@ -251,9 +256,9 @@ export default [
     what: "「背景色」の「画像」… 端末の好きな画像を背景に敷く。曲名が読めるように、にぎやかな画像ほど薄く",
     async setup(k) {
       await ready(k, 9, [3, 3], { gap: 48, margin: 48, bg: "paper" });
-      // **撮るあいだだけ、グリッドと背景色の欄以外を隠して横に並べる**。背景色の欄は出力オプションのずっと下にあり、
-      // そこまで送るとグリッド（色が変わるところ）が画面の上に出て映らない（1280x720 では両方が入らない）
-      await k.stage(STAGE_BG);
+      // **撮るあいだだけ、窓を並べ直す**（k.arrange）。背景色の欄は出力オプションのずっと下にあり、
+      // そのままだとグリッド（色が変わるところ）と同じ画面に入らない
+      await k.arrange(ARRANGE_BG); await k.stage(ARRANGE_BG_CSS);
       await k.look(["#grid", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg", "#bg-image-box", "#bg-msg"]);
       await k.park(1150, 650);
     },

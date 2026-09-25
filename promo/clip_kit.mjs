@@ -159,6 +159,26 @@ export function makeKit(page, tracks) {
     document.elementFromPoint(x, y)?.dispatchEvent(new WheelEvent("wheel", { deltaY: dy, clientX: x, clientY: y, ctrlKey: true, bubbles: true, cancelable: true }));
   }, { x, y, dy });
 
+  /** **窓を好きな位置に並べる**（2026-09-25）。台本に書いた窓だけを画面の上に置き、ほかは隠す。
+      layout は { セレクタ: { x, y, w, h?, only? } }（CSS px）。only を渡すと、その窓の中身（.pane-body の子）は
+      only のセレクタに当たるものだけ残す（背景色の欄だけ見せる、など）。窓は並びの流れから外して画面に固定する
+      （サイトの「窓を動かす」とは別。撮影のときだけ）。見本の窓などのモーダルはそのまま前に出る */
+  async function arrange(layout) {
+    const lines = ["body * { visibility: hidden !important; } .modal, .modal * { visibility: visible !important; }"];
+    const others = Object.keys(layout).join("):not(");
+    for (const [sel, o] of Object.entries(layout)) {
+      lines.push(`${sel}, ${sel} * { visibility: visible !important; }`);
+      lines.push(`${sel} { position: fixed !important; left: ${o.x}px !important; top: ${o.y}px !important; width: ${o.w}px !important; ` +
+                 `${o.h ? `height: ${o.h}px !important; overflow: hidden !important; ` : ""}margin: 0 !important; transform: none !important; z-index: 50 !important; }`);
+      // 台本に書いたほかの窓は、中身を絞っても消さない（「できあがり」の窓はグリッドの窓の中にある）
+      if (o.only) lines.push(`${sel} > .pane-body > :not(${o.only.join("):not(")}):not(${others}) { display: none !important; }`);
+      // 並べた窓の中にある別の窓（グリッドの窓の中の「できあがり」など）は、台本に無ければ見せない
+      lines.push(`${sel} .pane:not(${others}) { display: none !important; }`);
+    }
+    await page.addStyleTag({ content: lines.join(" ") });
+    await page.evaluate(() => window.scrollTo(0, 0));
+  }
+
   /** 撮るあいだだけ見た目を足す（場面に関係のない部品を隠すなど） */
   const stage = (css) => page.addStyleTag({ content: css });
   /** 要素を画面の縦の位置 y（CSS px）へ送る（撮る前に。撮りながら送るとカメラと二重に動く） */
@@ -200,5 +220,5 @@ export function makeKit(page, tracks) {
   }
 
   return { page, tracks, frame, hold, until, live, look, wide, park, hideCursor, glide, press, key, type, dragThumb,
-           ctrlWheel, stage, scrollTo, seed, waitArt, start, finish };
+           ctrlWheel, arrange, stage, scrollTo, seed, waitArt, start, finish };
 }

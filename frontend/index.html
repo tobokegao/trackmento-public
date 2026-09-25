@@ -273,6 +273,18 @@ img { max-width: 100%; display: block; }
   background: var(--color-paper); color: var(--color-ink); cursor: pointer;
 }
 .lang-switch:hover { background: var(--color-ink); color: var(--color-paper); }
+/* 窓を動かしたあとに出す「窓を元に戻す」（2026-09-25）。言語の切り替えの左 */
+.win-reset { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 5px 10px;
+  border: var(--line) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); cursor: pointer; }
+.win-reset[hidden] { display: none; }
+/* **窓は題名バーを掴んで動かせる**（PC だけ。2026-09-25、利用者の案）。並びの流れからは外さず、ずらして描く（transform）ので
+   周りの組み方は崩れない。動かしている間は掴んだ窓を前に出し、影を少し深くする */
+@media (min-width: 60rem) and (pointer: fine) {
+  .pane-title { cursor: grab; }
+  .pane.is-moving { cursor: grabbing; }
+  .pane.is-moving > .pane-title { cursor: grabbing; }
+}
+.pane.is-moved { position: relative; z-index: 20; }   /* 動かした窓は下の窓の部品（プルダウンの矢印など）より前に出す */
 .bar-status { margin: 0 0 0 auto; order: 8; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
 
 /* ---------- Mac OS 9（プラチナ）風のスクロールバー ---------- */
@@ -1340,6 +1352,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 <header class="bar">
   <h1 class="wordmark"><a class="mark" id="home-link" href="/">TRACKMENTO</a> <small id="wordmark-tag"></small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite"></p>
+  <button class="win-reset" type="button" id="win-reset" hidden title="動かした窓を元の位置に戻す">窓を元に戻す</button>
   <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
 <aside class="inapp" id="migrate-notice" hidden>
@@ -2067,6 +2080,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "やり直せる操作はありません。": "Nothing to redo.",
         "やり直しました。": "Redone.",
         "やり直す": "Redo",
+        "窓を元に戻す": "Reset windows",
+        "動かした窓を元の位置に戻す": "Put moved windows back where they were",
         "できあがりを見る": "Preview",
         "書き出す画像の見本を「できあがり」の窓に作って見せる（送らない）": "Make a preview of the exported image in the result window (nothing is sent)",
         "更新": "Refresh",
@@ -7799,10 +7814,64 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   }
   for (const el of foldables()) {
     const head = el.querySelector(":scope > .pane-title, :scope > .sub-title");
-    if (head) head.addEventListener("click", (e) => { if (e.target.closest("a, input")) return; toggleFold(el); });
+    if (head) head.addEventListener("click", (e) => { if (e.target.closest("a, input")) return; if (winDragged) { winDragged = false; return; } toggleFold(el); });
   }
   mq.addEventListener("change", applyFold);
   applyFold();
+
+  /* ---- 窓を動かす（2026-09-25、利用者の案）。PC（マウス）だけ。題名バーを掴んで 4px 以上動かしたらドラッグ（それより小さければ今までどおり畳む）。
+     位置は並びの流れのままずらして描き（transform）、画面ごとに localStorage に覚える。題名バーが画面の外に出ないように抑える。
+     「窓を元に戻す」（上のバー）で全部の窓を戻す。スマホの幅では効かせない（覚えた位置も当てない） ---- */
+  const WIN_KEY = "trackmento:winpos";
+  const winMq = window.matchMedia("(min-width: 60rem) and (pointer: fine)");
+  const movables = () => [...document.querySelectorAll(".workbench > .pane, #output")];
+  let winDragged = false, winZ = 20;
+  const loadWin = () => { try { return JSON.parse(localStorage.getItem(WIN_KEY) || "{}") || {}; } catch { return {}; } };
+  const saveWin = (v) => { try { localStorage.setItem(WIN_KEY, JSON.stringify(v)); } catch { /* ignore */ } };
+  function applyWin() {
+    const pos = winMq.matches ? loadWin() : {};
+    for (const el of movables()) {
+      const p = pos[foldId(el)];
+      el.style.transform = p ? `translate(${p[0]}px, ${p[1]}px)` : "";
+      el.classList.toggle("is-moved", !!p);
+    }
+    $("#win-reset").hidden = !Object.keys(pos).length;
+  }
+  for (const el of movables()) {
+    const head = el.querySelector(":scope > .pane-title");
+    if (!head) continue;
+    head.addEventListener("pointerdown", (e) => {
+      if (!winMq.matches || e.button !== 0 || e.target.closest("button, a, input, select")) return;
+      const id = foldId(el), start = loadWin()[id] || [0, 0], sx = e.clientX, sy = e.clientY;
+      let moving = false, cur = start;
+      const move = (ev) => {
+        const dx = ev.clientX - sx, dy = ev.clientY - sy;
+        if (!moving && Math.hypot(dx, dy) < 4) return;
+        if (!moving) { moving = true; el.classList.add("is-moving", "is-moved"); el.style.zIndex = String(++winZ); }
+        // 題名バーを画面の中に残す（掴んだ所が画面の外に出ないように）
+        const r = head.getBoundingClientRect(), bx = r.left - (cur[0] - start[0]), by = r.top - (cur[1] - start[1]);
+        const nx = Math.min(Math.max(start[0] + dx, start[0] - (bx + r.width - 60)), start[0] + (innerWidth - 60 - bx));
+        const ny = Math.min(Math.max(start[1] + dy, start[1] - by), start[1] + (innerHeight - r.height - by));
+        cur = [Math.round(nx), Math.round(ny)];
+        el.style.transform = `translate(${cur[0]}px, ${cur[1]}px)`;
+      };
+      const up = () => {
+        head.removeEventListener("pointermove", move); head.removeEventListener("pointerup", up); head.removeEventListener("pointercancel", up);
+        el.classList.remove("is-moving");
+        if (!moving) return;
+        winDragged = true;   // 続けて来る click（畳む）を 1 回だけ止める
+        setTimeout(() => { winDragged = false; }, 0);
+        const all = loadWin();
+        if (cur[0] || cur[1]) all[id] = cur; else delete all[id];
+        saveWin(all); applyWin();
+      };
+      try { head.setPointerCapture(e.pointerId); } catch { /* 古いブラウザ */ }
+      head.addEventListener("pointermove", move); head.addEventListener("pointerup", up); head.addEventListener("pointercancel", up);
+    });
+  }
+  $("#win-reset").addEventListener("click", () => { saveWin({}); for (const el of movables()) el.style.zIndex = ""; applyWin(); });
+  winMq.addEventListener("change", applyWin);
+  applyWin();
 
   migratePalettes();   // 6 色で保存された古い組を 8 色にしてから
   applyPalette();      // 覚えておいた組を画面の配色に反映してから見本を描く

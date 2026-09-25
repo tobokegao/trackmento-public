@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "パソコンでは、窓の題名バーを掴んで好きな位置に動かせるようにしました。位置はその画面で覚えておき、上のバーの「窓を元に戻す」で元に戻せます。",
+     "On computers, you can now drag a window by its title bar to move it anywhere. The position is remembered on that screen, and “Reset windows” in the top bar puts them back."),
     ("2026-09-25", "「できあがり」の窓をいつも出すようにしました。「更新」で書き出す画像の見本を作り、同じ窓から「トラックを共有」「トラック名をコピー」ができます。並びと設定が変わっていなければ作り直さないので、すぐに出ます。グリッドの下のボタンは「トラックを探す」と「できあがりを見る」になりました。",
      "The result window is now always shown. “Refresh” makes a preview of the exported image, and you can use “Share these tracks” and “Copy track names” from the same window. If nothing changed, the preview appears right away without being made again. The buttons below the grid are now “Find a track” and “Preview”."),
     ("2026-09-25", "端末から上げた画像（手入力のマスや背景の画像）の保存期間を、30日間から90日間に延ばしました。共有の保存期間（30日間）は変わりません。",
