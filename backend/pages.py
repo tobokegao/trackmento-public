@@ -278,8 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-25", "画面の言葉を見直しました。「ジャケット」は「サムネイル」（見出しや選択肢では「サムネ」）に、トラックリストは「横並び」「重ね表示」「非表示」、余白は「標準」「広め」「特大」、背景の「背景を透過」は「透過」、画像の敷き方は「全体表示」「タイル」などに変えています。",
-     "Reworded the screen. “Cover” is now “thumbnail,” the track list options are “Beside the grid,” “Over the cells” and “Hidden,” and the background, spacing and image options have shorter names."),
+    ("2026-09-25", "画面の言葉を見直しました。「ジャケット」は「サムネイル」（見出しや選択肢では「サムネ」）に、トラックリストは「横並び」「重ね表示」「非表示」、背景の「背景を透過」は「透過」、画像の敷き方は「全体表示」「タイル」などに変えています。",
+     "Reworded the screen. “Cover” is now “thumbnail,” the track list options are “Beside the grid,” “Over the cells” and “Hidden,” and the background and image options have shorter names."),
     ("2026-09-25", "出力オプションの呼び名をそろえました。「比率」は「全体枠」、「マスの形」は「マス枠」、「サムネの入れ方」は「サムネ余白」（「トリミング」「ぼかし背景」）、「背景色」は「背景」（「色の選択」「ジャケットの近似色」「ジャケットの補色」）です。比率は「横長 16:9」の形で書きます。",
      "Renamed the output options to match each other: “Ratio” is now “Image frame,” “Cell shape” is “Cell frame,” “How thumbnails fit” is “Thumbnail fill” (“Crop,” “Blurred backdrop”), and “Background color” is “Background” (“Choose a color,” “Match the covers,” “Complement the covers”). Ratios are written like “Wide 16:9.”"),
     ("2026-09-25", "出力オプションの「全体枠」「マス枠」「サムネ余白」を「枠とサムネ」の三角で畳めるようにしました（畳んでいても今の設定が下に出ます）。スマホで「大きく見る」を閉じたあと、マスを選ぶと編集欄がずっと下に出ていたのを直しました。サイズを戻してトラックが復帰したら、そう知らせるようにしました。",
