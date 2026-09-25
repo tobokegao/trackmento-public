@@ -268,6 +268,8 @@ export default [
       await k.hold(1.2);
       // **書き出しの画像（曲名リスト込み）まで見せる**。見本はマスの隙間にしか画像が見えないので（利用者の指摘）、
       // 「できあがりを見る」を押して見本の窓に寄る（端末の中で描くだけで、共有は作らない）
+      // ボタンはグリッドの下なので、押す前にそこまで引いて映す（枠の外で押すと、何を押したか分からない。利用者の指摘）
+      await k.look(["#grid", "#preview-btn", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg"], 0.6);
       await k.press("#preview-btn");
       await k.until(() => k.page.evaluate(() => !document.querySelector("#preview-img").hidden && document.querySelector("#preview-img").complete), "できあがりの見本", 60000);
       await k.look(["#preview-modal .modal-panel"], 0.8);
