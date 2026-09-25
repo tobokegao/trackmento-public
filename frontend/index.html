@@ -2135,6 +2135,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "やり直せる操作はありません。": "Nothing to redo.",
         "やり直しました。": "Redone.",
         "やり直す": "Redo",
+        "並びが上限（{} 個）なので、共有 {} を開けませんでした。使わない並びを消してから、このページを読み込み直してください。": "You already have the maximum of {0} layouts, so share {1} could not be opened. Delete a layout you don't need, then reload this page.",
         "窓を元に戻す": "Reset windows",
         "動かした窓を元の位置に戻す": "Put moved windows back where they were",
         "できあがりを見る": "Preview",
@@ -4567,7 +4568,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     popList.replaceChildren(...[...sel.options].map((o, idx) => [o, idx]).filter(([o]) => o.value !== "").map(([o, idx]) => {
       const li = document.createElement("li");
       li.role = "option"; li.tabIndex = -1; li.textContent = o.textContent; li.dataset.index = idx;
-      li.setAttribute("aria-selected", String(idx === sel.selectedIndex));
+      // お題は選んだあと「見本から選ぶ…」に戻すので、今のタイトルと同じ項目に印を付ける（利用者の指摘「タイトルとお題の一覧が合っていない」）
+      const on = sel.id === "theme-sel" ? o.textContent.trim() === (state.title || "").trim() : idx === sel.selectedIndex;
+      li.setAttribute("aria-selected", String(on));
       li.addEventListener("click", () => choose(li));
       li.addEventListener("pointerenter", () => li.focus({ preventScroll: true }));
       return li;
@@ -4893,7 +4896,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      ② 色は色相の順に並べ、離れた色（60° 超）のあいだには中間色を挟む（直接つなぐと濁るか筋になる）
      ③ 座標をフラクタルノイズ（粗い〜細かい 4 段）でゆらす（水彩や雲のようなむらになる）。仕上げに細かい粒（JPEG の縞よけ）
      絵は 640x360 で描く（書き出しでは拡大して敷く。なめらかな絵なので粗さは目立たない） ---- */
-  const GW = 640, GH = 360;
+  // 384x216 で描く（2026-09-25。640x360 ではスマホで切り替えのたびに 0.8〜0.9 秒止まった。なめらかな絵なので引き伸ばしても差は出ない）
+  const GW = 384, GH = 216;
+  const GRAD_CACHE = new Map();   // 配色と模様の番号 → 描いた絵（切り替えて戻したときに描き直さない）
   const srgbToLin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
   const linToSrgb = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
   function toOklab([r, g, b]) {
@@ -5006,7 +5011,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     const key = JSON.stringify([colors, g.seed]);
     if (key === gradKey && gradCanvas) { syncBgMode(); return; }
-    gradCanvas = drawGradient(colors, g.seed); gradKey = key;
+    if (!GRAD_CACHE.has(key)) {
+      // ラジオの表示を先に変えてから描く（描いている間は画面が止まるので、押した手応えが遅れて見えた）
+      await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+      if (state.bgMode !== "gradient") return;
+      if (GRAD_CACHE.size > 12) GRAD_CACHE.clear();
+      GRAD_CACHE.set(key, drawGradient(colors, g.seed));
+    }
+    gradCanvas = GRAD_CACHE.get(key); gradKey = key;
     if (gradUrl) URL.revokeObjectURL(gradUrl);
     const blob = await canvasToBlob(gradCanvas, "image/jpeg", 0.92);
     gradUrl = URL.createObjectURL(blob);
@@ -8181,10 +8193,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (r.status === 404) throw new Error(tr("期限切れか削除済みです"));
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await readJson(r);
-      /* **今の並びにトラックがあれば、新しい並びとして開く**（上書きしない。並びが上限に達していれば今までどおり今の並びへ） */
+      /* **今の並びにトラックがあれば、必ず新しい並びとして開く**（上書きしない。2026-09-25、利用者の指摘）。
+         以前は並びが上限のときと、手元に控えが無い（サーバーにだけある）ときに、今の並びへ上書きしていた。
+         上限のときは読み込まずに知らせる（URL は残すので、並びを消して読み込み直せば開ける） */
       let cur = null;
       try { cur = JSON.parse(localStorage.getItem(storageKey()) || "null"); } catch { cur = null; }
-      const added = !!(cur && Array.isArray(cur.cells) && cur.cells.some(Boolean)) && !!addLayout();
+      if (!(cur && Array.isArray(cur.cells) && cur.cells.some(Boolean))) cur = await fetchServerGrid() || cur;
+      const busy = !!(cur && Array.isArray(cur.cells) && cur.cells.some(Boolean));
+      if (busy && layouts.list.length >= LAYOUTS_MAX) {
+        say(els.gridMsg, tr`並びが上限（${LAYOUTS_MAX} 個）なので、共有 ${sid} を開けませんでした。使わない並びを消してから、このページを読み込み直してください。`, "error");
+        return false;
+      }
+      const added = busy && !!addLayout();
       applyData(d);
       history.replaceState(null, "", location.pathname);
       say(els.gridMsg, added
