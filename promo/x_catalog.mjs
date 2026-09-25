@@ -267,7 +267,7 @@ export default [
       // 「画像」を選ぶと、まだ画像が無ければそのまま選ぶ窓が開く。窓は写らないので、選んだあとの見本の変わり方を見せる
       const fc = k.page.waitForEvent("filechooser");
       await k.press('#bg-mode-seg label:has(input[value="image"])');
-      await (await fc).setFiles("promo/public/x-bg-sample.jpg");   // 色の塊をぼかした穏やかな画像（濃さが 5 割になり、見本で見える）
+      await (await fc).setFiles("promo/public/x-bg-logo.png");   // Tobokegao のロゴ（利用者の絵。文字の部分だけを切り出し、16:9 の白地の真ん中に置いたもの）
       await k.until(() => k.page.evaluate(() => /画像を背景に/.test(document.querySelector("#bg-msg").textContent)), "背景の画像", 30000);
       await k.until(() => k.page.evaluate(() => /url\(/.test(document.querySelector("#grid").style.background)), "見本の画像", 10000);
       await k.hold(1.2);
