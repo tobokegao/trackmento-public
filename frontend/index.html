@@ -1627,7 +1627,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       <section class="pane pane-output" id="output" aria-labelledby="h-output">
         <div class="pane-title"><h2 id="h-output">できあがり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="できあがりを折りたたむ"></button></span></div>
         <div class="pane-body">
-        <p class="msg" id="out-msg" role="status" aria-live="polite">「更新」を押すと、書き出す画像の見本をこの端末で作ります（送りません）。</p>
+        <p class="msg" id="out-msg" role="status" aria-live="polite">「更新」で見本を作ります（送りません）。</p>
         <button type="button" class="out-shot" id="out-shot" hidden title="大きく見る"><img id="output-img" alt="書き出す画像の見本"></button>
         <div class="out-actions">
           <button class="btn btn-sm" type="button" id="out-refresh">更新</button>
@@ -1997,7 +1997,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。 -->
 <aside class="promo" aria-label="サーバー代のおねがい">
   <span class="lbl">サーバー代のおねがい</span>
-  <p>無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
+  <p>予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭</p>
   <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a>（Bandcamp）</span>
   <span class="elsewhere">ほかで聴く:
     <a href="https://soundcloud.com/tobokegao" target="_blank" rel="noopener noreferrer">SoundCloud</a> /
@@ -2221,7 +2221,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "できあがりを見る": "Preview",
         "書き出す画像の見本を「できあがり」の窓に作って見せる（送らない）": "Make a preview of the exported image in the result window (nothing is sent)",
         "更新": "Refresh",
-        "「更新」を押すと、書き出す画像の見本をこの端末で作ります（送りません）。": "Press “Refresh” to make a preview of the exported image on this device (nothing is sent).",
+        "「更新」で見本を作ります（送りません）。": "Press “Refresh” to make a preview (nothing is sent).",
         "トラックを置くと、ここに書き出す画像の見本が出ます。": "Add tracks and a preview of the exported image appears here.",
         "並びか設定が変わりました。「更新」で見本を作り直します。": "The grid or settings changed. Press “Refresh” to update the preview.",
         "端末から上げた画像は 90 日で消えます。出ていない画像は、もう一度選び直してください。": "Images uploaded from your device are deleted after 90 days. Choose any missing images again.",
@@ -2368,7 +2368,6 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         ": 検索語と取得したサムネイル画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。": ": search terms and fetched thumbnails are cached on the server for a while, but never who searched for them. Images you send with \"Choose an image from this device\" are stripped of metadata such as capture time and location before they are stored. The picture and track list made by \"Share these tracks\" can be seen by anyone who has the URL, and expire after __RETENTION__ days. Saved layouts are keyed by a random per-browser ID, which is never included in the layout data you share.",
         "01 番に入れるトラックを探す": "Find a track for cell 01",
         "サーバー代のおねがい": "A word about server bills",
-        "無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
         "ほかで聴く:": "Also on:",
         "おかねがたりないときのうた": "Okane ga Tarinai Toki no Uta",
         "（サーバー代のたすけ）": " (helps with the server bills)",
@@ -3456,7 +3455,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     outRun++; outSig = ""; outCanvas = null; outBg = null;
     if (outUrl) { URL.revokeObjectURL(outUrl); outUrl = ""; }
     $("#out-shot").hidden = true; $("#share-done").hidden = true;
-    say($("#out-msg"), tr("「更新」を押すと、書き出す画像の見本をこの端末で作ります（送りません）。"));
+    say($("#out-msg"), tr("「更新」で見本を作ります（送りません）。"));
   }
   async function refreshOutput() {
     const msg = $("#out-msg"), btn = $("#out-refresh");
@@ -3468,7 +3467,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     try {
       if (!("createImageBitmap" in window) || !document.fonts) throw new Error("unsupported");
       await loadShareFonts();
-      CHAR_W.clear(); clearSharePlan();   // 字幅の控えは Web フォントが効いてから取り直す（shareViaBrowser と同じ）
+      CHAR_W.clear(); clearSharePlan(true);   // 字幅の控えは Web フォントが効いてから取り直す（shareViaBrowser と同じ）
       const clear = state.bgMode === "none";
       const { canvas, bg } = await renderShareCanvas(sharePlan().side, (i, n) => { if (run === outRun) say(msg, tr`画像を作成中… ${i}/${n}`); }, { transparent: clear });
       if (run !== outRun) return false;   // 作っている間に並びを切り替えられた
@@ -5678,9 +5677,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   // 1 字の幅を 1/64px にそろえてから 1px に丸める（PIL は字幅を 1/64px の固定小数で返すため）
   const snapW1 = (w) => Math.round(Math.round(w * 64) / 64);
   const charW1 = (f, ch) => {
-    const key = f + " " + ch;
-    let w = CHAR_W.get(key);
-    if (w === undefined) CHAR_W.set(key, w = snapW1(charWidth(probe, f, ch)));
+    const m = fontWidths(f);
+    let w = m.get(ch);
+    if (w === undefined) m.set(ch, w = snapW1(charWidth(probe, f, ch)));
     return w;
   };
   /* タイトルの大きさを枠に収まる範囲に抑える（backend/render.py の _title_cap）。
@@ -5723,6 +5722,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      8〜120px の 113 通り × 63 字を実際に測った値と比べ、1/64px にそろえて 1px に丸めた結果は 7,119 通りとも同じだった。
      控えは CHAR_W に "base …" の鍵で入れる（Web フォントが効いたときに一緒に捨てられる） */
   const BASE_PX = 256;
+  /* 1px に丸めた字幅の表を**書体ごとに分けて**持つ（2026-09-25）。前は「書体＋字」の文字列を 1 字ごとに作って引いていて、
+     スマホで「マスの間隔」を動かしたときの割り付け（7x7・49 曲、CPU 1/4）で時間の半分がここだった。
+     表は CHAR_W の中に "w " + 書体 の鍵で置くので、CHAR_W.clear() で一緒に捨てられる */
+  function fontWidths(f) {
+    const k = "w " + f;
+    let m = CHAR_W.get(k);
+    if (m === undefined) CHAR_W.set(k, m = new Map());
+    return m;
+  }
   function charWidth(ctx, f, ch) {
     const m = /^(\d+) ([\d.]+)px (.+)$/.exec(f);
     if (!m) { ctx.font = f; return ctx.measureText(ch).width; }
@@ -5732,7 +5740,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     return b * Number(m[2]) / BASE_PX;
   }
   // 字幅が変われば折り返しも組み方も変わるので、共有画像の大きさの見込み（`sharePlan`）も一緒に捨てる
-  if (document.fonts) document.fonts.addEventListener("loadingdone", () => { CHAR_W.clear(); clearSharePlan(); });
+  if (document.fonts) document.fonts.addEventListener("loadingdone", () => { CHAR_W.clear(); clearSharePlan(true); });
   const FLOW_FONT_STEPS = [132, 120, 108, 96, 84, 72, 64, 56, 48, 42, 36, 30, 26, 22, 18];
   // 右に置くときは出力での大きさ（px）で選ぶ（枠が先に決まるので）
   const FLOW_TARGET_PX = [56, 48, 40, 34, 28, 24, 20, 18, 16, 14, 12];
@@ -5759,19 +5767,22 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // そのかわりサーバー（PIL）とブラウザ（Canvas）で折り返す位置がわずかにずれる
     const ctx = probe;
     const fonts = { num: fontPixel(Math.round(fontS * 0.8)), title: fontBold(fontS), artist: fontRegular(fontS) };
-    const width = (kind, text) => { ctx.font = fonts[kind]; return ctx.measureText(text).width; };
     // **PIL は字幅を 1/64 px の固定小数で返す**。Canvas の実数をそこへ丸めてから 1px に丸めないと、
     // 実寸がちょうど .5 になる字（IBM Plex の e / r / -）だけ両者の丸めが 1px 食い違い、
     // その字から先の折り返しが全部ずれる（回り込みの突き合わせで 2.9% の差になっていた）
     const snapW = (w) => Math.round(Math.round(w * 64) / 64);
     // **同じ字を何度も測らない**（割り付けを探すあいだに数十万回になる）。値は変わらない
-    const cw1 = (f, ch) => {
-      const key = f + " " + ch;
-      let w = CHAR_W.get(key);
-      if (w === undefined) CHAR_W.set(key, w = snapW(charWidth(ctx, f, ch)));
+    // 書体ごとの表は最初に 1 回だけ取り、あとは字だけで引く（1 字ごとに鍵の文字列を作らない）
+    const wm = { num: fontWidths(fonts.num), title: fontWidths(fonts.title), artist: fontWidths(fonts.artist) };
+    const cw1 = (kind, ch) => {
+      const m = wm[kind];
+      let w = m.get(ch);
+      if (w === undefined) m.set(ch, w = snapW(charWidth(ctx, fonts[kind], ch)));
       return w;
     };
-    const gap = snapW(width("title", "　"));   // 曲と曲のあいだは全角空白 1 つぶん
+    // 曲と曲のあいだは全角空白 1 つぶん。**ほかの字と同じ表から引く**（2026-09-25）。ここだけ ctx.font を差し替えて
+    // 実測していて、字の大きさを何十通りも試すたびに書体を解決し直すのが、割り付けの時間のいちばん大きな部分だった
+    const gap = cw1("title", "　");
     const rows = [];
     let cur = [], x = 0, gaps = 0;
     // 今から埋める行の幅（足りなくなったら最後の幅を使い回す）
@@ -5793,19 +5804,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (lc.length < n || (cur.length === 1 && lc.length === n)) return "";
       const head = chars.slice(p, j).join("");
       last[1] = lc.slice(0, lc.length - n).join("");
-      for (const ch of head) x -= cw1(fonts[kind], ch);
+      for (const ch of head) x -= cw1(kind, ch);
       // 行末に残る空白も外す
       while (cur.length) {
         const e = cur[cur.length - 1], ec = [...e[1]];
         if (!ec.length) { cur.pop(); continue; }
         const lastCh = ec[ec.length - 1];
         if (lastCh !== " " && lastCh !== "\u3000") break;
-        x -= cw1(fonts[e[0]], lastCh); e[1] = ec.slice(0, -1).join("");
+        x -= cw1(e[0], lastCh); e[1] = ec.slice(0, -1).join("");
       }
       return head;
     };
     const put = (kind, text) => {
-      ctx.font = fonts[kind];
       const chars = [...text];
       let j0 = 0;   // この text の中で、今の行が始まった位置
       for (let j = 0; j < chars.length; j++) {
@@ -5813,16 +5823,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         if (full()) return;
         // **折り返しの判定は 1px に丸めた字幅で行う**（PIL と Canvas の 1px 未満の差で
         // 折る位置が入れ替わり、そこから先の行が全部ずれるため。描くときは実寸のまま）
-        const w = cw1(fonts[kind], ch);
+        const w = cw1(kind, ch);
         if (x + w > cw() && cur.length) {
           const moved = tailBack(kind, chars, j, j0);
           flush(); j0 = j;
           if (moved && !full()) {
-            cur = [[kind, moved]]; x = 0; for (const c of moved) x += cw1(fonts[kind], c);
+            cur = [[kind, moved]]; x = 0; for (const c of moved) x += cw1(kind, c);
             j0 = j - [...moved].length;
             if (x + w > cw()) { flush(); j0 = j; }
           }
-          ctx.font = fonts[kind];
         }
         if (cur.length && cur[cur.length - 1][0] === kind) cur[cur.length - 1][1] += ch;
         else cur.push([kind, ch]);
@@ -5839,8 +5848,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       // **ここも 1 字ごとの丸めた幅で測る**（backend/render.py と同じ）。実寸で比べると
       // 判定が入れ替わって行数が 1 つずれ、中央寄せの量が変わって全体がずれる
       let head = 0;
-      for (const ch of num) head += cw1(fonts.num, ch);
-      for (const ch of " " + title2.slice(0, 2)) head += cw1(fonts.title, ch);
+      for (const ch of num) head += cw1("num", ch);
+      for (const ch of " " + title2.slice(0, 2)) head += cw1("title", ch);
       if (cur.length && x + head > cw()) flush();
       put("num", num);
       put("title", " " + title2);
@@ -6922,7 +6931,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   window.__shareSide = (base, coarse) => shareRenderSide(base, coarse);   // 共有画像を実際に描く大きさ（流し込みを避けて上げた結果）を覗くため
   window.__sharePlan = (base, coarse) => shareRenderPlan(base, coarse);   // 同上。割り付けごと覗く（「出力サイズ」の表示と同じもの）
   window.__loadShareFonts = () => loadShareFonts();   // 割り付けを測る前に Web フォントを読む（promo/dump_layouts.mjs）
-  window.__clearCharW = () => { CHAR_W.clear(); clearSharePlan(); clearViewCells(); };
+  window.__clearCharW = () => { CHAR_W.clear(); clearSharePlan(true); clearViewCells(); };
   window.__trimName = (t, a) => trimName(t, a);   // 刈り込みの突き合わせ（scripts/compare_trim.py）
   window.__oneLine = (s) => oneLine(s);   // 描く前の文字の掃除（フォントに無い字を落とす）の突き合わせ
   // 並びを差し替えて割り付けだけ見るための口（promo/dump_layouts.mjs）。マスは曲で埋める
@@ -7766,6 +7775,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (!(L0.keepFont > 0) || L0.keepFont * (cap / base) < FLOW_KEEP_FONT) return { side: base, L: L0 };
     for (const s of SHARE_SIDE_STEPS) {
       if (s <= base || s > cap) continue;
+      // **届かない段は組まずに飛ばす**（2026-09-25、スマホで「マスの間隔」を動かすともたつくと報告）。上限を 2800 にしてから
+      // 7x7・49 曲は 2000・2400・2800 の 3 回組んでいて、CPU 1/4 で止まってから 1.4〜4.7 秒かかっていた。
+      // 字は大きさに比例するので、この段でも 1 曲 1 行が下限に届かないなら流し込みのまま（丸めのぶん 0.5px 余裕を見る）
+      if (L0.keepFont * (s / base) < FLOW_KEEP_FONT - 0.5) continue;
       const L = layout(s);
       if (!L.sbFlow) return { side: s, L };
     }
@@ -7775,9 +7788,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* **並びが変わるまで使い回す**。「出力サイズ」の表示（操作が落ち着いた 180ms 後）と
      「トラックを共有」を押したときの両方が同じものを要るので、押すたびに組み直さない */
   let sharePlanCache = null;
-  const clearSharePlan = () => { sharePlanCache = null; };
+  /* **設定ごとの結果も覚えておく**（2026-09-25）。スライダーを行き来すると同じ設定を何度も組み直していた。
+     鍵は見本の署名（`outSigNow`）と端末の上限。字幅が変わったとき（Web フォントが効いた・描く直前に測り直した）は
+     `clearSharePlan(true)` で丸ごと捨てる */
+  const sharePlanMemo = new Map();
+  const clearSharePlan = (all = false) => { sharePlanCache = null; if (all) sharePlanMemo.clear(); };
   function sharePlan() {
-    if (!sharePlanCache) sharePlanCache = shareRenderPlan();
+    if (!sharePlanCache) {
+      const key = `${shareMaxSide()} ${outSigNow()}`;
+      sharePlanCache = sharePlanMemo.get(key) || shareRenderPlan();
+      sharePlanMemo.delete(key); sharePlanMemo.set(key, sharePlanCache);   // 新しい順に並べ直す
+      if (sharePlanMemo.size > 24) sharePlanMemo.delete(sharePlanMemo.keys().next().value);
+    }
     return sharePlanCache;
   }
   const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent) || location.hash === "#inapp";
@@ -8332,7 +8354,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     say(els.gridMsg, tr("画像を作成中…"));
     // **字幅の控えは Web フォントが効いてから取り直す**（`renderShareCanvas` の先頭と同じ理由）。
     // 大きさの見込みも字幅から出るので、ここで捨ててから組む
-    CHAR_W.clear(); clearSharePlan();
+    CHAR_W.clear(); clearSharePlan(true);
     // **背景なしのときは透明に描き、送る JPEG だけ白い地に敷く**（描くのは 1 回。透明な版は「できあがり」と「画像を保存」に使う）
     const clear = state.bgMode === "none";
     // **できあがりの見本が今の並びのものなら、それをそのまま送る**（描き直さない）。違えば描いて、見本にも入れる
