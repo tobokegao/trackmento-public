@@ -88,7 +88,7 @@ export default [
   },
   {
     id: "cell-fit",
-    what: "「サムネの入れ方」… 「ぼかして埋める」にすると、形の違うサムネも切らずに入る",
+    what: "「サムネ余白」… 「ぼかし背景」にすると、形の違うサムネも切らずに入る",
     async setup(k) {
       await ready(k, 9, [3, 3], { title: "好きな音MAD" }, nico());
       await k.scrollTo("#cell-fit-seg", 260);
@@ -229,7 +229,7 @@ export default [
   },
   {
     id: "bg-modes",
-    what: "「背景色」の決め方 … 「ジャケットに近い色」「ジャケットと反対の色」を選ぶと、並んだジャケットから色を取る",
+    what: "「背景」の決め方 … 「ジャケットの近似色」「ジャケットの補色」を選ぶと、並んだジャケットから色を取る",
     async setup(k) {
       // 背景の色が見えるように、マスの間隔と余白を広めにする
       await ready(k, 9, [3, 3], { gap: 48, margin: 48, bg: "paper" });

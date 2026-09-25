@@ -1107,8 +1107,10 @@ body.sheet-open { overflow: hidden; }
 .disclose .tri { flex: none; width: 0; height: 0; border-left: 7px solid var(--color-ink); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
 .disclose[aria-expanded="true"] .tri { transform: rotate(90deg); }
 .disclose:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
-.disclose-sum { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); }
-.disclose[aria-expanded="true"] .disclose-sum { display: none; }
+.disclose-head { display: grid; gap: var(--space-1); }
+/* 畳んでいるときの今の値。長いので見出しの下に折り返して出す（右に 1 行だとスマホで半分以上切れる。2026-09-25、利用者の選択） */
+.disclose-sum { margin: 0; padding-left: calc(7px + var(--space-2)); color: var(--color-muted); font-size: var(--text-sm); line-height: 1.6; }
+.disclose[aria-expanded="true"] + .disclose-sum { display: none; }
 .disclose-body { display: grid; gap: var(--space-4); }
 .disclose-body[hidden] { display: none; }
 .gbox-sub { display: grid; gap: var(--space-2); margin-top: var(--space-2); padding: 10px; border: 1px solid var(--color-bevel); }
@@ -1457,11 +1459,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <p class="msg" id="e-origin-msg" role="status" aria-live="polite"></p>
         </div>
         <div class="field" id="e-fit-field">
-          <label>このマスのサムネの入れ方</label>
-          <div class="seg radio" id="e-fit-seg" role="radiogroup" aria-label="このマスのサムネの入れ方">
+          <label>このマスのサムネ余白</label>
+          <div class="seg radio" id="e-fit-seg" role="radiogroup" aria-label="このマスのサムネ余白">
             <label><input type="radio" name="eFit" value="" checked><span>全体に従う</span></label>
-            <label><input type="radio" name="eFit" value="crop"><span>切り抜く</span></label>
-            <label><input type="radio" name="eFit" value="blur"><span>ぼかして埋める</span></label>
+            <label><input type="radio" name="eFit" value="crop"><span>トリミング</span></label>
+            <label><input type="radio" name="eFit" value="blur"><span>ぼかし背景</span></label>
           </div>
         </div>
         <div class="editor-actions">
@@ -1674,7 +1676,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       <section class="gbox" aria-labelledby="gb-cells">
         <h3 class="gbox-title" id="gb-cells">マス</h3>
         <fieldset class="field">
-          <legend>グリッド（横 × 縦）</legend>
+          <legend>グリッド</legend>
           <div class="custom-size" id="custom-size">
             <label>横 <span class="stepper-wrap"><input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="横のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
             <span aria-hidden="true">×</span>
@@ -1684,37 +1686,40 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 
         <!-- **比率・マスの形・サムネの入れ方は三角で畳む**（2026-09-25、利用者の案。Mac OS 8 の HIG の disclosure triangle）。
              畳んでいても今の値は右に出す（16:9 のままか分かるように）。開け閉めは端末に覚える -->
-        <button class="disclose" type="button" id="cells-more-btn" aria-expanded="false" aria-controls="cells-more"><span class="tri" aria-hidden="true"></span><span>比率・マスの形</span><span class="disclose-sum" id="cells-more-sum"></span></button>
+        <div class="disclose-head">
+          <button class="disclose" type="button" id="cells-more-btn" aria-expanded="false" aria-controls="cells-more"><span class="tri" aria-hidden="true"></span><span>枠とサムネ</span></button>
+          <p class="disclose-sum" id="cells-more-sum"></p>
+        </div>
         <div class="disclose-body" id="cells-more" hidden>
         <fieldset class="field">
-          <legend>比率</legend>
-          <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="出力比率">
-            <label><input type="radio" name="ratio" value="1:1"><span>1:1 正方形</span></label>
-            <label><input type="radio" name="ratio" value="4:5"><span>4:5 インスタ</span></label>
-            <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 横長</span></label>
-            <label><input type="radio" name="ratio" value="9:16"><span>9:16 縦長</span></label>
+          <legend>全体枠</legend>
+          <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="全体枠">
+            <label><input type="radio" name="ratio" value="1:1"><span>正方形 1:1</span></label>
+            <label><input type="radio" name="ratio" value="4:5"><span>インスタ 4:5</span></label>
+            <label><input type="radio" name="ratio" value="16:9" checked><span>横長 16:9</span></label>
+            <label><input type="radio" name="ratio" value="9:16"><span>縦長 9:16</span></label>
             <label><input type="radio" name="ratio" value="free"><span>自由</span></label>
           </div>
           <p class="msg" id="ratio-msg" hidden></p>
         </fieldset>
 
         <fieldset class="field">
-          <legend>マスの形</legend>
+          <legend>マス枠</legend>
           <!-- 動画サイトのサムネイルは 16:9。正方形のマスに入れると左右が 28% ずつ切れる -->
-          <div class="seg radio" id="cell-ratio-seg" role="radiogroup" aria-label="マスの形">
-            <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形</span></label>
+          <div class="seg radio" id="cell-ratio-seg" role="radiogroup" aria-label="マス枠">
+            <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形 1:1</span></label>
             <label><input type="radio" name="cellRatio" value="16:9"><span>横長 16:9</span></label>
           </div>
         </fieldset>
 
         <!-- マスの形と続けて並べると、ラジオボタンの 2 組が 1 組に見えるので見出しを分ける（2026-09-22） -->
         <fieldset class="field">
-          <legend>サムネの入れ方</legend>
-          <div class="seg radio" id="cell-fit-seg" role="radiogroup" aria-label="サムネの入れ方">
-            <label><input type="radio" name="cellFit" value="crop" checked><span>切り抜く</span></label>
-            <label><input type="radio" name="cellFit" value="blur"><span>ぼかして埋める</span></label>
+          <legend>サムネ余白</legend>
+          <div class="seg radio" id="cell-fit-seg" role="radiogroup" aria-label="サムネ余白">
+            <label><input type="radio" name="cellFit" value="crop" checked><span>トリミング</span></label>
+            <label><input type="radio" name="cellFit" value="blur"><span>ぼかし背景</span></label>
           </div>
-          <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。</p>
+          <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかし背景」にすると切れずに入ります。マスごとに変えることもできます。</p>
         </fieldset>
         </div>
       </section>
@@ -1749,14 +1754,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <h3 class="gbox-title" id="gb-bg">背景と余白</h3>
 
         <fieldset class="field">
-          <legend>背景色</legend>
+          <legend>背景</legend>
           <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットと反対の色」は並んだジャケットから色を取り、
                並びが変わると取り直す。入る先はカスタムカラーなので、書き出しの描画はそのまま。
                「背景を透過」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
           <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
-            <label><input type="radio" name="bgMode" value="pick" checked><span>色を選ぶ</span></label>
-            <label><input type="radio" name="bgMode" value="near"><span>ジャケットに近い色</span></label>
-            <label title="補色（色相環で向かい側の色）"><input type="radio" name="bgMode" value="far"><span>ジャケットと反対の色</span></label>
+            <label><input type="radio" name="bgMode" value="pick" checked><span>色の選択</span></label>
+            <label><input type="radio" name="bgMode" value="near"><span>ジャケットの近似色</span></label>
+            <label title="色相環で向かい側の色"><input type="radio" name="bgMode" value="far"><span>ジャケットの補色</span></label>
             <label><input type="radio" name="bgMode" value="none"><span>背景を透過</span></label>
             <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
             <label><input type="radio" name="bgMode" value="gradient"><span>グラデーション</span></label>
@@ -2226,15 +2231,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "この端末では見本を作れませんでした。「トラックを共有」ではサーバーで作ります。": "This device couldn't make the preview. “Share these tracks” will make the image on the server.",
         "直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）": "Undo the last change. Up to 30 steps (Ctrl+Z also works)",
         "取り消した操作をやり直す（Ctrl+Y でも）": "Redo what you undid (Ctrl+Y also works)",
-        "色を選ぶ": "Choose a color",
-        "ジャケットに近い色": "Match the covers",
-        "ジャケットと反対の色": "Contrast the covers",
-        "補色（色相環で向かい側の色）": "The complementary color (opposite on the color wheel)",
+        "色の選択": "Choose a color",
+        "ジャケットの近似色": "Match the covers",
+        "ジャケットの補色": "Complement the covers",
+        "色相環で向かい側の色": "The color opposite on the color wheel",
         "背景を透過": "Transparent",
         "画像": "Image",
         "字の色": "Text color",
         "マス": "Cells",
-        "比率・マスの形": "Ratio and cell shape",
+        "枠とサムネ": "Frames and thumbnails",
         "{} トラックを戻しました。": "{0} tracks were put back.",
         "あと {} トラックは外したままです。": "{0} more are still set aside.",
         "文字": "Text",
@@ -2287,14 +2292,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭": "This blew up more than I expected and the server bills keep climbing…! Buy my album and help out if you can 😭",
         "Tobokegao「おかねがたりないときのうた」": "Tobokegao \"Okane ga Tarinai Toki no Uta\"",
         "出力オプション": "Output options",
-        "グリッド（横 × 縦）": "Grid (columns × rows)",
         "横": "Cols",
         "縦": "Rows",
-        "比率": "Ratio",
-        "1:1 正方形": "1:1 square",
-        "4:5 インスタ": "4:5 Instagram",
-        "16:9 横長": "16:9 wide",
-        "9:16 縦長": "9:16 tall",
+        "正方形 1:1": "Square 1:1",
+        "インスタ 4:5": "Instagram 4:5",
+        "横長 16:9": "Wide 16:9",
+        "縦長 9:16": "Tall 9:16",
+        "全体枠": "Image frame",
+        "マス枠": "Cell frame",
         "自由": "Free",
         "表示": "Show",
         "タイトル": "Title",
@@ -2316,24 +2321,23 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "元の投稿の手がかりは見つかりませんでした。": "No clue to the original post was found.",
         "探せませんでした。しばらくしてからもう一度お試しください。": "The search failed. Please try again in a little while.",
         "転載元 {}": "Reposted from {0}",
-        "マスの形": "Cell shape",
-        "正方形": "Square",
         "横長 16:9": "Wide 16:9",
-        "サムネの入れ方": "How thumbnails fit",
-        "切り抜く": "Crop",
-        "ぼかして埋める": "Blur to fill",
-        "このマスのサムネの入れ方": "How this thumbnail fits",
+        "サムネ余白": "Thumbnail fill",
+        "トリミング": "Crop",
+        "ぼかし背景": "Blurred backdrop",
+        "このマスのサムネ余白": "Thumbnail fill for this cell",
         "メモ（共有ページのトラックリストに出ます）": "Note (shown in the track list on the share page)",
         "このトラックを選んだ理由など": "Why you picked this track, etc.",
         "全体に従う": "Follow the setting",
-        "マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。": "How to fit thumbnails whose shape differs from the cell (for example, video thumbnails in square cells or square covers in 16:9 cells). Choose “Blur to fill” to fit them in without cutting. You can also change it for a single cell.",
+        "マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかし背景」にすると切れずに入ります。マスごとに変えることもできます。": "How to fit thumbnails whose shape differs from the cell (for example, video thumbnails in square cells or square covers in 16:9 cells). Choose “Blurred backdrop” to fit them in without cutting. You can also change it for a single cell.",
         "トラック名を短くする": "Shorten all titles",
         "トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる": "Rewrite the stored titles with the needless parts removed. You can undo it afterwards.",
         "短くする": "Shorten",
         "短くできるトラック名はありませんでした。": "No titles needed shortening.",
         "{} マスのトラック名・{} マスのアーティスト名を短くします。あとから「元に戻す」で戻せます。": "This shortens {0} track names and {1} artist names. You can bring them back with “Undo”.",
         "{} マスのトラック名・{} マスのアーティスト名を短くしました。": "Shortened {0} track names and {1} artist names.",
-        "背景色": "Background",
+        "背景色": "Background color",
+        "背景": "Background",
         "カスタムカラー": "Custom colour",
         "色相": "Hue",
         "彩度": "Saturation",
@@ -2401,7 +2405,6 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
                 "出力オプションを折りたたむ": "Collapse output options",
         "横のマス数": "Columns",
         "縦のマス数": "Rows",
-        "出力比率": "Output ratio",
         "カスタムカラーを設定": "Set a custom colour",
         "ニコニコ動画": "Niconico",
         "手入力": "By hand",
@@ -6934,10 +6937,17 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      割り付けの計算は大きい並びで 1 回 0.1〜0.4 秒かかり（字幅を大きさごとに測り直すため）、以前はタイトルを 1 字打つたび・
      つまみを少し動かすたびに 2 回ずつ走っていた（16x16 で 1 回の変更に 2〜4 秒）。プレビューと保存はその場で行う */
   let specTimer = 0;
-  /* 畳んだ「比率・マスの形」の右に今の値を出す */
+  /* 畳んだ「枠とサムネ」の下に今の値を出す（「全体枠・横長 16:9 / マス枠・正方形 1:1 / サムネ余白・トリミング」） */
   function syncCellsSum() {
-    $("#cells-more-sum").textContent = ["#ratio-seg", "#cell-ratio-seg", "#cell-fit-seg"]
-      .map((s) => $(`${s} input:checked + span`)?.textContent.trim()).filter(Boolean).join(" / ");
+    // 1 項目ずつ折らない（「サムネ余 / 白」のように語の途中で折れていた）。折るのは「 / 」の所だけ
+    const parts = ["#ratio-seg", "#cell-ratio-seg", "#cell-fit-seg"].map((s) => {
+      const v = $(`${s} input:checked + span`)?.textContent.trim(), k = $(s).closest("fieldset")?.querySelector("legend")?.textContent.trim();
+      return v && k ? k + (LANG === "en" ? ": " : "・") + v : v;
+    }).filter(Boolean);
+    $("#cells-more-sum").replaceChildren(...parts.flatMap((t, i) => {
+      const sp = document.createElement("span"); sp.textContent = t; sp.style.whiteSpace = "nowrap";
+      return i ? [" / ", sp] : [sp];
+    }));
   }
   {
     const btn = $("#cells-more-btn"), body = $("#cells-more");
