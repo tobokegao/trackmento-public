@@ -1000,8 +1000,12 @@ body.sheet-open { overflow: hidden; }
 .grid-actions > .history { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: var(--space-2); }
 /* 保存・読み込み・コピー・色で並べ替えは 1 つの箱で、幅に合わせて折り返す（2 列の升目だと PC の細い窓で字がはみ出す） */
 .grid-actions > .minor { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-/* 各ボタンは行の幅いっぱいまで伸ばし、行の右端をそろえる（右に余白が残ると半端に見える。2026-09-25、利用者の指摘） */
+/* 各ボタンは行の幅いっぱいまで伸ばし、行の右端をそろえる（右に余白が残ると半端に見える。2026-09-25、利用者の指摘）。
+   段の分け方は JS（balanceRows）が決める: 1 段に入らなければ 2＋2 のように**段ごとの数をそろえて**折る（3＋1 だと残りの 1 つだけ細長く伸びる）。
+   区切りは幅 100% の空の要素（.br）で入れる。測るあいだは .measuring で伸ばさずに本来の幅にする */
 .grid-actions > .minor > .btn { flex: 1 1 auto; }
+.grid-actions > .minor > .br { flex-basis: 100%; height: 0; }
+.grid-actions > .minor.measuring > .btn { flex: 0 0 auto; }
 /* 背景なしのできあがりは、透明な所が分かるように市松の上に出す（画像の外の地の模様なので、足さない見た目の「グラデーション」には当たらない） */
 /* 背景の決め方は 1 列に積む（「ジャケットと反対の色」が長く、2 列だと右の列が窓からはみ出す） */
 #bg-mode-seg { grid-template-columns: max-content; margin-bottom: var(--space-3); }
@@ -3670,6 +3674,35 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     say(els.gridMsg, tr("やり直しました。"));
   }
   /* メッセージの後ろに「元に戻す」を付ける。次のメッセージで消える（キーボードなら、それより前にも戻れる） */
+  /* ボタンの段を、段ごとの数がそろうように分ける（.minor。CSS の説明を参照）。
+     段の数を 1 から増やし、各段のボタン本来の幅の合計が箱に入る最初の分け方を選ぶ。数は上の段から多めに配る（5 なら 3＋2） */
+  function balanceRows(box) {
+    box.querySelectorAll(":scope > .br").forEach((b) => b.remove());
+    const btns = [...box.children].filter((b) => b.classList.contains("btn") && !b.hidden);
+    if (btns.length < 2 || !box.clientWidth) return;
+    box.classList.add("measuring");
+    const ws = btns.map((b) => b.getBoundingClientRect().width);
+    box.classList.remove("measuring");
+    const gap = parseFloat(getComputedStyle(box).columnGap) || 0, W = box.clientWidth, n = btns.length;
+    for (let rows = 1; rows <= n; rows++) {
+      const sizes = Array.from({ length: rows }, (_, r) => Math.floor(n / rows) + (r < n % rows ? 1 : 0));
+      let i = 0;
+      const fits = sizes.every((k) => { const w = ws.slice(i, i + k).reduce((a, b) => a + b, 0) + gap * (k - 1); i += k; return w <= W + 0.5; });
+      if (!fits && rows < n) continue;
+      i = 0;
+      sizes.slice(0, -1).forEach((k) => { i += k; const br = document.createElement("span"); br.className = "br"; br.setAttribute("aria-hidden", "true"); btns[i - 1].after(br); });
+      return;
+    }
+  }
+  {
+    const box = document.querySelector(".grid-actions > .minor");
+    if (box) {
+      const run = () => requestAnimationFrame(() => balanceRows(box));
+      new ResizeObserver(run).observe(box);
+      new MutationObserver(run).observe(box, { subtree: true, characterData: true, childList: false });   // 英語に切り替えると字の幅が変わる
+      document.fonts?.ready.then(run);
+    }
+  }
   $("#undo-btn").addEventListener("click", () => undo());
   $("#redo-btn").addEventListener("click", () => redo());
   function undoLink(msgEl = els.gridMsg) {
