@@ -30,6 +30,7 @@ BG_KEYS = ("paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint
            "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
            "night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta", "custom")
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+_UPLOAD_RE = re.compile(r"^/uploads/[a-f0-9]{16}\.(jpg|png|webp|gif)$")   # uploads._NAME_RE と同じ形
 
 
 class GridOptions(BaseModel):
@@ -51,10 +52,12 @@ class GridOptions(BaseModel):
     trimNames: bool = True
     bg: str = "paper"
     bgCustom: Optional[str] = None
-    # 背景の決め方（2026-09-25）。"pick"（色を選ぶ）/ "near"・"far"（ジャケットに近い色・反対の色）/ "none"（背景なし）。
-    # **描くのは bg / bgCustom だけ**（ジャケットの色も背景なしの白い地もブラウザがカスタムカラーに入れて送る）。
-    # これは画面で決め方を覚えておくためのもので、サーバーの描画は見ない
+    # 背景の決め方（2026-09-25）。"pick"（色を選ぶ）/ "near"・"far"（ジャケットに近い色・反対の色）/ "none"（背景なし）/
+    # "image"（好きな画像）。色はどれも bg / bgCustom に入れて送る（ジャケットの色も背景なしの白い地も、画像の平均の色も）。
+    # サーバーの描画が見るのは "image" のときだけ（bgImage を敷く）
     bgMode: str = "pick"
+    # 背景の画像。**うちに上げた画像（/uploads/…）だけ**を受け付ける（よそのサーバーの画像を取りに行かせない）
+    bgImage: Optional[str] = None
     margin: int = 16
     # 外側の余白の下限の段。"normal"（内容の短い辺の 3.5%）/ "wide"（7%）/ "xwide"（12%）。render.py の PAD_FRAC。
     # **既定は normal**（今ある並びと共有画像の見た目を変えないため。2026-09-24 に「余白」のスライダーから替えた）
@@ -69,7 +72,12 @@ class GridOptions(BaseModel):
     @field_validator("bgMode")
     @classmethod
     def _bg_mode(cls, v: str) -> str:
-        return v if v in ("pick", "near", "far", "none") else "pick"
+        return v if v in ("pick", "near", "far", "none", "image") else "pick"
+
+    @field_validator("bgImage")
+    @classmethod
+    def _bg_image(cls, v: Optional[str]) -> Optional[str]:
+        return v if v and _UPLOAD_RE.match(v) else None
 
     @field_validator("cellRatio")
     @classmethod

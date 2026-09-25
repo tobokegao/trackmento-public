@@ -1009,7 +1009,8 @@ body.sheet-open { overflow: hidden; }
 /* 背景なしのできあがりは、透明な所が分かるように市松の上に出す（画像の外の地の模様なので、足さない見た目の「グラデーション」には当たらない） */
 /* 背景の決め方は 1 列に積む（「ジャケットと反対の色」が長く、2 列だと右の列が窓からはみ出す） */
 #bg-mode-seg { grid-template-columns: max-content; margin-bottom: var(--space-3); }
-#bg-next[hidden] { display: none; }   /* .btn の display が hidden 属性に勝つので明示する */
+#bg-next[hidden], #bg-image-box[hidden] { display: none; }
+#bg-image-box { margin-top: var(--space-2); }   /* .btn の display が hidden 属性に勝つので明示する */
 #bg-next { margin-top: var(--space-2); }
 #output-img.is-clear { background: repeating-conic-gradient(var(--color-paper-3) 0 25%, var(--color-paper) 0 50%) 0 0 / 16px 16px; }
 /* スマホは「曲を探す・共有／保存・読み込み」の 2×2。PC は「曲を探す」が無いので共有だけ 1 行いっぱい */
@@ -1635,6 +1636,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <label><input type="radio" name="bgMode" value="near"><span>ジャケットに近い色</span></label>
           <label title="補色（色相環で向かい側の色）"><input type="radio" name="bgMode" value="far"><span>ジャケットと反対の色</span></label>
           <label><input type="radio" name="bgMode" value="none"><span>背景なし</span></label>
+          <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
         </div>
         <div id="bg-pick">
         <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
@@ -1649,6 +1651,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <input type="range" id="hsv-v" min="0" max="100" step="1" value="100">
           <div class="hex" id="hsv-hex">#f2efe6</div>
         </div>
+        </div>
+        <!-- 好きな画像を背景に（2026-09-25、利用者の案）。端末の画像を /upload で上げ（撮影日時などは消して保存）、
+             枠いっぱいに切り抜いて半分の濃さで敷く。文字の色は画像の平均の色で決める（それを背景色に入れる） -->
+        <div id="bg-image-box" hidden>
+          <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
+          <input type="file" id="bg-image-file" accept="image/*" hidden>
         </div>
         <button class="btn btn-sm" type="button" id="bg-next" hidden title="ジャケットから取った色のうち、次の候補にする">ほかの候補</button>
         <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
@@ -2027,6 +2035,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "ジャケットと反対の色": "Contrast the covers",
         "補色（色相環で向かい側の色）": "The complementary color (opposite on the color wheel)",
         "背景なし": "No background",
+        "画像": "Image",
+        "画像を選ぶ…": "Choose an image…",
+        "画像を送っています…": "Uploading the image…",
+        "画像を背景にしました。文字が読みやすいように、半分の濃さで敷きます。": "The image is now the background. It is laid at half strength so the text stays readable.",
+        "「画像を選ぶ…」で、この端末の画像を選んでください。": "Use “Choose an image…” to pick an image on this device.",
+        "画像を取り込めませんでした。": "Couldn't use that image.",
         "背景の決め方": "How to set the background",
         "ほかの候補": "Another color",
         "ジャケットから取った色のうち、次の候補にする": "Switch to the next color taken from the covers",
@@ -2623,7 +2637,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     cols: 3, rows: 3, title: "", cells: Array(9).fill(null), stash: [],
     ratio: "16:9", showTitle: true, sidebar: true, overlay: false, numbers: false, trimNames: true,
     cellRatio: "1:1", cellFit: "crop", bg: "paper", bgCustom: null, margin: 16, pad: "normal", gap: 16,   // 既定値（比率は X 向けの 16:9）
-    bgMode: "pick",   // 背景の決め方: pick（色を選ぶ）/ near・far（ジャケットに近い色・反対の色）/ none（背景なし）
+    bgMode: "pick",   // 背景の決め方: pick（色を選ぶ）/ near・far（ジャケットに近い色・反対の色）/ none（背景なし）/ image（好きな画像）
+    bgImage: null,    // 背景の画像（/uploads/… だけ）
     listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
@@ -4474,11 +4489,50 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const m = state.bgMode || "pick";
     setSeg($("#bg-mode-seg"), m);
     $("#bg-pick").hidden = m !== "pick";
+    $("#bg-image-box").hidden = m !== "image";
     $("#bg-next").hidden = !(m === "near" || m === "far") || coverPal.colors.length < 2;
     const msg = $("#bg-msg");
     if (m === "none") { msg.hidden = false; say(msg, tr("共有の画像は白い地になります。「画像を保存」では背景が透明な PNG になります。")); }
+    else if (m === "image") { msg.hidden = false; say(msg, state.bgImage ? tr("画像を背景にしました。文字が読みやすいように、半分の濃さで敷きます。") : tr("「画像を選ぶ…」で、この端末の画像を選んでください。")); }
     else if (m === "pick") msg.hidden = true;
   }
+  /** 画像の平均の色（背景色に入れて、文字の色をそこから決める） */
+  function averageHex(bmp) {
+    const S = 24, cv = document.createElement("canvas"); cv.width = cv.height = S;
+    const cx = cv.getContext("2d", { willReadFrequently: true });
+    cx.drawImage(bmp, 0, 0, S, S);
+    const px = cx.getImageData(0, 0, S, S).data;
+    let r = 0, g = 0, b = 0;
+    for (let i = 0; i < px.length; i += 4) { r += px[i]; g += px[i + 1]; b += px[i + 2]; }
+    const n = px.length / 4;
+    return "#" + [r, g, b].map((v) => Math.round(v / n).toString(16).padStart(2, "0")).join("");
+  }
+  /** 画像の平均の色を背景色に入れる（画像を選んだとき・「画像」に戻したとき） */
+  async function tintFromBgImage() {
+    const bmp = await loadCover({ image: state.bgImage }, 0).catch(() => null);
+    if (!bmp || state.bgMode !== "image") return;
+    pickBg(averageHex(bmp)); renderSwatches();
+    bmp.close && bmp.close();
+  }
+  $("#bg-image-btn").addEventListener("click", () => $("#bg-image-file").click());
+  $("#bg-image-file").addEventListener("change", async () => {
+    const input = $("#bg-image-file"), f = input.files && input.files[0], btn = $("#bg-image-btn"), msg = $("#bg-msg");
+    input.value = "";
+    if (!f) return;
+    setBtnState(btn, "loading"); msg.hidden = false; say(msg, tr("画像を送っています…"));
+    try {
+      const fd = new FormData(); fd.append("file", f, f.name);
+      const r = await fetch(api("/upload"), { method: "POST", body: fd });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+      state.bgImage = d.url;
+      if (state.bgMode !== "image") { pickedBg = pickedBg || { bg: state.bg, bgCustom: state.bgCustom }; state.bgMode = "image"; }
+      await tintFromBgImage();
+      syncBgMode(); updateSpec();
+    } catch (err) {
+      say(msg, tr("画像を取り込めませんでした。") + ` ${err.message}`, "error");
+    } finally { setBtnState(btn, null); }
+  });
   async function applyAutoBg({ next = false } = {}) {
     const m = state.bgMode, msg = $("#bg-msg");
     if (m !== "near" && m !== "far") return;
@@ -4515,6 +4569,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     syncBgMode();
     updateSpec();
     if (m === "near" || m === "far") { coverPal.i = 0; applyAutoBg(); }
+    if (m === "image") { if (state.bgImage) tintFromBgImage(); else $("#bg-image-file").click(); }   // まだ画像が無ければそのまま選ぶ窓を開く
   }
   for (const i of document.querySelectorAll('#bg-mode-seg input')) i.addEventListener("change", () => setBgMode(i.value));
   $("#bg-next").addEventListener("click", () => applyAutoBg({ next: true }));
@@ -6529,7 +6584,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
       options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false,
-        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", margin: state.margin, pad: state.pad || "normal", gap: state.gap },
+        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", bgImage: state.bgImage || null, margin: state.margin, pad: state.pad || "normal", gap: state.gap },
     };
   }
   function applyData(d) {
@@ -6552,7 +6607,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     state.showTitle = o.showTitle !== false; state.overlay = o.overlay === true; state.sidebar = !state.overlay && o.sidebar !== false; state.numbers = o.numbers === true; state.trimNames = o.trimNames !== false; clearViewCells();
     state.cellRatio = o.cellRatio === "16:9" ? "16:9" : "1:1";
     state.cellFit = o.cellFit === "blur" ? "blur" : "crop";
-    state.bgMode = ["near", "far", "none"].includes(o.bgMode) ? o.bgMode : "pick";
+    state.bgMode = ["near", "far", "none", "image"].includes(o.bgMode) ? o.bgMode : "pick";
+    state.bgImage = /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(o.bgImage || "") ? o.bgImage : null;   // backend/grids.py の _UPLOAD_RE と同じ
+    if (state.bgMode === "image" && !state.bgImage) state.bgMode = "pick";
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else {
       state.bg = ALL_BG_KEYS.includes(o.bg) ? o.bg : "paper";
@@ -6992,6 +7049,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   }
   /* マスに絵を入れる。**「ぼかして埋める」を選んだマスだけ切らずに収める**（既定は中央で切る）。
      `fit` は "crop" か "blur"（マスごとの `t.fit` が無ければ並び全体の `state.cellFit`） */
+  const BG_IMAGE_ALPHA = 0.5;   // 背景の画像の濃さ（backend/render.py の BG_IMAGE_ALPHA と同じ）
   function paintCover(ctx, bmp, x, y, cw, ch, fit) {
     if (fit === "blur" && Math.abs(bmp.width / bmp.height - cw / ch) > 0.01) coverBlurPad(ctx, bmp, x, y, cw, ch);
     else drawCover(ctx, bmp, x, y, cw, ch);
@@ -7011,6 +7069,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.textAlign = "left";
     // 「背景なしで保存」は背景だけ塗らない（文字の色は選んだ背景色に合わせたまま。明るい地なら黒い字）
     if (!transparent) { ctx.fillStyle = cssRgb(bg); ctx.fillRect(0, 0, canvas.width, canvas.height); }
+    // 好きな画像を背景に（2026-09-25）。枠いっぱいに切り抜き、背景色の上に BG_IMAGE_ALPHA の濃さで重ねる（backend/render.py の _paint_bg_image と同じ式）。
+    // 取れなければ背景色のまま
+    if (!transparent && state.bgMode === "image" && state.bgImage) {
+      const pic = await loadCover({ image: state.bgImage }, 0).catch(() => null);
+      if (pic) { ctx.save(); ctx.globalAlpha = BG_IMAGE_ALPHA; drawCover(ctx, pic, 0, 0, canvas.width, canvas.height); ctx.restore(); pic.close && pic.close(); }
+    }
     // タイトル（グリッドの上。右サイドバーのときはサイドバーの中に描く）
     let y0 = L.oy;
     const titleFont = fontBold(Math.max(8, sc(L.titleSize)));

@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "「背景色」に「画像」を足しました。「画像を選ぶ…」で端末の好きな画像を選ぶと、書き出す画像の背景に敷きます。曲名が読みやすいように、画像は半分の濃さにします。",
+     "Added “Image” under “Background color”. Choose any image on your device with “Choose an image…” and it becomes the background of the exported image, laid at half strength so the track names stay readable."),
     ("2026-09-25", "スマホでマスを選んだとき、下に出る「選択中のマス」の欄が画面の外に隠れていたら、欄の頭が見えるところまで画面を送るようにしました。",
      "On phones, when you select a cell and the “Selected cell” panel below the grid is off screen, the page now scrolls just enough to show the top of the panel."),
     ("2026-09-25", "書き出す画像・共有ページ・「トラック名をコピー」の番号を、曲の入ったマスだけで 1 から振り直すようにしました。画像の曲名リストに、空きマスの番号だけの行は出ません。",
