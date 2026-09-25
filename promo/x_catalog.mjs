@@ -23,16 +23,21 @@ const mono = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-mono.jso
     その下に「できあがり」の窓（見本と状態の一行）。1280x720 の画面にぜんぶ入る */
 const ARRANGE_BG = {
   ".pane-grid": { x: 40, y: 40, w: 330, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] },
-  ".pane-options": { x: 400, y: 40, w: 330, only: ["fieldset:has(#bg-mode-seg)"] },
+  ".pane-options": { x: 400, y: 40, w: 330, only: [".gbox:has(#bg-mode-seg)"] },   // 2026-09-25 から欄はグループボックスの中（中の余白の欄は ARRANGE_BG_CSS で隠す）
   "#output": { x: 760, y: 40, w: 480 },
 };
-const ARRANGE_BG_CSS = ".grid-actions > :not(#preview-btn), #output .pane-body > :not(#out-shot):not(#out-msg) { display: none !important; } .grid-actions > #preview-btn { grid-column: 1 / -1; }";
+const ARRANGE_BG_CSS = ".gbox:has(#bg-mode-seg) > :not(.gbox-title):not(fieldset:has(#bg-mode-seg)), .grid-actions > :not(#preview-btn), #output .pane-body > :not(#out-shot):not(#out-msg) { display: none !important; } .grid-actions > #preview-btn { grid-column: 1 / -1; }";
 
 /** 曲を n 個入れて、ジャケットがそろうまで待つ */
 async function ready(k, n, size, opts = {}, list) {
   await k.seed(n, size, opts, list);
   await k.waitArt();
   await k.hold(0.5);   // 撮影前なので時計だけ進む
+}
+
+/** 出力オプションの「枠とサムネ」の三角を開く（既定で畳んである。2026-09-25 から。撮る前だけ） */
+async function openCellsMore(k) {
+  if (await k.page.getAttribute("#cells-more-btn", "aria-expanded") !== "true") await k.page.click("#cells-more-btn");
 }
 
 /** 並びをかき混ぜる（色で並べ替えの前に。seed は一覧の順に入れるので、そのままだと色がそろって見えない） */
@@ -50,7 +55,7 @@ function shuffled(list, seed = 7) {
 export default [
   {
     id: "color-sort",
-    what: "「色で並べ替え」… ジャケットの主な色で、赤から紫の順に並べ直す。白黒のジャケットは明るい順",
+    what: "「色で並べ替え」… サムネイルの主な色で、赤から紫の順に並べ直す。白黒のサムネイルは明るい順",
     async setup(k) {
       // **白黒のジャケットで見せる**（明るい順にそろうのがひと目で分かる。カラフルな絵だと色相の順は伝わりにくい、と利用者）
       await ready(k, 16, [4, 4], {}, shuffled(mono()));
@@ -70,9 +75,10 @@ export default [
   },
   {
     id: "cell-ratio",
-    what: "「マスの形」を横長 16:9 に … 動画サイトのサムネが左右で切れずに並ぶ",
+    what: "「マス枠」を横長 16:9 に … 動画サイトのサムネイルが左右で切れずに並ぶ",
     async setup(k) {
       await ready(k, 9, [3, 3], { title: "好きな音MAD" }, nico());
+      await openCellsMore(k);
       await k.scrollTo("#cell-ratio-seg", 200);
       await k.look(["#grid", "fieldset:has(#cell-ratio-seg)"]);
       await k.park(1100, 600);
@@ -91,6 +97,7 @@ export default [
     what: "「サムネ余白」… 「ぼかし背景」にすると、形の違うサムネも切らずに入る",
     async setup(k) {
       await ready(k, 9, [3, 3], { title: "好きな音MAD" }, nico());
+      await openCellsMore(k);
       await k.scrollTo("#cell-fit-seg", 260);
       await k.look(["#grid", "fieldset:has(#cell-fit-seg) legend", "#cell-fit-seg"]);
       await k.park(1100, 600);
@@ -229,21 +236,21 @@ export default [
   },
   {
     id: "bg-modes",
-    what: "「背景」の決め方 … 「ジャケットの近似色」「ジャケットの補色」を選ぶと、並んだジャケットから色を取る",
+    what: "「背景」の決め方 … 「サムネの近似色」「サムネの補色」を選ぶと、並んだサムネイルから色を取る",
     async setup(k) {
       // 背景の色が見えるように、マスの間隔と余白を広めにする
       await ready(k, 9, [3, 3], { gap: 48, margin: 48, bg: "paper" });
       // **撮るあいだだけ、窓を並べ直す**（k.arrange）。背景色の欄は出力オプションのずっと下にあり、
       // そのままだとグリッド（色が変わるところ）と同じ画面に入らない
       await k.arrange(ARRANGE_BG); await k.stage(ARRANGE_BG_CSS);
-      await k.look(["#grid", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg", "#bg-msg"]);
+      await k.look(["#grid", "fieldset:has(#bg-mode-seg) legend", "#bg-mode-seg", "#bg-cands", "#bg-msg"]);
       await k.park(1150, 650);
     },
     async run(k) {
       const pick = (v) => `#bg-mode-seg label:has(input[value="${v}"])`;
       await k.hold(1.0);
       await k.press(pick("near"));
-      await k.until(() => k.page.evaluate(() => /選びました/.test(document.querySelector("#bg-msg").textContent)), "ジャケットの色", 20000);
+      await k.until(() => k.page.evaluate(() => /選びました/.test(document.querySelector("#bg-msg").textContent)), "サムネイルの色", 20000);
       await k.hold(1.6);
       await k.press(pick("far"));
       await k.hold(1.6);
@@ -253,7 +260,7 @@ export default [
   },
   {
     id: "bg-image",
-    what: "「背景色」の「画像」… 端末の好きな画像を背景に敷く。曲名が読めるように、にぎやかな画像ほど薄く",
+    what: "「背景」の「画像」… 選ぶとまず TRACKMENTO の模様、「画像を選ぶ」で端末の好きな画像に。曲名が読めるように、にぎやかな画像ほど薄く",
     async setup(k) {
       await ready(k, 9, [3, 3], { gap: 48, margin: 48, bg: "paper" });
       // **撮るあいだだけ、窓を並べ直す**（k.arrange）。背景色の欄は出力オプションのずっと下にあり、
@@ -264,9 +271,13 @@ export default [
     },
     async run(k) {
       await k.hold(1.0);
-      // 「画像」を選ぶと、まだ画像が無ければそのまま選ぶ窓が開く。窓は写らないので、選んだあとの見本の変わり方を見せる
-      const fc = k.page.waitForEvent("filechooser");
+      // 「画像」を選ぶと、まず既定の TRACKMENTO の模様が敷かれる（2026-09-25 から。選ぶ窓は開かない）
       await k.press('#bg-mode-seg label:has(input[value="image"])');
+      await k.until(() => k.page.evaluate(() => /模様を敷きました/.test(document.querySelector("#bg-msg").textContent)), "既定の模様", 10000);
+      await k.hold(1.2);
+      // 「画像を選ぶ…」で端末の画像に替える。選ぶ窓は写らないので、選んだあとの見本の変わり方を見せる
+      const fc = k.page.waitForEvent("filechooser");
+      await k.press("#bg-image-btn");
       await (await fc).setFiles("promo/public/x-bg-logo.png");   // Tobokegao のロゴ（利用者の絵。文字の部分だけを切り出し、16:9 の白地の真ん中に置いたもの）
       await k.until(() => k.page.evaluate(() => /画像を背景に/.test(document.querySelector("#bg-msg").textContent)), "背景の画像", 30000);
       await k.until(() => k.page.evaluate(() => /url\(/.test(document.querySelector("#grid").style.background)), "見本の画像", 10000);
