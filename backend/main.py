@@ -1709,7 +1709,8 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
     elif (_miss := _IMG_MISSING.get(ckey)) and _miss[0] > time.time():
         # **配信元に無かった画像は IMG_MISSING_TTL のあいだ取りに行かない**（2026-09-17）。消えた画像が
         # 人気の共有に 1 枚入っているだけで、見られるたびに配信元へ取りに行き、2 時間で 1,000 件の 404 になっていた。
-        # つながらなかった画像（502）も IMG_UNREACHABLE_TTL のあいだ同じ扱い（2026-09-18）
+        # つながらなかった画像（502）も IMG_UNREACHABLE_TTL のあいだ同じ扱い（2026-09-18）。
+        # 応答が遅くて読み取りが時間切れになった画像（502）は IMG_SLOW_TTL のあいだ（2026-09-25）
         if _miss[1] == 404:
             raise HTTPException(404, "配信元に画像が無い（しばらく前に確かめた）")
         raise HTTPException(502, "配信元につながらない（しばらく前に確かめた）")
@@ -1726,8 +1727,8 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
                 ctype, data = await fetch_image(url)
             except HTTPException as e:
                 if e.status_code != 404:
-                    if _unreachable(e):
-                        _remember_missing(ckey, 502)
+                    if (ttl := _retry_after(e)):
+                        _remember_missing(ckey, 502, ttl)
                     raise
                 # **配信元に無ければ、別の版を順に取りに行く**（2026-09-17）: 縮小版の URL を書き換える前の原寸、
                 # YouTube の hqdefault → mqdefault → default、ニコニコの .L → 無印。どれも無ければ 404 を覚える
@@ -1759,6 +1760,10 @@ async def image_proxy(url: str = Query(..., description="取得する画像URL",
 _PROXY_SEM = asyncio.Semaphore(max(1, int(os.getenv("IMAGE_PROXY_CONCURRENCY", "16"))))
 IMG_MISSING_TTL = int(os.getenv("IMG_MISSING_TTL", "3600"))   # 配信元に無かった画像を覚えておく秒数
 IMG_UNREACHABLE_TTL = int(os.getenv("IMG_UNREACHABLE_TTL", "600"))   # 配信元につながらなかった画像を覚えておく秒数
+# 応答が遅く、読み取りが時間切れになった画像を覚えておく秒数（2026-09-25）。遅いだけで次は取れることもあるので
+# つながらなかったときより短くする。覚えないと、開き直すたびに IMAGE_FETCH_TIMEOUT（12 秒）待たせて 502 を返し、
+# _PROXY_SEM の枠も 12 秒ふさぐ（9/25 の点検で p1.music.126.net の ReadTimeout が 2 時間に 4 件。手で入れた URL）
+IMG_SLOW_TTL = int(os.getenv("IMG_SLOW_TTL", "300"))
 _IMG_MISSING: dict[str, tuple[float, int]] = {}                 # キャッシュのキー → (期限（time.time()）, 返す状態)
 
 # ニコニコの古いサムネイルのドメイン（`tn.smilevideo.jp/smile?i=N`）。**ドメインごと応答しない**
@@ -1773,9 +1778,14 @@ def _nico_legacy_thumb(url: str) -> str:
     return f"https://nicovideo.cdn.nimg.jp/thumbnails/{m.group(1)}/{m.group(1)}" if m else url
 
 
-def _unreachable(e: HTTPException) -> bool:
-    """配信元につながらなかった失敗か（接続の時間切れ・接続の拒否）。応答が遅いだけのもの（読み取りの時間切れ）は含めない。"""
-    return isinstance(e.__cause__, (httpx.ConnectTimeout, httpx.ConnectError))
+def _retry_after(e: HTTPException) -> int:
+    """取り直すまで待つ秒数。つながらなかった（接続の時間切れ・拒否）なら IMG_UNREACHABLE_TTL、
+    応答が遅かった（読み取り・書き込みの時間切れ）なら IMG_SLOW_TTL、それ以外（配信元の 5xx など）は 0＝覚えない。"""
+    if isinstance(e.__cause__, (httpx.ConnectTimeout, httpx.ConnectError)):
+        return IMG_UNREACHABLE_TTL
+    if isinstance(e.__cause__, (httpx.ReadTimeout, httpx.WriteTimeout)):   # PoolTimeout はこちらの混雑なので覚えない
+        return IMG_SLOW_TTL
+    return 0
 
 
 def _image_fallbacks(url: str, orig: str) -> list[str]:
@@ -1796,11 +1806,12 @@ def _image_fallbacks(url: str, orig: str) -> list[str]:
     return [u for u in out if u != url and not (u in seen or seen.add(u))]
 
 
-def _remember_missing(ckey: str, status: int = 404) -> None:
-    """配信元に無かった（404）・つながらなかった（502）画像を覚える。膨らみすぎたら丸ごと忘れる（取り直すだけで壊れない）。"""
+def _remember_missing(ckey: str, status: int = 404, ttl: int = 0) -> None:
+    """配信元に無かった（404）・つながらなかった／遅すぎた（502）画像を覚える。膨らみすぎたら丸ごと忘れる（取り直すだけで壊れない）。
+    ttl を省くと、404 は IMG_MISSING_TTL、502 は IMG_UNREACHABLE_TTL。"""
     if len(_IMG_MISSING) >= 5000:
         _IMG_MISSING.clear()
-    ttl = IMG_MISSING_TTL if status == 404 else IMG_UNREACHABLE_TTL
+    ttl = ttl or (IMG_MISSING_TTL if status == 404 else IMG_UNREACHABLE_TTL)
     _IMG_MISSING[ckey] = (time.time() + ttl, status)
 
 
