@@ -99,61 +99,8 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 - `grids/<名前>.json` … 並び。公開モードではブラウザごとに `u-<id>.json` に分かれる。**git 管理外**
 - `cache.sqlite3` … 検索結果と画像。**デプロイのたびに消える**（コンテナのディスクなので）
 - R2 … 共有画像・並びの控え・アップロード画像・フォント断片・画像キャッシュ・検索結果の控え。共有は 30 日、画像キャッシュは 14 日、検索結果の控えは 15 日で消える（`scripts/r2_prune.py`）
-  - **検索結果の控え（`searchcache/`、`backend/searchcache.py`、2026-09-19）**。`cache.sqlite3` はデプロイで消えるので、
-    サーバーで引いた検索結果（VocaDB・otoDB・Discogs・MusicBrainz の引き直し）を R2 にも置く。起動後に一覧して索引を作り
-    （`imgcache/` と同じ）、索引に無い語は R2 を見に行かない。R2 から読むのは 0.15 秒（VocaDB は数秒〜25 秒）。
-    **鍵は HMAC（秘密鍵は R2 の鍵、`SEARCHCACHE_SECRET` で上書き可）、中身に検索語を入れない**（R2 は公開ドメインから読めるので、
-    素のハッシュだと「この語が検索されたか」を確かめられる。プライバシーポリシーの「検索キーワードは恒常的に記録しない」と両立させる）。
-    期限はソースごとで、**VocaDB だけ 14 日**、ほかは 7 日（`cache.SEARCH_TTL_BY_SOURCE`。R2 側の上限は `searchcache.TTL` の 14 日）。
-    `r2_prune.py` が 15 日で消す（`SHORT_PREFIXES`）。**iTunes と MusicBrainz はブラウザから直接引くので対象外**
+  - 検索結果の控え（`searchcache/`）は **鍵を HMAC にし、中身に検索語を入れない**（R2 は公開ドメインから読める。仕組みと期限は `docs/ops.md`）
 - `outputs/` … CLI で書き出した PNG
-
-## はじめて動かすまで（セットアップ）
-
-何も無い状態から手元で動かす手順。**Windows 前提**（パスは `.venv/Scripts/`。macOS / Linux なら `.venv/bin/`）。
-
-1. **Python 3.14**（本番の Docker が `python:3.14-slim`。3.11 以上なら動くが、本番と揃えるほうが安全）
-
-   ```bash
-   python -m venv .venv
-   .venv/Scripts/python -m pip install -r requirements.txt
-   ```
-
-2. **`.env` を作る**。無くても動く（検索は iTunes と MusicBrainz、保存はローカルの `shares/`）。
-   入れると増えるものは次の節の表。最低限の形:
-
-   ```
-   MB_USER_AGENT=trackmento/0.1 (https://github.com/あなた/…)    # MusicBrainz は連絡先入りの UA を要求する
-   PUBLIC_BASE_URL=auto
-   ```
-
-3. **コミットの見張りを入れる**（クローンごとに 1 回）
-
-   ```bash
-   git config core.hooksPath .githooks
-   ```
-
-   `.githooks/pre-commit` が、鍵を含みそうなもの（`.env` とその控え・`*.pem`・値の入った
-   `SECRET=` の形）をコミットの瞬間に止める。**2026-09-14 に `.env` の控えを公開リポジトリへ
-   入れてしまった**ため（`docs/gotchas.md`）。GitHub の push protection は発行元の分かる形しか
-   止められず、R2 の鍵のような「ただの英数字」はすり抜ける。
-
-4. **起動**
-
-   ```bash
-   APP_FROM_R2=0 PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
-   ```
-
-   `PYTHONUTF8=1` は必須に近い。付けないと Windows の既定が cp932 で、日本語のタイトルを扱うときに落ちる。
-
-5. **確認**。http://localhost:8000/ を開き、適当なアーティストで検索 → マスに入る →「トラックを共有」で
-   画像ができれば一通り動いている。起動ログの `[public] PNG の URL は …` が、返ってくる URL のベース。
-
-- **動画（`promo/`）を触るときだけ** Node と `npm install` が要る。Remotion（React で動画を書く）と
-  Playwright（画面を録る）を使う。素材の作り方は `video-notes.md`
-- **`scripts/` を動かすとき**も同じ venv を使う。`python` を直に叩くと `.env` が読まれず、
-  R2 を見ているつもりでローカルの `shares/` を見ていることがある（下の覚え書き参照）
-
 
 ## どこに何が書いてあるか（まずここ）
 
@@ -172,6 +119,9 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 | 「前にも同じ所でつまずいた気がする」とき | `docs/gotchas.md` |
 | 「なぜこうなっているのか」「次に何をする予定だったか」 | `docs/history.md`、メモリの `project-status-tasks-done` |
 | 外部サービスの規約と上限・問い合わせの記録（VocaDB・Bandcamp・otoDB） | `docs/services-terms.md` |
+| **スマホからの依頼**（曲を追加して・並びは？・入れ替えて・共有して）と CLI | `docs/cli.md` |
+| はじめて動かすまで（venv・`.env`・コミットの見張り） | `docs/setup.md` |
+| 更新情報（`/updates`）と、文章を Gemini に添削してもらう手順 | `docs/writing.md`、スキル `/updates` |
 
 **今の状況（点検の数字・待っていること）は運用ボード**: https://claude.ai/artifact/F3TPV7qzZJKN4kpwFT6KSA
 
@@ -188,6 +138,7 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 - **同じ知識が 2 か所以上にある所**（下の一覧）。片方だけ直すと壊れる
 - **変更したら回すもの**（下の表）。忘れると本番が壊れるか、気付けない
 - すべて `PYTHONUTF8=1 .venv/Scripts/python …` で実行する（cp932 で落ちる）
+- **スマホからの依頼は `docs/cli.md` の手順どおり**。候補が複数なら番号を付けて見せ、**勝手に選ばない**。`URL:` 行は省略せずに返す
 
 ### 進め方（どこで止まるか）
 
@@ -210,95 +161,6 @@ Web ツールとは逆を行く。**素っ気なさと厚みの同居**が持ち
 - R2 の 4 つ（`R2_ACCOUNT_ID` ほか。`R2_PUBLIC_URL` と `R2_ENDPOINT` は任意）… 揃っていないと `get_storage()` が黙ってローカルの `shares/` に落ちる
 - 鍵は**リポジトリに書かない**。本番は Render のダッシュボード、手元は `.env`、点検は GitHub Secrets
 
-## 起動（PC 側、毎回）
-
-```bash
-cd trackmento-public   # 手元のフォルダ（名前は環境による）
-.venv/Scripts/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000   # API + 画像配信
-claude --remote-control TRACKMENTO                                             # スマホの Claude アプリから接続
-```
-
-- Web UI: http://localhost:8000/ 。生成 PNG は `outputs/` から `/outputs/<file>.png` で配信
-- `.env` の `PUBLIC_BASE_URL` が `auto` なら LAN IP（例 `http://192.168.3.14:8000`）で URL 返却。
-  スマホで開く場合 `localhost` でなく LAN IP か Tailscale URL 必須
-- 実際のベース URL はサーバー起動ログ `[public] PNG の URL は ...` で確認
-
-## CLI（Bash から呼ぶ。Python は必ず `.venv/Scripts/python`）
-
-```bash
-.venv/Scripts/python cli.py add    --artist "A" --title "T" [--grid NAME] [--source itunes|mb|discogs|otodb] [--first]
-.venv/Scripts/python cli.py add    --url "https://xxx.bandcamp.com/track/..." [--grid NAME]     # Bandcamp / SoundCloud / Spotify / Apple Music / YouTube / ニコニコ動画の URL
-.venv/Scripts/python cli.py add    --image "https://.../cover.jpg" --artist "A" --title "T" [--grid NAME]   # 手入力
-.venv/Scripts/python cli.py pick   --index N [--grid NAME]     # 直前の候補から選ぶ
-.venv/Scripts/python cli.py search --artist "A" --title "T"    # 候補を見るだけ（pick で選べる）
-.venv/Scripts/python cli.py list   [--grid NAME]
-.venv/Scripts/python cli.py move   --from N --to M [--grid NAME]
-.venv/Scripts/python cli.py remove --index N [--grid NAME]
-.venv/Scripts/python cli.py share  [--grid NAME] [--size 3x3] [--ratio 1:1|4:5|16:9|9:16|free] [--sidebar|--no-sidebar]   # PNG + 共有ページ URL
-.venv/Scripts/python cli.py render [--grid NAME] ...                                                          # PNG だけ（オプションは share と同じ）
-                                   [--title "…"] [--no-title] [--numbers|--no-numbers] [--bg paper|ink|mustard|cerulean|lavender|vermilion|mint|pink]
-                                   [--bg-custom "#rrggbb"] [--pad normal|wide|xwide] [--margin 48] [--gap 12]
-.venv/Scripts/python cli.py clear  [--grid NAME]
-.venv/Scripts/python cli.py grids
-```
-
-- 番号 N は画面番号バッジ同一、**1 始まり**
-- 既定グリッド `default`。状態は `grids/<NAME>.json` 保存、Web UI と共有
-  （Web は起動時 localStorage とサーバーの新しい方を読込。開いたままの Web には「サーバーから読み直す」ボタン）
-- `share` / `render` は指定オプションをグリッド JSON にも保存。次回以降省略可
-- `share` は画像（JPEG 品質 78）と並びスナップショットを `shares/<id>.{jpg,json}` 保存、共有ページ `http://…/s/<id>` の URL 出力。
-  共有ページ内容: 画像・曲リスト・「TRACKMENTO で開く」（`/?share=<id>` でその並びを Web 読込）
-- `share` / `render` 最終行は必ず `URL: http://...`
-- 検索結果・画像は `cache.sqlite3` にキャッシュ。再取得は Web の `/search?...&nocache=true`
-
-## スマホからの依頼への対応手順
-
-### 「○○の『△△』を追加して」
-1. `cli.py add --artist "○○" --title "△△"` 実行
-2. 曲名＋アーティスト一致候補あれば自動で次の空きマスへ。出力「NN 番に追加: …」をそのまま伝達
-   （検索順 iTunes → MusicBrainz → Discogs（--source mb,discogs 等で絞込可）。iTunes は曲名・アーティスト名にクエリ含むもののみ返却、完全一致先頭）
-3. **候補複数時は必ず番号付き提示、ユーザーの番号返答後** `cli.py pick --index N` で確定。勝手に選ばない
-4. 未発見時の順: `--source discogs` / `--source mb`（音MAD は `--source otodb`）→ Bandcamp / SoundCloud / Spotify / Apple Music / YouTube / ニコニコ動画なら URL 受取→ `--url URL` → 画像 URL 受取→ `--image URL --artist --title`
-5. 空きマスなしの場合、`remove --index N` で除外か `render --size 4x6` 等で拡張かをユーザーに確認
-
-### 「今の並びは？」
-`cli.py list` 出力をそのまま返却（番号・曲名・アーティスト・ソース）。
-
-### 「N 番と M 番を入れ替えて」「N 番を消して」
-`cli.py move --from N --to M` / `cli.py remove --index N`。結果の並びをそのまま返却。
-
-### 「画像にして」「共有して」「16:9 で曲名リスト付きにして」
-1. 指定あれば `cli.py share --ratio 16:9 --sidebar --title "…"`。なければ `cli.py share`
-2. 出力の並び一覧と **`URL:` 行を省略せずそのまま返却**。スマホ側はその URL（共有ページ）で PNG 保存や
-   「TRACKMENTO で開く」で並び読込可。画像のみ要望時は `画像:` 行も添付
-3. `注意: サーバーが応答しません` 出力時、uvicorn 起動後に URL 伝達
-
-### 「全部消して」
-`cli.py clear` 実行前に一度確認（取消不可）。
-
-## お問い合わせ（Google フォーム）
-
-https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao@gmail.com にメールで届く設定）。
-リンクは運営者ページ・更新情報の「うまくいかないとき」・共有に失敗したときのメッセージの 3 か所
-（`backend/pages.py` の `CONTACT_FORM` と frontend の `CONTACT_FORM`。**URL を変えるときは両方**）。
-自前のフォームにしなかったのは、メール配信の仕組み・迷惑投稿の対策・なりすまし対策（`v=spf1 -all`）の見直しが要るため
-
-## 更新情報のページ（`/updates`）
-
-**書き足す手順はスキル `/updates` にある**（何を書くか・英語・最終更新の日付・添削・確かめ方）。以下は要点。
-
-`backend/pages.py` の `CHANGES` に、**利用者に見える変化だけ**を日付と 1〜2 行（日本語・英語）で先頭に足す（2026-09-19 に作った）。
-内部の直し（点検・ログ・リファクタ）は書かない。**「検討中」は書かない**（一人で運営しているので、約束に見えるものを増やさない）。
-「分かっている不具合」「うまくいかないとき」は `_updates` の本文にある。直したら消す。**コミットと同じ回に 1 行足す**
-
-**まとまった文章は Gemini に添削してもらってから利用者に渡す**（2026-09-19、利用者の依頼。以前は利用者が手で Gemini に聞いていた）。
-`PYTHONUTF8=1 .venv/Scripts/python scripts/proofread.py <下書き.txt> --out <添削.txt>`（鍵は `.env` の `GEMINI_API_KEY`、モデルは `gemini-3.8-flash`）。
-**README など作業する人向けの文書は `--doc` を付ける**（告知文用の指示は「です・ます」にそろえるので、常体の文書が文体ごと書き換わる。2026-09-20）。
-**`gemini-3.8-flash` が使えないとき（無料枠は 1 日 20 回）は回さない**。別のモデルで代用せず、下書きを利用者に渡す
-（利用者が手で 3.8 flash にかけて返す。2026-09-20 の指定）。
-**Gemini の直しをそのまま採らない**: 事実（言い切りすぎ）・画面の表記（「」の中）・書き方の好み（「しづらく」）を突き合わせて取捨し、
-利用者には txt で「仕上がり」と「採った直し・採らなかった直しと理由」を渡す。書き方の好みはスクリプトの `STYLE`
-
 ## 変更したら回すもの（忘れると本番が壊れる／気付けない）
 
 | 何を変えたか | 回すもの | 忘れるとどうなるか |
@@ -317,70 +179,40 @@ https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao
 すべて `PYTHONUTF8=1 .venv/Scripts/python …` で実行する（cp932 で落ちる）。
 
 
-## 開発メモ（核）
-
-- 構成: `backend/`（FastAPI、sources/、cache.py、grids.py、render.py、share.py、uploads.py、config.py）、`frontend/index.html`（単一 HTML）、`cli.py`、`fonts/`（OFL 同梱）
-- 動作確認は各ステップごとブラウザで（`claude-in-chrome` または手動）。サーバー `--reload` なし起動時、コード変更後再起動必要
-
-
 ## 二重実装の一覧（片方だけ直すと壊れる）
 
-- **同じ知識が 2 か所以上にある所の一覧**。片方だけ直すと壊れる:
-  - 描画: `backend/render.py` と `frontend/index.html` の `renderShareCanvas`（定数・レイアウト式・文字の省略規則）
-    → `scripts/compare_render.py` で突き合わせられる。丸めは `render.py` の `rnd()` が JS の `Math.round` に
-    合わせてある（**Python の `round()` は偶数丸めなので使ってはいけない**）
-  - 曲名リストの組み方（1 曲 1 行ではないほう）: `render.py` の `_row_plan` / `_plan_rows` / `_split_title` /
-    `_sidebar` と frontend の `rowPlan` / `planRows` / `splitTitle` / `sidebar`。2026-09-15 に他サービスを
-    参考にして作り直した。**曲名とアーティスト名は上下 2 行**（横に並べると長い曲名でアーティストが押し出される）、
-    **文字が小さくなるなら列を増やす**（25 曲で 2 列。出力で何 px になるかで決める。上限 3 列）
-    - **サイドバーの幅は文字を測って決めない**。比率があるときは比率から決まる残り幅、無いときはグリッドと同じ幅。
-      文字の幅は PIL と Canvas で数 px 違い、幅を実測で決めると**中央寄せのグリッドまで 1〜2px ずれる**
-      （突き合わせでグリッド側に 6% の差が出て、原因を探して行き着いた）。16px 刻みに丸める案は、
-      境目をまたぐと逆に 16px ずれるので却下
-    - 列の間隔は `LIST_COL_GAP`（マスの間隔の 5 倍）。マスと同じ間隔だと隣の列の曲名と近すぎて、
-      どちらの列か迷う
-    - 曲名が 1 行に入らないときだけ 2 行に折る。**折る位置は「行の真ん中にいちばん近い切れ目」**
-      （2 行の長さがそろうように）。「(feat. …)」の手前は少し優遇していて、ちょうどよい位置なら選ばれる。
-      2 行目がわずかにはみ出すだけなら**縮めて収める**（0.92 → 0.86 → 0.8）。「…」で切るのは最後
-  - 曲名リストの回り込み（正方形以下の比率で曲が多いとき）: `render.py` の `_wrap_plan` / `WRAP_*` と
-    frontend の `wrapPlan` / `WRAP_*`。下の「曲名の回り込み」を参照
-  - 柱・帯（塊を枠の辺に付ける組み方）: `render.py` の `_slab_plan` / `_slab_frame` / `SLAB_*` と
-    frontend の `slabPlan` / `slabFrame` / `SLAB_*`
-  - 曲名リストの流し込み: `render.py` の `_flow_rows` / `FLOW_*` と frontend の `flowRows` / `FLOW_*`。 細則（両端そろえ・語送り・字幅の丸め・ベースライン）と実測は `docs/layout.md` の「曲名リストの流し込み」
-  - 曲名の刈り込み: `backend/names.py` と frontend の `trimName`（蛇足を外す規則）。**割り付けを決める前に通す**
-    → `scripts/check_trim.py`（期待値の表と冪等性）と `scripts/compare_trim.py`（Python と Chromium の全件一致）
-  - 検索の絞り込み: `backend/sources/itunes.py` と frontend の `itunesSearch`（ブラウザから直接 iTunes を叩くため）
-  - 描く前の文字の掃除: `render.py` の `_drawable` と frontend の `oneLine`（`drawable`）。**両方とも IBM Plex Sans JP の
-    cmap で決める**（無い字は NFKC で置き換え、それでも無ければ落とす）。JS の cmap（`PLEX_CMAP_BLOCKS` / `PLEX_CMAP_BITS`）は
-    **`scripts/build_fonts.py` が `index.html` に書き込む**（手で直さない）。2026-09-24 までは JS だけ絵文字の正規表現で落としていて、
-    フォントに無い字（「◈」・タミル文字など）を Chromium が代替フォントで測り、変わった字を含む並びで `compare_layout.py --tracks` が
-    118/200 食い違っていた（`unicode-range` は 128 字の区間なので cmap の代わりにならない）。確かめるときは `window.__oneLine`
-  - **割り付けは刈り込み後のセル（`viewCells()`）で測る**。2026-09-24 まで流し込み・1 行型・行数・崩れる曲の数の 4 関数が
-    刈り込み前の `state.cells` を見ていて、刈り込みが起きる曲（「Kino — Gruppa krovi」／Kino）があると割り付けがサーバーと食い違っていた
-  - 曲名の正規化: `backend/merge.py` の `_n()` と frontend の `nkey()`。
-    **Python の `casefold()` は ß を ss に畳むが JS の `toLowerCase()` は畳まない**ので手で合わせてある。
-    **単独の濁点・半濁点（゛゜）は結合文字に置き換えてから NFKC**（「ハ゛」→「バ」。NFKC だけでは合成されない）
-  - マスの上限: 4 か所（上の表）
-  - 文言: 日本語の原文と `EN` 表 → `scripts/check_i18n.py`
-  - 色・比率・`CELL_W` / `CELL_H_BY_RATIO` / `GAP_PX` / `MAX_SIDE`: `render.py` と `index.html`
-  - 背景の画像: `render.py` の `_paint_bg_image` と frontend の `renderShareCanvas` の頭（枠いっぱいに切り抜き、背景色の上に並びの `bgImageAlpha` の濃さ。濃さと背景色はブラウザが画像から決めて並びに入れる）
-  - マスへの絵の入れ方: `render.py` の `_cover_blur_pad` / `blur_margin` と frontend の `coverBlurPad` / `blurMargin`。
-    **下地はマスより広く作ってから切り取る**（縁がにじんで四角の枠がぼやける）
+同じ知識が 2 か所以上にある所。細則と経緯は `docs/layout.md` の末尾「二重実装の細則」ほか。
+
+- 描画: `backend/render.py` と `frontend/index.html` の `renderShareCanvas`（定数・レイアウト式・文字の省略規則）
+  → `scripts/compare_render.py`。丸めは `render.py` の `rnd()` が JS の `Math.round` に合わせてある
+  （**Python の `round()` は偶数丸めなので使ってはいけない**）
+- 曲名リストの組み方（1 曲 1 行ではないほう）: `render.py` の `_row_plan` / `_plan_rows` / `_split_title` / `_sidebar` と
+  frontend の `rowPlan` / `planRows` / `splitTitle` / `sidebar`。**サイドバーの幅は文字を測って決めない**（PIL と Canvas の差でグリッドまでずれる）
+- 曲名リストの回り込み: `_wrap_plan` / `WRAP_*` ↔ `wrapPlan` / `WRAP_*`
+- 柱・帯: `_slab_plan` / `_slab_frame` / `SLAB_*` ↔ `slabPlan` / `slabFrame` / `SLAB_*`
+- 曲名リストの流し込み: `_flow_rows` / `FLOW_*` ↔ `flowRows` / `FLOW_*`（細則は `docs/layout.md` の「曲名リストの流し込み」）
+- 曲名の刈り込み: `backend/names.py` ↔ `trimName`。**割り付けを決める前に通す**。**割り付けは刈り込み後のセル（`viewCells()`）で測る**
+  → `scripts/check_trim.py` と `scripts/compare_trim.py`
+- 検索の絞り込み: `backend/sources/itunes.py` ↔ `itunesSearch`（ブラウザから直接 iTunes を叩くため）
+- 描く前の文字の掃除: `render.py` の `_drawable` ↔ `oneLine`（`drawable`）。**両方とも IBM Plex Sans JP の cmap で決める**。
+  JS の cmap（`PLEX_CMAP_BLOCKS` / `PLEX_CMAP_BITS`）は **`scripts/build_fonts.py` が書き込む**（手で直さない）
+- 曲名の正規化: `backend/merge.py` の `_n()` ↔ `nkey()`。ß と単独の濁点（゛゜）の扱いを手で合わせてある（`docs/sources.md`）
+- マスの上限: 4 か所（上の表）
+- 文言: 日本語の原文と `EN` 表 → `scripts/check_i18n.py`
+- 色・比率・`CELL_W` / `CELL_H_BY_RATIO` / `GAP_PX` / `MAX_SIDE`: `render.py` と `index.html`
+- 背景の画像: `render.py` の `_paint_bg_image` ↔ `renderShareCanvas` の頭（切り抜き・`bgImageAlpha` の濃さ）
+- マスへの絵の入れ方: `_cover_blur_pad` / `blur_margin` ↔ `coverBlurPad` / `blurMargin`（**下地はマスより広く作ってから切り取る**）
+- お問い合わせのフォームの URL: `backend/pages.py` の `CONTACT_FORM` ↔ frontend の `CONTACT_FORM`（`docs/ops.md`）
 
 ## 覚え書き（核）
 
-- **マスの上限は 4 か所にあり、ずれると並びが黙って壊れる**。`frontend/index.html` の `MAX_SIDE_CELLS`（1 辺）と
-  `MAX_CELLS`（総数）、`backend/grids.py` の `MAX_COLS` / `MAX_ROWS`（1 辺）、`backend/config.py` の `max_cells()`（総数）。
-  **`grids.py` の側を小さくしてはいけない**。`GridDoc` の検証は cols/rows を黙って丸め、はみ出したマスを stash に移すので、
-  16x16 の並びを保存した瞬間に 12x12 へ潰れる（2026-09-14 に実際に起きていた。上限を 256 に上げたとき
-  `grids.py` と `applyData` の 12 を直し忘れていた）
-- **ブラウザで動作を確かめるときは `PUBLIC_MODE=1` を付けて起動する**。付けないとグリッド名が `default` になり、
-  **`grids/default.json`（利用者の並び）をテストで上書きしてしまう**（2026-09-14 に実際にやった。
-  幸い `grids/default.json.bak-*` が残っていたので復元できた）。公開モードならブラウザごとの `u-….json` に分かれる
+- **マスの上限は 4 か所にあり、ずれると並びが黙って壊れる**（上の表）。**`grids.py` の側を小さくしてはいけない**
+  （保存した瞬間に並びが潰れる。経緯は `docs/gotchas.md`）
+- **ブラウザで動作を確かめるときは次の形で起動する**。`PUBLIC_MODE=1` が無いと **`grids/default.json`（利用者の並び）を上書きする**。
+  `APP_FROM_R2=0` が無いと R2 の古い CSS / JS が配られ、編集中の `index.html` が画面に出ない。
+  R2 の CORS の都合で**ポートは 8000 固定**
   ```bash
   APP_FROM_R2=0 PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
   ```
-  **`APP_FROM_R2=0` も付ける**。付けないと殻（`frontend/dist/`）が指す R2 の CSS と JS（最後に上げた版）が配られ、
-  編集中の `index.html` が画面に出ない（2026-09-22。`docs/gotchas.md`）
-  R2 の CORS は `localhost:8000` / `127.0.0.1:8000` だけ許可しているので**ポートは 8000 固定**
-- **`grids/` と `shares/` は `.gitignore`**。並びを壊しても git では戻せない。ただし `shares/<id>.json` は共有したときの並びのスナップショットなので、**そこから失われたマスを復元できる**（実例: 1 マス目だけ消えたグリッドを、同じ並びの共有 JSON から戻した）
+- `--reload` なしで起動しているときは、コードを変えたら再起動する
+- **`grids/` と `shares/` は `.gitignore`**。並びを壊しても git では戻せない（`shares/<id>.json` から復元できることはある）

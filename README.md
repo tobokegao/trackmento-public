@@ -49,7 +49,7 @@ Windows では `PYTHONUTF8=1` が要る（既定の cp932 だと日本語のタ�
 
 `share` / `render` の最後の行は `URL: http://...` となる。`share` は画像（JPEG）と並びのスナップショットを保存し（R2 を設定していなければ `shares/`）、共有ページ（`/s/<id>`）から画像の保存や「TRACKMENTO で開く」ができる。`render` は PNG を `outputs/` に書き出す。
 グリッドの状態は `grids/<name>.json` に保存され、Web UI と共有される（Web 側は自動保存＋「サーバーから読み直す」）。
-スマホからの運用手順は `CLAUDE.md` を参照。
+スマホからの運用手順は `docs/cli.md` を参照。
 
 ## 公開する（誰でも使えるようにする）
 

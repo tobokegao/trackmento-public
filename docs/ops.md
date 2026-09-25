@@ -428,3 +428,24 @@ Render は **Hobby プラン**で、込みの帯域は**月 5GB だけ**。実�
   手元の並び（localStorage）はずっと残って画像を指すので、共有より長く置く。2026-09-25 の実数は 1,679 件・496MB・最古 14 日（1 か月で約 1GB 増える）
 - バケット全体は同日 29.7GB（共有の本体画像 20.7GB）。無料の 10GB はすでに超えていて、保存料金は 1GB あたり月 0.015 ドル。uploads が 3GB になっても月 5 円ほど
 - プライバシーポリシーの「端末からアップロードされた画像」に 90 日を書いた（`backend/pages.py`）。期限を変えるときは両方を直す
+
+## お問い合わせ（Google フォーム）
+
+https://forms.gle/2ktpQAXMjJrkFJFz8 （2026-09-19。新しい回答は to6okegao@gmail.com にメールで届く設定）。
+リンクは運営者ページ・更新情報の「うまくいかないとき」・共有に失敗したときのメッセージの 3 か所
+（`backend/pages.py` の `CONTACT_FORM` と frontend の `CONTACT_FORM`。**URL を変えるときは両方**）。
+自前のフォームにしなかったのは、メール配信の仕組み・迷惑投稿の対策・なりすまし対策（`v=spf1 -all`）の見直しが要るため
+
+（`CLAUDE.md` から移した。2026-09-25）
+
+## 検索結果の控え（`searchcache/`）
+
+（`CLAUDE.md` から移した。2026-09-25）
+
+**検索結果の控え（`searchcache/`、`backend/searchcache.py`、2026-09-19）**。`cache.sqlite3` はデプロイで消えるので、
+サーバーで引いた検索結果（VocaDB・otoDB・Discogs・MusicBrainz の引き直し）を R2 にも置く。起動後に一覧して索引を作り
+（`imgcache/` と同じ）、索引に無い語は R2 を見に行かない。R2 から読むのは 0.15 秒（VocaDB は数秒〜25 秒）。
+**鍵は HMAC（秘密鍵は R2 の鍵、`SEARCHCACHE_SECRET` で上書き可）、中身に検索語を入れない**（R2 は公開ドメインから読めるので、
+素のハッシュだと「この語が検索されたか」を確かめられる。プライバシーポリシーの「検索キーワードは恒常的に記録しない」と両立させる）。
+期限はソースごとで、**VocaDB だけ 14 日**、ほかは 7 日（`cache.SEARCH_TTL_BY_SOURCE`。R2 側の上限は `searchcache.TTL` の 14 日）。
+`r2_prune.py` が 15 日で消す（`SHORT_PREFIXES`）。**iTunes と MusicBrainz はブラウザから直接引くので対象外**

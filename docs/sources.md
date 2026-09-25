@@ -191,3 +191,10 @@ bilibili の規約 4.2.11 は自動取得に書面許可を求め、`api.bilibil
 - 収藏夹（まとめ）は中身を bilibili に聞かないと分からないので、今までどおり読み込まない
 - リンク先（`external_url`）は `https://www.bilibili.com/video/<BV>` に揃える
 
+## 曲名の正規化（`merge.py` の `_n()` と frontend の `nkey()`）
+
+CLAUDE.md の「二重実装の一覧」から移した（2026-09-25）。
+
+- 曲名の正規化: `backend/merge.py` の `_n()` と frontend の `nkey()`。
+  **Python の `casefold()` は ß を ss に畳むが JS の `toLowerCase()` は畳まない**ので手で合わせてある。
+  **単独の濁点・半濁点（゛゜）は結合文字に置き換えてから NFKC**（「ハ゛」→「バ」。NFKC だけでは合成されない）
