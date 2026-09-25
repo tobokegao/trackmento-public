@@ -1095,6 +1095,13 @@ body.sheet-open { overflow: hidden; }
 
 /* ---------- options ---------- */
 .opts { display: grid; gap: var(--space-4); }
+/* **グループボックス**（2026-09-25、Mac OS 8 の HIG）。1 段目は彫り込んだ 2px の線（濃い線の右下に明るい線）、題は枠の上辺に重ねて左に置く。
+   内側の余白は HIG の数字（上 12px・左右と下 10px）に題の高さを足したもの。2 段目（.gbox-sub）は 1px の線で、決め方ごとの補足の設定を囲む */
+.gbox { position: relative; display: grid; gap: var(--space-4); margin-top: 0.7em; padding: calc(12px + 0.4em) 10px 10px;
+  border: 1px solid var(--color-bevel); box-shadow: inset 1px 1px 0 var(--color-hl), 1px 1px 0 var(--color-hl); }
+.gbox-title { position: absolute; top: -0.7em; left: 8px; padding: 0 4px; background: var(--color-paper); color: var(--color-ink);
+  font-family: var(--font-display); font-size: var(--dot-size); line-height: 1.4; }
+.gbox-sub { display: grid; gap: var(--space-2); margin-top: var(--space-2); padding: 10px; border: 1px solid var(--color-bevel); }
 .custom-size { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .custom-size label { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); }
 .input.num { width: 4.5rem; padding: var(--space-1) var(--space-2); font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
@@ -1154,8 +1161,9 @@ body.sheet-open { overflow: hidden; }
   clip-path: inset(0 1px 0 16px);   /* 枠の外に出た先端の影だけ（右端も 1px 切って出過ぎを抑える） */
 }
 .check input:disabled { opacity: .5; cursor: not-allowed; }
-.swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
-.swatches label { position: relative; flex: 1 1 28px; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに広がる（PC の列幅では 32px）。右に空きが残らない */
+.swatches { display: flex; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側 5px）の分だけ広めに */
+.swatches label { position: relative; flex: 1 1 0; min-width: 0; aspect-ratio: 1; }   /* 見本は間隔 8px のまま行幅いっぱいに等分（PC の列幅では 32px）。右に空きが残らない。
+   折り返さない（2026-09-25。枠で囲んで幅が減ったとき、8 個目だけ次の行に落ちて行幅いっぱいの大きな四角になっていた） */
 /* 「配色パレットを選ぶ…」。**ほかのボタンと同じ影付きの .btn にする**（2026-09-18）。見出しの横に細い枠だけで
    置いていたときは、見出しの飾りに見えて押せると気付かれにくかった。名前の「…」は OS 9 の決まりで「窓が開く」の印 */
 .pal-open { width: 100%; margin-top: var(--space-3); font-size: var(--text-sm); }
@@ -1651,155 +1659,171 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   <aside class="pane pane-options" aria-labelledby="h-options">
     <div class="pane-title"><h2 id="h-options">出力オプション</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="出力オプションを折りたたむ"></button></span></div>
     <div class="pane-body opts">
-      <fieldset class="field">
-        <legend>グリッド（横 × 縦）</legend>
-        <div class="custom-size" id="custom-size">
-          <label>横 <span class="stepper-wrap"><input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="横のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
-          <span aria-hidden="true">×</span>
-          <label>縦 <span class="stepper-wrap"><input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="縦のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
-        </div>
-      </fieldset>
-
-      <fieldset class="field">
-        <legend>比率</legend>
-        <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="出力比率">
-          <label><input type="radio" name="ratio" value="1:1"><span>1:1 正方形</span></label>
-          <label><input type="radio" name="ratio" value="4:5"><span>4:5 インスタ</span></label>
-          <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 横長</span></label>
-          <label><input type="radio" name="ratio" value="9:16"><span>9:16 縦長</span></label>
-          <label><input type="radio" name="ratio" value="free"><span>自由</span></label>
-        </div>
-        <p class="msg" id="ratio-msg" hidden></p>
-      </fieldset>
-
-      <fieldset class="field">
-        <legend>マスの形</legend>
-        <!-- 動画サイトのサムネイルは 16:9。正方形のマスに入れると左右が 28% ずつ切れる -->
-        <div class="seg radio" id="cell-ratio-seg" role="radiogroup" aria-label="マスの形">
-          <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形</span></label>
-          <label><input type="radio" name="cellRatio" value="16:9"><span>横長 16:9</span></label>
-        </div>
-      </fieldset>
-
-      <!-- マスの形と続けて並べると、ラジオボタンの 2 組が 1 組に見えるので見出しを分ける（2026-09-22） -->
-      <fieldset class="field">
-        <legend>サムネの入れ方</legend>
-        <div class="seg radio" id="cell-fit-seg" role="radiogroup" aria-label="サムネの入れ方">
-          <label><input type="radio" name="cellFit" value="crop" checked><span>切り抜く</span></label>
-          <label><input type="radio" name="cellFit" value="blur"><span>ぼかして埋める</span></label>
-        </div>
-        <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。</p>
-      </fieldset>
-
-      <fieldset class="field">
-        <legend>表示</legend>
-        <!-- label で包まない（「みんなのグリッドに載せる」と同じ）。包むと行のどこを押しても箱が切り替わり、行全体が光る -->
-        <!-- **横に流し込む**（縦に 1 つずつ積むと場所を食う）。入らないものは次の行へ回る -->
-        <div class="check-row">
-          <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
-          <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
-          <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
-          <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の余計な部分を省く</span></div>
-        </div>
-      </fieldset>
-
-      <fieldset class="field">
-        <legend>トラックリスト</legend>
-        <div class="seg radio" id="list-seg" role="radiogroup" aria-label="トラックリスト">
-          <label><input type="radio" name="listmode" value="side" checked><span>横に並べる</span></label>
-          <label><input type="radio" name="listmode" value="overlay"><span>マスに重ねる</span></label>
-          <label><input type="radio" name="listmode" value="none"><span>表示しない</span></label>
-        </div>
-        <p class="msg" id="list-msg" hidden></p>
-      </fieldset>
-
-      <fieldset class="field">
-        <legend>背景色</legend>
-        <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットと反対の色」は並んだジャケットから色を取り、
-             並びが変わると取り直す。入る先はカスタムカラーなので、書き出しの描画はそのまま。
-             「背景を透過」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
-        <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
-          <label><input type="radio" name="bgMode" value="pick" checked><span>色を選ぶ</span></label>
-          <label><input type="radio" name="bgMode" value="near"><span>ジャケットに近い色</span></label>
-          <label title="補色（色相環で向かい側の色）"><input type="radio" name="bgMode" value="far"><span>ジャケットと反対の色</span></label>
-          <label><input type="radio" name="bgMode" value="none"><span>背景を透過</span></label>
-          <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
-          <label><input type="radio" name="bgMode" value="gradient"><span>グラデーション</span></label>
-        </div>
-        <div id="bg-pick">
-        <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
-        <button class="btn pal-open" type="button" id="palette-btn" aria-haspopup="dialog">配色パレットを選ぶ…</button>
-        <div class="custom-color">カスタムカラー <button type="button" id="bg-custom-btn" aria-label="カスタムカラーを設定" aria-expanded="false" aria-controls="bg-custom-panel"></button></div>
-        <div class="hsv" id="bg-custom-panel" hidden>
-          <label for="hsv-h">色相 <output id="hsv-h-out">0</output></label>
-          <input type="range" id="hsv-h" min="0" max="360" step="1" value="0" style="--track: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
-          <label for="hsv-s">彩度 <output id="hsv-s-out">0</output></label>
-          <input type="range" id="hsv-s" min="0" max="100" step="1" value="0">
-          <label for="hsv-v">明度 <output id="hsv-v-out">100</output></label>
-          <input type="range" id="hsv-v" min="0" max="100" step="1" value="100">
-          <div class="hex" id="hsv-hex">#f2efe6</div>
-        </div>
-        </div>
-        <!-- 好きな画像を背景に（2026-09-25、利用者の案）。端末の画像を /upload で上げ（撮影日時などは消して保存）、
-             枠いっぱいに切り抜いて半分の濃さで敷く。文字の色は画像の平均の色で決める（それを背景色に入れる） -->
-        <!-- グラデーション背景（2026-09-25）。色はジャケットから取るか、自分で 2〜4 色選ぶ。「ほかの模様」はゆらぎの形だけ変える -->
-        <div id="bg-grad-box" hidden>
-          <div class="seg radio" id="bg-grad-src" role="radiogroup" aria-label="グラデーションの色">
-            <label><input type="radio" name="bgGradSrc" value="covers" checked><span>ジャケットから</span></label>
-            <label><input type="radio" name="bgGradSrc" value="custom"><span>自分で選ぶ</span></label>
+      <!-- **1 段目のグループボックスで 3 つに分ける**（2026-09-25、利用者の依頼。Mac OS 8 の HIG の group box。
+           ラジオボタンの組が多く並んで、どこからどこまでが一まとまりか分かりにくかった） -->
+      <section class="gbox" aria-labelledby="gb-cells">
+        <h3 class="gbox-title" id="gb-cells">マス</h3>
+        <fieldset class="field">
+          <legend>グリッド（横 × 縦）</legend>
+          <div class="custom-size" id="custom-size">
+            <label>横 <span class="stepper-wrap"><input class="input num" id="cols" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="横のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
+            <span aria-hidden="true">×</span>
+            <label>縦 <span class="stepper-wrap"><input class="input num" id="rows" type="number" inputmode="numeric" min="1" max="32" value="3" aria-label="縦のマス数"><span class="stepper" aria-hidden="true"><button type="button" tabindex="-1" data-step="1"></button><button type="button" tabindex="-1" data-step="-1"></button></span></span></label>
           </div>
-          <div id="bg-grad-colors" hidden>
-            <button class="btn btn-sm" type="button" id="bg-grad-add">色を足す</button>
-            <button class="btn btn-sm" type="button" id="bg-grad-del">色を減らす</button>
-          </div>
-          <div class="grad-row">
-            <img id="bg-grad-thumb" alt="グラデーションの見本">
-            <button class="btn btn-sm" type="button" id="bg-grad-shuffle" title="色はそのままで、模様（ゆらぎの形）だけ変える">ほかの模様</button>
-          </div>
-        </div>
-        <div id="bg-none-box" hidden>
-          <div class="seg radio" id="bg-ink-seg" role="radiogroup" aria-label="字の色">
-            <label><input type="radio" name="bgInk" value="dark" checked><span>黒い字</span></label>
-            <label><input type="radio" name="bgInk" value="light"><span>白い字</span></label>
-          </div>
-        </div>
-        <div id="bg-image-box" hidden>
-          <div id="bg-image-row">
-            <img id="bg-image-thumb" alt="背景の画像の見本">
-            <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
-            <button class="btn btn-sm" type="button" id="bg-image-reset" hidden title="選んだ画像をやめて、TRACKMENTO のマークの模様に戻す">既定に戻す</button>
-          </div>
-          <div class="seg radio" id="bg-fit-seg" role="radiogroup" aria-label="画像の敷き方">
-            <label><input type="radio" name="bgFit" value="cover" checked><span>収める</span></label>
-            <label><input type="radio" name="bgFit" value="tile"><span>並べる</span></label>
-          </div>
-          <div class="seg radio" id="bg-tile-seg" role="radiogroup" aria-label="並べる大きさ" hidden>
-            <label><input type="radio" name="bgTile" value="s"><span>小</span></label>
-            <label><input type="radio" name="bgTile" value="m" checked><span>中</span></label>
-            <label><input type="radio" name="bgTile" value="l"><span>大</span></label>
-          </div>
-          <input type="file" id="bg-image-file" accept="image/*" hidden>
-        </div>
-        <!-- ジャケットから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで 1 つずつ送る形だったのを、
-             背景色の見本と同じ四角で全部並べ、今の色に枠を付ける -->
-        <div class="swatches" id="bg-cands" role="radiogroup" aria-label="ジャケットから取った色" hidden></div>
-        <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
-      </fieldset>
+        </fieldset>
 
-      <!-- 余白は 3 段から選ぶ（2026-09-24。前は px のスライダーで、下限の 3.5% と比率合わせの余りに隠れて動かしても変わらないことが多かった）。
-           段は内容の短い辺に対する割合（ふつう 3.5%・ひろめ 7%・たっぷり 12%。backend/render.py の PAD_FRAC） -->
-      <fieldset class="field">
-        <legend>余白</legend>
-        <div class="seg radio" id="pad-seg" role="radiogroup" aria-label="余白">
-          <label><input type="radio" name="pad" value="normal" checked><span>ふつう</span></label>
-          <label><input type="radio" name="pad" value="wide"><span>ひろめ</span></label>
-          <label><input type="radio" name="pad" value="xwide"><span>たっぷり</span></label>
+        <fieldset class="field">
+          <legend>比率</legend>
+          <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="出力比率">
+            <label><input type="radio" name="ratio" value="1:1"><span>1:1 正方形</span></label>
+            <label><input type="radio" name="ratio" value="4:5"><span>4:5 インスタ</span></label>
+            <label><input type="radio" name="ratio" value="16:9" checked><span>16:9 横長</span></label>
+            <label><input type="radio" name="ratio" value="9:16"><span>9:16 縦長</span></label>
+            <label><input type="radio" name="ratio" value="free"><span>自由</span></label>
+          </div>
+          <p class="msg" id="ratio-msg" hidden></p>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>マスの形</legend>
+          <!-- 動画サイトのサムネイルは 16:9。正方形のマスに入れると左右が 28% ずつ切れる -->
+          <div class="seg radio" id="cell-ratio-seg" role="radiogroup" aria-label="マスの形">
+            <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形</span></label>
+            <label><input type="radio" name="cellRatio" value="16:9"><span>横長 16:9</span></label>
+          </div>
+        </fieldset>
+
+        <!-- マスの形と続けて並べると、ラジオボタンの 2 組が 1 組に見えるので見出しを分ける（2026-09-22） -->
+        <fieldset class="field">
+          <legend>サムネの入れ方</legend>
+          <div class="seg radio" id="cell-fit-seg" role="radiogroup" aria-label="サムネの入れ方">
+            <label><input type="radio" name="cellFit" value="crop" checked><span>切り抜く</span></label>
+            <label><input type="radio" name="cellFit" value="blur"><span>ぼかして埋める</span></label>
+          </div>
+          <p class="note" id="cell-fit-note">マスと形の違うサムネの入れ方です（正方形のマスに動画のサムネ、横長のマスに正方形のジャケットを入れるときなど）。「ぼかして埋める」にすると切れずに入ります。マスごとに変えることもできます。</p>
+        </fieldset>
+      </section>
+
+      <section class="gbox" aria-labelledby="gb-text">
+        <h3 class="gbox-title" id="gb-text">文字</h3>
+
+        <fieldset class="field">
+          <legend>表示</legend>
+          <!-- label で包まない（「みんなのグリッドに載せる」と同じ）。包むと行のどこを押しても箱が切り替わり、行全体が光る -->
+          <!-- **横に流し込む**（縦に 1 つずつ積むと場所を食う）。入らないものは次の行へ回る -->
+          <div class="check-row">
+            <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
+            <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
+            <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
+            <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の余計な部分を省く</span></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>トラックリスト</legend>
+          <div class="seg radio" id="list-seg" role="radiogroup" aria-label="トラックリスト">
+            <label><input type="radio" name="listmode" value="side" checked><span>横に並べる</span></label>
+            <label><input type="radio" name="listmode" value="overlay"><span>マスに重ねる</span></label>
+            <label><input type="radio" name="listmode" value="none"><span>表示しない</span></label>
+          </div>
+          <p class="msg" id="list-msg" hidden></p>
+        </fieldset>
+      </section>
+
+      <section class="gbox" aria-labelledby="gb-bg">
+        <h3 class="gbox-title" id="gb-bg">背景と余白</h3>
+
+        <fieldset class="field">
+          <legend>背景色</legend>
+          <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットと反対の色」は並んだジャケットから色を取り、
+               並びが変わると取り直す。入る先はカスタムカラーなので、書き出しの描画はそのまま。
+               「背景を透過」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
+          <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
+            <label><input type="radio" name="bgMode" value="pick" checked><span>色を選ぶ</span></label>
+            <label><input type="radio" name="bgMode" value="near"><span>ジャケットに近い色</span></label>
+            <label title="補色（色相環で向かい側の色）"><input type="radio" name="bgMode" value="far"><span>ジャケットと反対の色</span></label>
+            <label><input type="radio" name="bgMode" value="none"><span>背景を透過</span></label>
+            <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
+            <label><input type="radio" name="bgMode" value="gradient"><span>グラデーション</span></label>
+          </div>
+          <!-- 決め方ごとの補足の設定は 2 段目の枠で囲む（Mac OS 8 の HIG の secondary group box。2026-09-25） -->
+          <div class="gbox-sub">
+            <div id="bg-pick">
+            <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
+            <button class="btn pal-open" type="button" id="palette-btn" aria-haspopup="dialog">配色パレットを選ぶ…</button>
+            <div class="custom-color">カスタムカラー <button type="button" id="bg-custom-btn" aria-label="カスタムカラーを設定" aria-expanded="false" aria-controls="bg-custom-panel"></button></div>
+            <div class="hsv" id="bg-custom-panel" hidden>
+              <label for="hsv-h">色相 <output id="hsv-h-out">0</output></label>
+              <input type="range" id="hsv-h" min="0" max="360" step="1" value="0" style="--track: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
+              <label for="hsv-s">彩度 <output id="hsv-s-out">0</output></label>
+              <input type="range" id="hsv-s" min="0" max="100" step="1" value="0">
+              <label for="hsv-v">明度 <output id="hsv-v-out">100</output></label>
+              <input type="range" id="hsv-v" min="0" max="100" step="1" value="100">
+              <div class="hex" id="hsv-hex">#f2efe6</div>
+            </div>
+            </div>
+            <!-- 好きな画像を背景に（2026-09-25、利用者の案）。端末の画像を /upload で上げ（撮影日時などは消して保存）、
+                 枠いっぱいに切り抜いて半分の濃さで敷く。文字の色は画像の平均の色で決める（それを背景色に入れる） -->
+            <!-- グラデーション背景（2026-09-25）。色はジャケットから取るか、自分で 2〜4 色選ぶ。「ほかの模様」はゆらぎの形だけ変える -->
+            <div id="bg-grad-box" hidden>
+              <div class="seg radio" id="bg-grad-src" role="radiogroup" aria-label="グラデーションの色">
+                <label><input type="radio" name="bgGradSrc" value="covers" checked><span>ジャケットから</span></label>
+                <label><input type="radio" name="bgGradSrc" value="custom"><span>自分で選ぶ</span></label>
+              </div>
+              <div id="bg-grad-colors" hidden>
+                <button class="btn btn-sm" type="button" id="bg-grad-add">色を足す</button>
+                <button class="btn btn-sm" type="button" id="bg-grad-del">色を減らす</button>
+              </div>
+              <div class="grad-row">
+                <img id="bg-grad-thumb" alt="グラデーションの見本">
+                <button class="btn btn-sm" type="button" id="bg-grad-shuffle" title="色はそのままで、模様（ゆらぎの形）だけ変える">ほかの模様</button>
+              </div>
+            </div>
+            <div id="bg-none-box" hidden>
+              <div class="seg radio" id="bg-ink-seg" role="radiogroup" aria-label="字の色">
+                <label><input type="radio" name="bgInk" value="dark" checked><span>黒い字</span></label>
+                <label><input type="radio" name="bgInk" value="light"><span>白い字</span></label>
+              </div>
+            </div>
+            <div id="bg-image-box" hidden>
+              <div id="bg-image-row">
+                <img id="bg-image-thumb" alt="背景の画像の見本">
+                <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
+                <button class="btn btn-sm" type="button" id="bg-image-reset" hidden title="選んだ画像をやめて、TRACKMENTO のマークの模様に戻す">既定に戻す</button>
+              </div>
+              <div class="seg radio" id="bg-fit-seg" role="radiogroup" aria-label="画像の敷き方">
+                <label><input type="radio" name="bgFit" value="cover" checked><span>収める</span></label>
+                <label><input type="radio" name="bgFit" value="tile"><span>並べる</span></label>
+              </div>
+              <div class="seg radio" id="bg-tile-seg" role="radiogroup" aria-label="並べる大きさ" hidden>
+                <label><input type="radio" name="bgTile" value="s"><span>小</span></label>
+                <label><input type="radio" name="bgTile" value="m" checked><span>中</span></label>
+                <label><input type="radio" name="bgTile" value="l"><span>大</span></label>
+              </div>
+              <input type="file" id="bg-image-file" accept="image/*" hidden>
+            </div>
+            <!-- ジャケットから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで 1 つずつ送る形だったのを、
+                 背景色の見本と同じ四角で全部並べ、今の色に枠を付ける -->
+            <div class="swatches" id="bg-cands" role="radiogroup" aria-label="ジャケットから取った色" hidden></div>
+            <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
+          </div>
+        </fieldset>
+
+        <!-- 余白は 3 段から選ぶ（2026-09-24。前は px のスライダーで、下限の 3.5% と比率合わせの余りに隠れて動かしても変わらないことが多かった）。
+             段は内容の短い辺に対する割合（ふつう 3.5%・ひろめ 7%・たっぷり 12%。backend/render.py の PAD_FRAC） -->
+        <fieldset class="field">
+          <legend>余白</legend>
+          <div class="seg radio" id="pad-seg" role="radiogroup" aria-label="余白">
+            <label><input type="radio" name="pad" value="normal" checked><span>ふつう</span></label>
+            <label><input type="radio" name="pad" value="wide"><span>ひろめ</span></label>
+            <label><input type="radio" name="pad" value="xwide"><span>たっぷり</span></label>
+          </div>
+        </fieldset>
+        <div class="field">
+          <label for="gap">マスの間隔 <output id="gap-out" for="gap">16</output> px</label>
+          <input type="range" id="gap" min="0" max="96" step="4" value="16">
         </div>
-      </fieldset>
-      <div class="field">
-        <label for="gap">マスの間隔 <output id="gap-out" for="gap">16</output> px</label>
-        <input type="range" id="gap" min="0" max="96" step="4" value="16">
-      </div>
+      </section>
 
       <dl class="spec">
         <div><dt>出力サイズ</dt><dd id="spec-out">—</dd></div>
@@ -2194,6 +2218,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "背景を透過": "Transparent",
         "画像": "Image",
         "字の色": "Text color",
+        "マス": "Cells",
+        "文字": "Text",
+        "背景と余白": "Background and spacing",
         "既定に戻す": "Back to default",
         "選んだ画像をやめて、TRACKMENTO のマークの模様に戻す": "Stop using the chosen image and go back to the TRACKMENTO mark pattern",
         "共有の画像は黒い地になります。「画像を保存」では背景が透明な PNG になります。": "The shared image gets a black background. “Save image” gives you a PNG with a transparent background.",

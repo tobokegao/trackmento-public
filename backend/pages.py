@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "出力オプションの設定を「マス」「文字」「背景と余白」の 3 つの枠に分け、背景色の細かい設定も枠で囲みました。",
+     "The output options are now grouped into three boxes, “Cells,” “Text,” and “Background and spacing,” and the detailed background color settings have a box of their own."),
     ("2026-09-25", "「画像」の「収める」は、画像の比率を変えずに端まで大きくし、余りを画像のふちの色で埋めるようにしました（書き出す画像の比率に合わせます）。",
      "“Fit” under “Image” now enlarges the image to the edges without changing its proportions, and fills the rest with the color of the image's edges (matching the shape of the exported image)."),
     ("2026-09-25", "「画像」で、画像を「収める」か「並べる」（小・中・大）かを選べるようにし、選んだ画像の見本を出しました。「背景を透過」では「黒い字」「白い字」を選べます（白い字のときは見本の地が暗くなります）。",
