@@ -598,6 +598,8 @@ LIST_COL_GAP = GAP_PX * 5   # 列と列のあいだ。マスの間隔と同じ�
 LIST_COL_GAIN = 1.02        # 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
 ARTIST_SCALE = 0.78       # アーティスト名は曲名より小さく、薄い色で
 LIST_COL_TIDY_GAIN = 1.15   # 右に置くとき、列を増やして「崩れる曲」が増えるなら、文字がこの倍率以上大きくならない限り増やさない
+ROWS_SQUEEZE = 0.75       # 曲の順番で列の行数が見込みを超えたとき、行の高さを詰めてよい下限（見込みに対する割合。`_plan_need`）
+FLOW_SQUEEZE = 1.2        # 流し込みの行が見込みより増えたとき、行の高さを字のこの倍まで詰めてよい（ふだんは 1.5 倍）
 CLIP_MAX_RATIO = 0.15     # 下に置くとき、「…」で名前が消える曲がこの割合を超えて増えるなら、マスが大きくなっても列を増やさない
                           # （2026-09-18。一律に禁止すると、下に置く並びでマスが 22% 小さくなった＝3x3・1:1 で 496 → 388px）
 CLIP_GAIN = 0.35          # 右に置くとき、名前が消える曲が 1 つ増えるごとに、列を増やすのに要る「字の大きさの倍率」をこれだけ厳しくする
@@ -611,6 +613,28 @@ def _songs(doc: GridDoc) -> list[Track]:
     マスの位置と結びつかない曲名リスト（サイドバー・表・1 行型・流し込み・縦一列）はこれで組み、
     空きマスの行を作らない。frontend の listCells と同じ"""
     return [t for t in doc.cells if t]
+
+
+def _canon_key(t: Track) -> tuple[str, str]:
+    return (t.title or "", t.artist or "")
+
+
+def _canon(doc: GridDoc) -> GridDoc:
+    """**組み方を決めるための並び**（2026-09-25）。曲の入ったマスの位置はそのままで、曲だけを
+    曲名 → アーティスト名の順（文字の符号位置で比べる）に並べ替えた写しを返す。frontend の canonCells と同じ。
+
+    同じ 49 曲（7x7・16:9）でも、「色で並べ替え」で順番を変えるだけで、書き出しが「右に 3 列の表・2400px」から
+    「流し込み・2000px」に変わっていた（利用者の報告）。列の高さ（2 行に折れる曲がどの列に集まるか）や
+    流し込みの行数（どこで折り返すか）が曲の順番で 1〜2 行変わり、それが境目の判定をまたいでいた。
+    **組み方・出力の大きさ・字の大きさ・列数はこの並びで決め**、描くときは曲の順のまま
+    （`layout()` の最後で、実際の並びに合わせて行の高さや段の位置だけを直す）
+    """
+    songs = _songs(doc)
+    order = sorted(songs, key=_canon_key)
+    if all(a is b for a, b in zip(order, songs)):
+        return doc
+    it = iter(order)
+    return doc.model_copy(update={"cells": [next(it) if t else t for t in doc.cells]})
 
 
 def _num_w(font_s: int) -> float:
@@ -996,6 +1020,28 @@ def _last_fill(p: "WrapPlan") -> float:
     return min(1.0, p.rows[-1].width / seg_w) if seg_w > 0 else 1.0
 
 
+def _refit_flow(build, plan: "WrapPlan") -> "WrapPlan":
+    """回り込み・柱・帯を、**決めた枠と字のまま、曲の順で組み直す**（2026-09-25）。frontend の refitFlow と同じ。
+
+    枠と字は `_canon` の並びで決めてあるので、曲の順番では変わらない。流し込みの行数は順番で 1〜2 行
+    変わることがあり（折り返す位置が変わる）、入りきらないときは**行の高さを字の `FLOW_SQUEEZE` 倍まで詰める**。
+    それでも入らないとき（実測では起きない）だけ字を 1px ずつ下げる。描けない行を捨てるよりはよい。
+    `build(lh, fs)` は行の高さ・字を差し替えて組む関数（None ならそのまま）
+    """
+    got = build(None, None)
+    if got is not None:
+        return got
+    for lh in range(plan.line_h - 1, math.ceil(plan.font_s * FLOW_SQUEEZE) - 1, -1):
+        got = build(lh, None)
+        if got is not None:
+            return got
+    for fs in range(plan.font_s - 1, max(8, plan.font_s * 3 // 4), -1):
+        got = build(None, fs)
+        if got is not None:
+            return got
+    return plan
+
+
 def _fills_width(p: "WrapPlan", gw: int) -> bool:
     """マスの塊が枠の横いっぱい（余白を除いた幅の 95% 以上）に入っているか。"""
     return gw >= (p.W - p.pad * 2) * 0.95
@@ -1012,6 +1058,8 @@ class WrapPlan(NamedTuple):
     pct: int = 0          # 枠が塊の何 % か（回り込みで、枠を変えずに字を詰め直すときに使う）
     tx: int = 0           # タイトルの左端（0 なら pad）。比率なしの「マスごと」は右の列の上に置く
     inline: bool = False  # マスごとの 1 行型（曲名とアーティスト名を 1 行に、アーティスト名は段の右端）
+    seg_fs: int = 0       # 回り込み: 段の最小幅を測った字（組み直すときに同じ段を作るため）
+    target: int = 0       # 柱・帯: 出力での字の目標（組み直すときに同じ枠を作るため）
 
 
 # ---- 帯・柱: マスの塊を枠の辺にぴったり付ける組み方 ----
@@ -1333,7 +1381,7 @@ def _slab_stack_try(doc: GridDoc, gh: int, title_h: int, n: int, W: int, H: int,
 
 
 def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
-               max_side_v: int) -> WrapPlan | None:
+               max_side_v: int, refit: WrapPlan | None = None) -> WrapPlan | None:
     """塊を枠の辺にぴったり付ける割り付け（柱・帯）。合わなければ None。
 
     どちらも**タイトルは枠の上端いっぱい**に置き、その下に塊、という並びは同じ。
@@ -1347,7 +1395,7 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         vertical = False
     else:
         return None
-    def build(target: int) -> WrapPlan | None:
+    def build(target: int, lh: int | None = None, fs: int | None = None) -> WrapPlan | None:
         # **タイトルの帯の高さは文字の大きさから決まり、文字の大きさは枠（縮尺）から決まる**ので、
         # 帯 0 から始めて何回か回す。3 回で動かなくなる
         extra = 0
@@ -1358,8 +1406,8 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             if W <= 0 or H <= 0:
                 return None
             scale = min(1.0, max_side_v / max(W, H))
-            font_s = max(18, rnd(target / scale))
-            line_h = rnd(font_s * 1.5)
+            font_s = fs or max(18, rnd(target / scale))
+            line_h = lh or rnd(font_s * 1.5)
             wgap = rnd(font_s * WRAP_GAP_EM)
             # タイトルは**本文から決める**（マスの数から決めると枠に対して極端に小さくなる）。
             # ただし枠の高さの SLAB_TITLE_MAX まで
@@ -1410,8 +1458,11 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         elif dy:
             segs = [(sx, sy + dy, sw) for sx, sy, sw in segs]
         return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, ty, gx, gy,
-                        tuple(segs), rows, len(rows) / n_seg)
+                        tuple(segs), rows, len(rows) / n_seg, target=target)
 
+    if refit is not None:
+        # 曲の順のまま、決めた枠と字で組み直す（`_refit_flow`）
+        return _refit_flow(lambda lh, fs: build(refit.target, lh, fs), refit)
     for target in SLAB_TARGET_PX:
         if target < SLAB_MIN_FONT:
             break
@@ -1422,7 +1473,7 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
 
 
 def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
-               max_side_v: int) -> WrapPlan | None:
+               max_side_v: int, refit: WrapPlan | None = None) -> WrapPlan | None:
     """**マスの塊を中央に置き、まわりの余白に曲名を流し込む**割り付けを探す。
 
     正方形以下の比率で曲が多いと、今までは「上にマス・下に曲名」で組んでいた。
@@ -1436,13 +1487,14 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
     pad0 = _mod_pad(max(m, rnd(min(gw, title_h + gh) * _pad_frac(doc))), doc.options.gap)
     Wb, Hb = _fit(gw, title_h + gh, pad0, ratio)
 
-    def build(pct: int, target: int, fs: int | None = None, seg_fs: int | None = None) -> WrapPlan | None:
+    def build(pct: int, target: int, fs: int | None = None, seg_fs: int | None = None,
+              lh: int | None = None) -> WrapPlan | None:
         W, H = rnd(Wb * pct / 100), rnd(Hb * pct / 100)
         scale = min(1.0, max_side_v / max(W, H))
         font_s = fs if fs else max(18, rnd(target / scale))
         # **マスの送りの約数に寄せる**（塊の左右に流れる行が、ジャケットの段とそろう）。
         # ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
-        line_h = _snap_lead(rnd(font_s * 1.5), cell_h(doc) + doc.options.gap)   # マスの段にそろえる（高さ）
+        line_h = lh or _snap_lead(rnd(font_s * 1.5), cell_h(doc) + doc.options.gap)   # マスの段にそろえる（高さ）
         pad = _mod_pad(max(m, rnd(min(W, H) * _pad_frac(doc))), doc.options.gap)
         # **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む）。
         # 中央に置くと左右が両方とも「文字を流すには狭い」幅になり、両方とも使えず捨てになる。
@@ -1554,7 +1606,12 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             segs = out
             gy += d_m + d_g
             top_ += d_m
-        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, top_, gx, gy, tuple(segs), rows, pct=pct)
+        return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, top_, gx, gy, tuple(segs), rows, pct=pct,
+                        seg_fs=seg_fs or font_s)
+
+    if refit is not None:
+        # 曲の順のまま、決めた枠と字で組み直す（`_refit_flow`）
+        return _refit_flow(lambda lh, fs: build(refit.pct, 0, fs or refit.font_s, refit.seg_fs or refit.font_s, lh), refit)
 
     # 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始める
     lo0 = max(100, math.ceil(100 * max(gw / Wb, (title_h + gh) / Hb) / WRAP_GRID_MAX))
@@ -1653,7 +1710,10 @@ def _trimmed(doc: GridDoc) -> GridDoc:
 
 
 def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layout:
-    doc = _trimmed(doc)
+    real = _trimmed(doc)
+    # **組み方は曲の順番に左右されない並び（`_canon`）で決める**（2026-09-25）。`doc` はその並び、
+    # `real` は曲の順のまま。`real` を使うのは最後の組み直し（行の高さ・段の位置）だけ
+    doc = _canon(real)
     o = doc.options
     cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
     n_tracks = max(1, sum(1 for t in doc.cells if t))   # 入っている曲の数（「消える曲」の割合を測る母数）
@@ -1739,8 +1799,8 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         _, fs, w = _sidebar(cols, base_rows)
         col_w = (w - LIST_COL_GAP * (cols - 1)) // cols
         plan = _row_plan(doc, fs, col_w)
-        if sum(plan) > base_rows or _plan_rows(plan, cols) > math.ceil(base_rows / cols):
-            lh = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // max(1, _plan_rows(plan, cols))))
+        if sum(plan) > base_rows or _plan_need(plan, cols) > math.ceil(base_rows / cols):
+            lh = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // max(1, _plan_need(plan, cols))))
             fs = rnd(max(30, _snap_lead(lh, pitch, max_lh=lh)) * 0.56)
         return fs, _list_damage(doc, fs, col_w)
 
@@ -1804,12 +1864,15 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     # **割り付けは 1 度しか計算しない**（小さくした字で計算し直すと、折る・折らないを行き来するため）
     sb_plan: tuple[int, ...] = ()
     sb_arows: tuple[int, ...] = ()
+    plan_at = (font_s, 0)   # 曲ごとの行数を数えた字と列の幅（最後に曲の順で数え直すため）
     if side != "none":
         col_w0 = (sb_w - LIST_COL_GAP * (sb_cols - 1)) // sb_cols
+        plan_at = (font_s, col_w0)
         sb_plan = _row_plan(doc, font_s, col_w0)
         avail0 = max(1.0, col_w0 - _num_w(font_s))
         sb_arows = tuple(_artist_rows(_one_line(t.artist), font_s, avail0) for t in songs)
-        rows_per_col = _plan_rows(sb_plan, sb_cols)
+        # **判定は曲の順番に左右されない行数で**（`_plan_need`。2026-09-25）
+        rows_per_col = _plan_need(sb_plan, sb_cols)
         # **1 曲が列をまたがないので、折らなくても 1 列の行数が見込みより増えることがある**（2026-09-17）。
         # 曲名＋アーティストの 2 行ひと組を 25 曲、2 列に分けると 13 曲 ＝ 26 行で、「50 行 ÷ 2 列 ＝ 25 行」の
         # 高さのまま描くと最後の曲がマスの下端からはみ出していた。そのときも高さを取り直す
@@ -1831,7 +1894,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     # わずかに割り、まるごと流し込みに落ちていた。段のそろいは見た目の細かい良さだが、
     # 「1 曲 1 行」が保てるかどうかは読みやすさそのもの。割るくらいなら寄せない
     if side == "right" and font_s * scale < FLOW_MIN_FONT:
-        rows_fin = max(1, _plan_rows(sb_plan, sb_cols) if sb_plan else math.ceil(base_rows / sb_cols))
+        rows_fin = max(1, _plan_need(sb_plan, sb_cols) if sb_plan else math.ceil(base_rows / sb_cols))
         lh2 = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // rows_fin))
         fs2 = rnd(lh2 * 0.56)
         if fs2 > font_s and fs2 * scale >= FLOW_MIN_FONT:
@@ -1862,7 +1925,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         # **曲名リストの先頭も段の境目に乗せる**。リストはタイトルの帯のぶん下から始まるので、
         # 帯が行の整数倍でないと、行がそろっていても全体が半端にずれる。
         # 収まらないなら動かさない（はみ出すくらいならそろえないほうがよい）
-        rows_now = _plan_rows(sb_plan, sb_cols) if sb_plan else base_rows
+        rows_now = _plan_need(sb_plan, sb_cols) if sb_plan else base_rows
         up = math.ceil(title_h / line_h) * line_h
         if up + rows_now * line_h <= gh:
             title_h = up
@@ -1957,25 +2020,30 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     if sb_flow and ratio is not None:
         from backend.config import max_side
         wp = _wrap_plan(doc, gw, gh, title_h, ratio, m, max_side())
+        # 選んだ組み方を曲の順で組み直す関数（枠と字はそのまま。縦一列・表は曲ごとに 1 段なので要らない）
+        wp_fix = lambda p: _wrap_plan(real, gw, gh, title_h, ratio, m, max_side(), refit=p)   # noqa: E731
         # **辺にぴったり付く組み方（柱・帯）があればそちらを優先する**。塊が片方の辺を
         # 使い切るので枠に余りが出ず、マスは回り込みと同じか大きくなる。
         # 回り込みのほうがマスを大きく取れるときだけ、そちらを残す
         sp = _slab_plan(doc, gw, gh, title_h, ratio, m, max_side())
+        sp_fix = lambda p: _slab_plan(real, gw, gh, title_h, ratio, m, max_side(), refit=p)   # noqa: E731
         # **横一列に近い並びは、曲名を 1 曲 1 行の縦一列で下に置く**（流し込みより読みやすく、
         # 下の空きも埋まる）。マスが小さくならないときだけ
         st = _slab_stack(doc, gw, gh, title_h, ratio, m, max_side())
         if st and (sp is None or st.scale >= sp.scale):
-            sp = st
+            sp, sp_fix = st, None
         # **マスが小さくならないなら帯・柱を採る**。回り込みは塊を真ん中に置くので、
         # 横長の並び（7x1 など）だと**マスが下端に行ってタイトルだけが上に残る**。
         # 利用者の指摘「タイトルの下にマス画像があってほしい」に合わせて、辺に付ける側を優先する
         # **わずかな差なら辺に付ける側を採る**。ほぼ同じ大きさなのに回り込みが選ばれると、
         # 塊が真ん中に落ちてタイトルとのあいだに文字が挟まる（18x1 を 1:1 にしたときに起きた）
         if sp and (wp is None or sp.scale >= wp.scale * SLAB_PREFER):
-            wp = sp
+            wp, wp_fix = sp, sp_fix
         if wp and (wp.scale >= scale or font_s * scale < WRAP_SWITCH_PX
                    or (wp.font_s * wp.scale >= font_s * scale * WRAP_SWITCH_GAIN
                        and wp.scale >= scale * WRAP_CELL_KEEP)):
+            if wp_fix:
+                wp = wp_fix(wp)
             return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
                           side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (), (),
                           True, wp.pad, wp.top, wp.segs, wp.rows_mode, wrap_inline=wp.inline)
@@ -1990,12 +2058,36 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     # （`_snap_lead`）、1 行に満たない余りがリストの下に残り、「下辺にそろいそうなのにそろっていない」と見えた
     # （利用者の 3x3・16:9・9 曲で指摘）。余りは**行の高さに均等に配る**（字の大きさはそのまま）。
     # タイトルの下にまとめて回すと、そこだけ大きく空いた。1 行ぶんを超える余りは動かさない
-    if side == "right" and title_h and not sb_flow and not sb_inline and line_h > 0:
+    # **ここから曲の順で組み直す**（2026-09-25）。組み方・枠・字・列数は `_canon` の並びで決めてあり、
+    # 曲の順番では変わらない。描くのは曲の順なので、曲ごとの行数を数え直し、列の行数や流し込みの行数が
+    # 見込みと違えば**行の高さだけ**を合わせる（字の大きさはそのまま）
+    if side != "none" and not sb_flow and not sb_inline and sb_plan:
+        sb_plan = _row_plan(real, *plan_at)
+        avail_r = max(1.0, plan_at[1] - _num_w(plan_at[0]))
+        sb_arows = tuple(_artist_rows(_one_line(t.artist), plan_at[0], avail_r) for t in _songs(real))
+        if side == "bottom":
+            # 下に置くときは曲名リストの高さ（`sb_h`）が枠に入っている。その高さに実際の行数を割り付ける
+            rows_real = max(1, _plan_rows(sb_plan, sb_cols))
+            if rows_real * line_h != sb_h:
+                line_h = sb_h // rows_real
+    if side == "right" and not sb_flow and not sb_inline and line_h > 0:
         rows_now = _plan_rows(sb_plan, sb_cols) if sb_plan else base_rows
         extra = gh - title_h - rows_now * line_h
-        if 0 < extra <= line_h and rows_now:
+        if extra < 0 and rows_now:
+            # 曲の順で列の行数が見込みを超えた（2〜3 行に折れる曲が 1 つの列に集まった）→ 行の高さを詰める。
+            # 見込みは `_plan_need` で「どんな並びでも入る行数」の ROWS_SQUEEZE 倍を取ってあるので、詰めすぎない
+            line_h = (gh - title_h) // rows_now
+            extra = gh - title_h - rows_now * line_h
+        # **曲名リストの下端をマスの下端にそろえる**（2026-09-19。上のコメント）
+        if title_h and 0 < extra <= line_h and rows_now:
             line_h += extra // rows_now
             title_h += extra % rows_now
+    if sb_flow and side != "none":
+        # 流し込みの行数も曲の順で 1〜2 行変わる。入りきらなければ行の高さを詰める（描くのは `render` の流し込み）
+        n_real = len(_flow_rows(real, font_s, sb_w if side == "right" else gw))
+        room = (gh - title_h) if side == "right" else sb_h
+        if n_real * line_h > room:
+            line_h = room // n_real
     content_w = gw + sb_gap + sb_w if side == "right" else gw
     content_h = title_top_h + gh + (sb_gap + sb_h if side == "bottom" else 0)
     L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
@@ -2012,8 +2104,25 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     if L.title and _depth < 2:
         want = rnd(L.font_s * TITLE_MIN_SCALE)
         if want > L.title_size:
-            return layout(doc, want, _depth + 1)
+            return layout(real, want, _depth + 1)
     return L
+
+
+def _plan_need(plan: tuple[int, ...], cols: int) -> int:
+    """**組み方を決めるときの** 1 列あたりの行数。曲の順番に左右されない（2026-09-25）。
+
+    実際の並びで数える `_plan_rows` は、2〜3 行に折れる曲がどの列に集まるかで 1〜2 行変わり、
+    同じ曲でも順番しだいで「3 列の表」と「流し込み」が入れ替わっていた（利用者の 7x7・16:9・49 曲）。
+    - 行数を大きい順に並べて列に詰めたときの 1 列の行数（ふつうはこれ。実際の並びとの差はたいてい 0〜1 行）
+    - ただし「どんな並びでも入る行数」（合計 ÷ 列数 ＋ いちばん多い曲の行数 − 1）の `ROWS_SQUEEZE` 倍は取る。
+      実際の並びがこの見込みを超えたら、描くときに行の高さを詰める（字の大きさはそのまま）。
+      詰めても元の `ROWS_SQUEEZE` 倍までなので、曲名とアーティスト名が重ならない
+    """
+    if cols <= 1 or not plan:
+        return sum(plan)
+    need = _plan_rows(tuple(sorted(plan, reverse=True)), cols)
+    worst = math.ceil(sum(plan) / cols) + max(plan) - 1
+    return max(need, math.ceil(worst * ROWS_SQUEEZE))
 
 
 def _plan_rows(plan: tuple[int, ...], cols: int) -> int:

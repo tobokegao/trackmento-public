@@ -2949,6 +2949,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      毎回作り直すと 256 マスぶんの正規表現が割り付けのたびに走るので、元の列と設定が
      変わらないかぎり使い回す */
   let _viewCells = null, _viewSrc = null, _viewTrim = null, _viewKey = null;
+  let _canonCells = null;   // 割り付けを決めている間だけ入る（下の canonCells）
   /* 控えを使ってよいか。**配列が同じかだけで決めてはいけない**（2026-09-22）。曲を入れる（addTrack）・まとめて入れる
      （fillEmptyCells）は state.cells を**その場で書き換える**ので、配列は同じまま中身が変わる。配列だけで見ていたときは
      古い控えのまま描き、入れた曲がマスに出なかった（「2 番に…を入れました」と出るのにマスは空）。
@@ -2957,6 +2958,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const viewFresh = () => _viewCells && _viewSrc === state.cells && _viewTrim === state.trimNames && _viewKey.length === state.cells.length
     && state.cells.every((t, i) => { const k = _viewKey[i]; return t ? !!k && k[0] === t && k[1] === t.title && k[2] === t.artist && k[3] === t.image && k[4] === t.thumb && k[5] === t.fit : k === null; });
   function viewCells() {
+    if (_canonCells) return _canonCells;   // 割り付けを決めている間は、順番に左右されない並び（layout の canonCells）
     if (!state.trimNames) return state.cells;
     if (viewFresh()) return _viewCells;
     _viewSrc = state.cells; _viewTrim = state.trimNames; _viewKey = state.cells.map(viewKeyOf);
@@ -2973,6 +2975,24 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      マスの位置と結びつかない曲名リスト（サイドバー・表・1 行型・流し込み・縦一列）はこれで組み、空きマスの行を作らない。
      画面（グリッドのバッジ・「N 番に入れました」・編集パネル）は操作用なので位置の番号のまま */
   const listCells = () => viewCells().filter(Boolean);
+  /* **組み方を決めるための並び**（backend/render.py の _canon と同じ。2026-09-25）。曲の入ったマスの位置はそのままで、
+     曲だけを曲名 → アーティスト名の順（**文字の符号位置で比べる**。JS の既定の比べ方は UTF-16 の単位なので、
+     「𝓒」のような BMP の外の字で Python と順番が食い違う）に並べ替える。
+     同じ 49 曲でも「色で並べ替え」で順番を変えるだけで、書き出しが「右に 3 列の表・2400px」から「流し込み・2000px」に
+     変わっていた（利用者の報告）。組み方・出力の大きさ・字の大きさ・列数はこの並びで決め、描くときは曲の順のまま
+     （layout の最後で、実際の並びに合わせて行の高さや段の位置だけを直す）。_canonCells は viewCells の手前で宣言してある */
+  const cmpCP = (a, b) => {
+    const x = Array.from(a), y = Array.from(b), n = Math.min(x.length, y.length);
+    for (let i = 0; i < n; i++) { const d = x[i].codePointAt(0) - y[i].codePointAt(0); if (d) return d; }
+    return x.length - y.length;
+  };
+  function canonCells(cells) {
+    const order = cells.filter(Boolean).sort((a, b) => cmpCP(a.title || "", b.title || "") || cmpCP(a.artist || "", b.artist || ""));
+    let k = 0;
+    return cells.map((t) => (t ? order[k++] : t));
+  }
+  /* 割り付けの途中で、曲の順（実際に描く並び）で数えたいとき */
+  const withRealCells = (fn) => { const c = _canonCells; _canonCells = null; try { return fn(); } finally { _canonCells = c; } };
 
   /* ---- 曲名の刈り込み ---- */
   /* 曲名とアーティスト名から蛇足を外す。**backend/names.py と対で直すこと**。
@@ -5771,13 +5791,29 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* 塊を枠の辺にぴったり付ける割り付け（backend/render.py の _slab_plan）。合わなければ null。
      どちらもタイトルは枠の上端いっぱい。柱は塊がその下から枠の下端まで（曲名リストは塊の右）、
      帯は塊がその下に横いっぱい（曲名リストはその下） */
-  function slabPlan(gw, gh, titleH, ratio, m, maxSide) {
+  /* 回り込み・柱・帯を、**決めた枠と字のまま、曲の順で組み直す**（backend/render.py の _refit_flow と同じ。2026-09-25）。
+     流し込みの行数は曲の順番で 1〜2 行変わることがあるので、入りきらないときは行の高さを字の FLOW_SQUEEZE 倍まで詰める。
+     それでも入らないとき（実測では起きない）だけ字を 1px ずつ下げる。build(lh, fs) は行の高さ・字を差し替えて組む関数 */
+  function refitFlow(build, plan) {
+    let got = build(null, null);
+    if (got) return got;
+    for (let lh = plan.lineH - 1; lh >= Math.ceil(plan.fontS * FLOW_SQUEEZE); lh--) {
+      got = build(lh, null);
+      if (got) return got;
+    }
+    for (let fs = plan.fontS - 1; fs > Math.max(8, Math.floor(plan.fontS * 3 / 4)); fs--) {
+      got = build(null, fs);
+      if (got) return got;
+    }
+    return plan;
+  }
+  function slabPlan(gw, gh, titleH, ratio, m, maxSide, refit = null) {
     const ga = gw / gh;
     let vertical;
     if (ratio / ga >= SLAB_ASPECT) vertical = true;
     else if (ga / ratio >= SLAB_ASPECT) vertical = false;
     else return null;
-    const build = (target) => {
+    const build = (target, lhFix = null, fsFix = null) => {
       // タイトルの帯の高さは文字の大きさから決まり、文字の大きさは枠（縮尺）から決まるので、
       // 帯 0 から始めて何回か回す。3 回で動かなくなる
       let extra = 0, W = 0, H = 0, pad = 0, fontS = 0, lineH = 0, wgap = 0, tH = 0, tSize = 0;
@@ -5786,8 +5822,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         [W, H, pad] = slabFrame(fixed, ratio, m, vertical, state.gap);
         if (W <= 0 || H <= 0) return null;
         const sc0 = Math.min(1, maxSide / Math.max(W, H));
-        fontS = Math.max(18, Math.round(target / sc0));
-        lineH = Math.round(fontS * 1.5);
+        fontS = fsFix || Math.max(18, Math.round(target / sc0));
+        lineH = lhFix || Math.round(fontS * 1.5);
         wgap = Math.round(fontS * WRAP_GAP_EM);
         const cap = vertical ? Math.round(gh * SLAB_TITLE_BAND)
                              : Math.round((H - pad * 2 - gh) * SLAB_TITLE_MAX);
@@ -5823,8 +5859,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         if (!vertical) { gy2 = gy + dy; top = pad + dy; }
       }
       return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top, gx, gy: gy2,
-               segs: out, rows, use: rows.length / nSeg };
+               segs: out, rows, use: rows.length / nSeg, target };
     };
+    // 曲の順のまま、決めた枠と字で組み直す（refitFlow。backend/render.py と同じ）
+    if (refit) return refitFlow((lh, fs) => build(refit.target, lh, fs), refit);
     for (const target of SLAB_TARGET_PX) {
       if (target < SLAB_MIN_FONT) break;
       const got = build(target);
@@ -5890,16 +5928,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* マスの塊を中央に置き、まわりの余白に曲名を流し込む割り付けを探す（backend/render.py の _wrap_plan）。
      出力での文字を FLOW_MIN_FONT に固定し、入る範囲で枠をいちばん小さくする（＝塊をいちばん大きく）。
      入らなければ null を返し、呼び出し側は今までの組み方に戻す */
-  function wrapPlan(gw, gh, titleH, ratio, m, maxSide) {
+  function wrapPlan(gw, gh, titleH, ratio, m, maxSide, refit = null) {
     const pad0 = modPad(Math.max(m, Math.round(Math.min(gw, titleH + gh) * padFrac())), state.gap);
     const [Wb, Hb] = fit(gw, titleH + gh, pad0, ratio);
-    const build = (pct, target, fs, segFs) => {
+    const build = (pct, target, fs, segFs, lhFix = null) => {
       const W = Math.round(Wb * pct / 100), H = Math.round(Hb * pct / 100);
       const scale = Math.min(1, maxSide / Math.max(W, H));
       const fontS = fs || Math.max(18, Math.round(target / scale));
       // **マスの送りの約数に寄せる**（塊の左右に流れる行がジャケットの段とそろう）。
       // ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
-      const lineH = snapLead(Math.round(fontS * 1.5), cellH() + state.gap);   /* マスの段にそろえる（高さ） */
+      const lineH = lhFix || snapLead(Math.round(fontS * 1.5), cellH() + state.gap);   /* マスの段にそろえる（高さ） */
       const pad = modPad(Math.max(m, Math.round(Math.min(W, H) * padFrac())), state.gap);
       // **左右が半端なら、塊を左端に寄せて右に 1 本の広い段を作る**（コの字に囲む。下を参照）
       let gx = Math.round((W - gw) / 2);
@@ -5979,8 +6017,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         gy += dM + dG;
         top2 += dM;
       }
-      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: top2, gx, gy, segs: used, pct, rows };
+      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: top2, gx, gy, segs: used, pct, rows, segFs: segFs || fontS };
     };
+    // 曲の順のまま、決めた枠と字で組み直す（refitFlow。backend/render.py と同じ）
+    if (refit) return refitFlow((lh, fs) => build(refit.pct, 0, fs || refit.fontS, refit.segFs || refit.fontS, lh), refit);
     // 塊が枠の WRAP_GRID_MAX を超えない大きさから探し始め、WRAP_GRID_MIN を下回るほどは広げない
     const tight = Math.max(gw / Wb, (titleH + gh) / Hb);
     const lo0 = Math.max(100, Math.ceil(100 * tight / WRAP_GRID_MAX));
@@ -6191,6 +6231,20 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     return [folded, clipped];
   }
+  // 曲の順番で列の行数が見込みを超えたとき、行の高さを詰めてよい下限（見込みに対する割合。planNeed）
+  const ROWS_SQUEEZE = 0.75;
+  // 流し込みの行が見込みより増えたとき、行の高さを字のこの倍まで詰めてよい（ふだんは 1.5 倍）
+  const FLOW_SQUEEZE = 1.2;
+  /* **組み方を決めるときの** 1 列あたりの行数。曲の順番に左右されない（backend/render.py の _plan_need と同じ。2026-09-25）。
+     行数を大きい順に並べて列に詰めたときの 1 列の行数。ただし「どんな並びでも入る行数」（合計 ÷ 列数 ＋ いちばん多い曲の
+     行数 − 1）の ROWS_SQUEEZE 倍は取る。実際の並びがこれを超えたら、描くときに行の高さを詰める（字はそのまま） */
+  function planNeed(plan, cols) {
+    const total = plan.reduce((a, b) => a + b, 0);
+    if (cols <= 1 || !plan.length) return total;
+    const need = planRows(plan.slice().sort((a, b) => b - a), cols);
+    const worst = Math.ceil(total / cols) + Math.max(...plan) - 1;
+    return Math.max(need, Math.ceil(worst * ROWS_SQUEEZE));
+  }
   /* 1 列あたりの行数。**1 曲が列をまたがないように**詰めたうえで、必ず cols 列に収まる値を返す */
   function planRows(plan, cols) {
     const total = plan.reduce((a, b) => a + b, 0);
@@ -6302,6 +6356,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* レイアウト計算。描画せずにサイズだけ求める（右ペインの「出力サイズ」表示にも使う） */
   // `titlePx` は「曲名リストより十分大きく」するための組み直し（TITLE_MIN_SCALE を参照）
   function layout(maxSide = MAX_SIDE, titlePx = null, depth = 0) {
+    // **組み方は曲の順番に左右されない並び（canonCells）で決める**（backend/render.py の layout と同じ。2026-09-25）。
+    // 割り付けの中の viewCells / listCells はその並びを返す。曲の順で数えるのは最後の組み直しだけ（withRealCells）
+    if (_canonCells) return layoutCore(maxSide, titlePx, depth);
+    _canonCells = canonCells(viewCells());
+    try { return layoutCore(maxSide, titlePx, depth); } finally { _canonCells = null; }
+  }
+  function layoutCore(maxSide, titlePx, depth) {
     const { cols, rows } = state;
     const m = state.margin;
     const title = state.showTitle ? state.title.trim() : "";
@@ -6377,8 +6438,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       let [, fs, w] = sidebar(cols, baseRows);
       const colW = Math.floor((w - LIST_COL_GAP * (cols - 1)) / cols);
       const plan = rowPlan(fs, colW);
-      if (plan.reduce((a, b) => a + b, 0) > baseRows || planRows(plan, cols) > Math.ceil(baseRows / cols)) {
-        const lh = Math.max(30, Math.min(Math.floor(pitch / LEAD_PITCH_DIV), Math.floor(availH / Math.max(1, planRows(plan, cols)))));
+      if (plan.reduce((a, b) => a + b, 0) > baseRows || planNeed(plan, cols) > Math.ceil(baseRows / cols)) {
+        const lh = Math.max(30, Math.min(Math.floor(pitch / LEAD_PITCH_DIV), Math.floor(availH / Math.max(1, planNeed(plan, cols)))));
         fs = Math.round(Math.max(30, snapLead(lh, pitch, lh)) * 0.56);
       }
       return [fs, listDamage(fs, colW)];
@@ -6427,12 +6488,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 曲名が 1 行に入らなければ 2 行に折るので、その曲だけ行が増える。増えたぶん高さを取り直す。
     // **割り付けは 1 度しか計算しない**（小さくした字で計算し直すと、折る・折らないを行き来するため）
     let sbPlan = [], sbARows = [];
+    let planAt = [fontS, 0];   // 曲ごとの行数を数えた字と列の幅（最後に曲の順で数え直すため）
     if (side !== "none") {
       const colW0 = Math.floor((sbW - LIST_COL_GAP * (sbCols - 1)) / sbCols);
+      planAt = [fontS, colW0];
       sbPlan = rowPlan(fontS, colW0);
       const avail0 = Math.max(1, colW0 - numW(fontS));
       sbARows = listCells().map((t) => artistRows(oneLine(t.artist), fontS, avail0));
-      const rowsPerCol = planRows(sbPlan, sbCols);
+      // **判定は曲の順番に左右されない行数で**（planNeed。2026-09-25）
+      const rowsPerCol = planNeed(sbPlan, sbCols);
       // **1 曲が列をまたがないので、折らなくても 1 列の行数が見込みより増えることがある**
       // （backend/render.py と同じ。25 曲を 2 列にすると 13 曲 ＝ 26 行で、最後の曲がマスの下端からはみ出していた）
       if (sbPlan.reduce((a, b) => a + b, 0) > baseRows || rowsPerCol > Math.ceil(baseRows / sbCols)) {
@@ -6452,7 +6516,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
        （backend/render.py と同じ。5x5・16:9・25 曲で 21.6px → 19.6px になり、
         FLOW_MIN_FONT の 20px をわずかに割って流し込みに落ちていた） */
     if (side === "right" && fontS * scale < FLOW_MIN_FONT) {
-      const rowsFin = Math.max(1, sbPlan.length ? planRows(sbPlan, sbCols) : Math.ceil(baseRows / sbCols));
+      const rowsFin = Math.max(1, sbPlan.length ? planNeed(sbPlan, sbCols) : Math.ceil(baseRows / sbCols));
       const lh2 = Math.max(30, Math.min(Math.floor(pitch / LEAD_PITCH_DIV), Math.floor(availH / rowsFin)));
       const fs2 = Math.round(lh2 * 0.56);
       if (fs2 > fontS && fs2 * scale >= FLOW_MIN_FONT) { lineH = lh2; fontS = fs2; }
@@ -6477,7 +6541,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (side === "right" && titleH && lineH > 0 && !sbInline) {
       // **曲名リストの先頭も段の境目に乗せる**（タイトルの帯を行の整数倍にする）。
       // 収まらないなら動かさない
-      const rowsNow = sbPlan.length ? planRows(sbPlan, sbCols) : baseRows;
+      const rowsNow = sbPlan.length ? planNeed(sbPlan, sbCols) : baseRows;
       const up = Math.ceil(titleH / lineH) * lineH;
       if (up + rowsNow * lineH <= gh) titleH = up;
     }
@@ -6563,18 +6627,22 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     if (sbFlow && ratio !== null) {
       let wp = wrapPlan(gw, gh, titleH, ratio, m, maxSide);
+      // 選んだ組み方を曲の順で組み直す関数（枠と字はそのまま。縦一列・表は曲ごとに 1 段なので要らない）
+      let wpFix = (p) => withRealCells(() => wrapPlan(gw, gh, titleH, ratio, m, maxSide, p));
       // **辺にぴったり付く組み方（柱・帯）があればそちらを優先する**。塊が片方の辺を使い切るので
       // 枠に余りが出ず、マスは回り込みと同じか大きくなる
       let sp = slabPlan(gw, gh, titleH, ratio, m, maxSide);
+      let spFix = (p) => withRealCells(() => slabPlan(gw, gh, titleH, ratio, m, maxSide, p));
       // **横一列に近い並びは、曲名を 1 曲 1 行の縦一列で下に置く**
       const st = slabStack(gw, gh, titleH, ratio, m, maxSide);
-      if (st && (!sp || st.scale >= sp.scale)) sp = st;
+      if (st && (!sp || st.scale >= sp.scale)) { sp = st; spFix = null; }
       // マスが小さくならないなら帯・柱を採る（回り込みは塊が真ん中に行き、横長の並びだと
       // マスが下端に落ちてタイトルだけ上に残る）
       // わずかな差なら辺に付ける側を採る（塊が真ん中に落ちてタイトルと離れるのを防ぐ）
-      if (sp && (!wp || sp.scale >= wp.scale * SLAB_PREFER)) wp = sp;
+      if (sp && (!wp || sp.scale >= wp.scale * SLAB_PREFER)) { wp = sp; wpFix = spFix; }
       if (wp && (wp.scale >= scale || fontS * scale < WRAP_SWITCH_PX
                  || (wp.fontS * wp.scale >= fontS * scale * WRAP_SWITCH_GAIN && wp.scale >= scale * WRAP_CELL_KEEP))) {
+        if (wpFix) wp = wpFix(wp);
         return { W: wp.W, H: wp.H, scale: wp.scale, ox: wp.gx, oy: wp.gy, gw, gh, title,
                  titleSize: wp.titleSize, titleH: wp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
                  lineH: wp.lineH, fontS: wp.fontS, sbGap, sbFlow: true, sbPlan: [],
@@ -6587,11 +6655,36 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 「画像を大きくすれば流し込みを脱せるか」を、割り付けを組み直さずに見積もるのに使う。サーバー側には要らない）
     const keepFont = keep[4] * keep[7];
     if (sbFlow && keepFont >= FLOW_KEEP_FONT) { [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH] = keep; sbFlow = false; }
-    // **曲名リストの下端をマスの下端にそろえる**（backend/render.py と同じ）。1 行に満たない余りを行の高さに均等に配る
-    if (side === "right" && titleH && !sbFlow && !sbInline && lineH > 0) {
+    // **ここから曲の順で組み直す**（backend/render.py と同じ。2026-09-25）。組み方・枠・字・列数は canonCells の並びで
+    // 決めてあり、曲の順番では変わらない。曲ごとの行数を数え直し、見込みと違えば**行の高さだけ**を合わせる
+    if (side !== "none" && !sbFlow && !sbInline && sbPlan.length) {
+      withRealCells(() => {
+        sbPlan = rowPlan(planAt[0], planAt[1]);
+        const availR = Math.max(1, planAt[1] - numW(planAt[0]));
+        sbARows = listCells().map((t) => artistRows(oneLine(t.artist), planAt[0], availR));
+      });
+      if (side === "bottom") {
+        // 下に置くときは曲名リストの高さ（sbH）が枠に入っている。その高さに実際の行数を割り付ける
+        const rowsReal = Math.max(1, planRows(sbPlan, sbCols));
+        if (rowsReal * lineH !== sbH) lineH = Math.floor(sbH / rowsReal);
+      }
+    }
+    if (side === "right" && !sbFlow && !sbInline && lineH > 0) {
       const rowsNow = sbPlan.length ? planRows(sbPlan, sbCols) : baseRows;
-      const extra = gh - titleH - rowsNow * lineH;
-      if (extra > 0 && extra <= lineH && rowsNow) { lineH += Math.floor(extra / rowsNow); titleH += extra % rowsNow; }
+      let extra = gh - titleH - rowsNow * lineH;
+      if (extra < 0 && rowsNow) {
+        // 曲の順で列の行数が見込みを超えた（2〜3 行に折れる曲が 1 つの列に集まった）→ 行の高さを詰める
+        lineH = Math.floor((gh - titleH) / rowsNow);
+        extra = gh - titleH - rowsNow * lineH;
+      }
+      // **曲名リストの下端をマスの下端にそろえる**（backend/render.py と同じ）。1 行に満たない余りを行の高さに均等に配る
+      if (titleH && extra > 0 && extra <= lineH && rowsNow) { lineH += Math.floor(extra / rowsNow); titleH += extra % rowsNow; }
+    }
+    if (sbFlow && side !== "none") {
+      // 流し込みの行数も曲の順で 1〜2 行変わる。入りきらなければ行の高さを詰める
+      const nReal = withRealCells(() => flowRows(fontS, side === "right" ? sbW : gw).length);
+      const room = side === "right" ? gh - titleH : sbH;
+      if (nReal * lineH > room) lineH = Math.floor(room / nReal);
     }
     const contentW = side === "right" ? gw + sbGap + sbW : gw;
     const contentH = titleTopH + gh + (side === "bottom" ? sbGap + sbH : 0);

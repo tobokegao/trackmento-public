@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "同じトラックなら、並べ替えても書き出す画像の曲名リストの組み方（表か詰めた並びか・画像の大きさ・字の大きさ）が変わらないようにしました。「色で並べ替え」をすると組み方ががらりと変わることがありました。",
+     "With the same tracks, reordering no longer changes how the track list in the exported image is laid out (table or packed text, image size, text size). Using “Sort by color” could change it completely before."),
     ("2026-09-25", "「ジャケットに近い色」「ジャケットと反対の色」で、ジャケットから取った色の候補を四角で並べ、押して選べるようにしました。「画像」を選ぶと、まず TRACKMENTO のマークの模様が敷かれます（「画像を選ぶ…」で好きな画像に替えられます）。",
      "“Match the covers” and “Contrast the covers” now show the colors taken from your covers as squares you can pick from. Choosing “Image” first lays a pattern of the TRACKMENTO mark (switch to any image with “Choose an image…”)."),
     ("2026-09-25", "共有の URL から並びを開いたとき、開いていた並びに上書きされることがあったのを直しました。いつも新しい並びとして開きます（並びが上限のときは、開かずにお知らせします）。お題の一覧で、今のタイトルに印が付くようにしました。グラデーションの切り替えも軽くしました。",
