@@ -1000,6 +1000,8 @@ body.sheet-open { overflow: hidden; }
 .grid-actions > .history { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: var(--space-2); }
 /* 保存・読み込み・コピー・色で並べ替えは 1 つの箱で、幅に合わせて折り返す（2 列の升目だと PC の細い窓で字がはみ出す） */
 .grid-actions > .minor { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* 各ボタンは行の幅いっぱいまで伸ばし、行の右端をそろえる（右に余白が残ると半端に見える。2026-09-25、利用者の指摘） */
+.grid-actions > .minor > .btn { flex: 1 1 auto; }
 /* 背景なしのできあがりは、透明な所が分かるように市松の上に出す（画像の外の地の模様なので、足さない見た目の「グラデーション」には当たらない） */
 /* 背景の決め方は 1 列に積む（「ジャケットと反対の色」が長く、2 列だと右の列が窓からはみ出す） */
 #bg-mode-seg { grid-template-columns: max-content; margin-bottom: var(--space-3); }
@@ -2065,7 +2067,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "チャンネル名の可能性があります。": "This may be a channel name.",
         "ニコニコ動画と otoDB で探しています…": "Searching niconico and otoDB…",
         "otoDB に登録された作品の作者:": "Creator of the work registered on otoDB:",
-        "ニコニコ動画で見つかった古い投稿（古い順）:": "Older posts found on niconico (oldest first):",
+        "ニコニコ動画で見つかった投稿（古い順）:": "Posts found on niconico (oldest first):",
         "元の投稿の手がかりは見つかりませんでした。": "No clue to the original post was found.",
         "探せませんでした。しばらくしてからもう一度お試しください。": "The search failed. Please try again in a little while.",
         "転載元 {}": "Reposted from {0}",
@@ -3942,7 +3944,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         els.eOriginSeg.append(originButton(work.artist, [`otoDB ${work.work}`, first ? `${first.id} / ${first.at}` : ""].filter(Boolean).join(" / ")));
       }
       if (rows.length) {
-        cap(tr("ニコニコ動画で見つかった古い投稿（古い順）:"));
+        cap(tr("ニコニコ動画で見つかった投稿（古い順）:"));   // 「古い」が 2 回出てくどかった（2026-09-25、利用者の指摘）
         for (const row of rows) els.eOriginSeg.append(originButton(row.artist, [row.id, (row.at || "").slice(0, 10)].join(" / ")));
       }
     } catch (e) {

@@ -1468,7 +1468,22 @@ def _load_r2_index(prefix: str = "") -> tuple[dict[str, tuple[str, float]], int]
     st = storage.get_storage()
     out: dict[str, tuple[str, float]] = {}
     total = 0
-    for key, size, modified in st.list_objects(prefix):
+
+    def walk(pfx: str) -> list[tuple[str, int, object]]:
+        return list(st.list_objects(pfx))
+
+    # **imgcache/ だけのときは、鍵の頭の 16 進 1 文字ごとに 16 本並べて一覧する**（2026-09-25）。
+    # 1 本で順に一覧すると 14 万件で 143 秒かかり（1000 件ごとの呼び出しが順番待ちになる）、その間は
+    # R2 に控えがあっても見つけられずに配信元から取り直していた（デプロイ直後にニコニコのサムネ 49 枚が
+    # 遅いと利用者から）。呼び出しの回数（Class A）は同じ。鍵は _image_hash の 16 進なので 16 通りで漏れない
+    if prefix == IMAGE_R2_PREFIX:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=16) as ex:
+            parts = list(ex.map(walk, [f"{IMAGE_R2_PREFIX}{h}" for h in "0123456789abcdef"]))
+        rows = [r for part in parts for r in part]   # 索引が拾うのは 16 進 20 桁の鍵だけなので、ほかの形の鍵は要らない
+    else:
+        rows = walk(prefix)
+    for key, size, modified in rows:
         total += size
         if not key.startswith(IMAGE_R2_PREFIX):
             continue
