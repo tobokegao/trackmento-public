@@ -16,6 +16,11 @@ KEEP_PREFIXES に挙げたものは古くても消さない:
                 （逆にすると、消えた後もリダイレクトし続けて 404 になる）
   - searchcache/ … 検索結果の控え（backend/searchcache.py）。索引が 6 日なので 168 時間（7 日）
 
+共有より**長く**置くものが 1 つある:
+  - uploads/ … 端末から上げた画像（手入力のマス・背景の画像）。既定 2160 時間（90 日）。2026-09-25 までは共有と同じ 30 日で消えていた。
+               共有は 30 日で消えるが、手元の並び（localStorage）はずっと残り、そこから画像を指しているので、共有より長く置く
+               （利用者と決めた。1 か月で約 1GB 増えるので、90 日で約 3GB に頭打ちになり、R2 の無料の範囲に収まる）
+
 残る量は種類ごとに数えて表示する。**この一覧に相乗りするので、数え直しに追加の Class A は要らない**。
 `--append metrics/r2.jsonl` を付けると 1 行残り、運用ボードの「R2 の使用量」がそこから出る。
 削除後に一覧を取り直してはいけない（21 万件ぶんの Class A をもう一度払うことになる）。
@@ -71,6 +76,7 @@ KEEP_PREFIXES = ("fonts/", "app/")
 IMAGE_PREFIXES = ("imgcache/",)      # 画像キャッシュ。索引は cache.R2_IMAGE_TTL（13 日）
 SEARCH_PREFIXES = ("searchcache/",)  # 検索結果の控え（backend/searchcache.py。索引は 6 日）
 SHORT_PREFIXES = IMAGE_PREFIXES + SEARCH_PREFIXES   # 表示用
+UPLOAD_PREFIXES = ("uploads/",)     # 端末から上げた画像。共有より長く置く（--upload-hours、既定 90 日）
 
 
 def main() -> int:
@@ -81,6 +87,8 @@ def main() -> int:
                          "cache.R2_IMAGE_TTL（13 日）より長くしておく")
     ap.add_argument("--search-cache-hours", type=float, default=360.0,
                     help=f"{', '.join(SEARCH_PREFIXES)} を消すまでの時間数（既定 360 = 15 日）。索引の上限（14 日）より長くしておく")
+    ap.add_argument("--upload-hours", type=float, default=2160.0,
+                    help=f"{', '.join(UPLOAD_PREFIXES)} を消すまでの時間数（既定 2160 = 90 日）")
     ap.add_argument("--apply", action="store_true", help="実際に削除する（無ければ数えるだけ）")
     ap.add_argument("--append", type=Path,
                     help="種類ごとの件数と容量を JSONL に 1 行足す（既定 metrics/r2.jsonl。運用ボードの元）")
@@ -91,6 +99,7 @@ def main() -> int:
     cutoff = now - timedelta(hours=a.older_than_hours)
     cutoff_img = now - timedelta(hours=a.image_cache_hours)
     cutoff_srch = now - timedelta(hours=a.search_cache_hours)
+    cutoff_up = now - timedelta(hours=a.upload_hours)
     victims: list[str] = []
     vbytes = keep_n = keep_bytes = kept_n = kept_bytes = 0
     # 残るものを種類ごとに数える（この一覧に相乗りする。別に数えると Class A をもう一度払う）
@@ -108,6 +117,8 @@ def main() -> int:
             limit = cutoff_img
         elif key.startswith(SEARCH_PREFIXES):
             limit = cutoff_srch
+        elif key.startswith(UPLOAD_PREFIXES):
+            limit = cutoff_up
         else:
             limit = cutoff
         if modified < limit:
@@ -122,7 +133,8 @@ def main() -> int:
                 shares_by_day[modified.astimezone(timezone.utc).strftime("%Y-%m-%d")] += 1
     print(f"保存先: {st.name}  基準: {cutoff:%Y-%m-%d %H:%M} UTC より古いもの"
           f"（{', '.join(IMAGE_PREFIXES)} は {cutoff_img:%Y-%m-%d %H:%M} UTC、"
-          f"{', '.join(SEARCH_PREFIXES)} は {cutoff_srch:%Y-%m-%d %H:%M} UTC）")
+          f"{', '.join(SEARCH_PREFIXES)} は {cutoff_srch:%Y-%m-%d %H:%M} UTC、"
+          f"{', '.join(UPLOAD_PREFIXES)} は {cutoff_up:%Y-%m-%d %H:%M} UTC）")
     print(f"削除対象: {len(victims)} 件 {vbytes / 1024**3:.2f} GB   残す: {keep_n} 件 {keep_bytes / 1024**3:.2f} GB")
     if kept_n:
         print(f"対象外（{', '.join(KEEP_PREFIXES)}）: {kept_n} 件 {kept_bytes / 1024**3:.2f} GB")

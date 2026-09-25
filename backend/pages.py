@@ -167,7 +167,7 @@ each browser. It contains no personally identifying information such as your nam
 <li><b>Shared images and share pages:</b> When you share, the image data and layout data (including any notes you wrote for each track) are stored on Cloudflare R2. Notes are shown on the share page to anyone with its URL. This data is
 permanently deleted automatically {days} days after it is created.</li>
 <li><b>Images uploaded from your device:</b> These are resized appropriately and stored after removing metadata such as location
-information (Exif).</li>
+information (Exif). They are deleted 90 days after upload.</li>
 <li><b>Everyone's grids:</b> Only data you have allowed to be listed (opted in) when sharing is stored and made searchable within the Site.</li>
 </ul>
 
@@ -209,7 +209,7 @@ The latest version is always published on this page.</p>
 <ul>
 <li><b>グリッドの編集データ：</b>マスに配置したトラック、タイトル、表示・出力設定は、お使いのブラウザの保存領域（ローカルストレージ）に保存されます。また、セッションを復元できるようにするため、ブラウザごとに発行されるランダムなIDと紐づけてサーバーにも一時バックアップを保持します。氏名、メールアドレス等の個人を特定する情報は一切含みません。</li>
 <li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データ（トラックごとに書いたメモを含みます）をCloudflare R2に保存します。メモは共有ページで、URL を知っている人が見られます。これらのデータは生成から{days}日後に自動で削除されます。</li>
-<li><b>端末からアップロードされた画像：</b>適切なサイズへのリサイズを行い、位置情報などのメタデータ（Exif）を削除したうえで保存します。</li>
+<li><b>端末からアップロードされた画像：</b>適切なサイズへのリサイズを行い、位置情報などのメタデータ（Exif）を削除したうえで保存します。保存から90日で削除します。</li>
 <li><b>みんなのグリッド：</b>共有時に「みんなのグリッドに載せる」にチェックを入れたデータに限り、当サイト内の検索対象として公開・保存されます。</li>
 </ul>
 
@@ -278,6 +278,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-25", "端末から上げた画像（手入力のマスや背景の画像）の保存期間を、30日間から90日間に延ばしました。共有の保存期間（30日間）は変わりません。",
+     "Images uploaded from your device (for manual entries and backgrounds) are now kept for 90 days instead of 30. Shares are still kept for 30 days."),
     ("2026-09-25", "「マスの間隔」などの設定を変えたときに、画面が一瞬固まっていたのを軽くしました（49 マスで約 1 秒 → 0.1 秒ほど）。開いたときに一瞬 3×3 が出ることがあったのも、あわせて直しました。",
      "Changing settings such as “Gap” no longer freezes the screen for a moment (about 1 second → 0.1 seconds with 49 cells). Also fixed a 3×3 grid that could still flash briefly on opening."),
     ("2026-09-25", "グリッドの下に「できあがりを見る」を付けました。共有する前に、書き出す画像（曲名リストや背景も含めて）をその端末で作って確かめられます。見るだけなので、共有はされません。",
