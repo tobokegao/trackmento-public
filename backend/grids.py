@@ -94,6 +94,11 @@ class GridOptions(BaseModel):
     # サーバーはこの値で描くだけなので、2 系統の絵がずれない
     bgImageAlpha: float = 0.5
     bgGrad: Optional[BgGrad] = None   # グラデーション背景（bgMode == "gradient" のとき）
+    # 画像の敷き方（2026-09-25）。bgImageSrc は選んだ元の画像、bgImageFit は "cover"（引き伸ばす）か "tile"（並べる）、bgImageTile は並べる大きさ。
+    # **描くのは bgImage だけ**（並べるときはブラウザが並べた絵を描いて上げ、それを bgImage に入れる）。この 3 つは画面で作り直すための控え
+    bgImageSrc: Optional[str] = None
+    bgImageFit: str = "cover"
+    bgImageTile: str = "m"
     margin: int = 16
     # 外側の余白の下限の段。"normal"（内容の短い辺の 3.5%）/ "wide"（7%）/ "xwide"（12%）。render.py の PAD_FRAC。
     # **既定は normal**（今ある並びと共有画像の見た目を変えないため。2026-09-24 に「余白」のスライダーから替えた）
@@ -117,6 +122,21 @@ class GridOptions(BaseModel):
             return round(max(0.1, min(0.6, float(v))), 2)
         except (TypeError, ValueError):
             return 0.5
+
+    @field_validator("bgImageSrc")
+    @classmethod
+    def _bg_image_src(cls, v: Optional[str]) -> Optional[str]:
+        return v if v and (_UPLOAD_RE.match(v) or v == "/bg-mark.png") else None
+
+    @field_validator("bgImageFit")
+    @classmethod
+    def _bg_image_fit(cls, v: str) -> str:
+        return v if v in ("cover", "tile") else "cover"
+
+    @field_validator("bgImageTile")
+    @classmethod
+    def _bg_image_tile(cls, v: str) -> str:
+        return v if v in ("s", "m", "l") else "m"
 
     @field_validator("bgImage")
     @classmethod

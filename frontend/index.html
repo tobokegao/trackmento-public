@@ -1057,7 +1057,12 @@ body.sheet-open { overflow: hidden; }
    2 列の決め打ちだと、幅に余裕があっても比率が 2＋2＋1、トラックリストが 2＋1 に折れていた）。上の 2 列は JS が動くまでの既定 */
 .seg.radio.measuring { display: flex; flex-wrap: wrap; }
 #bg-cands[hidden], #bg-image-box[hidden], #bg-grad-box[hidden], #bg-grad-colors[hidden] { display: none; }
-#bg-cands label { flex: 0 0 32px; }   /* 候補は 4 色まで。背景色の見本のように行いっぱいに広げると大きすぎる */
+#bg-cands label { flex: 1 1 0; aspect-ratio: auto; height: 32px; }   /* 候補は欄の左右いっぱいに等分（利用者の指定） */
+#bg-image-row { display: flex; align-items: center; gap: var(--space-3); }
+#bg-image-thumb { width: 128px; aspect-ratio: 16 / 9; object-fit: cover; border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
+#bg-image-thumb:not([src]) { visibility: hidden; }
+#bg-fit-seg, #bg-tile-seg, #bg-ink-seg { margin-top: var(--space-2); }
+#bg-tile-seg[hidden], #bg-none-box[hidden] { display: none; }   /* 候補は 4 色まで。背景色の見本のように行いっぱいに広げると大きすぎる */
 #bg-grad-box { display: grid; gap: var(--space-2); justify-items: start; margin-top: var(--space-2); }
 #bg-grad-colors { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .grad-row { display: flex; align-items: center; gap: var(--space-3); }
@@ -1069,6 +1074,8 @@ body.sheet-open { overflow: hidden; }
 /* できあがりの見本（2026-09-25、利用者の案）。共有と同じ描き方で端末の中で作って見せる。送らない */
 #preview-img { display: block; width: 100%; height: auto; border: var(--line) solid var(--color-ink); }
 #preview-img[hidden] { display: none; }
+/* 白い字の透過は暗い市松の上に出す */
+#preview-img.is-clear.is-dark, #output-img.is-clear.is-dark { background: repeating-conic-gradient(#2a2d33 0 25%, #1b1d22 0 50%) 0 0 / 16px 16px !important; }
 #preview-img.is-clear, #output-img.is-clear { background: repeating-conic-gradient(var(--color-paper-3) 0 25%, var(--color-paper) 0 50%) 0 0 / 16px 16px; }
 /* スマホは「曲を探す・共有／保存・読み込み」の 2×2。PC は「曲を探す」が無いので共有だけ 1 行いっぱい */
 @media (min-width: 60rem) { #preview-btn { grid-column: 1 / -1; } }   /* PC は「曲を探す」が無いので「できあがりを見る」を 1 行いっぱい */
@@ -1748,8 +1755,26 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
             <button class="btn btn-sm" type="button" id="bg-grad-shuffle" title="色はそのままで、模様（ゆらぎの形）だけ変える">ほかの模様</button>
           </div>
         </div>
+        <div id="bg-none-box" hidden>
+          <div class="seg radio" id="bg-ink-seg" role="radiogroup" aria-label="字の色">
+            <label><input type="radio" name="bgInk" value="dark" checked><span>黒い字</span></label>
+            <label><input type="radio" name="bgInk" value="light"><span>白い字</span></label>
+          </div>
+        </div>
         <div id="bg-image-box" hidden>
-          <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
+          <div id="bg-image-row">
+            <img id="bg-image-thumb" alt="背景の画像の見本">
+            <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
+          </div>
+          <div class="seg radio" id="bg-fit-seg" role="radiogroup" aria-label="画像の敷き方">
+            <label><input type="radio" name="bgFit" value="cover" checked><span>引き伸ばす</span></label>
+            <label><input type="radio" name="bgFit" value="tile"><span>並べる</span></label>
+          </div>
+          <div class="seg radio" id="bg-tile-seg" role="radiogroup" aria-label="並べる大きさ" hidden>
+            <label><input type="radio" name="bgTile" value="s"><span>小</span></label>
+            <label><input type="radio" name="bgTile" value="m" checked><span>中</span></label>
+            <label><input type="radio" name="bgTile" value="l"><span>大</span></label>
+          </div>
           <input type="file" id="bg-image-file" accept="image/*" hidden>
         </div>
         <!-- ジャケットから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで 1 つずつ送る形だったのを、
@@ -2165,6 +2190,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "補色（色相環で向かい側の色）": "The complementary color (opposite on the color wheel)",
         "背景を透過": "Transparent",
         "画像": "Image",
+        "字の色": "Text color",
+        "共有の画像は黒い地になります。「画像を保存」では背景が透明な PNG になります。": "The shared image gets a black background. “Save image” gives you a PNG with a transparent background.",
+        "黒い字": "Dark text",
+        "白い字": "White text",
+        "背景の画像の見本": "Background image preview",
+        "画像の敷き方": "How to lay the image",
+        "引き伸ばす": "Stretch",
+        "並べる": "Tile",
+        "並べる大きさ": "Tile size",
+        "小": "S",
+        "中": "M",
+        "大": "L",
         "ジャケットから取った色": "Colors from your covers",
         "TRACKMENTO の模様を敷きました。「画像を選ぶ…」で好きな画像に替えられます。": "Laid the TRACKMENTO pattern. Use “Choose an image…” to switch to any image you like.",
         "グラデーション": "Gradient",
@@ -2779,7 +2816,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     bgMode: "pick",   // 背景の決め方: pick（色を選ぶ）/ near・far（ジャケットに近い色・反対の色）/ none（背景なし）/ image（好きな画像）
     bgImage: null,    // 背景の画像（/uploads/… だけ）
     bgImageAlpha: 0.5,
-    bgGrad: null,     // グラデーション背景 { src, colors, seed, image }（backend/grids.py の BgGrad）   // 背景の画像の濃さ（画像のにぎやかさから決める。0.2〜0.5。backend/grids.py の bgImageAlpha）
+    bgGrad: null,
+    bgImageSrc: null, bgImageFit: "cover", bgImageTile: "m",   // 画像の元・敷き方（引き伸ばす／並べる）・並べる大きさ     // グラデーション背景 { src, colors, seed, image }（backend/grids.py の BgGrad）   // 背景の画像の濃さ（画像のにぎやかさから決める。0.2〜0.5。backend/grids.py の bgImageAlpha）
     listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有は URL を知っている人だけのもの）
   };
   let available = [];
@@ -2821,7 +2859,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   }
   const NO_COVER = "/no-cover.png";   // ジャケットが無い曲に使ううちの画像（backend/models.py と同じ）
   const BG_MARK = "/bg-mark.png";   // 背景色の「画像」の既定（TRACKMENTO のロゴを敷き詰めた絵。scripts/build_icons.py）
-  const proxied = (url) => (url === NO_COVER || url === BG_MARK || url.startsWith("/uploads/") ? api(url) : isDirectImage(url) ? url : api(`/image-proxy?url=${encodeURIComponent(url)}`));
+  const proxied = (url) => (url === NO_COVER || url === BG_MARK || url === "/icon-512.png" || url.startsWith("/uploads/") ? api(url) : isDirectImage(url) ? url : api(`/image-proxy?url=${encodeURIComponent(url)}`));
   const isImageRef = (s) => /^https?:\/\//.test(s) || s === NO_COVER || /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(s);
   const setBtnState = (btn, s) => { if (s) btn.dataset.state = s; else delete btn.dataset.state; btn.disabled = s === "loading"; };
   const say = (el, text, tone) => { el.textContent = text; if (tone) el.dataset.tone = tone; else delete el.dataset.tone; };
@@ -3387,7 +3425,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (outUrl) URL.revokeObjectURL(outUrl);
       outUrl = URL.createObjectURL(blob); outCanvas = canvas; outBg = bg; outClear = clear; outSig = sig;
       els.outputImg.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
-      els.outputImg.src = outUrl; els.outputImg.classList.toggle("is-clear", clear); $("#out-shot").hidden = false;
+      els.outputImg.src = outUrl; els.outputImg.classList.toggle("is-clear", clear); els.outputImg.classList.toggle("is-dark", clear && !isLightRgb(bg)); $("#out-shot").hidden = false;
       say(msg, tr`${canvas.width} × ${canvas.height} px。「トラックを共有」を押すと、この画像と共有 URL ができます。`);
       return true;
     } catch (err) {
@@ -4814,11 +4852,19 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     setSeg($("#bg-mode-seg"), m);
     $("#bg-pick").hidden = m !== "pick";
     $("#bg-image-box").hidden = m !== "image";
+    $("#bg-none-box").hidden = m !== "none";
+    if (m === "none") setSeg($("#bg-ink-seg"), isLightRgb(hexToRgb(state.bgCustom || "#ffffff")) ? "dark" : "light");
+    if (m === "image") {
+      setSeg($("#bg-fit-seg"), state.bgImageFit || "cover"); setSeg($("#bg-tile-seg"), state.bgImageTile || "m");
+      $("#bg-tile-seg").hidden = state.bgImageFit !== "tile";
+      const src = state.bgImageFit === "tile" && tileUrl ? tileUrl : (state.bgImageSrc || state.bgImage);
+      if (src) $("#bg-image-thumb").src = src.startsWith("blob:") ? src : proxied(src); else $("#bg-image-thumb").removeAttribute("src");
+    }
     $("#bg-grad-box").hidden = m !== "gradient";
     if (m === "gradient") { const g = gradState(); setSeg($("#bg-grad-src"), g.src); $("#bg-grad-colors").hidden = g.src !== "custom"; renderGradColors(); }
     $("#bg-cands").hidden = !(m === "near" || m === "far") || !coverPal.colors.length;
     const msg = $("#bg-msg");
-    if (m === "none") { msg.hidden = false; say(msg, tr("共有の画像は白い地になります。「画像を保存」では背景が透明な PNG になります。")); }
+    if (m === "none") { msg.hidden = false; say(msg, isLightRgb(hexToRgb(state.bgCustom || "#ffffff")) ? tr("共有の画像は白い地になります。「画像を保存」では背景が透明な PNG になります。") : tr("共有の画像は黒い地になります。「画像を保存」では背景が透明な PNG になります。")); }
     else if (m === "image") { msg.hidden = false; say(msg, state.bgImage ? (state.bgImage === BG_MARK ? tr("TRACKMENTO の模様を敷きました。「画像を選ぶ…」で好きな画像に替えられます。") : tr("画像を背景にしました。文字が読みやすいように、画像は薄く敷きます（にぎやかな画像ほど薄く）。")) : tr("「画像を選ぶ…」で、この端末の画像を選んでください。")); }
     else if (m === "pick") msg.hidden = true;
   }
@@ -4869,8 +4915,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       const r = await fetch(api("/upload"), { method: "POST", body: fd });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
-      state.bgImage = d.url;
+      state.bgImage = d.url; state.bgImageSrc = d.url; tileKey = "";
       if (state.bgMode !== "image") { pickedBg = pickedBg || { bg: state.bg, bgCustom: state.bgCustom }; state.bgMode = "image"; }
+      if (state.bgImageFit === "tile") { await applyImageFit(); syncBgMode(); updateSpec(); return; }
       // 見立ては手元のファイルで行う（上げた画像を読み直さない。上げた版は縮めてあるだけで、色とにぎやかさはほぼ同じ）
       const local = await createImageBitmap(f).catch(() => null);
       await tintFromBgImage(local || undefined);
@@ -4927,7 +4974,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     updateSpec();
     if (m === "near" || m === "far") { coverPal.i = 0; applyAutoBg(); }
     // まだ画像が無ければ、同梱の TRACKMENTO の模様（/bg-mark.png）を敷く（2026-09-25、利用者の案。前は選ぶ窓をすぐ開いていた）
-    if (m === "image") { if (!state.bgImage) state.bgImage = BG_MARK; syncBgMode(); tintFromBgImage(); }
+    if (m === "image") { if (!state.bgImage) state.bgImage = BG_MARK; if (!state.bgImageSrc) state.bgImageSrc = state.bgImage; syncBgMode(); applyImageFit(); }
+    if (m === "none") setSeg($("#bg-ink-seg"), "dark");
     if (m === "gradient") applyGradient();
   }
   /* ---- グラデーション背景（2026-09-25、利用者の案）。**ブラウザが絵を描いて /upload に上げ**、あとは画像の背景と同じ道で敷く（サーバーは描かない）。
@@ -5095,6 +5143,59 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   $("#bg-grad-add").addEventListener("click", () => { const g = gradState(); if (g.colors.length < 4) { g.colors.push(g.colors[g.colors.length - 1]); renderGradColors(); applyGradient(); } });
   $("#bg-grad-del").addEventListener("click", () => { const g = gradState(); if (g.colors.length > 2) { g.colors.pop(); renderGradColors(); applyGradient(); } });
   $("#bg-grad-shuffle").addEventListener("click", () => applyGradient({ reseed: true }));
+  /* ---- 画像の敷き方（2026-09-25、利用者の案）。「引き伸ばす」は画像をそのまま枠いっぱいに、「並べる」は画像を小・中・大の大きさで
+     互い違いに敷き詰めた 1600x900 の絵をブラウザが描いて上げ、それを敷く（サーバーは上げた絵を敷くだけ。グラデーションと同じ仕組み）。
+     元の画像は bgImageSrc に残し、bgImage には実際に敷く絵（引き伸ばすなら元の画像、並べるなら描いて上げた絵）を入れる ---- */
+  const TILE_W = { s: 160, m: 280, l: 440 };   // 並べるときの 1 枚の幅（1600 の絵の中の px）
+  let tileCanvas = null, tileUrl = "", tileKey = "";
+  function drawTiled(bmp, size) {
+    const W = 1600, H = 900, tw = TILE_W[size] || TILE_W.m, th = Math.round(tw * bmp.height / bmp.width);
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const cx = cv.getContext("2d");
+    cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, W, H);
+    const gx = Math.round(tw * 1.25), gy = Math.round(th * 1.25);
+    for (let r = 0, y = -Math.round(th / 3); y < H; r++, y += gy) {
+      for (let x = (r % 2 ? Math.round(gx / 2) : 0) - Math.round(tw / 3); x < W; x += gx) cx.drawImage(bmp, x, y, tw, th);
+    }
+    return cv;
+  }
+  let tileUpTimer = 0;
+  async function applyImageFit() {
+    const src = state.bgImageSrc || state.bgImage;
+    if (state.bgMode !== "image" || !src) return;
+    state.bgImageSrc = src;
+    if (state.bgImageFit !== "tile") { tileCanvas = null; tileKey = ""; state.bgImage = src; await tintFromBgImage(); syncBgMode(); updateSpec(); return; }
+    const key = JSON.stringify([src, state.bgImageTile]);
+    if (key !== tileKey || !tileCanvas) {
+      // 既定の模様（もともと敷き詰めた絵）を並べると模様の中に模様が並ぶので、既定のときはマーク 1 つ（ホーム画面のアイコン）を並べる
+      const bmp = await loadCover({ image: src === BG_MARK ? "/icon-512.png" : src }, 0).catch(() => null);
+      if (!bmp || state.bgMode !== "image") return;
+      tileCanvas = drawTiled(bmp, state.bgImageTile || "m"); tileKey = key;
+      bmp.close && bmp.close();
+      if (tileUrl) URL.revokeObjectURL(tileUrl);
+      const blob = await canvasToBlob(tileCanvas, "image/jpeg", 0.9);
+      tileUrl = URL.createObjectURL(blob);
+      clearTimeout(tileUpTimer);
+      tileUpTimer = setTimeout(async () => {   // 上げるのは落ち着いてから（大きさを続けて変えたときに毎回上げない）
+        try {
+          const fd = new FormData(); fd.append("file", blob, "tiled.jpg");
+          const r = await fetch(api("/upload"), { method: "POST", body: fd });
+          const d = await readJson(r);
+          if (r.ok && key === tileKey) { state.bgImage = d.url; save(); }
+        } catch { /* 上げられなくても手元の絵で書き出せる */ }
+      }, 900);
+    }
+    await tintFromBgImage(tileCanvas);
+    syncBgMode(); updateSpec();
+  }
+  for (const i of document.querySelectorAll('#bg-fit-seg input')) i.addEventListener("change", () => { state.bgImageFit = i.value; applyImageFit(); });
+  for (const i of document.querySelectorAll('#bg-tile-seg input')) i.addEventListener("change", () => { state.bgImageTile = i.value; applyImageFit(); });
+  /* ---- 背景を透過のときの字の色（2026-09-25、利用者の案）。黒い字なら下の地は白、白い字なら黒（共有の JPEG はその地で、「画像を保存」は透明）。
+     見本の地も合わせる（白い字なら暗い市松） ---- */
+  for (const i of document.querySelectorAll('#bg-ink-seg input')) i.addEventListener("change", () => {
+    state.bgCustom = i.value === "light" ? "#000000" : "#ffffff"; state.bg = "custom";
+    renderSwatches(); syncCustomColor(); syncBgMode(); updateSpec();
+  });
   for (const i of document.querySelectorAll('#bg-mode-seg input')) i.addEventListener("change", () => setBgMode(i.value));
   const bgIsChosen = (value) => (value.startsWith("#") ? state.bg === "custom" && (state.bgCustom || "").toLowerCase() === value.toLowerCase() : state.bg === value);
   function renderSwatches() {
@@ -6853,7 +6954,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 背景の画像も見本に敷く（書き出しと同じ濃さ。背景色の幕をかぶせて薄くする）。見本は曲名リストの無い枠なので、切り抜きの位置は書き出しと少し違う
     if (state.bgMode === "image" && state.bgImage) {
       const [r, g, b] = hexToRgb(state.bgCustom || "#ffffff"), a = 1 - (state.bgImageAlpha ?? 0.5), veil = `rgba(${r}, ${g}, ${b}, ${a})`;
-      els.grid.style.background = `linear-gradient(${veil}, ${veil}), center / cover no-repeat url("${proxied(state.bgImage)}"), ${bgColor()}`;
+      const isrc = state.bgImageFit === "tile" && tileUrl ? tileUrl : proxied(state.bgImage);
+      els.grid.style.background = `linear-gradient(${veil}, ${veil}), center / cover no-repeat url("${isrc}"), ${bgColor()}`;
+    }
+    // 背景を透過: 見本は市松（白い字なら暗い市松）
+    if (state.bgMode === "none") {
+      const dark = !isLightRgb(hexToRgb(state.bgCustom || "#ffffff")), [a, b] = dark ? ["#2a2d33", "#1b1d22"] : ["#e8e6e1", "#f6f5f2"];
+      els.grid.style.background = `repeating-conic-gradient(${a} 0 25%, ${b} 0 50%) 0 0 / 16px 16px`;
     }
     // グラデーションは手元の絵（上げる前でも出る）、無ければ上げた絵
     const gsrc = state.bgMode === "gradient" ? (gradUrl && gradCanvas ? gradUrl : state.bgGrad?.image ? proxied(state.bgGrad.image) : "") : "";
@@ -7204,7 +7311,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
       options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false,
-        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", bgImage: state.bgImage || null, bgImageAlpha: state.bgImageAlpha ?? 0.5, bgGrad: state.bgGrad || null, margin: state.margin, pad: state.pad || "normal", gap: state.gap },
+        cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", bgImage: state.bgImage || null, bgImageAlpha: state.bgImageAlpha ?? 0.5, bgGrad: state.bgGrad || null, bgImageSrc: state.bgImageSrc || null, bgImageFit: state.bgImageFit || "cover", bgImageTile: state.bgImageTile || "m", margin: state.margin, pad: state.pad || "normal", gap: state.gap },
     };
   }
   function applyData(d) {
@@ -7235,6 +7342,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     gradCanvas = null; gradKey = "";
     state.bgImage = /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(o.bgImage || "") || o.bgImage === BG_MARK ? o.bgImage : null;   // backend/grids.py の _UPLOAD_RE と同じ
     if (state.bgMode === "image" && !state.bgImage) state.bgMode = "pick";
+    { const okImg = (v) => /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(v || "") || v === BG_MARK;
+      state.bgImageSrc = okImg(o.bgImageSrc) ? o.bgImageSrc : null;
+      state.bgImageFit = o.bgImageFit === "tile" ? "tile" : "cover";
+      state.bgImageTile = ["s", "m", "l"].includes(o.bgImageTile) ? o.bgImageTile : "m";
+      tileCanvas = null; tileKey = ""; }
     state.bgImageAlpha = Number.isFinite(+o.bgImageAlpha) ? Math.round(Math.min(0.6, Math.max(0.1, +o.bgImageAlpha)) * 100) / 100 : 0.5;
     if (o.bg === "custom" && /^#[0-9a-f]{6}$/i.test(o.bgCustom || "")) { state.bg = "custom"; state.bgCustom = o.bgCustom; }
     else {
@@ -7703,7 +7815,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 好きな画像を背景に（2026-09-25）。枠いっぱいに切り抜き、背景色の上に state.bgImageAlpha の濃さで重ねる（backend/render.py の _paint_bg_image と同じ式）。
     // 取れなければ背景色のまま
     if (!transparent && state.bgMode === "image" && state.bgImage) {
-      const pic = await loadCover({ image: state.bgImage }, 0).catch(() => null);
+      const pic = state.bgImageFit === "tile" && tileCanvas ? tileCanvas : await loadCover({ image: state.bgImage }, 0).catch(() => null);
       if (pic) { ctx.save(); ctx.globalAlpha = state.bgImageAlpha ?? 0.5; drawCover(ctx, pic, 0, 0, canvas.width, canvas.height); ctx.restore(); pic.close && pic.close(); }
     }
     // グラデーション背景は手元の絵をそのまま敷く（上げた絵はサーバーで描くときのため）。手元に無ければ上げた絵を読む
