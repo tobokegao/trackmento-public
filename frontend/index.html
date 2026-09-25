@@ -7008,8 +7008,27 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* **つまみを掴んでいる間は計算しない**（2026-09-25、利用者のスマホで「マスの間隔」がもっさり）。180ms の間を置いても、
      指をゆっくり動かすと途中で計算が走り、そのあいだつまみが止まる（7x7・49 曲、CPU 1/4 で 0.5〜1.2 秒）。
      掴んでいる間（つまみの pointerdown 〜 pointerup）は後回しにし、離したときに 1 回だけ計算する */
-  function specHold(on) { specHeld = on; if (!on && specPending) { specPending = false; scheduleSpec(); } }
-  function scheduleSpec() { clearTimeout(specTimer); specTimer = setTimeout(updateSpecNow, 180); }
+  function specHold(on) {
+    specHeld = on;
+    if (on && specTimer) { clearTimeout(specTimer); specTimer = 0; specPending = true; }   // 待っている間に掴み直したら止める
+    if (!on && specPending) { specPending = false; scheduleSpec(); }
+  }
+  /* **指が画面に触れている間・ページが動いている間も計算しない**（2026-09-25）。つまみを離した直後にページを送ると、
+     離してから 180ms 後の計算（0.5〜1.2 秒）がスクロールの最中に走って引っかかる（利用者のスマホ。掴める幅を広げたあとも残った。
+     エミュレータで離した 80ms 後に送ると 0.4〜0.6 秒の止まり）。指の数と最後にスクロールした時刻を見て、静かになってから走らせる。
+     「トラックを共有」を押したときは sharePlan() がその場で組むので待たせない */
+  let fingers = 0, lastScroll = 0;
+  for (const t of ["touchstart", "touchend", "touchcancel"]) document.addEventListener(t, (e) => { fingers = e.touches ? e.touches.length : 0; }, { passive: true, capture: true });
+  document.addEventListener("scroll", () => { lastScroll = performance.now(); }, { passive: true, capture: true });
+  const SPEC_QUIET = 250;
+  function scheduleSpec(wait = 180) {
+    clearTimeout(specTimer);
+    specTimer = setTimeout(() => {
+      specTimer = 0;
+      if (fingers > 0 || performance.now() - lastScroll < SPEC_QUIET) { scheduleSpec(200); return; }
+      updateSpecNow();
+    }, wait);
+  }
   /* 畳んだ「枠とサムネ」の下に今の値を出す（「全体枠・横長 16:9 / マス枠・正方形 1:1 / サムネ余白・トリミング」） */
   function syncCellsSum() {
     // 1 項目ずつ折らない（「サムネ余 / 白」のように語の途中で折れていた）。折るのは「 / 」の所だけ
