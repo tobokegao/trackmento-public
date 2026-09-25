@@ -1372,13 +1372,14 @@ output { font-variant-numeric: tabular-nums; }
 .promo { width: min(960px, 100%); align-self: center; margin-top: var(--space-4); border: var(--line) solid var(--color-ink); background: var(--color-paper); display: grid; }
 .promo-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 28px; padding: 0 var(--space-2); background: var(--color-bar); border-bottom: var(--line) solid var(--color-ink); }
 .promo-tag { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); border: 1px solid var(--color-rule); padding: 0 var(--space-1); background: var(--color-paper); }
-.promo-body { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); }
+.promo-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); }
 .promo-text { display: grid; gap: var(--space-2); min-width: 0; }
-.promo-btn { flex: none; display: block; line-height: 0; }
-.promo-btn img { width: 88px; height: 31px; image-rendering: pixelated; }
+.promo-btn { flex: none; display: block; line-height: 0; order: 1; }   /* 枠の左下（文の後ろ）に置く。HTML では先頭のまま */
+/* 2 倍で見せる。**1 ドット = 2 × --u**（端末の画素の整数倍。176px と書くと 2.625 倍の端末でドットの太さがばらつく） */
+.promo-btn img { width: calc(var(--u) * 176); height: calc(var(--u) * 62); image-rendering: pixelated; }
 /* 広告が入る場所。PC は 468×60、スマホは 320×100（どちらも AdSense の固定の大きさ） */
 .ad-slot { width: 468px; height: 60px; max-width: 100%; margin-inline: auto; background: var(--color-paper-2); display: grid; place-items: center; font-size: var(--text-sm); color: var(--color-muted); }
-@media not all and (min-width: 60rem) { .ad-slot { width: 320px; height: 100px; } .promo-body { flex-direction: column; } }
+@media not all and (min-width: 60rem) { .ad-slot { width: 320px; height: 100px; } }
 .promo .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .promo p { margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
 .promo .album { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
