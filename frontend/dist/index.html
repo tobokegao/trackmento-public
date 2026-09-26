@@ -36,7 +36,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.3f94abe3.css">
+<link rel="stylesheet" href="app/app.5906a64c.css">
 </head>
 <body>
 
@@ -633,7 +633,8 @@
 </div>
 
 <!-- 広告枠。いまは作者の音楽の宣伝（見出しの札は「PR」）。AdSense の審査が通ったら、この下にもう 1 つ同じ形の aside を置き、
-     .lbl を「広告」、.promo-tag を「SPONSOR」にして、.promo-body の中身を <div class="ad-slot">（広告のコード）</div> にする。
+     .lbl を「広告」、.promo-tag を「SPONSOR」にして、.promo-body の中身を
+     <div class="ad-frame"><div class="ad-slot">（広告のコード。固定の大きさの ins）</div></div> にする（.ad-frame は立体の枠）。
      **見出しに使える言葉は「広告」か「スポンサーリンク」だけ**（AdSense の決まり）。
      文言でクリックを促すと AdSense のポリシー違反（アカウント停止）になるため、
      差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。

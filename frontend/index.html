@@ -1442,6 +1442,20 @@ output { font-variant-numeric: tabular-nums; }
 /* 広告が入る場所。PC は 468×60、スマホは 320×100（どちらも AdSense の固定の大きさ） */
 .ad-slot { width: 468px; height: 60px; max-width: 100%; margin-inline: auto; background: var(--color-paper-2); display: grid; place-items: center; font-size: var(--text-sm); color: var(--color-muted); }
 @media not all and (min-width: 60rem) { .ad-slot { width: 320px; height: 100px; } }
+/* 広告を囲む立体の枠（2026-09-27、利用者の希望）。見本は teacup「掲示板自動作成システム」（1998）の下の広告で、
+   `<table border="5">` をブラウザが描いた枠を画素で実測して写した: 外に 5 ドットの出っぱり・2 ドットの隙間・
+   内に 1 ドットのへこみ・1 ドットの余白。**枠は中身の大きさに縮んで、ぴったり囲む**（width: fit-content）。
+   そのため広告は固定の大きさ（468×60・320×100）にすること。レスポンシブ広告は幅が決まらず、枠が行いっぱいに伸びる。
+   光は OS 9 の面取りと同じく左上から。明るい辺・暗い辺は実測のグレー（168・84）に近い --color-bevel / --color-muted、
+   暗い地では面取りの並び（明るい白 ＞ 外枠）に合わせて --color-hl / --color-bar-dark。線の太さは --u の倍数（ドットをにじませない） */
+.ad-frame { --adf-lt: var(--color-bevel); --adf-dk: var(--color-muted);
+  width: fit-content; max-width: 100%; margin-inline: auto; line-height: 0;
+  padding: calc(2 * var(--u)); border: calc(5 * var(--u)) solid; border-color: var(--adf-lt) var(--adf-dk) var(--adf-dk) var(--adf-lt); }
+:root[data-ground="dark"] .ad-frame { --adf-lt: var(--color-hl); --adf-dk: var(--color-bar-dark); }
+.ad-frame > * { box-sizing: content-box; margin: 0; padding: var(--u);   /* 中身（.ad-slot）の 468×60 を削らない */
+  border: var(--u) solid; border-color: var(--adf-dk) var(--adf-lt) var(--adf-lt) var(--adf-dk); }
+/* 広告が来なかったとき（AdSense が ins に data-ad-status="unfilled" を付ける）は欄ごと隠す。空の枠と見出しだけ残さない */
+.promo:has(ins.adsbygoogle[data-ad-status="unfilled"]) { display: none; }
 .promo .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .promo p { margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
 .promo .album { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
@@ -2095,7 +2109,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 </div>
 
 <!-- 広告枠。いまは作者の音楽の宣伝（見出しの札は「PR」）。AdSense の審査が通ったら、この下にもう 1 つ同じ形の aside を置き、
-     .lbl を「広告」、.promo-tag を「SPONSOR」にして、.promo-body の中身を <div class="ad-slot">（広告のコード）</div> にする。
+     .lbl を「広告」、.promo-tag を「SPONSOR」にして、.promo-body の中身を
+     <div class="ad-frame"><div class="ad-slot">（広告のコード。固定の大きさの ins）</div></div> にする（.ad-frame は立体の枠）。
      **見出しに使える言葉は「広告」か「スポンサーリンク」だけ**（AdSense の決まり）。
      文言でクリックを促すと AdSense のポリシー違反（アカウント停止）になるため、
      差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。
