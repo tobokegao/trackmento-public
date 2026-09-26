@@ -58,6 +58,15 @@ note の記事用の GIF・写真・表の撮り方。動画そのものの作�
     撮ったら `PYTHONUTF8=1 .venv/Scripts/python scripts/clean_x_uploads.py` で消す（記録した分だけ。利用者の画像には触れない）
   - 2026-09-25 の撮り直しで 11 本（前の 8 本＋ `undo-buttons` / `bg-modes` / `bg-image`）
   - **2026-09-26 に 11 本とも今の画面で撮り直した**（出力オプションのグループボックス・三角・呼び名が変わったため）。台本の直し: 「マス枠」「サムネ余白」は既定で畳んだ「枠とサムネ」の三角の中なので撮る前に開く（`openCellsMore`）、`bg-image` は「画像」を選ぶとまず既定の模様が敷かれ選ぶ窓は開かないので、続けて「画像を選ぶ…」を押す、**`k.arrange` の `only` は `.pane-body` の直の子にしか効かない**ので、出力オプションはグループボックス（`.gbox:has(…)`）を指し、中のほかの欄は `ARRANGE_BG_CSS` で隠す
+- **サイトの「動画で見る使い方」（`/howto`）に同じ動画を載せる**（2026-09-26、利用者の依頼）。問いと答え（日英）は `backend/howto.py` の
+  `SECTIONS`（答えは台本の `what` を使い方のページの口調に直したもの）。66 本。p-os9・p-logo・p-counts（見た目の紹介）と lang・zoom-wheel（ほかの問いと重なる）は載せない
+  - **GIF にしない**。同じ動画で GIF は MP4 の約 4 倍（`color-sort`: 9.8MB 対 2.3MB）
+  - **題（`<details>` の summary）を押したときだけ読む**。`<video preload="none">` で、開くとページの数行の JS が `play()`（muted なのでスマホでも流れる）。
+    閉じたままの問いは 1 バイトも読まない（手元で確かめた）。CSP に `media-src 'self' <R2>` を足した
+  - 動画は R2 の `howto/<id>.<ハッシュ>.mp4` から配る（Render の転送量を使わない）。**撮り直したら `render_x.mjs` のあと
+    `PYTHONUTF8=1 .venv/Scripts/python scripts/upload_howto_r2.py` を回し、書き換わった `backend/howto_videos.json` をコミット**する。
+    表に無い id の問いはページに出ない。`howto/` は `r2_prune.py` の `KEEP_PREFIXES`。古いキーは `--prune` で消す
+  - 新しく撮った動画を載せるときは `SECTIONS` に 1 問足してから上げる
   - 撮影の途中でブラウザが落ちる（`Target crashed`）と、あとの場面が全部失敗する。落ちた場面から名指しで撮り直せばよい
   - **グリッドに寄る場面も窓を並べ直す**（2026-09-26、利用者の指摘）。そのままだと 16:9 に広げた端にほかの窓が半分映って字が切れ、`stash` は横 × 縦の欄とグリッドが離れていてカメラが引きすぎた。`ARRANGE_GRID`（グリッドの窓だけ真ん中）と `ARRANGE_STASH`（グリッドと横 × 縦の欄だけ）で置き、**カメラの範囲に窓のタイトルバー（`GT` / `OT`）も入れる**（入れないと上で切れる）
   - **2026-09-26 から台本を段ごとのファイルに分けた**。1 段目「はじめて使う流れ」は `promo/x_catalog_flow.mjs`（`x_clips.mjs` が `x_catalog.mjs` と合わせて読む）。

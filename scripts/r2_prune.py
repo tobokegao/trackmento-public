@@ -9,6 +9,7 @@ fonts/ まで消えて本番のフォントが 404 になるため、削除は�
 
 KEEP_PREFIXES に挙げたものは古くても消さない:
   - fonts/   … 分割フォント。消えると本番の表示が壊れる（scripts/upload_fonts_r2.py が上げる）
+  - howto/   … 動画で見る使い方（/howto）の動画。消えると動画が 404 になる（scripts/upload_howto_r2.py が上げる）
 
 共有（既定 720 時間）より短い期限で消すものが 2 つあり、期限はそれぞれ違う:
   - imgcache/ … 画像キャッシュ。既定 336 時間（14 日）。SQLite 側の索引が 13 日
@@ -71,7 +72,7 @@ def write_line(path: Path, left_n, left_bytes, *, deleted: int, applied: bool, s
 
 # 古くても消さないもの（前方一致）。共有の期限とは無関係に置いておく必要があるファイル
 # app/ … 切り出した CSS と JS（scripts/upload_app_r2.py）。配布済みの殻がまだ古い名前を指しているので消さない
-KEEP_PREFIXES = ("fonts/", "app/")
+KEEP_PREFIXES = ("fonts/", "app/", "howto/")   # howto/ は動画で見る使い方の動画（scripts/upload_howto_r2.py）
 # 共有（既定 720 時間）より短い期限で消すもの。**2 つは期限が違う**ので分けてある
 IMAGE_PREFIXES = ("imgcache/",)      # 画像キャッシュ。索引は cache.R2_IMAGE_TTL（13 日）
 SEARCH_PREFIXES = ("searchcache/",)  # 検索結果の控え（backend/searchcache.py。索引は 6 日）

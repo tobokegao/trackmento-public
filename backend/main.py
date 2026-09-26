@@ -716,7 +716,7 @@ async def request_stats(request: Request, call_next):
 
 # 移転先へ 301 で送る経路。**画面（`/`）と API は送らない**。
 # API を送ると、開いたままの古いタブが別オリジンへ投げることになり CORS で落ちる
-_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/privacy", "/about", "/updates")
+_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/howto", "/privacy", "/about", "/updates")
 
 
 def _migrate_host(request: Request) -> str:
@@ -793,7 +793,7 @@ async def rate_limit(request: Request, call_next):
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'{r2}; "
         # connect-src: iTunes と MusicBrainz（＋Cover Art Archive → archive.org へリダイレクト）の検索はブラウザから直接叩く
         # （サーバーの共有 IP が Apple に遮断され、MusicBrainz にはレート制限されるため）
-        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; object-src 'none'; base-uri 'self'; "
+        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; media-src 'self'{r2}; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'self'")
     if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
@@ -2201,12 +2201,13 @@ async def share_owner_action(request: Request, sid: str, body: OwnerBody) -> dic
 # `/shares/{fname}` と経路がぶつからないよう、JSON は `/find.json` にしてある
 # 文章のページ（使い方・プライバシーポリシー・運営者）。backend/pages.py。言語は共有ページと同じ決め方
 @app.get("/guide", response_class=HTMLResponse)
+@app.get("/howto", response_class=HTMLResponse)
 @app.get("/privacy", response_class=HTMLResponse)
 @app.get("/about", response_class=HTMLResponse)
 @app.get("/updates", response_class=HTMLResponse)
 async def text_page(request: Request) -> HTMLResponse:
     kind = request.url.path.strip("/")
-    return HTMLResponse(pages.page_html(kind, base_url_for(request), app_url_for(request), _lang_for(request)),
+    return HTMLResponse(pages.page_html(kind, base_url_for(request), app_url_for(request), _lang_for(request), nonce=request.state.csp_nonce),
                         headers={"Cache-Control": "public, max-age=3600"})
 
 
