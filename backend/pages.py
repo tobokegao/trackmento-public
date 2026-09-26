@@ -290,6 +290,10 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-26", "書き出しの画像で、下や右の端の空いた段を詰めて組むようにしました（曲の入っていない段のぶん下が空いたり、トラックリストの行の間が広がりすぎたりしていました）。背景が画像やグラデーションのときはトラックリストの後ろに地を敷いて読みやすくし、既定の模様も薄くしました。",
+     "Exported images now leave out empty rows and columns at the bottom and right edges (they used to leave a gap below and spread the track list too far apart). With an image or gradient background, the track list gets a backdrop so it is easier to read, and the default pattern is fainter."),
+    ("2026-09-26", "みんなのグリッドの検索欄に枠が付かず、消えたように見えることがあったのを直しました。",
+     "Fixed the search box on everyone’s grids having no border and seeming to disappear."),
     ("2026-09-26", "Android でホーム画面に追加していると、ブラウザで「みんなのグリッド」や「共有ページを開く」を押したときにアプリへ移ってしまうことがあったので、同じタブで開くようにしました。",
      "On Android with TRACKMENTO added to the home screen, tapping “everyone’s grids” or “Open share page” in the browser could jump into the app. These now open in the same tab."),
     ("2026-09-26", "「サーバー代のおねがい」の欄と共有したあとの欄を、作者からのひとことにしました。アルバムは値段を自由に決めて買えます。",

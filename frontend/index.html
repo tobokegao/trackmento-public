@@ -3047,6 +3047,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   }
   const NO_COVER = "/no-cover.png";   // ジャケットが無い曲に使ううちの画像（backend/models.py と同じ）
   const BG_MARK = "/bg-mark.png";   // 背景色の「画像」の既定（TRACKMENTO のロゴを敷き詰めた絵。scripts/build_icons.py）
+  const BG_MARK_ALPHA = 0.2;   // 既定の模様の濃さ。にぎやかさから決めると 0.35 前後になり、濃すぎた（2026-09-26、利用者の指摘。大きさはそのまま）
   const proxied = (url) => (url === NO_COVER || url === BG_MARK || url === "/icon-512.png" || url.startsWith("/uploads/") ? api(url) : isDirectImage(url) ? url : api(`/image-proxy?url=${encodeURIComponent(url)}`));
   const isImageRef = (s) => /^https?:\/\//.test(s) || s === NO_COVER || /^\/uploads\/[a-f0-9]{16}\.(jpg|png|webp|gif)$/.test(s);
   const setBtnState = (btn, s) => { if (s) btn.dataset.state = s; else delete btn.dataset.state; btn.disabled = s === "loading"; };
@@ -3218,7 +3219,21 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     return cells.map((t) => (t ? order[k++] : t));
   }
   /* 割り付けの途中で、曲の順（実際に描く並び）で数えたいとき */
-  const withRealCells = (fn) => { const c = _canonCells; _canonCells = null; try { return fn(); } finally { _canonCells = c; } };
+  const withRealCells = (fn) => { const c = _canonCells; _canonCells = _exGrid ? _exGrid.cells : null; try { return fn(); } finally { _canonCells = c; } };
+  /* **書き出しでは末尾の空き行・列を落とす**（backend/render.py の _cropped と同じ規則。2026-09-26、利用者の共有 3x8 に 7 曲で指摘）。
+     空きマスを塗らないので、下や右の端の空き段は何も描かれないのに、割り付けはその段込みで決まり、マスの塊が上に寄って
+     下が大きく空き、曲名リストも空き段の高さまで引き延ばされていた。途中の空きマスはそのまま。曲の順は変わらない。
+     割り付けの間は _exGrid に入れ（exCols / exRows / 曲の順の並び）、描くとき（renderShareCanvas）は同じものを作り直して使う */
+  let _exGrid = null;
+  function cropGrid(cells, cols, rows) {
+    let nr = 0, nc = 0;
+    for (let i = 0; i < cols * rows; i++) if (cells[i]) { nr = Math.max(nr, Math.floor(i / cols) + 1); nc = Math.max(nc, i % cols + 1); }
+    if (!nr || (nr === rows && nc === cols)) return { cols, rows, cells };
+    const out = [];
+    for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) out.push(cells[r * cols + c]);
+    return { cols: nc, rows: nr, cells: out };
+  }
+  const exCols = () => (_exGrid ? _exGrid.cols : state.cols), exRows = () => (_exGrid ? _exGrid.rows : state.rows);
 
   /* ---- 曲名の刈り込み ---- */
   /* 曲名とアーティスト名から蛇足を外す。**backend/names.py と対で直すこと**。
@@ -5431,7 +5446,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         if (r.ok && key === tileKey) { state.bgImage = d.url; save(); }
       } catch { /* 上げられなくても手元の絵で書き出せる */ }
     }, 900);
-    await tintFromBgImage(tileCanvas);
+    await tintFromBgImage(tileCanvas);   // 既定の模様は下で BG_MARK_ALPHA まで薄くする
+    if (src === BG_MARK) state.bgImageAlpha = Math.min(state.bgImageAlpha ?? 0.5, BG_MARK_ALPHA);
     syncBgMode(); updateSpec();
   }
   let fitTimer = 0;
@@ -6093,7 +6109,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const SLAB_ROW_BESIDE_SEG = 12;
   /* 柱のとき、曲名をマス 1 つ 1 つの横に並べる割り付け（backend/render.py の _slab_rows） */
   function slabRows(gw, gh, titleH, ratio, m, maxSide, beside = false, inline = null) {
-    const cols = state.cols;
+    const cols = exCols();
     if (cols > SLAB_ROW_MAX_COLS) return null;
     // 1 列の並びは、まず 1 行型を試す（backend/render.py と同じ）。合わなければ 2 行の形
     if (inline === null) {
@@ -6164,12 +6180,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       // 段のマスと同じ並びで横に置く（マスと同じ「左から右へ、次の段へ」の順）
       const colW = Math.floor((segW - wgap * (cols - 1)) / cols);
       if (colW < fontS * SLAB_ROW_BESIDE_SEG) return null;
-      segs = state.cells.map((_, i) =>
+      segs = viewCells().map((_, i) =>   // 末尾の空き段を落とした並びのマスの数（layout の cropGrid）
         [x0 + (i % cols) * (colW + wgap), gy + Math.floor(i / cols) * pitch, colW]);
     } else {
       // 段のマスと同じ数だけ曲名を積む。余った端数は段の中で上下に分ける
       const off = Math.round((pitch - per * cols) / 2);
-      segs = state.cells.map((_, i) =>
+      segs = viewCells().map((_, i) =>   // 末尾の空き段を落とした並びのマスの数（layout の cropGrid）
         [x0, gy + Math.floor(i / cols) * pitch + off + (i % cols) * per, segW]);
     }
     return { W, H, scale, fontS, lineH: per, titleSize: tSize, titleH: tH, pad, top: pad, gx, gy,
@@ -6278,7 +6294,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function slabStack(gw, gh, titleH, ratio, m, maxSide) {
     // **曲の入ったマスだけを積む**（空きマスの行を作らない。backend/render.py と同じ。2026-09-25）
     const n = listCells().length;
-    if (!n || state.rows > SLAB_STACK_MAX_ROWS) return null;
+    if (!n || exRows() > SLAB_STACK_MAX_ROWS) return null;
     const [W, H, pad] = slabFrame(gw, ratio, m, false, state.gap);
     if (W <= 0 || H <= 0) return null;
     const scale = Math.min(1, maxSide / Math.max(W, H));
@@ -6533,7 +6549,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   // 列と列のあいだ。マスの間隔と同じでは隣の曲名と近すぎて、どちらの列か迷う
   const LIST_COL_GAP = GAP_PX * 5;
   // 1 行型の表（backend/render.py の TABLE_*）。細い並びを横長の比率に入れたとき、流し込みの代わりに使う
-  const TABLE_FONT = 0.5, TABLE_MAX_COLS = 3, TABLE_RULE = 0.86, TABLE_GAP_LH = 1.0;
+  const TABLE_FONT = 0.5, TABLE_MAX_COLS = 3, TABLE_RULE = 0.86, TABLE_GAP_LH = 1.0, TABLE_LH_CAP = 2.5, LIST_VEIL = 0.8;   // TABLE_LH_CAP・LIST_VEIL は backend/render.py を見る
   const SLAB_STACK_TABLE_COLS = 4, SLAB_STACK_FEW_COLS = 0.85;   // 帯の下の表の列の上限・列の少ないほうを優先する字の差（backend/render.py と同じ）
   const LIST_COL_GAIN = 1.02;   // 下に置くとき、列を増やしてこの倍率以上大きくならないならやめる
   const fontPx = (f) => parseFloat(/(\d+(?:\.\d+)?)px/.exec(f)[1]);   // font 文字列から大きさだけ取る
@@ -6762,11 +6778,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // **組み方は曲の順番に左右されない並び（canonCells）で決める**（backend/render.py の layout と同じ。2026-09-25）。
     // 割り付けの中の viewCells / listCells はその並びを返す。曲の順で数えるのは最後の組み直しだけ（withRealCells）
     if (_canonCells) return layoutCore(maxSide, titlePx, depth);
-    _canonCells = canonCells(viewCells());
-    try { return layoutCore(maxSide, titlePx, depth); } finally { _canonCells = null; }
+    _exGrid = cropGrid(viewCells(), state.cols, state.rows);
+    _canonCells = canonCells(_exGrid.cells);
+    try { return layoutCore(maxSide, titlePx, depth); } finally { _canonCells = null; _exGrid = null; }
   }
   function layoutCore(maxSide, titlePx, depth) {
-    const { cols, rows } = state;
+    const cols = exCols(), rows = exRows();
     const m = state.margin;
     const title = state.showTitle ? state.title.trim() : "";
     const n = viewCells().length;
@@ -6951,7 +6968,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     const keep = [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH];   // 1 曲 1 行の組み方（下で戻すことがある）
     let sbFlow = side !== "none" && fontS * scale < FLOW_MIN_FONT;
-    if (sbFlow && side === "right" && ratio !== null && state.cols <= SLAB_ROW_MAX_COLS) {
+    let sbTop = 0;
+    if (sbFlow && side === "right" && ratio !== null && cols <= SLAB_ROW_MAX_COLS) {
       // 1 行型の表を試す（backend/render.py と同じ）。幅は流し込みと同じく比率で余るぶん全部
       const wT = Math.max(sbW, Math.round((titleTopH + gh + m * 2) * ratio) - m * 2 - gw - sbGap);
       const [WT, HT, scT] = frame(wT, sbH);
@@ -6969,6 +6987,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         sbW = wT; W = WT; H = HT; scale = scT;
         sbInline = true; sbFlow = false;
         sbPlan = new Array(nT).fill(1); sbARows = [];
+        const cap = Math.round(fontS * TABLE_LH_CAP);   // 表の行間の上限（backend/render.py の TABLE_LH_CAP）
+        if (lineH > cap) { sbTop = Math.floor(((gh - titleH) - Math.ceil(nT / sbCols) * cap) / 2); lineH = cap; }
       }
     }
     if (sbFlow) {
@@ -7100,7 +7120,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (want > titleSize) return layout(maxSide, want, depth + 1);
     }
     return { W, H, scale, ox, oy, gw, gh, title, titleSize, titleH, side, sbW, sbH, sbCols, lineH, fontS, sbGap, sbFlow, keepFont,
-             sbPlan: sbFlow ? [] : sbPlan, sbARows: sbFlow ? [] : sbARows, sbInline: sbInline && !sbFlow, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [], wrapRows: false };
+             sbPlan: sbFlow ? [] : sbPlan, sbARows: sbFlow ? [] : sbARows, sbInline: sbInline && !sbFlow, sbTop: sbFlow ? 0 : sbTop, wrap: false, wrapPad: 0, wrapTop: 0, wrapSegs: [], wrapRows: false };
   }
   // **ジャケットが極端に小さくなるときは知らせる**（選択は塞がない）。並びの形と枠の比率が
   // 食い違うと、曲名を読める大きさにしたぶんマスが潰れる（1x32 を 16:9 にすると 23px）。
@@ -8164,7 +8184,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 代替フォントの幅が残っているとサーバー描画と折り返しがずれる
     CHAR_W.clear();
     const L = layout(maxSide), S = L.scale, sc = (v) => Math.round(v * S);
-    const n = viewCells().length;
+    // 末尾の空き段を落とした並び（layout の cropGrid と同じ）。マスの位置と曲はこちらで数える
+    const EX = cropGrid(viewCells(), state.cols, state.rows), VC = EX.cells;
+    const n = VC.length;
     const bg = state.bg === "custom" && state.bgCustom ? hexToRgb(state.bgCustom) : TOKENS_RGB[state.bg] || TOKENS_RGB.paper;
     const light = isLightRgb(bg);
     const ink = TOKENS_RGB[light ? "ink" : "paper"], badgeBg = TOKENS_RGB[light ? "paper" : "ink"], muted = mixRgb(ink, bg, 0.30), cellBg = TOKENS_RGB[light ? "paper-3" : "ink-2"];
@@ -8207,7 +8229,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const cw = sc(CELL_W), ch = sc(cellH()), cs = Math.min(cw, ch), numF = fontPixel(numPx);   /* 帯の文字は**短辺**から */
     // 描く前に R2 の場所をまとめて聞く（302 を追わないため。上の preloadR2Map を参照）
     const wantPx = cw < CELL_W * 0.55 ? Math.ceil(cw / 50) * 50 : 0;
-    await preloadR2Map(viewCells().flatMap(t => (t ? [t.image, t.thumb] : [])).filter(Boolean).map(url => ({ url, px: wantPx })));
+    await preloadR2Map(VC.flatMap(t => (t ? [t.image, t.thumb] : [])).filter(Boolean).map(url => ({ url, px: wantPx })));
     // **取得だけ数枚先まで走らせる**。描く順番は変えない。1 枚ずつ順に取ると、1 往復ぶんの
     // 待ち時間（30〜180ms）がマスの数だけ積み上がる（256 マスで 9 秒以上）。
     // 同時に持つのは PREFETCH 枚まで（描いたら bitmap は close するので抱え込みも増えない）
@@ -8215,7 +8237,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const pending = new Map();
     const startAt = (i) => {
       if (i >= n || pending.has(i)) return;
-      const t2 = viewCells()[i];
+      const t2 = VC[i];
       if (t2) pending.set(i, loadCover(t2, wantPx).catch(() => null));
     };
     for (let i = 0; i < Math.min(n, PREFETCH); i++) startAt(i);
@@ -8224,7 +8246,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const ovAs = Math.max(8, Math.round(cs * OVERLAY_ARTIST)), ovPad = Math.round(cs * OVERLAY_PAD);
     let k = 0;   // 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。backend/render.py と同じ。2026-09-25）
     for (let i = 0; i < n; i++) {
-      const t = viewCells()[i], c = i % state.cols, r = Math.floor(i / state.cols);
+      const t = VC[i], c = i % EX.cols, r = Math.floor(i / EX.cols);
       const x = sc(L.ox + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + state.gap));
       if (t) k++;
       // **空きマスは塗らない**（背景の色が見える。backend/render.py と同じ。2026-09-25）
@@ -8279,7 +8301,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       // **段の持ち方は 2 通り**（backend/render.py と同じ。2026-09-25）。マスごと（slabRows）は段がマスの位置ごとにある
       // （段の数 ＝ マスの数）ので、空きマスの段は残して何も描かない。縦一列・表（slabStack）は曲の入ったマスだけを
       // 積んである（段の数 ＝ 曲の数）。番号はどちらも曲の序数
-      const cellsV = viewCells(), byPos = L.wrapSegs.length === cellsV.length;
+      const cellsV = VC, byPos = L.wrapSegs.length === cellsV.length;
       const entries = [];
       cellsV.forEach((t, i) => { if (t) entries.push([i, t]); });
       for (let k2 = 0; k2 < entries.length; k2++) {
@@ -8382,7 +8404,17 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     if (L.side !== "none") {
       const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox;
-      let sy = L.side === "right" ? y0 : y0 + L.gh + L.sbGap;
+      let sy = (L.side === "right" ? y0 : y0 + L.gh + L.sbGap) + (L.sbTop || 0);
+      // 曲名リストの後ろに地を敷く（背景が画像・グラデーションのとき。backend/render.py の LIST_VEIL と同じ範囲・濃さ）
+      if ((state.bgMode === "image" && state.bgImage) || (state.bgMode === "gradient" && state.bgGrad?.image)) {
+        const vp = L.sbGap / 2;
+        let box = L.side === "right" ? [sc(sx - vp), sc(y0 - vp), sc(sx + L.sbW + vp), sc(y0 + L.gh + vp)]
+          : [sc(L.ox - vp), sc(y0 + L.gh + vp), sc(L.ox + L.sbW + vp), sc(y0 + L.gh + L.sbGap + L.sbH + vp)];
+        box = [Math.max(0, box[0]), Math.max(0, box[1]), Math.min(canvas.width, box[2]), Math.min(canvas.height, box[3])];
+        if (box[2] > box[0] && box[3] > box[1]) {
+          ctx.save(); ctx.globalAlpha = LIST_VEIL; ctx.fillStyle = cssRgb(bg); ctx.fillRect(box[0], box[1], box[2] - box[0], box[3] - box[1]); ctx.restore();
+        }
+      }
       // 列の幅。**右に置くときも列に割る**（列を増やしたのに全幅で描くと、2 列目が枠の外へ出る）
       const colW = Math.floor((L.sbW - LIST_COL_GAP * (L.sbCols - 1)) / L.sbCols);
       if (L.title && L.side === "right") {

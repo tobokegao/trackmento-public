@@ -7,7 +7,8 @@
 // 別の組み方になる（`scripts/compare_layout.py` が自分の `MAX_SIDE` を渡してくる。既定 2400）
 import { chromium } from "playwright";
 import fs from "node:fs";
-const [out, combosPath, tracksPath, maxSideArg, padArg] = process.argv.slice(2);
+const [out, combosPath, tracksPath, maxSideArg, padArg, holesArg] = process.argv.slice(2);
+const holes = holesArg === "holes";   // 末尾の空き段・途中の空きマスがある並び（scripts/compare_layout.py の holed と同じ。2026-09-26）
 const pad = padArg || "normal";   // 余白の段（normal / wide / xwide）
 const maxSide = Number(maxSideArg) || 2400;
 const combos = JSON.parse(fs.readFileSync(combosPath, "utf-8"));
@@ -17,7 +18,9 @@ const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, l
 const page = await ctx.newPage();
 await page.goto("http://127.0.0.1:8000/", { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__layoutFor && window.__setGrid);
-const res = await page.evaluate(async ({ combos, tracks, maxSide, pad }) => {
+const res = await page.evaluate(async ({ combos, tracks, maxSide, pad, holes }) => {
+  const holed = (c, r, i) => { const row = Math.floor(i / c), col = i % c;
+    return row < Math.max(1, Math.ceil(r * 6 / 10)) && col < Math.max(1, Math.ceil(c * 7 / 10)) && (i % 3 !== 1 || i === 0); };
   const opt = { title: "私を構成する9選", showTitle: true, sidebar: true, numbers: false,
                 margin: 16, pad, gap: 16, bg: "mustard", bgCustom: null };
   // **字幅の控えは Web フォントが効いてから取る**（代替フォントで測った値が残ると折り返しがずれる）
@@ -27,14 +30,16 @@ const res = await page.evaluate(async ({ combos, tracks, maxSide, pad }) => {
   const got = [];
   for (const [c, r, q, cellRatio] of combos) {
     // **マスの形も組み合わせに入れる**（16:9 は塊の高さが変わるので、割り付けが別物になる）
-    window.__setGrid(c, r, { ...opt, cellRatio: cellRatio || "1:1" }, tracks);
+    let base = tracks;
+    if (holes) { let k = 0; base = Array.from({ length: c * r }, (_, i) => (holed(c, r, i) ? tracks[k++ % tracks.length] : null)); }
+    window.__setGrid(c, r, { ...opt, cellRatio: cellRatio || "1:1" }, base);
     const L = window.__layoutFor(q, maxSide);
     got.push([c, r, q, cellRatio || "1:1", L.W, L.H, Math.round(L.scale * 1e9), L.fontS, L.lineH, L.ox, L.oy,
               L.titleSize, L.titleH, L.wrap ? 1 : 0, L.wrapPad, L.wrapTop, L.wrapSegs.length,
-              L.sbCols, L.side, L.sbFlow ? 1 : 0, L.sbInline ? 1 : 0, L.wrapTx || 0, L.wrapInline ? 1 : 0]);
+              L.sbCols, L.side, L.sbFlow ? 1 : 0, L.sbInline ? 1 : 0, L.wrapTx || 0, L.wrapInline ? 1 : 0, L.sbTop || 0]);
   }
   return got;
-}, { combos, tracks, maxSide, pad });
+}, { combos, tracks, maxSide, pad, holes });
 fs.writeFileSync(out, JSON.stringify(res));
 console.log("書き出し", res.length, `（出力の最大辺 ${maxSide}px）`);
 await ctx.close(); await browser.close();

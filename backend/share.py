@@ -826,7 +826,7 @@ def find_html(q: str, results: list[dict], base: str, app_url: str | None = None
 <style>{_page_css(base)}
 form.find {{ display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }}
 form.find input {{ flex: 1 1 14rem; min-width: 0; font: inherit; padding: 10px 12px;
-  border: 2px solid var(--ink); background: var(--paper); color: var(--ink); }}
+  border: 2px solid #12171b; background: #fff; color: #12171b; }}   /* 色は直接書く。このページには --ink / --paper が無く、枠も地も付かずに選択中の縁取りだけが見えていた（2026-09-26、利用者の報告「検索枠が一瞬消える」） */
 section {{ display: grid; gap: 8px; }}
 h2 {{ font-weight: 700; font-size: 1rem; margin: 0; }}
 </style></head>

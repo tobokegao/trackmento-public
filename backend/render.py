@@ -414,6 +414,7 @@ class Layout:
     sb_inline: bool = False                             # 1 行型（曲名の右端にアーティスト名を右寄せ。`_inline_one_line`）
     wrap_tx: int = 0                                    # タイトルの左端（0 なら wrap_pad）。比率なしの「マスごと」は右の列の上
     wrap_inline: bool = False                           # マスごとの 1 行型（`_slab_rows` の inline）
+    sb_top: int = 0                                     # 曲名リストの頭を下げる量（表の行間に上限を掛けて余った高さの半分。`TABLE_LH_CAP`）
 
 
 # 曲が多いと 1 曲 1 行では文字が小さくなりすぎる（16×16 で出力 8px）。そこで曲名を
@@ -700,6 +701,11 @@ INLINE_GAP_EM = 1.0       # 曲名とアーティスト名のあいだの最低�
 TABLE_FONT = 0.5          # 1 行の高さに対する字の大きさ
 TABLE_MAX_COLS = 3
 TABLE_RULE = 0.86         # 行の間の線の色（文字の色を地の色へこれだけ寄せる）
+LIST_VEIL = 0.8           # 背景が画像・グラデーションのとき、曲名リストの後ろに敷く地の濃さ（背景色をこの割合で重ねる）。
+                          # 模様の上に字が直に乗って読みづらかった（2026-09-26、利用者の指摘）。frontend の LIST_VEIL と同じ
+TABLE_LH_CAP = 2.5        # 表の 1 行の高さの上限（字の大きさに対する倍率。ふつうは 1 / TABLE_FONT = 2.0）。
+                          # 行の高さは「リストの高さ ÷ 1 列の曲数」で決まるので、曲が少ないと字は幅で止まったまま行だけ広がり、
+                          # 行と行が間延びしていた（2026-09-26、利用者の共有 3x8・7 曲）。余った高さはリストの上下に半分ずつ回す
 TABLE_GAP_LH = 1.0        # 列と列のあいだ（1 行の高さに対する割合）。LIST_COL_GAP（マスの間隔の 5 倍）だと、
                           # マスが小さい並びでは出力 3px しかなく、左の列のアーティスト名が右の列の番号にくっついた
 
@@ -1709,8 +1715,24 @@ def _trimmed(doc: GridDoc) -> GridDoc:
     return out
 
 
+def _cropped(doc: GridDoc) -> GridDoc:
+    """**末尾の空き行・列を落とした写し**（書き出しだけ。2026-09-26、利用者の共有 3x8 に 7 曲で指摘）。
+    空きマスを塗らなくしたので、下や右の端の空き段は何も描かれないのに、割り付けはその段込みで決まり、
+    マスの塊が上に寄って下が大きく空き、曲名リストも空き段の高さまで引き延ばされていた。
+    途中の空きマスはそのまま（利用者が置いた形）。曲の順は変わらない（落とすのは曲の無い段・列だけ）。
+    frontend の cropGrid と同じ規則。`layout()` と `render()` の入口で呼ぶので二重に掛かるが、掛け直しても同じ"""
+    cols, rows = doc.cols, doc.rows
+    filled = [i for i, t in enumerate(doc.cells[:cols * rows]) if t]
+    if not filled:
+        return doc
+    nr, nc = max(i // cols for i in filled) + 1, max(i % cols for i in filled) + 1
+    if nr == rows and nc == cols:
+        return doc
+    return doc.model_copy(update={"cols": nc, "rows": nr, "cells": [doc.cells[r * cols + c] for r in range(nr) for c in range(nc)]})
+
+
 def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layout:
-    real = _trimmed(doc)
+    real = _cropped(_trimmed(doc))
     # **組み方は曲の順番に左右されない並び（`_canon`）で決める**（2026-09-25）。`doc` はその並び、
     # `real` は曲の順のまま。`real` を使うのは最後の組み直し（行の高さ・段の位置）だけ
     doc = _canon(real)
@@ -1932,6 +1954,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     # 曲が多いと、列を増やしても出力での文字が読めない大きさになる。そのときだけ流し込みに切り替える
     keep = (sb_w, sb_h, sb_cols, line_h, font_s, W, H, scale, title_h)   # 1 曲 1 行の組み方（下で戻すことがある）
     sb_flow = side != "none" and font_s * scale < FLOW_MIN_FONT
+    sb_top = 0
     if sb_flow and side == "right" and ratio is not None and doc.cols <= SLAB_ROW_MAX_COLS:
         # **1 行型の表を試す**（TABLE_*）。幅は流し込みと同じく比率で余るぶん全部
         w_t = max(sb_w, rnd((title_top_h + gh + m * 2) * ratio) - m * 2 - gw - sb_gap)
@@ -1951,6 +1974,10 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
             sb_w, W, H, scale = w_t, W_t, H_t, sc_t
             sb_inline, sb_flow = True, False
             sb_plan, sb_arows = (1,) * n_t, ()
+            cap = rnd(font_s * TABLE_LH_CAP)
+            if line_h > cap:
+                sb_top = ((gh - title_h) - math.ceil(n_t / sb_cols) * cap) // 2
+                line_h = cap
     if sb_flow:
         if side == "right" and ratio is not None:
             # 高さはグリッドで決まるので、横は比率から決まる。余る幅は全部サイドバーに回す
@@ -2093,7 +2120,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     L = Layout(W, H, scale, rnd((W - content_w) / 2), rnd((H - content_h) / 2), gw, gh,
                title, title_size, title_h, side, sb_w, sb_h, sb_cols, line_h, font_s, sb_gap, sb_flow,
                () if sb_flow else sb_plan, () if sb_flow else sb_arows,
-               sb_inline=sb_inline and not sb_flow)
+               sb_inline=sb_inline and not sb_flow, sb_top=0 if sb_flow else sb_top)
     # **タイトルは曲名リストより十分大きくする**。ふだんの規則（マスの幅の 4.5%・上限 96）は
     # マスの数だけで決まるので、曲が少なくて曲名が大きくなると**タイトルのほうが小さくなる**
     # （1x6・16:9 で本文 46.6px にタイトル 16.9px ＝ 0.36 倍だった）。
@@ -2170,7 +2197,7 @@ def _title_width(title: str, title_size: int) -> int:
 def render(doc: GridDoc) -> Image.Image:
     """レイアウト（論理 px。CELL_PX=600 基準）を計算し、最終サイズ（max_side 以内）で直接描く。
     以前は原寸で描いてから縮小していたが、8×8 だと原寸キャンバスだけで 140MB になり、無料ホストのメモリ上限を超えた。"""
-    doc = _trimmed(doc)               # 描くときも刈った題を使う（`layout()` と同じものを見るため）
+    doc = _cropped(_trimmed(doc))     # 描くときも刈った題・末尾の空き段を落とした並びを使う（`layout()` と同じものを見るため）
     o = doc.options
     L = layout(doc)
     S = L.scale                       # 1.0 か、max_side に収めるための縮小率
@@ -2371,7 +2398,20 @@ def render(doc: GridDoc) -> Image.Image:
     # サイドバー（曲名リスト）
     if L.side != "none":
         sx = L.ox + L.gw + L.sb_gap if L.side == "right" else L.ox
-        sy = y0 if L.side == "right" else y0 + L.gh + L.sb_gap
+        sy = (y0 if L.side == "right" else y0 + L.gh + L.sb_gap) + L.sb_top
+        if (o.bgMode == "image" and o.bgImage) or (o.bgMode == "gradient" and o.bgGrad and o.bgGrad.image):
+            # **曲名リストの後ろに地を敷く**（`LIST_VEIL`）。範囲はリストの枠をマスとの間隔の半分だけ広げたもの（マスには掛からない）。
+            # 右ならタイトルも含めてマスの塊と同じ高さ、下ならリストの高さ
+            vp = L.sb_gap / 2
+            if L.side == "right":
+                box = (sc(sx - vp), sc(y0 - vp), sc(sx + L.sb_w + vp), sc(y0 + L.gh + vp))
+            else:
+                box = (sc(L.ox - vp), sc(y0 + L.gh + vp), sc(L.ox + L.sb_w + vp), sc(y0 + L.gh + L.sb_gap + L.sb_h + vp))
+            box = (max(0, box[0]), max(0, box[1]), min(im.width, box[2]), min(im.height, box[3]))
+            if box[2] > box[0] and box[3] > box[1]:
+                part = im.crop(box)
+                im.paste(Image.blend(part, Image.new("RGB", part.size, bg), LIST_VEIL), box[:2])
+                d = ImageDraw.Draw(im)
         # 列の幅。**右に置くときも列に割る**（列を増やしたのに全幅で描くと、2 列目が枠の外へ出る）
         col_w = (L.sb_w - LIST_COL_GAP * (L.sb_cols - 1)) // L.sb_cols
         if L.title and L.side == "right":
