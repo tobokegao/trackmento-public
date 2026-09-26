@@ -205,3 +205,7 @@
   幸い `grids/default.json.bak-*` が残っていたので復元できた）
 - **`grids/` と `shares/` は git 管理外なので、並びを壊しても git では戻せない**。`shares/<id>.json` は共有したときの並びのスナップショットなので、
   そこから失われたマスを復元できる（実例: 1 マス目だけ消えたグリッドを、同じ並びの共有 JSON から戻した）
+- **`frontend/index.html` はリポジトリの中身に CRLF の行が 160 行ほど混ざっている**（2026-09-27 に確認。1074 行目あたりから 7748 行目あたり）。
+  Edit ツールや Python の `read_text` → `write_text` で書き直すと改行が 1 種類にそろい、**数行の変更が全行の差分に化ける**。
+  書き換えたら `git diff --stat` を見て、行数が変更の量と合わなければ、HEAD（`git show HEAD:frontend/index.html`）と
+  `difflib.SequenceMatcher` で行を突き合わせ、同じ行だけ HEAD のバイト列（CRLF のまま）に戻す。Python で書くときは `newline=""` で開けば崩れない
