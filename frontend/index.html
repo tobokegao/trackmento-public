@@ -775,6 +775,7 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .grid-foot .check { min-height: 0; }
 .msg-under { margin-top: var(--space-3); }
 .msg .undo, .msg .pick { font: inherit; font-weight: 700; color: var(--color-ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }   /* ボタンの真下に置く注釈。.msg は margin 0 なので詰まって見える */
+.msg .dup-note { display: inline-block; padding: 0 var(--space-1); font-weight: 700; background: var(--color-mustard); color: var(--color-on-light); border: var(--line) solid var(--color-ink); }   /* 同じトラックの知らせ（2026-09-26） */
 .msg .pick { display: block; margin-top: 4px; text-align: left; }   /* Spotify のアーティストの候補。名前に空白や「,」が入るので 1 行に 1 つ */
 
 /* ---------- results ---------- */
@@ -4252,7 +4253,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     state.cells[i] = { ...t };   // 候補と切り離す（曲名の編集が候補に波及しないように）
     renderGrid();
     const d = dupAt(i);
-    say(els.gridMsg, tr`${i + 1} 番に「${t.title}」を入れました。` + (d < 0 ? "" : " " + tr`${d + 1} 番にも同じトラックがあります。`)); undoLink();
+    say(els.gridMsg, tr`${i + 1} 番に「${t.title}」を入れました。`);
+    // **同じトラックの知らせは札にして目立たせる**（2026-09-26、利用者の希望。地の文に混ざって読み飛ばされた）
+    if (d >= 0) { const w = document.createElement("span"); w.className = "dup-note"; w.textContent = tr`${d + 1} 番にも同じトラックがあります。`; els.gridMsg.append(" ", w); }
+    undoLink();
     if (sheetOpen()) closeSheet();
   }
   /* まとめて取れた曲を、若い番号の空きマスから順に入れる（埋まっているマスは飛ばす）。

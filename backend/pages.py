@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-26", "同じトラックを入れたときの「N 番にも同じトラックがあります」を、黄色い札にして目立つようにしました。",
+     "“Cell N has the same track” now shows as a yellow tag so it stands out."),
     ("2026-09-26", "選んだマスで、黄色い枠がトラック名の帯や番号に重なって見づらかったのを直しました。",
      "Fixed the yellow frame of a selected tile overlapping its track-name strip and number."),
     ("2026-09-26", "幅の狭いスマホで、3 列のマスに × や番号が出なかったのを直しました。× と番号はもう少し小さいマスまで出し、トラック名の帯は高さに余裕があるマスにだけ出します。",
