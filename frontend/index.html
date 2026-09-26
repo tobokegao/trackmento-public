@@ -2790,10 +2790,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "背景の色を選びます。": "Choose the background color.",
         "画面全体の色の組み合わせ（配色パレット）を選びます。": "Choose the color scheme (palette) for the whole screen.",
         "色相・彩度・明度を決めて、好きな背景の色を作ります。": "Set hue, saturation and lightness to make any background color.",
-        "グラデーションの色を、サムネイルから取るか、自分で選ぶかです。": "Whether the gradient takes its colors from your thumbnails or from colors you pick.",
+        "グラデーションの色を、サムネイルから取るか自分で選ぶかの設定です。": "Whether the gradient takes its colors from your thumbnails or from colors you pick.",
         "透明な背景の上に書く字の色です。画像を置く先の色に合わせて選びます。": "The text color on a clear background. Choose it to suit wherever you’ll place the image.",
         "端末の画像を選んで背景に敷きます。撮影日時などの情報は消してから保存します。": "Picks an image from your device for the background. Details such as when the photo was taken are removed before it’s saved.",
-        "背景の画像を、枠いっぱいに 1 枚で敷くか、並べて敷くかです。": "Whether the background image fills the frame once or repeats as tiles.",
+        "背景の画像を、枠いっぱいに 1 枚で敷くか並べて敷くかの設定です。": "Whether the background image fills the frame once or repeats as tiles.",
         "並べて敷くときの 1 枚の大きさです。": "The size of each tile.",
         "並んだサムネイルから取った色の候補です。押すとその色になります。": "Colors taken from your thumbnails. Press one to use it.",
         "画像のふちの余白の広さです。": "How much margin goes around the edge of the image.",
@@ -8997,6 +8997,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* ---------- 吹き出しの説明（2026-09-27、Mac OS 8/9 のバルーンヘルプ） ---------- */
   /* 部品ごとの説明と、使い方の動画（/howto の問いの id）。**部品から親へたどって最初に当たった行を出す**。
      表に無ければ title の文を出す（文を null にした行は、title の文に動画だけ添える）。
+     **プルダウン（.popup）は select の上に見えない押し口（.popup-hit）が重なっている**ので、select ではなく行ごと指す（2026-09-27、利用者の指摘）。
      **表の行は title より先に見る**（マスの title は曲名なので、グリッドの説明を出したい）。
      部品を足したり名前を変えたりしたら、ここも直す（セレクタが外れても何も出ないだけで、エラーにはならない） */
   const HELP = () => [
@@ -9025,12 +9026,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     ["#e-fit-seg", tr("このマスだけ、サムネイルの入れ方を変えます。「全体と同じ」なら出力オプションの「サムネ余白」に従います。"), "s-fit-one"],
     ["#e-remove", tr("このマスからトラックを外します。「元に戻す」で戻せます。"), "o-remove"],
     ["#e-close", tr("マスを選ぶのをやめます。"), null],
-    ["#layout-sel", tr("並びを切り替えます。並びは 10 個まで持てます。"), "o-layouts"],
+    [".layouts:has(#layout-sel)", tr("並びを切り替えます。並びは 10 個まで持てます。"), "o-layouts"],
     ["#layout-new", null, "o-layouts"],
     ["#layout-del", null, "o-layouts"],
     [".field:has(#title)", tr("画像に入れるタイトルです。「表示」の「タイトル」を外すと、画像には出ません。"), "s-labels"],
     ["#zoom-btn", null, "o-zoom"],
-    ["#theme-sel", tr("見本から選ぶとタイトルが入ります。「私を構成する9曲」なら、横 × 縦も 3 × 3 になります。"), "o-theme"],
+    [".themes", tr("見本から選ぶとタイトルが入ります。「私を構成する9曲」なら、横 × 縦も 3 × 3 になります。"), "o-theme"],
     ["#grid", tr("並べたトラックです。マスを押して選び、別のマスを押すと入れ替わります。PC ではマスを掴んで運ぶこともできます。"), "o-swap"],
     ["#undo-btn", null, "undo-buttons"],
     ["#redo-btn", null, "undo-buttons"],
@@ -9063,11 +9064,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     ["#swatches", tr("背景の色を選びます。"), "s-swatch"],
     ["#palette-btn", tr("画面全体の色の組み合わせ（配色パレット）を選びます。"), "s-palette"],
     [".custom-color", tr("色相・彩度・明度を決めて、好きな背景の色を作ります。"), "s-swatch"],
-    ["#bg-grad-src", tr("グラデーションの色を、サムネイルから取るか、自分で選ぶかです。"), "s-grad"],
+    ["#bg-grad-src", tr("グラデーションの色を、サムネイルから取るか自分で選ぶかの設定です。"), "s-grad"],
     ["#bg-grad-shuffle", null, "s-grad"],
     ["#bg-ink-seg", tr("透明な背景の上に書く字の色です。画像を置く先の色に合わせて選びます。"), "s-none"],
     ["#bg-image-btn", tr("端末の画像を選んで背景に敷きます。撮影日時などの情報は消してから保存します。"), "bg-image"],
-    ["#bg-fit-seg", tr("背景の画像を、枠いっぱいに 1 枚で敷くか、並べて敷くかです。"), "s-img-tile"],
+    ["#bg-fit-seg", tr("背景の画像を、枠いっぱいに 1 枚で敷くか並べて敷くかの設定です。"), "s-img-tile"],
     ["#bg-tile-seg", tr("並べて敷くときの 1 枚の大きさです。"), "s-img-tile"],
     ["#bg-cands", tr("並んだサムネイルから取った色の候補です。押すとその色になります。"), "bg-modes"],
     ["#pad-seg", tr("画像のふちの余白の広さです。"), "s-pad-gap"],
