@@ -63,6 +63,49 @@ async function refreshOut(k, live = true) {
 }
 const OUT_ONLY_CSS = "#output .out-actions > :not(#out-refresh), #output .listed, #output .msg-under, #share-done { display: none !important; }";
 
+/** **撮影用の擬似ファイルの窓**（2026-09-26、利用者の案）。ヘッドレスのブラウザでは本物の保存・開くの窓が出ないので、
+    「名前を付けて保存」「開く」の窓をページの上に描く（サイトの機能ではない。撮影のときだけ差し込む）。
+    見た目は OS の標準の窓に寄せた素朴なもの（サイトの OS 9 の部品と混ざらないように、角丸・灰色・細い線） */
+const FAKE_DLG_CSS = `
+.x-fake, .x-fake * { visibility: visible !important; box-sizing: border-box; }
+.x-fake { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(0,0,0,.18); font: 13px/1.4 "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif; color: #1b1b1b; }
+.x-fake .w { width: 620px; background: #fff; border: 1px solid #8a8a8a; border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.28); overflow: hidden; }
+.x-fake .t { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f3f3f3; border-bottom: 1px solid #ddd; font-size: 12px; }
+.x-fake .t b { font-weight: 600; }
+.x-fake .t i { font-style: normal; color: #666; }
+.x-fake .path { margin: 10px 12px 0; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; color: #333; }
+.x-fake .body { display: grid; grid-template-columns: 150px 1fr; min-height: 220px; margin: 10px 12px; border: 1px solid #ddd; border-radius: 4px; }
+.x-fake .nav { background: #fafafa; border-right: 1px solid #e5e5e5; padding: 8px 0; }
+.x-fake .nav div { padding: 5px 14px; }
+.x-fake .nav .on { background: #cce4f7; }
+.x-fake .files { padding: 6px; }
+.x-fake .files div { display: flex; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 3px; }
+.x-fake .files div::before { content: ""; width: 14px; height: 16px; border: 1px solid #888; border-radius: 1px; background: linear-gradient(135deg, #fff 70%, #ddd 70%); }
+.x-fake .files .folder::before { width: 18px; height: 13px; border-color: #c9a227; background: #f4d470; }
+.x-fake .files .sel { background: #cce4f7; }
+.x-fake .row { display: flex; gap: 8px; align-items: center; margin: 0 12px 12px; }
+.x-fake .row label { width: 90px; color: #444; }
+.x-fake .row .in { flex: 1; padding: 5px 8px; border: 1px solid #7a7a7a; border-radius: 3px; min-height: 28px; }
+.x-fake .btns { display: flex; justify-content: flex-end; gap: 8px; margin: 0 12px 12px; }
+.x-fake .btns span { min-width: 88px; padding: 5px 14px; text-align: center; border: 1px solid #adadad; border-radius: 4px; background: #fdfdfd; }
+.x-fake .btns .ok { background: #0067c0; border-color: #0067c0; color: #fff; }
+`;
+/** 窓を出す。kind は "save" / "open"。files はフォルダの中身（名前の配列）。name は保存する名前 */
+async function fakeDialog(k, kind, files, name = "") {
+  await k.page.evaluate(({ kind, files, name }) => {
+    const d = document.createElement("div"); d.className = "x-fake"; d.id = "x-fake";
+    const title = kind === "save" ? "名前を付けて保存" : "開く";
+    d.innerHTML = `<div class="w"><div class="t"><b>${title}</b><i>✕</i></div>
+      <div class="path">PC ＞ ダウンロード</div>
+      <div class="body"><div class="nav"><div>デスクトップ</div><div>ドキュメント</div><div class="on">ダウンロード</div><div>ピクチャ</div><div>ミュージック</div></div>
+      <div class="files">${files.map((f) => `<div class="${f.endsWith("/") ? "folder" : "file"}" data-name="${f}">${f.replace(/\/$/, "")}</div>`).join("")}</div></div>
+      <div class="row"><label>ファイル名:</label><div class="in" id="x-fake-name">${name}</div></div>
+      <div class="btns"><span class="ok" id="x-fake-ok">${kind === "save" ? "保存" : "開く"}</span><span>キャンセル</span></div></div>`;
+    document.body.append(d);
+  }, { kind, files, name });
+}
+const closeFake = (k) => k.page.evaluate(() => document.querySelector("#x-fake")?.remove());
+
 export default [
   {
     id: "o-same",
@@ -405,9 +448,9 @@ export default [
       await k.park(1100, 300);
     },
     async run(k) {
-      await k.hold(1.0);
-      await k.look([OT, ".pane-options .opts"], 0.8);   // 出力オプションの窓へ寄る
-      await k.hold(1.0);
+      await k.hold(0.4);   // 引きの絵は短く（長すぎる、と利用者）
+      await k.look([OT, ".pane-options .opts"], 0.6);   // 出力オプションの窓へ寄る
+      await k.hold(0.7);
       await k.look([OT, ".pane-options .gbox:nth-of-type(1)"], 0.6);
       await k.press("#cells-more-btn");
       await k.hold(1.4);
@@ -423,23 +466,43 @@ export default [
     async setup(k) {
       await place(k, 3, 3, square().slice(0, 9));
       await k.arrange({ ".pane-grid": { x: 400, y: 16, w: 480, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] } });
-      await k.stage(".grid-actions > :not(.minor) { display: none !important; } #color-sort { display: none !important; } #grid-scroll { height: auto !important; }");
+      await k.stage(".grid-actions > :not(.minor) { display: none !important; } #color-sort { display: none !important; } #grid-scroll { height: auto !important; } " + FAKE_DLG_CSS);
       await k.look([GT, "#grid", "#grid-msg", ".grid-actions"]);
       await k.park(640, 650);
     },
     async run(k) {
+      const name = "trackmento-私を構成する9曲.json";
+      const others = ["音楽/", "trackmento-雨の日に聴く曲.json", "trackmento-好きな音MAD.json"];
       await k.hold(0.8);
+      // 保存: 本物の保存は裏で済ませ、画面には擬似の「名前を付けて保存」の窓を出す
       const dl = k.page.waitForEvent("download");
       await k.press("#json-export");
       const file = path.join(os.tmpdir(), `x-json-${Date.now()}.json`);
       await (await dl).saveAs(file);
-      await k.hold(1.0);
+      await fakeDialog(k, "save", others, name);
+      k.wide(0.5);
+      await k.hold(1.2);
+      await k.press("#x-fake-ok");
+      await closeFake(k);
+      await k.look([GT, "#grid", "#grid-msg", ".grid-actions"], 0.5);
+      await k.hold(0.8);
       // 並びを崩す（トラックを全部外す。確認の窓は撮らない）
       await k.page.evaluate(() => { window.__setGridUI(3, 3, {}, Array(9).fill(null)); });
-      await k.hold(1.0);
+      await k.hold(0.9);
+      // 読み込み: 擬似の「開く」の窓でさっきのファイルを選ぶ
       const fc = k.page.waitForEvent("filechooser");
       await k.press("#json-import");
-      await (await fc).setFiles(file);
+      const chooser = await fc;
+      await fakeDialog(k, "open", [...others, name]);
+      k.wide(0.5);
+      await k.hold(0.6);
+      await k.press(`#x-fake .files [data-name="${name}"]`);
+      await k.page.evaluate((n) => { document.querySelector(`#x-fake .files [data-name="${n}"]`).classList.add("sel"); document.querySelector("#x-fake-name").textContent = n; }, name);
+      await k.hold(0.6);
+      await k.press("#x-fake-ok");
+      await closeFake(k);
+      await chooser.setFiles(file);
+      await k.look([GT, "#grid", "#grid-msg", ".grid-actions"], 0.5);
       await k.waitArt();
       await k.hold(1.6);
       fs.rmSync(file, { force: true });
