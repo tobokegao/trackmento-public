@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, housekeeping, imgtools, netguard, pages, render, searchcache, share, shareindex, storage, uploads
+from backend import grids, housekeeping, imgtools, netguard, pages, render, searchcache, share, shareindex, storage, support, uploads
 from backend.cache import R2_IMAGE_TTL, _search_ttl, cache
 from backend.logutil import brief
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, migrate_to, public_base_url, public_mode,
@@ -938,6 +938,7 @@ async def index(request: Request) -> HTMLResponse:
     html = html.replace("__PUBLIC__", "1" if public_mode() else "0")   # /status が遮断されても公開モードだと分かるように
     html = html.replace("__MIGRATE__", _migrate_host(request))   # 引っ越し中なら移転先。画面が並びを持って移動する
     html = html.replace("__RETENTION__", str(share_retention_days()))   # 共有が消えるまでの日数（説明文）
+    html = html.replace("__SUPPORT__", support.meta(), 1)   # サーバー代の進み具合の棒（backend/support.py）
     html = html.replace("<!--__FONT_LINK__-->", _font_head(), 1)   # 分割フォントの @font-face（<link>）
     html = html.replace("__LOGO_FONT__", share.logo_font_url(), 1)   # ロゴ専用フォント（中身のハッシュ付き）
     # ピクセルフォント（Silkscreen）も R2 から配る。分割していないので <link> ではなく HTML 内の

@@ -9,6 +9,7 @@
 <meta name="trackmento-migrate" content="__MIGRATE__">
 <!-- 共有が消えるまでの日数。英語の対訳表がこの値を含むので、JS はここから読む（上と同じ理由） -->
 <meta name="trackmento-retention" content="__RETENTION__">
+<meta name="trackmento-support" content="__SUPPORT__">
 <title>TRACKMENTO</title>
 <!--__FONT_LINK__-->
 <meta name="description" content="好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
@@ -1399,6 +1400,15 @@ output { font-variant-numeric: tabular-nums; }
 .promo .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .promo p { margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
 .promo .album { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
+/* サーバー代の進み具合の棒（2026-09-26）。棒はアップロードの .up-bar / .up-fill をそのまま使う。数字は paintFund が入れる */
+.fund { display: grid; gap: var(--space-1); width: 100%; }
+.fund[hidden] { display: none; }
+.fund-head, .fund-bar { max-width: 28rem; }   /* 棒は短めに。下の文は横いっぱいに流す */
+.fund-head { display: flex; justify-content: space-between; gap: var(--space-2); }
+.fund-lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
+.fund-pct { font-family: var(--font-outlier); font-size: var(--text-sm); color: var(--color-ink); font-variant-numeric: tabular-nums; }
+.fund-bar { height: 14px; }
+.fund-note { font-size: var(--text-sm); color: var(--color-ink-2); }
 .promo .elsewhere { font-size: var(--text-sm); color: var(--color-ink-2); }   /* 主役は Bandcamp。ほかは従として小さく並べる */
 .spec { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }   /* 幅があれば横に並び、足りなければ折り返す */
 .spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; align-content: start; }   /* 各項目は 8rem を基準に、並んだ行の幅を均等に分け合う */
@@ -1688,7 +1698,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <button class="btn btn-sm" type="button" id="share-del-btn">共有を消す</button>
         </div>
         <div class="support">
-          <span>予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭</span>
+          <!-- お礼を言う瞬間に、サーバー代の棒と一緒に出す（2026-09-26、利用者の希望。以前は「バズっちゃった…😭」の文） -->
+          <span>共有できました。使ってくださってありがとうございます！サーバー代は、作者の音楽を買っていただいたお金でまかなっています。</span>
+          <div class="fund" hidden><div class="fund-head"><span class="fund-lbl"></span><span class="fund-pct"></span></div><div class="up-bar fund-bar"><div class="up-fill"></div></div><span class="fund-note"></span></div>
           <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a></span>
         </div>
         </div>
@@ -2036,6 +2048,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   <div class="promo-head"><span class="lbl">サーバー代のおねがい</span><span class="promo-tag">PR</span></div>
   <div class="promo-body">
   <p>無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
+  <div class="fund" hidden><div class="fund-head"><span class="fund-lbl"></span><span class="fund-pct"></span></div><div class="up-bar fund-bar"><div class="up-fill"></div></div><span class="fund-note"></span></div>
   <div class="promo-row">
   <a class="promo-btn" href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-button" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAAAfCAIAAADsqp23AAADR0lEQVR4nO1YPWjbUBB+CVkcUCjKoIAzZeok8BZs5CkloUOLQVBKIRQydXemZPDQTvXcIbSTcCEgCGQQCDwl2KSTwFOmTC4tlJoSjNTFtNQPH+d3px+HlkaJP4J5utzde/fp3vP7vKAbRTGHEEI3ir/uN969/6gbxSXZDatr63+3LXpBkK8+W/oXSzdLJZE3LP7vBdwWzIkgW2Omns/dEXBzIkxunw/qrt60lf+mkkLpkxblUUlFfeQYD9i0CROxliQizFIJah7UXYULGOtNe1B341IDLjqdzUrlotOB5HIMJUmfKIpwkdRHCFG2LMgjo/Ca8SObJC4tT4Q5YWFQdxvProW4bhyvsBVismhqwPLyMnxiC8bW9jYbhVG2LN/zsF1Gdc/PIaRsWdiSJW3KYTkYv/nG8UocC9htVoRjYEvLcT4cHRUKhQQf3/Nqto2NLcdpOY4cFwqFMAxbjjMajcDhxHVP3KkV0rR8R5hkU8jWSK0tuSkwekFAd9PTWg1bWB9N09q+j2fBUZ+6XRpiGEbq1DwRACj+Zu9cgTJx8mOyDx1kD0k4yxZpOwhyItIwvWlTOxyceQTTETrZC1Az7BrsCScrO8Gp1xa3FU8ebzFEmJN2wMBl968u1zceyk/WgW2KV3vPxW3F5y/fMt0s9abdv7oUQkDl8pGSAgzS/YIny436NCcvE9eD33+cEfyVO1+OMHVY9oJA/uGXj/HjrEqN0hMCcwr+QtULAuh8zMiD6hnmCHxyTUEm9dkf10xPCrZf7iYRvUlTgIUt/m60Q0pH9MZcwCPeEdgndY6ZVHay0M6irLOnykqEmP4WUL4pZmqELCq7bFmgGuMCQYaDc0IqqUSVVOws6USYYwqUC6W8NaT+DIFB5TC1+J5HV6mo5uFwKC1YU8al8j2vUq0qbr7nsStMIsJEd016jwY6snDRcpyfUfRybw8sspJHOztg0TRNFoADwzCMogjkudTaQogXu7tt309IdeK6mqbhVNJNMWYiAiOjGI+DorKpQMYF4JI2KxUcmEVrxxlZN8CCbhS/f+2vrq0rL5aVHiz0pk1jc/RVcuq1Dw/2p0SXmAYrwFnk8U7NdMTrN2/F/cbhwf4fIsQcQvwG381boswLtxoAAAAASUVORK5CYII=" alt="Tobokegao（Bandcamp）" width="88" height="31"></a>
   <div class="promo-text">
@@ -2332,7 +2345,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "SNS に共有": "Share on social",
         "共有ページを開く": "Open share page",
         "画像を保存": "Save image",
-        "予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭": "This blew up more than I expected and the server bills keep climbing…! Buy my album and help out if you can 😭",
+        "共有できました。使ってくださってありがとうございます！サーバー代は、作者の音楽を買っていただいたお金でまかなっています。": "Shared! Thanks for using TRACKMENTO. The server bills are paid for by people buying my music.",
+        "{} 月のサーバー代": "{0} server bills",
+        "約 {} 円のうち {} 円を、{} 人の方の支援でまかなえました。ありがとうございます！あと約 {} 円です。": "¥{1} of about ¥{0} covered by {2} supporters. Thank you! About ¥{3} to go.",
+        "{} 円の支援で、この月のサーバー代（約 {} 円）をまかなえました。ありがとうございます！": "Supporters covered this month's server bills (about ¥{1}) with ¥{0}. Thank you!",
+        "約 {} 円のうち、支援でまかなえた分はまだありません。": "None of the roughly ¥{0} is covered by support yet.",
         "無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
         "Tobokegao「おかねがたりないときのうた」": "Tobokegao \"Okane ga Tarinai Toki no Uta\"",
         "出力オプション": "Output options",
@@ -2758,9 +2775,33 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 
   /* 言語を変えたら、すでに描いてあるものを描き直す（ソース名・色名・マスの読み上げなど）。
      まだ描いていない段階でも呼ばれるので、1 つずつ握りつぶす */
+  /* **サーバー代の進み具合の棒**（2026-09-26）。数字は backend/support.py が <meta name="trackmento-support"> に
+     「月,サーバー代,支援の額,人数」で入れる。置き換わっていない（__SUPPORT__ のまま）・壊れているときは棒ごと出さない */
+  function paintFund() {
+    const [ym = "", cost, got, n] = ((document.querySelector('meta[name="trackmento-support"]') || {}).content || "").split(",").map((v, i) => i ? +v : v);
+    if (!/^\d{4}-\d{2}$/.test(ym) || !(cost > 0) || !(got >= 0)) return;
+    const mo = +ym.slice(5);
+    const month = LANG === "en" ? new Date(2000, mo - 1, 1).toLocaleString("en", { month: "long" }) : String(mo);
+    const yen = (v) => v.toLocaleString("ja-JP");
+    const approx = yen(Math.round(cost / 100) * 100);   // 見込みなので 100 円単位で丸めて「約」を付ける
+    const pct = Math.min(100, Math.round(got / cost * 100));
+    const rest = yen(Math.max(100, Math.round((cost - got) / 100) * 100));   // 残りを見せる（目標に近いほど支援が集まりやすい。2026-09-26 の調べ）
+    const note = got >= cost ? tr`${yen(got)} 円の支援で、この月のサーバー代（約 ${approx} 円）をまかなえました。ありがとうございます！`
+      : got > 0 ? tr`約 ${approx} 円のうち ${yen(got)} 円を、${n} 人の方の支援でまかなえました。ありがとうございます！あと約 ${rest} 円です。`
+      : tr`約 ${approx} 円のうち、支援でまかなえた分はまだありません。`;
+    for (const el of document.querySelectorAll(".fund")) {
+      el.querySelector(".fund-lbl").textContent = tr`${month} 月のサーバー代`;
+      el.querySelector(".fund-pct").textContent = `${pct}%`;
+      const fill = el.querySelector(".up-fill");
+      fill.style.width = `${pct}%`; fill.dataset.done = pct >= 100 ? "1" : "";
+      el.querySelector(".fund-note").textContent = note;
+      el.querySelector(".fund-bar").setAttribute("aria-label", `${pct}%`);
+      el.hidden = false;
+    }
+  }
   function reRenderForLang() {
     for (const fn of [() => renderSources(), () => renderSwatches(), () => currentResults.length && renderResults(currentResults),   /* 空のまま描き直すと「該当なし」に変わってしまう */
-                      () => renderGrid(), () => renderLayoutMenu(), () => updateSpec(), () => syncControls(), () => paintHealth()]) {
+                      () => renderGrid(), () => renderLayoutMenu(), () => updateSpec(), () => syncControls(), () => paintHealth(), () => paintFund()]) {
       try { fn(); } catch { /* まだ用意できていないものは飛ばす */ }
     }
   }
@@ -2781,6 +2822,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   let isPublic = ((document.querySelector('meta[name="trackmento-public"]') || {}).content || "") === "1";
   snapI18n();
   applyI18n();
+  paintFund();
 
   const SOURCE_LABEL = { itunes: "iTunes", musicbrainz: "MusicBrainz", discogs: "Discogs", bandcamp: "Bandcamp", soundcloud: "SoundCloud", youtube: "YouTube", nicovideo: "ニコニコ動画", bilibili: "bilibili", spotify: "Spotify", otodb: "otoDB", vocadb: "VocaDB", manual: "手入力" };
   // 画面のソース欄に並べる順。**otoDB と VocaDB は選んだときだけ引く**（どちらも iTunes より遅い）
