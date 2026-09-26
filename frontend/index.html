@@ -4797,6 +4797,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       say(els.gridMsg, tr("共有を消しました。並びはこの画面に残っています。"));
     } catch (err) { say(els.gridMsg, tr`消せませんでした（${err.message}）。`, "error"); }
   }, tr("共有を消すと、この URL も画像も見られなくなります（取り消せません）。並びはこの画面に残ります。"), tr("消す"), $("#share-del-btn")));
+  /* **Android では、サイト内のページ（みんなのグリッド・共有ページ）を同じタブで開く**（2026-09-26、利用者の報告）。
+     ホーム画面に追加した（アプリにした）端末では、新しいタブで開く trackmento.com の URL をアプリが横取りし、
+     ブラウザで使っていてもアプリへ移ってしまう（manifest の scope が "/" で全ページを含むため）。
+     同じタブなら、ブラウザではブラウザのまま、アプリではアプリの中で開く。並びは端末に保存されているので、戻れば元どおり */
+  if (/Android/i.test(navigator.userAgent)) for (const a of [els.findLink, els.openShare]) a.removeAttribute("target");
 
   els.clearBtn.addEventListener("click", () => {
     const n = state.cells.filter(Boolean).length + state.stash.length;
