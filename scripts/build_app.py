@@ -42,9 +42,9 @@ def _digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
 
 
-def build() -> tuple[str, str, int]:
-    """(css のファイル名, js のファイル名, 殻のバイト数) を返す。"""
-    src = SRC.read_text(encoding="utf-8")
+def split(src: str) -> tuple[str, str, str, str, str]:
+    """index.html の中身を (css のファイル名, css, js のファイル名, js, 殻) に分ける。書き込みはしない
+    （scripts/check.py が「殻が古くないか」を確かめるのにも使う）"""
 
     css_m = CSS_RE.findall(src)
     js_m = JS_RE.findall(src)
@@ -76,6 +76,12 @@ def build() -> tuple[str, str, int]:
     # **位置は変えない**（本体の JS は </body> の直前にある）。defer を付けず同じ場所に置けば、
     # 実行の順序は 1 枚で配っていたときと同じになる。nonce はサーバーが id を見て差し込む
     shell = JS_RE.sub(lambda _: f'<script id="app-js" src="{PREFIX}{js_name}"></script>', shell, count=1)
+    return css_name, css, js_name, js, shell
+
+
+def build() -> tuple[str, str, int]:
+    """(css のファイル名, js のファイル名, 殻のバイト数) を返す。"""
+    css_name, css, js_name, js, shell = split(SRC.read_text(encoding="utf-8"))
 
     OUT.mkdir(exist_ok=True)
     for old in OUT.glob("app.*.css"):

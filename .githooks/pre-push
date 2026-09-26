@@ -1,0 +1,11 @@
+#!/bin/sh
+# push の前に、配る物（CSS / JS・分割フォント）が R2 にあるかを確かめる。
+# 上げ忘れたまま push すると、Render のデプロイ後に本番で 404 になる（scripts/check.py の頭）。
+#
+# 入れ方は pre-commit と同じ（git config core.hooksPath .githooks）。
+# わざと通したいときは `git push --no-verify`。
+
+PY=.venv/Scripts/python
+[ -x "$PY" ] || PY=.venv/bin/python
+[ -x "$PY" ] || PY=python3
+PYTHONUTF8=1 exec "$PY" scripts/check.py --r2

@@ -30,6 +30,8 @@
    入れてしまった**ため（`docs/gotchas.md`）。GitHub の push protection は発行元の分かる形しか
    止められず、R2 の鍵のような「ただの英数字」はすり抜ける。
 
+   同じ `pre-commit` が続けて `scripts/check.py` を回し、`pre-push` が `scripts/check.py --r2` を回す（2026-09-27）。フォントや CSS / JS の作り直し・上げ忘れで本番が 404 になるのを、コミットと push の手前で止める。R2 の点検は `.env` の鍵で一覧を取る（鍵が無いときは公開 URL で先頭の断片だけ確かめる）。
+
 4. **起動**
 
    ```bash
