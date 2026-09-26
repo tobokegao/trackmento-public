@@ -331,6 +331,9 @@ TEXT = {
         "own_deleted": "共有を消しました。",
         "own_fail": "できませんでした",
         "find_own_done": "外しました",
+        "dlg_title": "確認",
+        "find_confirm": "「{{title}}」をみんなのグリッドから外します。共有 URL はそのまま開けます。",
+        "find_yes": "外す",
         "find_varied": "いろんな切り口",
         "find_recent": "最近のグリッド",
     },
@@ -385,6 +388,9 @@ TEXT = {
         "own_deleted": "The share was deleted.",
         "own_fail": "Couldn't do that",
         "find_own_done": "Removed",
+        "dlg_title": "Confirm",
+        "find_confirm": "Remove “{{title}}” from everyone's grids? The share URL still works.",
+        "find_yes": "Remove",
         "find_varied": "Different themes",
         "find_recent": "Recent grids",
     },
@@ -476,6 +482,24 @@ button.btn:disabled {{ opacity: .5; cursor: default; }}
   border: 1px solid #12171b; background: #dddcd8; box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #8b8f93; }}
 .own-rm:hover::before {{ background: #cfcdc8; }}
 .own-rm:active::before {{ background: #8b8f93; box-shadow: inset 1px 1px 0 #53595f, inset -1px -1px 0 #c2c4c6; }}
+/* 箱の中の ×（2026-09-26、利用者の案）。斜めの 2 本の線で描く（字だと書体で太さと位置が変わる） */
+.own-rm::after {{ content: ""; position: absolute; left: 8px; top: 8px; width: 7px; height: 7px;
+  background: linear-gradient(45deg, transparent 43%, #12171b 43% 57%, transparent 57%),
+              linear-gradient(-45deg, transparent 43%, #12171b 43% 57%, transparent 57%); }}
+/* 確認の窓。画面（frontend/index.html）の #confirm-modal と同じ作り */
+.odlg {{ position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; }}
+.odlg-bg {{ position: absolute; inset: 0; background: color-mix(in oklab, #12171b 45%, transparent); }}
+.odlg-panel {{ position: relative; width: min(100%, 26rem); border: 2px solid #12171b; background: #f6f5f3; box-shadow: 4px 4px 0 #12171b; }}
+.odlg-head {{ padding: 8px 12px; background: #12171b; }}
+.odlg-head h2 {{ margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: .04em; color: #f6f5f3; }}
+.odlg-body {{ display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: start; padding: 12px; }}
+.odlg-body p {{ margin: 0; }}
+.odlg-body .caution {{ width: 32px; height: 32px; }}
+.odlg-body .caution .c-fill {{ fill: oklch(80% 0.150 88); }}
+.odlg-body .caution .c-edge, .odlg-body .caution .c-mark {{ fill: #12171b; }}
+.odlg-btns {{ grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }}
+/* 既定のボタン（やめる）は二重の枠（HIG の決まり） */
+.odlg-default {{ box-shadow: 0 0 0 2px #f6f5f3, 0 0 0 5px #12171b; margin: 4px; }}
 .own-rm:disabled {{ opacity: .5; cursor: default; }}
 li.own-gone .t a {{ text-decoration: line-through; opacity: .5; }}
 ol {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }}
@@ -573,6 +597,9 @@ ALT_TRACKS = 10   # 画像の代替テキストに入れる曲の数
 # 端末に覚えた「自分の共有の鍵」（frontend/index.html の SHARE_KEYS と同じ名前・同じ形 {id: {k, at, l}}）
 OWNER_STORE = "trackmento:shareKeys"
 
+# 確認の窓の「注意」の絵（OS 9 の Caution alert にならう 32x32 のドット絵）。frontend/index.html の #confirm-modal と同じもの
+CAUTION_SVG = '<svg class="caution" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" shape-rendering="crispEdges"><path class="c-fill" d="M15 1h2v1H15zM15 2h2v1H15zM14 3h4v1H14zM14 4h4v1H14zM13 5h6v1H13zM13 6h6v1H13zM12 7h8v1H12zM12 8h8v1H12zM11 9h10v1H11zM11 10h10v1H11zM10 11h12v1H10zM10 12h12v1H10zM9 13h14v1H9zM9 14h14v1H9zM8 15h16v1H8zM8 16h16v1H8zM7 17h18v1H7zM7 18h18v1H7zM6 19h20v1H6zM6 20h20v1H6zM5 21h22v1H5zM5 22h22v1H5zM4 23h24v1H4zM4 24h24v1H4zM3 25h26v1H3zM3 26h26v1H3zM2 27h28v1H2zM2 28h28v1H2zM1 29h30v1H1zM1 30h30v1H1z"/><path class="c-edge" d="M15 1h2v1H15zM15 2h2v1H15zM14 3h1v1H14zM17 3h1v1H17zM14 4h1v1H14zM17 4h1v1H17zM13 5h1v1H13zM18 5h1v1H18zM13 6h1v1H13zM18 6h1v1H18zM12 7h1v1H12zM19 7h1v1H19zM12 8h1v1H12zM19 8h1v1H19zM11 9h1v1H11zM20 9h1v1H20zM11 10h1v1H11zM20 10h1v1H20zM10 11h1v1H10zM21 11h1v1H21zM10 12h1v1H10zM21 12h1v1H21zM9 13h1v1H9zM22 13h1v1H22zM9 14h1v1H9zM22 14h1v1H22zM8 15h1v1H8zM23 15h1v1H23zM8 16h1v1H8zM23 16h1v1H23zM7 17h1v1H7zM24 17h1v1H24zM7 18h1v1H7zM24 18h1v1H24zM6 19h1v1H6zM25 19h1v1H25zM6 20h1v1H6zM25 20h1v1H25zM5 21h1v1H5zM26 21h1v1H26zM5 22h1v1H5zM26 22h1v1H26zM4 23h1v1H4zM27 23h1v1H27zM4 24h1v1H4zM27 24h1v1H27zM3 25h1v1H3zM28 25h1v1H28zM3 26h1v1H3zM28 26h1v1H28zM2 27h1v1H2zM29 27h1v1H29zM2 28h1v1H2zM29 28h1v1H29zM1 29h1v1H1zM30 29h1v1H30zM1 30h30v1H1z"/><path class="c-mark" d="M15 10h2v1H15zM15 11h2v1H15zM15 12h2v1H15zM15 13h2v1H15zM15 14h2v1H15zM15 15h2v1H15zM15 16h2v1H15zM15 17h2v1H15zM15 18h2v1H15zM15 19h2v1H15zM15 20h2v1H15zM15 21h2v1H15zM15 24h2v1H15zM15 25h2v1H15zM15 26h2v1H15z"/></svg>'
+
 # 鍵を持っている端末にだけ「外す」「消す」を出すスクリプト。__T__ / __MODE__ / __STORE__ を差し替えて使う
 _OWNER_JS = """
 (() => {
@@ -589,16 +616,41 @@ _OWNER_JS = """
     save();
   };
   const btn = (text, cls) => { const b = document.createElement("button"); b.type = "button"; b.className = "btn" + (cls ? " " + cls : ""); b.textContent = text; return b; };
+  // **確認の窓**（画面の #confirm-modal と同じ作り: 暗い幕・黒い帯の題・注意の絵・既定は「やめる」で二重の枠。2026-09-26、利用者の案）。
+  // 開いたら「やめる」に焦点を置く（Return で取り消せる）。Esc と幕を押しても取り消し。閉じたら押したボタンへ焦点を戻す
+  const confirmBox = (msg, yesText, opener) => new Promise((done) => {
+    const wrap = document.createElement("div");
+    wrap.className = "odlg"; wrap.setAttribute("role", "dialog"); wrap.setAttribute("aria-modal", "true"); wrap.setAttribute("aria-labelledby", "odlg-t");
+    wrap.innerHTML = `<div class="odlg-bg"></div><div class="odlg-panel"><div class="odlg-head"><h2 id="odlg-t"></h2></div>
+      <div class="odlg-body">${__CAUTION__}<p></p><div class="odlg-btns"></div></div></div>`;
+    wrap.querySelector("h2").textContent = T.dlg_title;
+    wrap.querySelector("p").textContent = msg;
+    const no = btn(T.own_cancel, "odlg-default"), yes = btn(yesText);
+    wrap.querySelector(".odlg-btns").append(no, yes);
+    const close = (ok) => { document.removeEventListener("keydown", onKey, true); wrap.remove(); if (opener && opener.isConnected) opener.focus(); done(ok); };
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); close(false); }
+      else if (e.key === "Tab") { e.preventDefault(); (document.activeElement === no ? yes : no).focus(); }   // 焦点は 2 つのボタンの間だけ
+    };
+    no.addEventListener("click", () => close(false));
+    yes.addEventListener("click", () => close(true));
+    wrap.querySelector(".odlg-bg").addEventListener("click", () => close(false));
+    document.addEventListener("keydown", onKey, true);
+    document.body.append(wrap);
+    no.focus();
+  });
   if (MODE === "find") {
     for (const a of document.querySelectorAll('main li a[href^="/s/"]')) {
       const sid = a.getAttribute("href").slice(3);
       if (!keys[sid]) continue;
-      // Mac OS 8 のクローズボックスの形（中が空の四角。2026-09-26、利用者の選択）。何のボタンかは title と読み上げで伝える
+      // Mac OS 8 のクローズボックスの形に × を入れたもの（2026-09-26、利用者の選択）。何のボタンかは title と読み上げで伝える。
+      // 押すと確認の窓を出す（うっかり押しても外れない）
       const b = document.createElement("button");
       b.type = "button"; b.className = "own-rm";
       b.title = T.own_unlist; b.setAttribute("aria-label", T.own_unlist);
       const note = document.createElement("span"); note.className = "a";
       b.addEventListener("click", async () => {
+        if (!(await confirmBox(T.find_confirm.replace("{title}", a.textContent.trim()), T.find_yes, b))) return;
         b.disabled = true;
         try { await ask(sid, "unlist"); a.closest("li").classList.add("own-gone"); note.textContent = T.find_own_done; b.replaceWith(note); }
         catch (e) { b.disabled = false; note.textContent = `${T.own_fail}（${e.message}）`; b.after(" ", note); }
@@ -618,17 +670,12 @@ _OWNER_JS = """
     try { await ask(sid, "unlist"); box.dataset.listed = ""; unlist.remove(); say(T.own_unlisted); }
     catch (e) { unlist.disabled = false; say(`${T.own_fail}（${e.message}）`); }
   });
-  // 消すのは取り消せないので、もう一度押してもらう（ブラウザの confirm は使わない）
-  del.addEventListener("click", () => {
-    say(T.own_confirm);
-    const yes = btn(T.own_yes, "danger"), no = btn(T.own_cancel);
-    yes.addEventListener("click", async () => {
-      yes.disabled = no.disabled = true;
-      try { await ask(sid, "delete"); row.replaceChildren(); say(T.own_deleted); setTimeout(() => location.reload(), 1200); }
-      catch (e) { yes.disabled = no.disabled = false; say(`${T.own_fail}（${e.message}）`); }
-    });
-    no.addEventListener("click", () => { reset(); say(""); });
-    row.replaceChildren(yes, no);
+  // 消すのは取り消せないので、確認の窓を挟む（ブラウザの confirm は使わない）
+  del.addEventListener("click", async () => {
+    if (!(await confirmBox(T.own_confirm, T.own_yes, del))) return;
+    del.disabled = unlist.disabled = true;
+    try { await ask(sid, "delete"); row.replaceChildren(); say(T.own_deleted); setTimeout(() => location.reload(), 1200); }
+    catch (e) { del.disabled = unlist.disabled = false; say(`${T.own_fail}（${e.message}）`); }
   });
   reset();
   box.hidden = false;
@@ -640,9 +687,10 @@ def _owner_script(nonce: str, lang: str, mode: str) -> str:
     """鍵を持っている端末にだけ「外す」「消す」を出す（2026-09-26）。**鍵の無い端末では何も出ない**。
     mode: "page"（共有ページ）/ "find"（探すページ）。文言はサーバーで入れる。CSP の nonce を付ける"""
     tx = {k: t(lang, k) for k in ("own_note", "own_unlist", "own_delete", "own_confirm", "own_yes", "own_cancel",
-                                   "own_unlisted", "own_deleted", "own_fail", "find_own_done")}
+                                   "own_unlisted", "own_deleted", "own_fail", "find_own_done",
+                                   "dlg_title", "find_confirm", "find_yes")}
     js = (_OWNER_JS.replace("__T__", json.dumps(tx, ensure_ascii=False).replace("</", "<\\/"))
-          .replace("__MODE__", mode).replace("__STORE__", OWNER_STORE))
+          .replace("__MODE__", mode).replace("__STORE__", OWNER_STORE).replace("__CAUTION__", json.dumps(CAUTION_SVG)))
     return f'<script nonce="{html.escape(nonce, quote=True)}">{js}</script>'
 
 

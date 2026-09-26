@@ -429,7 +429,12 @@ export default [
       await k.look(["main h1", "form.find", "main ol"], 0);
       await k.hold(1.4);
       await k.press(".own-rm");
-      await k.hold(2.0);
+      await k.until(() => k.page.evaluate(() => !!document.querySelector(".odlg")), "確認の窓", 5000);
+      await k.look([".odlg-panel"], 0.5);
+      await k.hold(1.0);
+      await k.press('.odlg-btns .btn:not(.odlg-default)');   // 「外す」（既定は「やめる」）
+      await k.look(["main h1", "form.find", "main ol"], 0.5);
+      await k.hold(1.8);
     },
   },
 ];
