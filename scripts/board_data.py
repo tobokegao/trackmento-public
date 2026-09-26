@@ -195,6 +195,19 @@ def watch_items(latest: dict) -> list:
     """
     out = []
 
+    # サーバー代の棒（backend/support.py）の月。月が変わったら数字を入れ直す（2026-09-26、利用者の希望）
+    sp = ROOT / "backend" / "support.py"
+    mm = re.search(r'^MONTH = "(\d{4}-\d{2})"', sp.read_text(encoding="utf-8"), re.M) if sp.exists() else None
+    if mm:
+        from datetime import datetime, timedelta, timezone
+        stale = mm.group(1) != datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m")
+        out.append({
+            "t": f"サーバー代の棒: {mm.group(1)} の数字" + ("（月が変わった。直す）" if stale else ""),
+            "d": "月が変わったら backend/support.py の MONTH を進め、COST_JPY を money() の見込みに、"
+                 "RECEIVED_JPY と SUPPORTERS を 0 に戻してデプロイする。Bandcamp・PayPal で届いたら、そのつど額と人数を足す",
+            "level": "watch" if stale else "ok",
+        })
+
     # 画像キャッシュの索引。上限を超えると索引が打ち切られ、302 に戻せなくなる
     imax = img_index_max()
     kinds = (rows(R2_PATH)[-1].get("kinds") if rows(R2_PATH) else None) or {}
