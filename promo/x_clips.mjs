@@ -14,8 +14,9 @@ import CATALOG_RESULT from "./x_catalog_result.mjs";
 import CATALOG_OPS from "./x_catalog_ops.mjs";
 import CATALOG_PHONE from "./x_catalog_phone.mjs";
 import CATALOG_PARTS from "./x_catalog_parts.mjs";
+import CATALOG_INTRO from "./x_catalog_intro.mjs";
 // 台本は段ごとにファイルを分ける（2026-09-26。1 段目の「はじめて使う流れ」から）
-const CATALOG = [...CATALOG_A, ...CATALOG_FLOW, ...CATALOG_RESULT, ...CATALOG_OPS, ...CATALOG_PHONE, ...CATALOG_PARTS];
+const CATALOG = [...CATALOG_A, ...CATALOG_FLOW, ...CATALOG_RESULT, ...CATALOG_OPS, ...CATALOG_PHONE, ...CATALOG_PARTS, ...CATALOG_INTRO];
 
 const only = process.argv[2] ?? "all";
 const ids = new Set(only.split(","));

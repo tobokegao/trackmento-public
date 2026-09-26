@@ -31,6 +31,7 @@ export async function openPage(browser, opts) {
 export function makeKit(page, tracks) {
   let frames = 0, frameDir = null, events = [];
   let twin = null;   // 2 台目のスマホ（setTwin）。{ page, sync, dir }
+  let onFrame = null;   // コマごとに撮る直前に呼ぶ（setOnFrame。ページの中の動画をコマ送りするときなど）
   const vp = page.viewportSize();
   const nFrames = (sec) => Math.max(1, Math.round(sec * FPS));
   const ev = (type, extra = {}) => events.push({ f: frames, type, ...extra });
@@ -41,6 +42,7 @@ export function makeKit(page, tracks) {
     await page.clock.runFor(dt);
     if (twin) { await twin.page.clock.runFor(dt); await twin.sync(); }
     if (!frameDir) return;
+    if (onFrame) await onFrame();
     await page.evaluate(() => {
       const now = performance.now();
       for (const a of document.getAnimations()) {
@@ -99,6 +101,8 @@ export function makeKit(page, tracks) {
     if (!r) throw new Error(`lookPart: ${sel} が見えていない`);
     ev("cam", { rect: { x: r.x + r.w * fx, y: r.y + r.h * fy, w: r.w * fw, h: r.h * fh }, dur: frameDir ? nFrames(sec) : 0 });
   }
+  /** 画面の四角（CSS px の {x, y, w, h}）に寄る。要素に当たらない構図（本文の段の幅だけ、など）のとき */
+  const lookRect = (rect, sec = 0.6) => ev("cam", { rect, dur: frameDir ? nFrames(sec) : 0 });
   /** カメラを引く（画面ぜんぶ） */
   const wide = (sec = 0.6) => ev("cam", { rect: { x: 0, y: 0, w: vp.width, h: vp.height }, dur: frameDir ? nFrames(sec) : 0 });
 
@@ -296,6 +300,8 @@ export function makeKit(page, tracks) {
   /** **2 台目のスマホ**（2026-09-26、利用者の案「スマホを 2 つ並べて同期させる」）。twinPage も同じ時計で進め、コマごとに sync() で
       1 台目の状態を写してから撮る。書き出しは take2.mp4、XClip が右に並べて描く（指の印は 1 台目だけ） */
   function setTwin(twinPage, sync) { twin = { page: twinPage, sync, dir: null }; }
+  /** **コマごとの手当て**（2026-09-27）。止めた時計ではページの <video> が実時間で流れてしまうので、撮る直前に 1 コマぶん送る、など */
+  const setOnFrame = (fn) => { onFrame = fn; };
   function start(dir) {
     fs.rmSync(dir, { recursive: true, force: true });
     frameDir = path.join(dir, "frames");
@@ -320,5 +326,5 @@ export function makeKit(page, tracks) {
   }
 
   return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, tap, tapAt, swipe, waitReload, key, type, drag, dragThumb,
-           ctrlWheel, arrange, stage, setTwin, scrollTo, seed, mock, waitArt, start, finish };
+           ctrlWheel, arrange, stage, setTwin, setOnFrame, lookRect, scrollTo, seed, mock, waitArt, start, finish };
 }
