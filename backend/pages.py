@@ -113,9 +113,9 @@ and share the music they love. When sharing, please follow the terms of use and 
 """
     return f"""
 <div class="catch">
-<p class="catch-main">「あの頃を思い出す」音MADも、いま心を突き動かすこの曲も。<br>
-それでは一緒に、並べてみましょう。</p>
-<p class="catch-sub">トラックのメメント「TRACKMENTO」が、あなたのグリッドを、あなただけのセーブポイントにします。</p>
+<p class="catch-main"><span class="ph">「あの頃を思い出す」音MADも、</span><span class="ph">いま心を突き動かす</span><span class="ph">この曲も。</span><br>
+<span class="ph">それでは一緒に、</span><span class="ph">並べてみましょう。</span></p>
+<p class="catch-sub"><span class="ph">トラックのメメント</span><span class="ph">「TRACKMENTO」が、</span><span class="ph">あなたのグリッドを、</span><span class="ph">あなただけの</span><span class="ph">セーブポイントにします。</span></p>
 </div>
 
 <p>TRACKMENTO（トラックメント）は、好きなトラックのサムネイル（ジャケット写真や動画のサムネイル）を格子状に並べて1枚の画像にするツールです。「私を構成する9曲」のような画像を、サブスクリプションへの加入有無に関わらず、さまざまな配信サイトのトラックを組み合わせて作成できます。アルバム単位だけでなく、<b>トラック単位</b>で自由に並べられるのが特徴です。完全無料で、会員登録も不要です。</p>
@@ -749,6 +749,9 @@ dt {{ font-weight: 700; }}
 .catch {{ display: grid; gap: 6px; margin: 4px 0 16px; }}
 .catch-main {{ font-size: 1.15rem; font-weight: 700; line-height: 1.6; }}
 .catch-sub {{ font-size: .95rem; }}
+/* キャッチコピーは語のまとまり（.ph）の途中で折らない（2026-09-27、利用者の指摘「いま心を突き動かすこの曲も。が途中で改行される」）。
+   inline-block なので、まとまりが 1 行より長い狭い画面では、その中で折れる（はみ出さない） */
+.catch .ph {{ display: inline-block; }}
 nav.pages {{ display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .9rem; }}
 nav.pages a {{ color: #12171b; }}
 /* 使い方の動画（/howto）。題を押すと開く。開いた印は既定の三角のまま */
