@@ -81,7 +81,7 @@ const FAKE_DLG_CSS = `
 .x-fake .files { padding: 6px; }
 .x-fake .files div { display: flex; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 3px; }
 .x-fake .files div::before { content: ""; width: 14px; height: 16px; border: 1px solid #888; border-radius: 1px; background: linear-gradient(135deg, #fff 70%, #ddd 70%); }
-.x-fake .files .folder::before { width: 18px; height: 13px; border-color: #c9a227; background: #f4d470; }
+.x-fake .files .folder::before { width: 18px; height: 14px; border: 0; border-radius: 0; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 14'%3E%3Cpath d='M1 2.5h6l1.5 1.5H17v9H1z' fill='%23f4d470' stroke='%23c9a227'/%3E%3Cpath d='M1 5h16' stroke='%23c9a227'/%3E%3C/svg%3E") no-repeat; }   /* フォルダは耳の付いた形に（ただの四角ではフォルダに見えなかった、と利用者） */
 .x-fake .files .sel { background: #cce4f7; }
 .x-fake .row { display: flex; gap: 8px; align-items: center; margin: 0 12px 12px; }
 .x-fake .row label { width: 90px; color: #444; }
@@ -113,7 +113,7 @@ export default [
     async setup(k) {
       const sq = square();
       await place(k, 3, 3, withHoles(sq, 9, [5, 6, 7, 8]));
-      await k.arrange(FLOW); await k.stage(onlySubs() + " #grid-msg { font-size: 15px !important; }");
+      await k.arrange(FLOW); await k.stage(onlySubs() + "");
       await searchFirst(k, "夜明けのシグナル", [sq[9], sq[0], sq[12]]);
       await k.look([RT, GT, "#results", "#grid", "#grid-msg"]);
       await k.park(640, 500);
@@ -472,7 +472,7 @@ export default [
     },
     async run(k) {
       const name = "trackmento-私を構成する9曲.json";
-      const others = ["音楽/", "trackmento-雨の日に聴く曲.json", "trackmento-好きな音MAD.json"];
+      const others = ["ミュージック/", "trackmento-雨の日に聴く曲.json", "trackmento-好きな音MAD.json"];
       await k.hold(0.8);
       // 保存: 本物の保存は裏で済ませ、画面には擬似の「名前を付けて保存」の窓を出す
       const dl = k.page.waitForEvent("download");
