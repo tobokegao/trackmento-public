@@ -96,7 +96,7 @@ Images and share pages created with the share feature are deleted automatically 
 please see the <a href="/privacy?lang=en">privacy policy</a>.</p>
 
 <h2>FAQ</h2>
-<p>To see each feature in a few-second video, see the <a href="/howto?lang=en">how-to videos</a>.</p>
+<p>For a few-second video of each feature, see the <a href="/howto?lang=en">how-to videos</a>.</p>
 <dl>
 <dt>Is it free? Do I need to register?</dt>
 <dd>Everything is free and no account is required. Note that ads may be shown to help cover the cost of running the servers.</dd>
