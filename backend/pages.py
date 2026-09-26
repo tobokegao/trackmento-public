@@ -25,7 +25,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "プライバシーポリシー", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Privacy policy", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年9月26日", "en": "Last updated: September 26, 2026"}
+UPDATED = {"ja": "最終更新: 2026年9月27日", "en": "Last updated: September 27, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
 
@@ -294,6 +294,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-27", "編集画面のいちばん下のリンクに「使い方の動画」を足しました。",
+     "Added “How-to videos” to the links at the bottom of the editor."),
     ("2026-09-26", "「使い方の動画」のページを足しました。知りたいことの題を押すと、その操作の数秒の動画が流れます（動画は開いたときだけ読み込みます）。",
      "Added a “How-to videos” page. Press a question to play a few-second video of that feature (a video loads only when you open it)."),
     ("2026-09-26", "「サーバー代のおねがい」の欄で、ボタンと同じ行き先のアルバムの文字のリンクを外しました。",

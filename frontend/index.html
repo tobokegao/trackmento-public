@@ -1437,6 +1437,8 @@ output { font-variant-numeric: tabular-nums; }
 footer { padding: var(--space-3) var(--page-inline); border-top: var(--line) solid var(--color-ink); font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-muted); display: flex; gap: var(--space-4); flex-wrap: wrap; }
 #view-switch { order: 1; margin-left: auto; }   /* 右下に置く（ほかの項目より後ろ・右寄せ） */
 footer a { color: var(--color-ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+/* 下のページのリンクは語の途中で折らない（2026-09-27。「使い方の動画」を足したらスマホで「更｜新情報」と割れた） */
+.foot-page { white-space: nowrap; }
 
 /* **操作部品の字はドット字（JF ドット M+ 12）の 12px にそろえる**（2026-09-24、利用者が見本で決めた。PC もスマホも同じ）。
    M+ 12 は 12px の升目で作られた字なので、ほかの大きさ（--text-sm の 12.8px など）ではにじむ。12px か 24px だけを使う。
@@ -2095,7 +2097,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   <span>♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">おかねがたりないときのうた</a>（サーバー代のたすけ）</span>
   <span><a id="contact-link" href="https://forms.gle/2ktpQAXMjJrkFJFz8" target="_blank" rel="noopener noreferrer">お問い合わせフォーム</a></span>
   <!-- 文章のページ（使い方・プライバシーポリシー・運営者。backend/pages.py）。言語は ?lang= で合わせる（applyI18n） -->
-  <span class="foot-pages"><a class="foot-page" data-page="guide" href="/guide">使い方</a> / <a class="foot-page" data-page="privacy" href="/privacy">プライバシーポリシー</a> / <a class="foot-page" data-page="about" href="/about">運営者</a> / <a class="foot-page" data-page="updates" href="/updates">更新情報</a></span>
+  <span class="foot-pages"><a class="foot-page" data-page="guide" href="/guide">使い方</a> / <a class="foot-page" data-page="howto" href="/howto">使い方の動画</a> / <a class="foot-page" data-page="privacy" href="/privacy">プライバシーポリシー</a> / <a class="foot-page" data-page="about" href="/about">運営者</a> / <a class="foot-page" data-page="updates" href="/updates">更新情報</a></span>
   <!-- PC 版とスマホ版の表示の切り替え（2026-09-24）。ホーム画面に置いたアプリ表示では、ブラウザの「PC 版サイト」が使えないため。
        画面の幅が狭い端末と、PC 版にしているときだけ出す（下の VIEW_KEY） -->
   <span id="view-switch" hidden><a id="view-pc" href="#">PC 版の表示</a><a id="view-sp" href="#" hidden>スマホ版の表示</a></span>
@@ -2466,7 +2468,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "お問い合わせフォーム": "Contact form",
         "PC 版の表示": "Desktop view",
         "スマホ版の表示": "Mobile view",
-        "使い方": "How to use", "プライバシーポリシー": "Privacy policy", "運営者": "About", "更新情報": "Updates",
+        "使い方": "How to use", "使い方の動画": "How-to videos", "プライバシーポリシー": "Privacy policy", "運営者": "About", "更新情報": "Updates",
         "好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。": "Line up the cover art of your favorite tracks in one image. Mix tracks from any site, even ones missing from streaming services.",
         "この案内を閉じる": "Dismiss this notice",
         "検索を折りたたむ": "Collapse search",
