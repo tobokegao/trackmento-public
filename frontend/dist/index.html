@@ -9,6 +9,7 @@
 <meta name="trackmento-migrate" content="__MIGRATE__">
 <!-- 共有が消えるまでの日数。英語の対訳表がこの値を含むので、JS はここから読む（上と同じ理由） -->
 <meta name="trackmento-retention" content="__RETENTION__">
+<meta name="trackmento-support" content="__SUPPORT__">
 <title>TRACKMENTO</title>
 <!--__FONT_LINK__-->
 <meta name="description" content="好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
@@ -35,7 +36,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.9295abdd.css">
+<link rel="stylesheet" href="app/app.e184996f.css">
 </head>
 <body>
 
@@ -282,7 +283,9 @@
           <button class="btn btn-sm" type="button" id="share-del-btn">共有を消す</button>
         </div>
         <div class="support">
-          <span>予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭</span>
+          <!-- お礼を言う瞬間に、サーバー代の棒と一緒に出す（2026-09-26、利用者の希望。以前は「バズっちゃった…😭」の文） -->
+          <span>共有できました。使ってくださってありがとうございます！サーバー代は、作者の音楽を買っていただいたお金でまかなっています。</span>
+          <div class="fund" hidden><div class="fund-head"><span class="fund-lbl"></span><span class="fund-pct"></span></div><div class="up-bar fund-bar"><div class="up-fill"></div></div><span class="fund-note"></span></div>
           <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a></span>
         </div>
         </div>
@@ -630,6 +633,7 @@
   <div class="promo-head"><span class="lbl">サーバー代のおねがい</span><span class="promo-tag">PR</span></div>
   <div class="promo-body">
   <p>無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
+  <div class="fund" hidden><div class="fund-head"><span class="fund-lbl"></span><span class="fund-pct"></span></div><div class="up-bar fund-bar"><div class="up-fill"></div></div><span class="fund-note"></span></div>
   <div class="promo-row">
   <a class="promo-btn" href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-button" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAAAfCAIAAADsqp23AAADR0lEQVR4nO1YPWjbUBB+CVkcUCjKoIAzZeok8BZs5CkloUOLQVBKIRQydXemZPDQTvXcIbSTcCEgCGQQCDwl2KSTwFOmTC4tlJoSjNTFtNQPH+d3px+HlkaJP4J5utzde/fp3vP7vKAbRTGHEEI3ir/uN969/6gbxSXZDatr63+3LXpBkK8+W/oXSzdLJZE3LP7vBdwWzIkgW2Omns/dEXBzIkxunw/qrt60lf+mkkLpkxblUUlFfeQYD9i0CROxliQizFIJah7UXYULGOtNe1B341IDLjqdzUrlotOB5HIMJUmfKIpwkdRHCFG2LMgjo/Ca8SObJC4tT4Q5YWFQdxvProW4bhyvsBVismhqwPLyMnxiC8bW9jYbhVG2LN/zsF1Gdc/PIaRsWdiSJW3KYTkYv/nG8UocC9htVoRjYEvLcT4cHRUKhQQf3/Nqto2NLcdpOY4cFwqFMAxbjjMajcDhxHVP3KkV0rR8R5hkU8jWSK0tuSkwekFAd9PTWg1bWB9N09q+j2fBUZ+6XRpiGEbq1DwRACj+Zu9cgTJx8mOyDx1kD0k4yxZpOwhyItIwvWlTOxyceQTTETrZC1Az7BrsCScrO8Gp1xa3FU8ebzFEmJN2wMBl968u1zceyk/WgW2KV3vPxW3F5y/fMt0s9abdv7oUQkDl8pGSAgzS/YIny436NCcvE9eD33+cEfyVO1+OMHVY9oJA/uGXj/HjrEqN0hMCcwr+QtULAuh8zMiD6hnmCHxyTUEm9dkf10xPCrZf7iYRvUlTgIUt/m60Q0pH9MZcwCPeEdgndY6ZVHay0M6irLOnykqEmP4WUL4pZmqELCq7bFmgGuMCQYaDc0IqqUSVVOws6USYYwqUC6W8NaT+DIFB5TC1+J5HV6mo5uFwKC1YU8al8j2vUq0qbr7nsStMIsJEd016jwY6snDRcpyfUfRybw8sspJHOztg0TRNFoADwzCMogjkudTaQogXu7tt309IdeK6mqbhVNJNMWYiAiOjGI+DorKpQMYF4JI2KxUcmEVrxxlZN8CCbhS/f+2vrq0rL5aVHiz0pk1jc/RVcuq1Dw/2p0SXmAYrwFnk8U7NdMTrN2/F/cbhwf4fIsQcQvwG381boswLtxoAAAAASUVORK5CYII=" alt="Tobokegao（Bandcamp）" width="88" height="31"></a>
   <div class="promo-text">
@@ -658,6 +662,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.29b190b3.js"></script>
+<script id="app-js" src="app/app.be973197.js"></script>
 </body>
 </html>
