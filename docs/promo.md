@@ -88,7 +88,7 @@ note の記事用の GIF・写真・表の撮り方。動画そのものの作�
   - **スマホ 2 台を並べる**（`k.setTwin(page2, sync)`、`sp-slider`）。2 台目も同じ時計で進め、コマごとに `sync()` で 1 台目の状態を写して撮る → `take2.mp4`。`XClip` が右に並べる（指の印は 1 台目だけ）
   - **スマホの「PC 版の表示」はページを読み直す**（`k.waitReload`）。撮影用のブラウザは幅 1024 の画面を縮めないので、CDP の `Emulation.setPageScaleFactor`（390/1024）で実機と同じく縮める。
     座標は `visualViewport.scale` を掛けて画面の座標にする（`rectOf`）
-  - **`sp-share-target` は本物の YouTube のページ**（CQ-DZfQhXcc、利用者の指定。はじめはニコニコ動画だったが、ニコニコの「共有」は独自の窓で送れなかった）をAndroid の Chrome の名乗り（台本の `ctx.userAgent`）で開く。スマホの YouTube の「共有」は `navigator.share` を呼ぶので、`addInitScript` でそれを撮影用の Android の共有シートに差し替える。**YouTube は TrustedTypes で innerHTML を使わせない**ので部品ごとに組み立て、TRACKMENTO の絵は data: で埋め込む（よそのページの安全設定で手元のサーバーの画像は読めない）。取り込みは本物
+  - **`sp-share-target` は本物の YouTube のページ**（AjH6MO9XOjM。2026-09-27 に利用者自身の動画へ替えた。前は他人の動画 CQ-DZfQhXcc。はじめの指定は利用者。はじめはニコニコ動画だったが、ニコニコの「共有」は独自の窓で送れなかった）をAndroid の Chrome の名乗り（台本の `ctx.userAgent`）で開く。スマホの YouTube の「共有」は `navigator.share` を呼ぶので、`addInitScript` でそれを撮影用の Android の共有シートに差し替える。**YouTube は TrustedTypes で innerHTML を使わせない**ので部品ごとに組み立て、TRACKMENTO の絵は data: で埋め込む（よそのページの安全設定で手元のサーバーの画像は読めない）。取り込みは本物
   - **2 段目「できあがりと見た目の切り替え」は `promo/x_catalog_result.mjs`**（2026-09-26、15 本）。設定を替えたら「更新」を押し、できあがりの見本が変わるところを見せる
     （見本は自動では作り直さないため）。窓は左に出力オプションの欄（`keepField` でその欄だけ残す）、右にできあがり（`arrangeOut`）。
     **`keepField` は `k.arrange` より先に呼ぶ**（`only` の指定が目印を見る。逆だと欄ごと隠れた）。見本は `OUT_FIT` で高さ 540px までに収める（縦長 9:16 で窓がはみ出した）

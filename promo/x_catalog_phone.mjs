@@ -185,7 +185,7 @@ export default [
         Object.defineProperty(navigator, "share", { configurable: true, value: async (data) => { show((data && data.url) || location.href); } });
         Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
       }, { icon, others });
-      await k.page.goto("https://m.youtube.com/watch?v=CQ-DZfQhXcc", { waitUntil: "domcontentloaded", timeout: 30000 });
+      await k.page.goto("https://m.youtube.com/watch?v=AjH6MO9XOjM", { waitUntil: "domcontentloaded", timeout: 30000 });
       for (let i = 0; i < 70; i++) { await k.page.clock.runFor(100); await new Promise((r) => setTimeout(r, 100)); }
       // 広告の枠があれば撮影のときだけ隠す（撮るたびに中身が替わり、よその商品が映るため）
       await k.page.addStyleTag({ content: "ytm-promoted-sparkles-web-renderer, ad-slot-renderer, ytm-companion-slot, .ytp-ad-module, ytm-statement-banner-renderer { display: none !important; }" });
@@ -199,12 +199,12 @@ export default [
       const box = await share.boundingBox();
       await k.tapAt(box.x + box.width / 2, box.y + box.height / 2);
       await k.until(() => k.page.evaluate(() => !!document.querySelector("#x-share-tm")), "共有シート", 8000).catch(async () => {
-        await k.page.evaluate(() => navigator.share({ url: "https://www.youtube.com/watch?v=CQ-DZfQhXcc" }));   // YouTube 側の窓が出たときの保険
+        await k.page.evaluate(() => navigator.share({ url: "https://www.youtube.com/watch?v=AjH6MO9XOjM" }));   // YouTube 側の窓が出たときの保険
       });
       await k.hold(1.0);
       await k.tap("#x-share-tm");
       // 共有から開いたのと同じ URL で開く（manifest の share_target が /?st_url=… で開く）。取り込みは本物（手元のサーバーが YouTube に問い合わせる）
-      await k.page.goto("http://127.0.0.1:8000/?st_url=" + encodeURIComponent("https://www.youtube.com/watch?v=CQ-DZfQhXcc"), { waitUntil: "domcontentloaded" });
+      await k.page.goto("http://127.0.0.1:8000/?st_url=" + encodeURIComponent("https://www.youtube.com/watch?v=AjH6MO9XOjM"), { waitUntil: "domcontentloaded" });
       for (let i = 0; i < 200 && !(await k.page.evaluate(() => !!window.__setGridUI)); i++) { await k.page.clock.runFor(50); await new Promise((r) => setTimeout(r, 50)); }
       await k.until(() => k.page.evaluate(() => document.querySelectorAll("#results .result").length >= 1), "取り込み", 30000);
       await k.until(() => k.page.evaluate(() => [...document.querySelectorAll("#results img")].every((i) => i.complete)), "サムネ", 15000).catch(() => {});

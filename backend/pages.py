@@ -677,10 +677,10 @@ def _howto(lang: str, days: int) -> str:
     except Exception:
         url = {}
     en = lang == "en"
-    out = ["<p>Press a question to play a short video of that feature. A video loads only when you open it, so the page stays light. "
-           "The tracks and covers in the videos are made up for the demonstration, except in “Can I send a track straight from the YouTube app?”, which uses a real YouTube video.</p>" if en else
-           "<p>知りたいことの題を押すと、その操作の数秒の動画が流れます。動画は開いたときだけ読み込むので、ページは軽いままです。"
-           "動画の中のトラックとジャケットは、説明のための架空のものです（「YouTube のアプリから直接送れますか？」だけは、実際の YouTube の動画を使っています）。</p>"]
+    out = ["<p>Press a question to play a short video of that feature. "
+           "The tracks and covers in the videos are made up for the demonstration.</p>" if en else
+           "<p>知りたいことの題を押すと、その操作の数秒の動画が流れます。"
+           "動画の中のトラックとジャケットは、説明のための架空のものです。</p>"]
     for ja_h, en_h, qs in howto.SECTIONS:
         items = []
         for vid, jq, ja, eq, ea in qs:
