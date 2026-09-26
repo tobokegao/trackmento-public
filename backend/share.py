@@ -502,6 +502,10 @@ button.btn:disabled {{ opacity: .5; cursor: default; }}
 .odlg-default {{ box-shadow: 0 0 0 2px #f6f5f3, 0 0 0 5px #12171b; margin: 4px; }}
 .own-rm:disabled {{ opacity: .5; cursor: default; }}
 li.own-gone .t a {{ text-decoration: line-through; opacity: .5; }}
+/* 外したあとの印は、曲名リストから離した黒地の小さな札（灰色の字のままだと曲名リストと見分けにくかった。2026-09-26、利用者の指摘） */
+.own-done {{ display: inline-block; margin-left: 10px; padding: 0 6px; font-size: .8rem; font-weight: 700; line-height: 1.6;
+  background: #12171b; color: #f6f5f3; vertical-align: 1px; }}
+.own-err {{ margin-left: 10px; font-size: .85rem; color: oklch(55% 0.200 32); }}
 ol {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }}
 li {{ display: flex; gap: 10px; align-items: baseline; }}
 /* 曲名とアーティスト名は 1 つの流し込み。別々の flex 項目にすると狭い画面でアーティスト名だけ細長く折り返る */
@@ -648,12 +652,12 @@ _OWNER_JS = """
       const b = document.createElement("button");
       b.type = "button"; b.className = "own-rm";
       b.title = T.own_unlist; b.setAttribute("aria-label", T.own_unlist);
-      const note = document.createElement("span"); note.className = "a";
+      const note = document.createElement("span");
       b.addEventListener("click", async () => {
         if (!(await confirmBox(T.find_confirm.replace("{title}", a.textContent.trim()), T.find_yes, b))) return;
         b.disabled = true;
-        try { await ask(sid, "unlist"); a.closest("li").classList.add("own-gone"); note.textContent = T.find_own_done; b.replaceWith(note); }
-        catch (e) { b.disabled = false; note.textContent = `${T.own_fail}（${e.message}）`; b.after(" ", note); }
+        try { await ask(sid, "unlist"); a.closest("li").classList.add("own-gone"); note.className = "own-done"; note.textContent = T.find_own_done; b.replaceWith(note); }
+        catch (e) { b.disabled = false; note.className = "own-err"; note.textContent = `${T.own_fail}（${e.message}）`; b.after(note); }
       });
       a.closest("li").querySelector(".t").append(" ", b);
     }
