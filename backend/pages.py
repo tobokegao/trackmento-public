@@ -1,11 +1,11 @@
-"""サイトの文章のページ（使い方・動画で見る使い方・プライバシーポリシー・運営者・更新情報）。
+"""サイトの文章のページ（使い方・使い方の動画・プライバシーポリシー・運営者・更新情報）。
 
 2026-09-18 に AdSense の審査に通らなかった（理由は示されない）ため足した。道具の画面だけでは
 「完全な文章や段落」と言える文章がほとんど無く、プライバシーポリシーも同じドメインに無かった。
 
 - 見た目と言語の決め方は共有ページと同じ（`share._page_css`、`?lang=` と Accept-Language）
 - **JavaScript を使わない**。文章だけのページなので、検索エンジンにもそのまま読める（noindex は付けない）。
-  例外は動画で見る使い方（/howto）の数行だけ: 題を開いたら動画を流し、閉じたら止める。無くても再生ボタンで見られる
+  例外は使い方の動画（/howto）の数行だけ: 題を開いたら動画を流し、閉じたら止める。無くても再生ボタンで見られる
 - 保持日数などの数字は設定から差し込む（`config.share_retention_days()`）。文章に焼き付けない
 """
 from __future__ import annotations
@@ -18,13 +18,13 @@ from backend.config import share_retention_days
 
 TITLES = {
     "guide": {"ja": "使い方", "en": "How to use"},
-    "howto": {"ja": "動画で見る使い方", "en": "Video how-to"},
+    "howto": {"ja": "使い方の動画", "en": "How-to videos"},
     "privacy": {"ja": "プライバシーポリシー", "en": "Privacy policy"},
     "about": {"ja": "運営者・お問い合わせ", "en": "About & contact"},
     "updates": {"ja": "更新情報", "en": "Updates"},
 }
-NAV = {"ja": ("画面へ戻る", "使い方", "動画で見る", "プライバシーポリシー", "運営者", "更新情報"),
-       "en": ("Back to the app", "How to use", "Videos", "Privacy policy", "About", "Updates")}
+NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "プライバシーポリシー", "運営者", "更新情報"),
+       "en": ("Back to the app", "How to use", "How-to videos", "Privacy policy", "About", "Updates")}
 UPDATED = {"ja": "最終更新: 2026年9月26日", "en": "Last updated: September 26, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
@@ -96,7 +96,7 @@ Images and share pages created with the share feature are deleted automatically 
 please see the <a href="/privacy?lang=en">privacy policy</a>.</p>
 
 <h2>FAQ</h2>
-<p>To see each feature in a few-second video, visit the <a href="/howto?lang=en">video how-to</a>.</p>
+<p>To see each feature in a few-second video, see the <a href="/howto?lang=en">how-to videos</a>.</p>
 <dl>
 <dt>Is it free? Do I need to register?</dt>
 <dd>Everything is free and no account is required. Note that ads may be shown to help cover the cost of running the servers.</dd>
@@ -156,7 +156,7 @@ and share the music they love. When sharing, please follow the terms of use and 
 <p>編集中のデータはお使いのブラウザに保存され、作業を再開できるようサーバー側にもバックアップが一時保持されます。共有機能で生成された画像および共有ページは、作成から{days}日が経過すると自動的に削除されます。詳しくは<a href="/privacy">プライバシーポリシー</a>をご確認ください。</p>
 
 <h2>よくある質問</h2>
-<p>操作の一つひとつを数秒の動画で見たいときは、<a href="/howto">動画で見る使い方</a>へどうぞ。</p>
+<p>操作の一つひとつを数秒の動画で見たいときは、<a href="/howto">使い方の動画</a>をどうぞ。</p>
 <dl>
 <dt>無料で使えますか？ 登録は必要ですか？</dt>
 <dd>すべて無料で、アカウント登録も不要です。なお、サーバーの運用費をまかなうために広告を表示する場合があります。</dd>
@@ -294,8 +294,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-26", "「動画で見る使い方」のページを足しました。知りたいことの題を押すと、その操作の数秒の動画が流れます（動画は開いたときだけ読み込みます）。",
-     "Added a “Video how-to” page. Press a question to play a few-second video of that feature (a video loads only when you open it)."),
+    ("2026-09-26", "「使い方の動画」のページを足しました。知りたいことの題を押すと、その操作の数秒の動画が流れます（動画は開いたときだけ読み込みます）。",
+     "Added a “How-to videos” page. Press a question to play a few-second video of that feature (a video loads only when you open it)."),
     ("2026-09-26", "「サーバー代のおねがい」の欄で、ボタンと同じ行き先のアルバムの文字のリンクを外しました。",
      "Removed the album text link from the “A word about server bills” box, since the button next to it goes to the same place."),
     ("2026-09-26", "同じトラックを入れたときの「N 番にも同じトラックがあります」を、改行して太字にし、小さな吹き出しの絵を添えて目立つようにしました。",
@@ -664,7 +664,7 @@ def _updates(lang: str, days: int) -> str:
 
 
 def _howto(lang: str, days: int) -> str:
-    """動画で見る使い方。題（summary）を押したときだけ動画を読む（preload="none"。開くと下の数行が流す）。
+    """使い方の動画。題（summary）を押したときだけ動画を読む（preload="none"。開くと下の数行が流す）。
     まだ R2 に上げていない動画の問いは出さない（backend/howto.py）"""
     keys = howto.videos()
     try:
@@ -749,7 +749,7 @@ dt {{ font-weight: 700; }}
 .catch-sub {{ font-size: .95rem; }}
 nav.pages {{ display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .9rem; }}
 nav.pages a {{ color: #12171b; }}
-/* 動画で見る使い方（/howto）。題を押すと開く。開いた印は既定の三角のまま */
+/* 使い方の動画（/howto）。題を押すと開く。開いた印は既定の三角のまま */
 .clips {{ display: grid; gap: 6px; }}
 details.clip summary {{ cursor: pointer; font-weight: 700; }}
 .clip-body {{ display: grid; gap: 6px; margin: 4px 0 10px 1.1em; }}

@@ -1,4 +1,4 @@
-"""動画で見る使い方（/howto）の動画を R2 に上げ、id → キーの表（backend/howto_videos.json）を書く。
+"""使い方の動画（/howto）の動画を R2 に上げ、id → キーの表（backend/howto_videos.json）を書く。
 
 使い方:
   PYTHONUTF8=1 .venv/Scripts/python scripts/upload_howto_r2.py [--dry-run]
