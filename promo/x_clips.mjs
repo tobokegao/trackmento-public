@@ -10,8 +10,9 @@ import { execFileSync } from "node:child_process";
 import { openPage, makeKit } from "./clip_kit.mjs";
 import CATALOG_A from "./x_catalog.mjs";
 import CATALOG_FLOW from "./x_catalog_flow.mjs";
+import CATALOG_RESULT from "./x_catalog_result.mjs";
 // 台本は段ごとにファイルを分ける（2026-09-26。1 段目の「はじめて使う流れ」から）
-const CATALOG = [...CATALOG_A, ...CATALOG_FLOW];
+const CATALOG = [...CATALOG_A, ...CATALOG_FLOW, ...CATALOG_RESULT];
 
 const only = process.argv[2] ?? "all";
 const ids = new Set(only.split(","));
