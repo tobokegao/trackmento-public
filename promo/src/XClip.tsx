@@ -91,10 +91,41 @@ const Keys: React.FC<{ events: Ev[]; f: number; unit: number }> = ({ events, f, 
   );
 };
 
-/** 1 コマぶんの絵（録画＋カメラ＋カーソル＋輪＋キー）。Freeze の中で使えば、そのコマで止まる */
+/** 指の印（スマホの場面。矢印の代わりに半透明の丸。押している間は濃く・小さく） */
+const Finger: React.FC<{ r: number; pressing: boolean }> = ({ r, pressing }) => {
+  const rr = pressing ? r * 0.85 : r;
+  return <div style={{ position: "absolute", left: -rr, top: -rr, width: rr * 2, height: rr * 2, borderRadius: "50%",
+                       background: pressing ? "rgba(20,20,20,.45)" : "rgba(20,20,20,.25)", border: "2px solid rgba(255,255,255,.85)", boxSizing: "border-box" }} />;
+};
+
+/** 1 コマぶんの絵。**スマホの場面**（録画が縦長）は、16:9 の真ん中にスマホの枠を置いてその中に映す（2026-09-26、利用者の決定） */
 const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
+  const { width, height } = useVideoConfig();
+  if (take.vh <= take.vw) {
+    return (
+      <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>
+        <View id={id} take={take} w={width} h={height} touch={false} />
+        <Keys events={take.events} f={useCurrentFrame()} unit={width / 1280} />
+      </AbsoluteFill>
+    );
+  }
+  const H = Math.round(height * 0.88), W = Math.round(H * take.vw / take.vh), bez = Math.round(H * 0.022);
+  const x = Math.round((width - W) / 2), y = Math.round((height - H) / 2);
+  return (
+    // 地はサイトの机の色（ごく薄い灰色）。枠は角の丸い黒（スマホの本体。サイトの部品ではないので角丸でよい）
+    <AbsoluteFill style={{ backgroundColor: "#e9e8e3" }}>
+      <div style={{ position: "absolute", left: x - bez, top: y - bez * 2, width: W + bez * 2, height: H + bez * 4, background: "#16181b",
+                    borderRadius: bez * 3.2, boxShadow: `${bez}px ${bez}px 0 rgba(0,0,0,.18)` }} />
+      <div style={{ position: "absolute", left: x, top: y, width: W, height: H, overflow: "hidden", borderRadius: bez * 1.2, background: "#fff" }}>
+        <View id={id} take={take} w={W} h={H} touch />
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+/** 録画＋カメラ＋カーソル（指）＋輪を w×h の箱に描く */
+const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: boolean }> = ({ id, take, w: width, touch }) => {
   const f = useCurrentFrame();
-  const { width } = useVideoConfig();
   const { vw, vh, events } = take;
   const k = width / vw;   // 出力の px ÷ 画面の CSS px（引いたとき）
 
@@ -114,7 +145,7 @@ const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
   const size = Math.max(1.3, s * 0.9);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>
+    <AbsoluteFill style={{ overflow: "hidden" }}>
       <OffthreadVideo src={staticFile(`xclips/${id}/take.mp4`)} muted
         style={{ position: "absolute", left: 0, top: 0, width: vw * k, height: vh * k, transformOrigin: "0 0",
                  transform: `translate(${-cam.x * s}px, ${-cam.y * s}px) scale(${vw / cam.w})` }} />
@@ -124,8 +155,8 @@ const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
         return <div key={i} style={{ position: "absolute", left: p.x - r, top: p.y - r, width: r * 2, height: r * 2, borderRadius: "50%",
                                      border: `${3 * Math.max(1, s * 0.7)}px solid #e5462c`, opacity: 1 - age, boxSizing: "border-box" }} />;
       })}
-      {cp && (() => { const p = toScreen(cp.x, cp.y); return <div style={{ position: "absolute", left: p.x, top: p.y }}><Arrow size={size} tilt={pressing} /></div>; })()}
-      <Keys events={events} f={f} unit={width / 1280} />
+      {cp && (() => { const p = toScreen(cp.x, cp.y); return <div style={{ position: "absolute", left: p.x, top: p.y }}>
+        {touch ? <Finger r={18 * s} pressing={pressing} /> : <Arrow size={size} tilt={pressing} />}</div>; })()}
     </AbsoluteFill>
   );
 };

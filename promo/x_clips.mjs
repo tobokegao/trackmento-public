@@ -12,8 +12,9 @@ import CATALOG_A from "./x_catalog.mjs";
 import CATALOG_FLOW from "./x_catalog_flow.mjs";
 import CATALOG_RESULT from "./x_catalog_result.mjs";
 import CATALOG_OPS from "./x_catalog_ops.mjs";
+import CATALOG_PHONE from "./x_catalog_phone.mjs";
 // 台本は段ごとにファイルを分ける（2026-09-26。1 段目の「はじめて使う流れ」から）
-const CATALOG = [...CATALOG_A, ...CATALOG_FLOW, ...CATALOG_RESULT, ...CATALOG_OPS];
+const CATALOG = [...CATALOG_A, ...CATALOG_FLOW, ...CATALOG_RESULT, ...CATALOG_OPS, ...CATALOG_PHONE];
 
 const only = process.argv[2] ?? "all";
 const ids = new Set(only.split(","));
@@ -30,12 +31,14 @@ if (!["fake-tracks.json", "fake-tracks-wide.json", "fake-tracks-mono.json"].ever
 const TRACKS = JSON.parse(fs.readFileSync("promo/public/fake-tracks.json", "utf-8"));
 // **画面は 16:9 で開き、ぜんぶを撮る**（寄るのは Remotion のカメラ）。倍率 2 で撮るので、2 倍まで寄ってもぼやけない
 const PC = { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 };
+// **スマホの場面**（台本に phone: true）。縦長の画面で撮り、XClip が 16:9 の真ん中にスマホの枠を描いてその中に映す（2026-09-26）
+const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 
 const browser = await chromium.launch();
 const failed = [];
 for (const c of picked) {
   // **場面ごとに新しいページで撮る**。前の場面の状態（開いた窓・スクロール・パレット）を持ち越さないため
-  const page = await openPage(browser, PC);
+  const page = await openPage(browser, c.phone ? PHONE : PC);
   const k = makeKit(page, TRACKS);
   const dir = path.join(OUT, c.id);
   // **撮影で本番の R2 に上げた画像を記録する**（背景の画像の場面は /upload を通る。手元のサーバーも .env の R2 を使うため）。

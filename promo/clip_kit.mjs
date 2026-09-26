@@ -134,6 +134,28 @@ export function makeKit(page, tracks) {
       if (Math.hypot(to.x - x, to.y - y) > 2) { ev("cursor", { ...to, dur: nFrames(0.15) }); await page.mouse.move(to.x, to.y); }
     }
   }
+  /** 指で押す（スマホの場面。印は press と同じなので、XClip は指の丸と輪を描く） */
+  async function tap(sel, { sec = 0.4 } = {}) {
+    await glide(sel, sec);
+    await hold(0.1);
+    const { x, y } = await centerOf(sel);
+    ev("down", { x, y });
+    await page.touchscreen.tap(x, y); await frame(); await frame();
+  }
+  /** 指で座標を押す（要素の真ん中でない所を押すとき） */
+  async function tapAt(x, y, sec = 0.4) {
+    ev("cursor", { x, y, dur: nFrames(sec) }); await hold(sec);
+    ev("down", { x, y });
+    await page.touchscreen.tap(x, y); await frame(); await frame();
+  }
+  /** 画面を指で送る（スマホの場面。dy だけ少しずつ送る。送り方はページの scrollBy） */
+  async function swipe(dy, sec = 0.6, sel = null) {
+    const n = nFrames(sec);
+    for (let i = 0; i < n; i++) {
+      await page.evaluate(({ d, sel }) => (sel ? document.querySelector(sel) : window).scrollBy(0, d), { d: dy / n, sel });
+      await frame();
+    }
+  }
   /** キーを押す（押した印も残す。Remotion で押したキーを出すときに使える） */
   async function key(k) { ev("key", { key: k }); await page.keyboard.press(k); await frame(); }
   /** 1 字ずつ打つ */
@@ -268,6 +290,6 @@ export function makeKit(page, tracks) {
     return frames;
   }
 
-  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, key, type, drag, dragThumb,
+  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, tap, tapAt, swipe, key, type, drag, dragThumb,
            ctrlWheel, arrange, stage, scrollTo, seed, mock, waitArt, start, finish };
 }
