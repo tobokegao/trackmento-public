@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-26", "「サーバー代のおねがい」の欄で、ボタンと同じ行き先のアルバムの文字のリンクを外しました。",
+     "Removed the album text link from the “A word about server bills” box, since the button next to it goes to the same place."),
     ("2026-09-26", "同じトラックを入れたときの「N 番にも同じトラックがあります」を、改行して太字にし、小さな吹き出しの絵を添えて目立つようにしました。",
      "“Cell N has the same track” now appears on its own line in bold with a small speech-bubble icon, so it stands out."),
     ("2026-09-26", "選んだマスで、黄色い枠がトラック名の帯や番号に重なって見づらかったのを直しました。",
