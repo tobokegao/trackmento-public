@@ -302,6 +302,23 @@
   - 判定の閾値はインスタンスの種類から出す（`PLAN_SPECS` と `_PLAN_RE`。API は `1c_2g` のような形式を返す）。`CHECK_*` の環境変数で上書きできる
   - 「uptime のリセットがデプロイ回数より多い」は、無停止デプロイ中に新旧プロセスの `[health]` が交互に出るため一度は誤検知していた。5 分以内に続く戻りは同じ入れ替えとしてまとめている
 
+### 点検で異常が出たときに見る場所（2026-09-27）
+
+`render_check.py` が「異常あり」を出したら、**症状ごとに最初に開く所をこの表で決める**。調べる順が毎回ぶれると、
+同じ所を読み直してトークンと時間を食う（他社のインシデント対応の事例で、エージェントの賢さより
+「症状と見る場所の対応表の細かさ」が結果を左右した、という報告を受けて作った）。表に無い症状で調べたら、1 行足す。
+
+| 症状（点検の見出し） | ログの印 | 最初に開く所 | 経緯 |
+| --- | --- | --- | --- |
+| 帯域（1 時間 1GB 超） | `[stats]` の経路別件数・`[ua]` | 増えた経路。フォントや CSS / JS なら R2 に上がっているか（`scripts/check.py --r2`） | この文書の「帯域の見かた」「帯域と R2 の操作回数」 |
+| 再起動・メモリ | イベントの `server_failed` / `server_restarted`・`[health] rss`・`[loop] lag` | `[loop]` の `render_queue`。サーバー描画（`/share` → `backend/render.py`）が重なっていないか | この文書の「本番はどう動いているか」 |
+| 5xx の合計・`[error]` | `[error] <メソッド> <経路>`（`unhandled_error`） | 経路から該当する `backend/` のファイル。「R2 の…できませんでした」は `backend/storage.py` | `docs/gotchas.md` |
+| 共有の 5xx | `[share] failed`・`並びが読めない`・`送信途中で切断` | `backend/main.py` の `_finish_share` / `share_upload`、`backend/share.py` | `docs/share.md` |
+| 共有が 429 / 507 | `[share] quota` / `[share] budget` | `_check_share_quota`（`main.py`）/ `_check_budget`（`share.py`）。上限の値は `docs/env.md` | `docs/share.md` |
+| `/image-proxy` の 5xx の割合 | `[stats]` の `/image-proxy` | `image_proxy`・`_s3_missing`（`main.py`）、配信元ごとの `clamp_size`（`backend/sources/`） | `docs/sources.md` |
+| ブラウザ側の失敗 | `[client]`（種類は `CLIENT_KINDS`） | `up_*`（共有画像の送信）→ frontend の送信部（`hiccup("up_…")` の所）と `share_upload`、`canvas_*` → `renderShareCanvas`、`itunes_*` / `mb_*` → ブラウザからの直接検索（`itunesSearch` ほか） | `docs/share.md`・`docs/layout.md` |
+| 検索の失敗 | `[srch]` の失敗の数 | そのソースの `backend/sources/<名前>.py` | `docs/sources.md` |
+
 ## 共有を期限より前に消す（荒らし・削除の依頼、2026-09-22）
 
 曲ごとのメモ（`Track.note`）で、利用者の書いた自由な文が共有ページに出るようになった。荒らしの報告や削除の依頼が
