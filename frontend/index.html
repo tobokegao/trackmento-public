@@ -923,7 +923,7 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .cell[data-fit="blur"] { overflow: hidden; }
 .cell[data-fit="blur"] > img:not(.cover-bg) { object-fit: contain; position: relative; z-index: 1; }
 /* 下地を敷くと重なり順が変わるので、番号・×・曲名の帯を絵より前に出す */
-.cell[data-fit="blur"] .num, .cell[data-fit="blur"] .rm, .cell[data-fit="blur"] .cap { z-index: 2; }   /* **position は変えない**（もとの absolute のまま）。relative にすると流れに入って絵を押し下げ、絵がマスの下に寄っていた（2026-09-26、利用者の指摘「ブラーの位置が変」） */
+.cell[data-fit="blur"] .cap { z-index: 2; } .cell[data-fit="blur"] .num, .cell[data-fit="blur"] .rm { z-index: 3; }   /* 番号・× は選んだ枠（::after、z 2）より前に。2 だと枠に隠れた（2026-09-26、利用者の指摘） */   /* **position は変えない**（もとの absolute のまま）。relative にすると流れに入って絵を押し下げ、絵がマスの下に寄っていた（2026-09-26、利用者の指摘「ブラーの位置が変」） */
 .cell {
   position: relative; aspect-ratio: 1;
   background-color: var(--color-paper-2);
@@ -983,6 +983,7 @@ body.sheet-open { overflow: hidden; }
 /* 背景の touch-action は絞らない。後ろのスクロールは html の overflow と下の touchmove の番人で止めてあり、
    ここで pan を禁じると**拡大したあとの 1 本指の移動**まで止まる（実機で報告） */
 .cell.is-selected .num { background: var(--color-mustard); color: var(--color-on-light); }
+.cell.is-selected .cap { inset: auto 7px 7px 7px; }   /* 曲名の帯は選んだ枠（5px ＋ 2px）の内側に収める。枠が帯の端に重なって字が線に掛かっていた（2026-09-26、利用者の指摘） */
 .grid[data-selecting="true"] .cell:not(.is-selected) { cursor: copy; }
 /* 選択中のマスの編集パネル。**地がマスタード（明るい色）なので、中の文字はぜんぶ
    「明るい下地に置く文字」にそろえる**。`--color-ink-2` のままだと、地が暗い組では
