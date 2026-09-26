@@ -8,7 +8,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { openPage, makeKit } from "./clip_kit.mjs";
-import CATALOG from "./x_catalog.mjs";
+import CATALOG_A from "./x_catalog.mjs";
+import CATALOG_FLOW from "./x_catalog_flow.mjs";
+// 台本は段ごとにファイルを分ける（2026-09-26。1 段目の「はじめて使う流れ」から）
+const CATALOG = [...CATALOG_A, ...CATALOG_FLOW];
 
 const only = process.argv[2] ?? "all";
 const ids = new Set(only.split(","));
@@ -47,12 +50,18 @@ for (const c of picked) {
     k.start(dir);
     await c.run(k);
     const n = await k.finish(dir, { id: c.id, what: c.what });
-    if (uploaded.length || shares.length) fs.writeFileSync(path.join(dir, "uploads.json"), JSON.stringify({ uploads: uploaded, shares: shares.filter(Boolean) }));
     console.log(c.id, n, "コマ", (n / 30).toFixed(1), "秒");
   } catch (e) {
     failed.push(c.id);
     console.error(c.id, "失敗:", e.message.split("\n")[0]);
   } finally {
+    // **失敗しても記録は書く**（2026-09-26。途中で失敗すると共有だけ R2 に残り、どれか分からなくなった）。
+    // 手元の架空の絵（/uploads/fa4e…。k.mock や台本の route で返したもの）は R2 に無いので記録しない
+    const ups = uploaded.filter((u) => u && !u.includes("/uploads/fa4e"));
+    if (ups.length || shares.length) {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, "uploads.json"), JSON.stringify({ uploads: ups, shares: shares.filter(Boolean) }));
+    }
     await page.context().close();
   }
 }

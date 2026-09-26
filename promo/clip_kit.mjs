@@ -17,7 +17,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** 画面を 1 つ開く（時計を止めた状態で）。**公開版に無いソースは撮らない**（手元の .env に DISCOGS_TOKEN があると
     候補に出るが、本番では未設定なので画面に出ない） */
 export async function openPage(browser, opts) {
-  const c = await browser.newContext({ locale: "ja-JP", ...opts });
+  const c = await browser.newContext({ locale: "ja-JP", permissions: ["clipboard-read", "clipboard-write"], ...opts });   // トラック名のコピー→貼り付けの場面のため
   const p = await c.newPage();
   await p.clock.install({ time: START_TIME });
   await p.goto("http://127.0.0.1:8000/", { waitUntil: "domcontentloaded" });
@@ -186,6 +186,31 @@ export function makeKit(page, tracks) {
     window.scrollBy(0, document.querySelector(sel).getBoundingClientRect().top - y);
   }, { sel, y });
 
+  /** **検索と URL 取得の応答を架空の曲に差し替える**（2026-09-26。動画に実在のジャケットを映さないため）。
+      撮る前に 1 回呼ぶ。spec は { itunes?(term) → 曲の配列, search?(params) → 曲の配列, url?(url) → 曲 or null, playlist?(url) → 曲の配列 }。
+      曲は fake-tracks.json と同じ形（source・title・artist・image…）。source を itunes / vocadb / otodb などにすると候補の札もそれになる。
+      iTunes はブラウザから直接引く（itunesSearch）ので、iTunes の返事の形に直して返す。絵は手元のサーバーの /uploads/（**相対のまま渡す**。
+      絶対 URL にすると画面が /image-proxy に回し、手元の宛先なのでサーバーが断る） */
+  async function mock(spec) {
+    const json = (route, body, headers = {}) => route.fulfill({ status: 200, contentType: "application/json", headers, body: JSON.stringify(body) });
+    if (spec.itunes) await page.route(/^https:\/\/itunes\.apple\.com\/search/, (route) => {
+      const term = new URL(route.request().url()).searchParams.get("term") || "";
+      json(route, { results: spec.itunes(term).map((t, i) => ({ wrapperType: "track", trackName: t.title, artistName: t.artist,
+        collectionName: t.album || null, artworkUrl100: t.thumb || t.image, trackViewUrl: t.external_url || `https://music.apple.com/jp/album/x?i=${900000 + i}` })) });
+    });
+    if (spec.search) await page.route(/\/search\?/, (route) => {
+      const u = new URL(route.request().url());
+      if (u.hostname !== "127.0.0.1") return route.fallback();
+      json(route, spec.search(Object.fromEntries(u.searchParams)));
+    });
+    if (spec.url || spec.playlist) await page.route(/\/from-(url|playlist)$/, (route) => {
+      const { url } = JSON.parse(route.request().postData() || "{}");
+      const got = route.request().url().endsWith("/from-playlist") ? spec.playlist?.(url) : spec.url?.(url);
+      if (!got || (Array.isArray(got) && !got.length)) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ detail: "見つかりませんでした" }) });
+      json(route, got);
+    });
+  }
+
   /** n マスぶん曲を入れる。足りなければ**繰り返して埋める**。list で曲の一覧を差し替えられる */
   const seed = (n, size = [3, 3], opts = {}, list = tracks) => page.evaluate(({ tracks, n, size, opts }) => {
     window.__setGridUI(size[0], size[1], { title: "私を構成する9曲", showTitle: true, sidebar: true, numbers: true,
@@ -220,5 +245,5 @@ export function makeKit(page, tracks) {
   }
 
   return { page, tracks, frame, hold, until, live, look, wide, park, hideCursor, glide, press, key, type, dragThumb,
-           ctrlWheel, arrange, stage, scrollTo, seed, waitArt, start, finish };
+           ctrlWheel, arrange, stage, scrollTo, seed, mock, waitArt, start, finish };
 }

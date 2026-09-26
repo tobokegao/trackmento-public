@@ -15,22 +15,22 @@ import fs from "node:fs";
 
 // 動画サイトのサムネ風（16:9）の架空の曲。マスの形・サムネの入れ方の場面で使う
 // **使うときに読む**（x_clips.mjs は台本を読み込んでから一覧を作るので、読み込んだ瞬間に読むと一覧がまだ無いことがある）
-const nico = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-wide.json", "utf-8"));
+export const nico = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-wide.json", "utf-8"));
 // 白黒の架空のジャケット（明るさを段階的に）。色で並べ替えの場面で使う
-const mono = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-mono.json", "utf-8"));   // 架空の 16:9 のサムネ（promo/fake_covers.py）
+export const mono = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks-mono.json", "utf-8"));   // 架空の 16:9 のサムネ（promo/fake_covers.py）
 
 /** 背景色の場面の窓の置き方（k.arrange）。左にグリッドの窓（グリッドとメッセージと「できあがりを見る」）、右に出力オプション（背景色の欄だけ）、
     その下に「できあがり」の窓（見本と状態の一行）。1280x720 の画面にぜんぶ入る */
-const ARRANGE_BG = {
+export const ARRANGE_BG = {
   ".pane-grid": { x: 40, y: 40, w: 330, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] },
   ".pane-options": { x: 400, y: 40, w: 330, only: [".gbox:has(#bg-mode-seg)"] },   // 2026-09-25 から欄はグループボックスの中（中の余白の欄は ARRANGE_BG_CSS で隠す）
   "#output": { x: 760, y: 40, w: 480 },
 };
-const ARRANGE_BG_CSS = ".gbox:has(#bg-mode-seg) > :not(.gbox-title):not(fieldset:has(#bg-mode-seg)), .grid-actions > :not(#preview-btn), #output .pane-body > :not(#out-shot):not(#out-msg) { display: none !important; } .grid-actions > #preview-btn { grid-column: 1 / -1; }";
+export const ARRANGE_BG_CSS = ".gbox:has(#bg-mode-seg) > :not(.gbox-title):not(fieldset:has(#bg-mode-seg)), .grid-actions > :not(#preview-btn), #output .pane-body > :not(#out-shot):not(#out-msg) { display: none !important; } .grid-actions > #preview-btn { grid-column: 1 / -1; }";
 
 /** グリッドに寄る場面の窓の置き方。グリッドの窓だけを真ん中に置く（2026-09-26、利用者の指摘。
     そのままだと 16:9 に広げた右の端に出力オプションの窓が半分だけ映り、字が途中で切れていた） */
-const ARRANGE_GRID = {
+export const ARRANGE_GRID = {
   ".pane-grid": { x: 390, y: 16, w: 500, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] },
 };
 /** 「マスを減らしても曲は消えない」の窓の置き方。左にグリッド、右に横 × 縦の欄だけ（2026-09-26。
@@ -40,23 +40,23 @@ const ARRANGE_STASH = {
   ".pane-options": { x: 720, y: 60, w: 330, only: [".gbox:has(#cols)"] },
 };
 /** 並べ直した窓のタイトルバー（カメラの範囲に入れる。入れないと上で切れる） */
-const GT = ".pane-grid > .pane-title", OT = ".pane-options > .pane-title";
+export const GT = ".pane-grid > .pane-title", OT = ".pane-options > .pane-title";
 const ARRANGE_STASH_CSS = ".gbox:has(#cols) > :not(.gbox-title):not(fieldset:has(#cols)) { display: none !important; }";
 
 /** 曲を n 個入れて、ジャケットがそろうまで待つ */
-async function ready(k, n, size, opts = {}, list) {
+export async function ready(k, n, size, opts = {}, list) {
   await k.seed(n, size, opts, list);
   await k.waitArt();
   await k.hold(0.5);   // 撮影前なので時計だけ進む
 }
 
 /** 出力オプションの「枠とサムネ」の三角を開く（既定で畳んである。2026-09-25 から。撮る前だけ） */
-async function openCellsMore(k) {
+export async function openCellsMore(k) {
   if (await k.page.getAttribute("#cells-more-btn", "aria-expanded") !== "true") await k.page.click("#cells-more-btn");
 }
 
 /** 並びをかき混ぜる（色で並べ替えの前に。seed は一覧の順に入れるので、そのままだと色がそろって見えない） */
-function shuffled(list, seed = 7) {
+export function shuffled(list, seed = 7) {
   const a = [...list];
   let s = seed;
   for (let i = a.length - 1; i > 0; i--) {
