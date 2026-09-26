@@ -88,6 +88,12 @@ export function makeKit(page, tracks) {
     if (!rect) throw new Error(`look: ${sels.join(", ")} が見えていない`);
     ev("cam", { rect, dur: frameDir ? nFrames(sec) : 0 });
   }
+  /** 要素の一部に寄る（fx, fy, fw, fh は要素の幅・高さに対する割合。書き出しの見本の番号バッジなど、小さいものを見せるとき。2026-09-26） */
+  async function lookPart(sel, fx, fy, fw, fh, sec = 0.6) {
+    const r = await rectOf([sel]);
+    if (!r) throw new Error(`lookPart: ${sel} が見えていない`);
+    ev("cam", { rect: { x: r.x + r.w * fx, y: r.y + r.h * fy, w: r.w * fw, h: r.h * fh }, dur: frameDir ? nFrames(sec) : 0 });
+  }
   /** カメラを引く（画面ぜんぶ） */
   const wide = (sec = 0.6) => ev("cam", { rect: { x: 0, y: 0, w: vp.width, h: vp.height }, dur: frameDir ? nFrames(sec) : 0 });
 
@@ -244,6 +250,6 @@ export function makeKit(page, tracks) {
     return frames;
   }
 
-  return { page, tracks, frame, hold, until, live, look, wide, park, hideCursor, glide, press, key, type, dragThumb,
+  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, key, type, dragThumb,
            ctrlWheel, arrange, stage, scrollTo, seed, mock, waitArt, start, finish };
 }

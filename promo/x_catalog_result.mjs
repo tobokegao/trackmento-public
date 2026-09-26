@@ -44,6 +44,13 @@ async function primeOutput(k) {
 }
 const pickRadio = (seg, v) => `#${seg} label:has(input[value="${v}"])`;
 
+/** 背景の決め方の欄とできあがりを並べる（見本集の場面）。欄は背景のまとまりだけ */
+async function bgOut(k) {
+  await keepField(k, "#bg-mode-seg"); await k.arrange(arrangeOut());
+}
+/** 背景の絵（グラデーション・画像）ができあがるまで待つ */
+const bgSettled = (k) => k.until(() => k.page.evaluate(() => !/調べています|作っています|送っています/.test(document.querySelector("#bg-msg")?.textContent || "")), "背景", 30000).catch(() => {});
+
 export default [
   {
     id: "r-layouts",
@@ -89,7 +96,7 @@ export default [
   },
   {
     id: "r-output",
-    what: "「できあがり」の窓 … 「更新」で書き出す画像の見本ができる（共有はしない）。見本を押すと大きく見られる",
+    what: "「できあがり」の窓 … 「更新」で書き出す画像の見本ができる（共有はしない）。見本を押すと「できあがりの見本」の窓で大きく見られる",
     async setup(k) {
       await ready(k, 9, [3, 3], {}, square().slice(0, 9));
       await k.arrange({ ".pane-grid": { x: 60, y: 30, w: 440, only: ["#grid-scroll", "#grid-msg"] }, "#output": { x: 540, y: 30, w: 680 } });
@@ -100,11 +107,15 @@ export default [
     async run(k) {
       await k.hold(0.8);
       await refresh(k);
-      await k.hold(1.2);
+      await k.hold(1.0);
+      await k.look([OUT, "#out-shot"], 0.5);   // 押す見本に寄ってから押す
       await k.press("#out-shot");
       await k.until(() => k.page.evaluate(() => !document.querySelector("#preview-modal").hidden && document.querySelector("#preview-img").complete), "大きく見る", 10000);
-      k.wide(0.5);
-      await k.hold(2.0);
+      // **窓の題名「できあがりの見本」が読めるように寄る**（何の窓か分かりにくい、と利用者）
+      await k.look(["#preview-modal .sheet-head"], 0.5);
+      await k.hold(0.9);
+      await k.look(["#preview-modal .modal-panel"], 0.6);
+      await k.hold(1.6);
       await k.press("#preview-modal-close");
       await k.look([GT, "#grid", OUT, "#output"], 0.5);
       await k.hold(1.0);
@@ -151,7 +162,7 @@ export default [
     },
     async run(k) {
       await k.hold(1.0);
-      for (const v of ["1:1", "4:5", "9:16", "16:9"]) {
+      for (const v of ["1:1", "4:5", "9:16", "free", "16:9"]) {   // 「自由」も押す（利用者の指摘）
         await k.press(pickRadio("ratio-seg", v));
         await refresh(k);
         await k.look([OT, "#ratio-seg", OUT, "#output"], 0.3);
@@ -161,24 +172,27 @@ export default [
   },
   {
     id: "s-fit-one",
-    what: "マスを選ぶと、そのマスだけサムネイルの入れ方を変えられる（トリミング／ぼかし背景）",
+    what: "マスを選ぶと、そのマスだけサムネイルの入れ方を変えられる（横長のマスに正方形のサムネイルを、切らずにぼかして入れる）",
     async setup(k) {
-      await ready(k, 9, [3, 3], { cellFit: "crop" }, nico().slice(0, 9));
-      await k.arrange({ ".pane-grid": { x: 80, y: 30, w: 520, only: ["#grid-scroll", "#grid-msg"] }, ".pane-search": { x: 660, y: 30, w: 520 } });
+      // **横長 16:9 のマスに正方形のサムネイル**（利用者の案）。「トリミング」だと上下が切れ、「ぼかし背景」だと左右にぼかしが入る
+      await ready(k, 9, [3, 3], { cellRatio: "16:9", cellFit: "crop" }, square().slice(0, 9));
+      await k.arrange({ ".pane-grid": { x: 40, y: 30, w: 600, only: ["#grid-scroll", "#grid-msg"] }, ".pane-search": { x: 680, y: 30, w: 560 } });
       await k.stage(".pane-search > :not(.pane-title):not(#editor) { display: none !important; }");
       await k.look([GT, "#grid"]);
       await k.park(900, 600);
     },
     async run(k) {
       await k.hold(0.8);
-      await k.press("#grid .cell:nth-child(5)");
+      await k.press("#grid .cell:nth-child(1)");   // 絵のはっきりしたマス（淡い絵だとぼかしが見えない）
       await k.until(() => k.page.evaluate(() => !document.querySelector("#editor").hidden), "編集欄", 5000);
       await k.look([GT, "#grid", ".pane-search > .pane-title", "#editor"], 0.6);
-      await k.hold(0.6);
+      await k.hold(0.5);
       await k.press(pickRadio("e-fit-seg", "blur"));
-      await k.hold(1.4);
+      await k.look(["#grid .cell:nth-child(1)", "#grid .cell:nth-child(2)"], 0.6);   // 選んだマスに寄って、左右のぼかしを見せる
+      await k.hold(1.6);
+      await k.look([GT, "#grid", ".pane-search > .pane-title", "#editor"], 0.6);
       await k.press(pickRadio("e-fit-seg", ""));   // 「全体と同じ」に戻す
-      await k.hold(0.8);
+      await k.hold(0.6);
       await k.press("#e-close");
       await k.look([GT, "#grid"], 0.5);
       await k.hold(0.8);
@@ -197,12 +211,17 @@ export default [
     },
     async run(k) {
       await k.hold(1.0);
-      for (const sel of ["#opt-numbers", "#opt-title", "#opt-trim"]) {
+      // それぞれ替えたあと、見本の中の変わった所に寄る（番号バッジは小さいので、マスの左上へ。利用者の指摘）
+      const steps = [["#opt-numbers", [0.02, 0.02, 0.36, 0.42]], ["#opt-title", [0.5, 0.0, 0.5, 0.42]], ["#opt-trim", [0.5, 0.05, 0.5, 0.5]]];
+      for (const [sel, part] of steps) {
+        await k.look([OT, "#opt-numbers", OUT, "#output"], 0.4);
         await k.press(sel);
         await refresh(k);
-        await k.hold(1.2);
+        await k.lookPart("#out-shot", ...part, 0.6);
+        await k.hold(1.3);
       }
-      for (const sel of ["#opt-title", "#opt-trim"]) await k.page.click(sel);   // 見た目を始めに近づける（撮った後の片付け）
+      await k.look([OT, "#opt-numbers", OUT, "#output"], 0.5);
+      await k.hold(0.5);
     },
   },
   {
@@ -221,12 +240,12 @@ export default [
       await k.press(pickRadio("pad-seg", "xwide"));
       await refresh(k);
       await k.hold(1.2);
-      await k.dragThumb("#gap", 80, 0.7);
+      await k.dragThumb("#gap", 400, 0.9);   // いちばん広くまで（96px。変わり方を大げさに、と利用者）
       await k.hold(0.3);
       await refresh(k);
-      await k.hold(1.4);
+      await k.hold(1.6);
       await k.press(pickRadio("pad-seg", "normal"));
-      await k.dragThumb("#gap", -80, 0.5);
+      await k.dragThumb("#gap", -400, 0.6);   // 間隔 0 まで詰める
       await refresh(k);
       await k.hold(0.8);
     },
@@ -321,56 +340,58 @@ export default [
     id: "s-grad",
     what: "背景を「グラデーション」に … サムネイルの色から作る。「ほかの模様」で揺らぎの形だけ変わる。色を自分で選んでもいい",
     async setup(k) {
-      await ready(k, 9, [3, 3], { gap: 40, margin: 40 }, square().slice(0, 9));
-      await k.arrange({ ".pane-grid": { x: 60, y: 30, w: 520, only: ["#grid-scroll", "#grid-msg"] },
-                        ".pane-options": { x: 640, y: 30, w: 380, only: [".gbox:has(#bg-mode-seg)"] } });
-      await k.stage(".gbox:has(#bg-mode-seg) > :not(.gbox-title):not(fieldset:has(#bg-mode-seg)) { display: none !important; }");
-      await k.look([GT, "#grid", OT, "#bg-mode-seg"]);
-      await k.park(900, 600);
+      await ready(k, 9, [3, 3], { gap: 32 }, square().slice(0, 9));
+      await bgOut(k);
+      await primeOutput(k);
+      await k.look([OT, "#bg-mode-seg", OUT, "#output"]);
+      await k.park(900, 650);
     },
     async run(k) {
+      // **できあがりの見本集**にする（グリッドの見本より、書き出しの絵のほうが分かりやすい、と利用者）
       await k.hold(0.8);
       await k.press(pickRadio("bg-mode-seg", "gradient"));
-      await k.until(() => k.page.evaluate(() => /url\(/.test(document.querySelector("#grid").style.background) || /url\(/.test(getComputedStyle(document.querySelector("#grid")).backgroundImage)), "グラデーション", 30000).catch(() => {});
-      await k.hold(1.2);
-      await k.look([GT, "#grid", OT, "#bg-grad-box"], 0.5);
-      for (let i = 0; i < 2; i++) { await k.press("#bg-grad-shuffle"); await k.hold(1.0); }
+      await bgSettled(k);
+      await refresh(k);
+      await k.hold(1.3);
+      for (let i = 0; i < 2; i++) { await k.press("#bg-grad-shuffle"); await bgSettled(k); await refresh(k); await k.hold(1.1); }
       await k.press(pickRadio("bg-grad-src", "custom"));
-      await k.hold(1.2);
+      await bgSettled(k);
+      await refresh(k);
+      await k.hold(1.3);
       await k.press(pickRadio("bg-mode-seg", "pick"));   // 始めに戻す
-      await k.look([GT, "#grid", OT, "#bg-mode-seg"], 0.5);
-      await k.hold(0.8);
+      await refresh(k);
+      await k.hold(0.6);
     },
   },
   {
     id: "s-img-tile",
-    what: "背景の「画像」は全体表示かタイル（小・中・大）で敷ける。好きな画像を選んだあと「既定に戻す」で模様に戻せる",
+    what: "背景の「画像」は全体表示かタイル（小・中・大）で敷ける。好きな画像を選んでもいい",
     async setup(k) {
-      await ready(k, 9, [3, 3], { gap: 40, margin: 40 }, square().slice(0, 9));
+      await ready(k, 9, [3, 3], { gap: 32 }, square().slice(0, 9));
       await k.page.route(/\/upload$/, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ url: "/uploads/fa4e010000000017.jpg" }) }));
-      await k.arrange({ ".pane-grid": { x: 60, y: 30, w: 520, only: ["#grid-scroll", "#grid-msg"] },
-                        ".pane-options": { x: 640, y: 30, w: 380, only: [".gbox:has(#bg-mode-seg)"] } });
-      await k.stage(".gbox:has(#bg-mode-seg) > :not(.gbox-title):not(fieldset:has(#bg-mode-seg)) { display: none !important; }");
-      await k.page.click(pickRadio("bg-mode-seg", "image"));
-      await k.until(() => k.page.evaluate(() => /模様を敷きました/.test(document.querySelector("#bg-msg").textContent)), "既定の模様", 15000);
-      await k.hold(0.5);
-      await k.look([GT, "#grid", OT, "#bg-image-box"]);
-      await k.park(900, 600);
+      await bgOut(k);
+      await primeOutput(k);
+      await k.look([OT, "#bg-mode-seg", OUT, "#output"]);
+      await k.park(900, 650);
     },
     async run(k) {
+      // できあがりの見本集（利用者の案）
       await k.hold(0.8);
+      await k.press(pickRadio("bg-mode-seg", "image"));
+      await k.until(() => k.page.evaluate(() => /模様を敷きました/.test(document.querySelector("#bg-msg").textContent)), "既定の模様", 15000);
+      await refresh(k);
+      await k.hold(1.2);
       await k.press(pickRadio("bg-fit-seg", "tile"));
-      await k.hold(1.0);
-      for (const v of ["s", "l", "m"]) { await k.press(pickRadio("bg-tile-seg", v)); await k.hold(0.9); }
+      for (const v of ["s", "l"]) { await k.press(pickRadio("bg-tile-seg", v)); await bgSettled(k); await refresh(k); await k.hold(1.0); }
       const fc = k.page.waitForEvent("filechooser");
       await k.press("#bg-image-btn");
       await (await fc).setFiles("promo/public/x-bg-logo.png");
       await k.until(() => k.page.evaluate(() => !document.querySelector("#bg-image-reset").hidden), "画像", 20000);
-      await k.hold(1.2);
-      await k.press("#bg-image-reset");
-      await k.hold(1.0);
-      await k.press(pickRadio("bg-fit-seg", "cover"));
-      await k.hold(0.8);
+      await bgSettled(k);
+      await refresh(k);
+      await k.hold(1.4);
+      // 始めに戻す（撮影の片付け）
+      for (const sel of ["#bg-image-reset", pickRadio("bg-tile-seg", "m"), pickRadio("bg-fit-seg", "cover"), pickRadio("bg-mode-seg", "pick")]) await k.page.click(sel).catch(() => {});
     },
   },
   {
@@ -400,22 +421,24 @@ export default [
   },
   {
     id: "s-bg-preview",
-    what: "背景はグリッドの見本にも出る。書き出す前に、マスの間から見える色や模様を確かめられる",
+    what: "背景の決め方の見本集 … 色の選択・サムネの近似色・サムネの補色・グラデーション・画像・透過",
     async setup(k) {
-      await ready(k, 9, [3, 3], { gap: 56, margin: 40 }, square().slice(0, 9));
-      await k.arrange({ ".pane-grid": { x: 60, y: 16, w: 620, only: ["#grid-scroll"] },
-                        ".pane-options": { x: 720, y: 30, w: 360, only: [".gbox:has(#bg-mode-seg)"] } });
-      await k.stage(".gbox:has(#bg-mode-seg) > :not(.gbox-title):not(fieldset:has(#bg-mode-seg)) { display: none !important; } #bg-mode-seg ~ * { display: none !important; }");
-      await k.look([GT, "#grid", OT, "#bg-mode-seg"]);
-      await k.park(900, 500);
+      await ready(k, 9, [3, 3], { gap: 32 }, square().slice(0, 9));
+      await bgOut(k);
+      await k.stage("#bg-mode-seg ~ * { display: none !important; }");   // 細かい欄は隠す（決め方の違いだけを見せる）
+      await primeOutput(k);
+      await k.look([OT, "#bg-mode-seg", OUT, "#output"]);
+      await k.park(900, 650);
     },
     async run(k) {
-      await k.hold(1.0);
-      // 背景の決め方を順に押し、マスの間から見える色・模様の変わり方を見せる（細かい設定の欄は隠す）
-      for (const v of ["near", "far", "gradient", "image", "pick"]) {
+      // できあがりの見本集（グリッドの見本より書き出しの絵のほうが分かりやすい、と利用者）
+      await k.hold(0.8);
+      for (const v of ["near", "far", "gradient", "image", "none", "pick"]) {
         await k.press(pickRadio("bg-mode-seg", v));
-        await k.until(() => k.page.evaluate(() => !/調べています|作っています/.test(document.querySelector("#bg-msg").textContent || "")), "背景", 30000).catch(() => {});
-        await k.hold(1.1);
+        await bgSettled(k);
+        if (v === "image") await k.until(() => k.page.evaluate(() => /模様を敷きました/.test(document.querySelector("#bg-msg").textContent)), "既定の模様", 15000).catch(() => {});
+        await refresh(k);
+        await k.hold(1.0);
       }
     },
   },
