@@ -385,7 +385,7 @@
   </section>
 
   <section class="win" id="checks-sec">
-    <div class="bar"><h2>変更したら回すもの</h2><span class="count" id="chk-count">0 / 13</span></div>
+    <div class="bar"><h2>変更したら回すもの</h2><span class="count" id="chk-count">0 / 16</span></div>
     <div class="body">
       <ul class="list" id="checks"></ul>
       <p class="savehint" id="chk-hint" style="margin:12px 0 0">作業の消し込み用。チェックはこのページに残る（次に開いても消えない）。</p>
@@ -1024,8 +1024,11 @@
   }
 
   const CHECKS = [
-    { id: "fonts", t: "画面の固定文字を変えた", d: "build_fonts.py → upload_fonts_r2.py → check_i18n.py。サーバーも立て直す（古い断片名を差し込み続ける）" },
-    { id: "render", t: "描画を変えた（render.py / renderShareCanvas）", d: "compare_render.py（ぼかし後 3px で 1% 未満 か 6px で 0.3% 未満）と compare_layout.py 200（PUBLIC_MODE=1）" },
+    { id: "gate", t: "コミット・push の前（自動で回る）", d: "scripts/check.py が止める。コミット前は殻・分割フォント・対訳表・刈り込み・文書の突き合わせ、push 前は R2 の上げ忘れ、push 後は CI（check.yml）がもう一度。落ちたら出た手順を回す。作業の終わりは check.py --all が通ること。わざと通すなら --no-verify と理由" },
+    { id: "fonts", t: "画面の固定文字を変えた", d: "build_fonts.py → upload_fonts_r2.py → build_app.py → upload_app_r2.py。サーバーも立て直す（古い断片名を差し込み続ける）。回し忘れはコミット前に check.py が止める" },
+    { id: "app", t: "frontend/index.html を変えた", d: "build_app.py → upload_app_r2.py → 殻（frontend/dist/index.html）もコミット。殻の古さはコミット前、R2 の上げ忘れは push 前に check.py が止める" },
+    { id: "render", t: "描画を変えた（render.py / renderShareCanvas）", d: "compare_render.py（ぼかし後 3px で 1% 未満 か 6px で 0.3% 未満）と compare_layout.py 200（PUBLIC_MODE=1）。サーバーとブラウザが要るので check.py では回らない" },
+    { id: "trim", t: "曲名の刈り込みを変えた（names.py / trimName）", d: "check_trim.py（コミット前に自動）→ サーバーを立てて compare_trim.py（全件一致が条件。落ちたらブラウザ側を Python に合わせる）" },
     { id: "layout", t: "割り付けの規則を変えた", d: "layout_audit.py --render で 2,950 通り。1 つ直すと別が壊れる" },
     { id: "cells", t: "マスの上限を変えた", d: "4 か所すべて: index.html の MAX_SIDE_CELLS と MAX_CELLS、grids.py の MAX_COLS / MAX_ROWS、config.py の max_cells()" },
     { id: "color", t: "色の名前を足した", d: "5 か所: render.py の TOKENS、CSS 変数、TOKENS_RGB、grids.py の BG_KEYS、cli.py の --bg" },
@@ -1035,7 +1038,7 @@
     { id: "public", t: "ブラウザで確かめる", d: "PUBLIC_MODE=1・ポート 8000（R2 の CORS がこのポートだけ）。付けないと利用者の grids/default.json を上書きする" },
     { id: "updates", t: "利用者に見える変化を入れた", d: "手順は /updates。backend/pages.py の CHANGES に 1 行（同じコミットで）。内部の直しは書かない。最終更新の日付もそろえる" },
     { id: "video", t: "紹介動画を書き出した", d: "譜割りエディタ（plan/main）に場面メモと全体メモを反映し、rev も更新する" },
-    { id: "consist", t: "機能を足した・やめた／文書を書いた", d: "check_consistency.py（手順は /consistency-check）。文書と画面に古い案内が残っていないか。参照先の実在・マスの上限 4 か所・数字の一致・最終更新の日付も見る" },
+    { id: "consist", t: "機能を足した・やめた／文書を書いた", d: "check_consistency.py はコミット前に自動で回る（参照先の実在・マスの上限 4 か所・数字の一致・最終更新の日付）。案内が今も正しいかの判断は /consistency-check で" },
     { id: "proof", t: "まとまった文章を書いた", d: "proofread.py で添削（README などは --doc、外部への英文は --letter）。直しは取捨して理由を残す" }
   ];
 
