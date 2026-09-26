@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { execFileSync } from "node:child_process";
 import { ready, nico, GT, OT, openCellsMore } from "./x_catalog.mjs";
 
 const square = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks.json", "utf-8"));
@@ -53,6 +54,15 @@ async function searchFirst(k, q, list) {
   await k.until(() => k.page.evaluate(() => document.querySelectorAll("#results .result").length >= 3), "候補", 15000);
 }
 
+const OUT = "#output > .pane-title";
+/** 見本を作って待つ（撮る前は時計だけ進めて待つ） */
+async function refreshOut(k, live = true) {
+  const done = () => k.page.evaluate(() => /px/.test(document.querySelector("#out-msg").textContent) && !document.querySelector("#out-shot").hidden && document.querySelector("#output-img").complete);
+  if (live) { await k.press("#out-refresh"); await k.live(done, { min: 0.3, timeout: 30 }); }
+  else { await k.page.$eval("#out-refresh", (el) => el.click()); await k.until(done, "見本", 30000); }
+}
+const OUT_ONLY_CSS = "#output .out-actions > :not(#out-refresh), #output .listed, #output .msg-under, #share-done { display: none !important; }";
+
 export default [
   {
     id: "o-same",
@@ -60,17 +70,19 @@ export default [
     async setup(k) {
       const sq = square();
       await place(k, 3, 3, withHoles(sq, 9, [5, 6, 7, 8]));
-      await k.arrange(FLOW); await k.stage(onlySubs());
+      await k.arrange(FLOW); await k.stage(onlySubs() + " #grid-msg { font-size: 15px !important; }");
       await searchFirst(k, "夜明けのシグナル", [sq[9], sq[0], sq[12]]);
       await k.look([RT, GT, "#results", "#grid", "#grid-msg"]);
       await k.park(640, 500);
     },
     async run(k) {
       await k.hold(0.8);
-      await k.press("#results li:nth-child(2) .result");   // 1 番と同じ曲
+      await k.press("#results li:nth-child(1) .result");   // 1 番と同じ曲（候補の先頭。題がぴったり合うものが先に並ぶ）
+      await k.until(() => k.page.evaluate(() => /同じトラック/.test(document.querySelector("#grid-msg").textContent)), "同じトラックの知らせ", 5000);
       await k.hold(0.3);
-      await k.look([GT, "#grid", "#grid-msg"], 0.5);
-      await k.hold(2.0);
+      // **知らせの文に寄る**（小さくて読めなかった、と利用者）。1 番と 6 番のマスも入れる
+      await k.look(["#grid .cell:nth-child(1)", "#grid .cell:nth-child(6)", "#grid-msg"], 0.6);
+      await k.hold(2.4);
       await k.look([RT, GT, "#results", "#grid", "#grid-msg"], 0.5);
       await k.hold(0.6);
     },
@@ -180,26 +192,32 @@ export default [
   },
   {
     id: "o-trim",
-    what: "「トラック名を短くする」… 【東方Vocal】や「- Topic」のような部分をトラック名から外す。何件か確かめてから直し、あとで戻せる",
+    what: "「トラック名を短くする」… 【東方Vocal】や「- Topic」のような部分をトラック名から外す。書き出しの曲名リストもすっきりする",
     async setup(k) {
       const sq = square().slice(0, 6);
-      const junk = ["【東方Vocal】", " (Official Music Video)", "【MV】", " - Topic", " [Full ver.]", "〈オリジナル〉"];
+      const junk = ["【東方Vocal】", " (Official Music Video)", "【MV】", " - Topic", " [Full ver.]", "【歌ってみた】"];
       const cells = sq.map((t, i) => (i === 3 ? { ...t, artist: `${t.artist} - Topic` } : { ...t, title: i % 2 ? `${t.title}${junk[i]}` : `${junk[i]}${t.title}` }));
       await place(k, 3, 2, cells, { trimNames: false });
-      await k.arrange({ ".pane-grid": { x: 340, y: 16, w: 600, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] } });
-      await k.stage(".grid-actions > :not(.grid-foot) { display: none !important; } #grid-scroll { height: auto !important; }");
-      await k.look([GT, "#grid", "#grid-msg", "#trim-all-btn"]);
+      // 左にグリッドと「短くする」、右にできあがりの見本（書き出しの曲名リストで確かめる、と利用者）
+      await k.arrange({ ".pane-grid": { x: 24, y: 24, w: 440, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] }, "#output": { x: 490, y: 24, w: 766 } });
+      await k.stage(".grid-actions > :not(.grid-foot) { display: none !important; } #grid-scroll { height: auto !important; } " + OUT_ONLY_CSS);
+      await refreshOut(k, false);
+      await k.look([GT, "#grid", "#trim-all-btn", OUT, "#output"]);
       await k.park(640, 650);
     },
     async run(k) {
       await k.hold(1.0);
+      await k.look([OUT, "#out-shot"], 0.5);
+      await k.hold(1.2);
+      await k.look([GT, "#grid", "#trim-all-btn", OUT, "#output"], 0.5);
       await k.press("#trim-all-btn");
       await k.until(() => k.page.evaluate(() => !document.querySelector("#confirm-modal").hidden), "確認の窓", 5000);
-      await k.look(["#confirm-modal .modal-panel"], 0.5);
-      await k.hold(1.2);
+      await k.hold(1.0);
       await k.press("#confirm-yes");
-      await k.look([GT, "#grid", "#grid-msg", "#trim-all-btn"], 0.5);
-      await k.hold(2.0);
+      await k.hold(0.4);
+      await refreshOut(k);
+      await k.look([OUT, "#out-shot"], 0.5);
+      await k.hold(1.8);
     },
   },
   {
@@ -278,25 +296,29 @@ export default [
   },
   {
     id: "o-layouts",
-    what: "「並び」は 10 個まで持てる。「新しい並び」で空の並びを作り、メニューで切り替える",
+    what: "「並び」は 10 個まで持てる。「新しい並び」で別の並びを作り、メニューで切り替える",
     async setup(k) {
       await place(k, 3, 3, square().slice(0, 9), { title: "私を構成する9曲" });
       await k.arrange({ ".pane-grid": { x: 330, y: 16, w: 620, only: [".layouts", "#grid-scroll", "#grid-msg"] } });
+      await k.stage("#grid-scroll { height: auto !important; }");
       await k.look([GT, ".layouts", "#grid"]);
       await k.park(900, 300);
     },
     async run(k) {
       await k.hold(0.8);
       await k.press("#layout-new");
-      await k.hold(0.8);
-      await k.glide("#title", 0.3).catch(() => {});
-      await k.page.evaluate(() => { const t = document.querySelector("#title"); t.value = "雨の日に聴く曲"; t.dispatchEvent(new Event("input", { bubbles: true })); });
-      await k.hold(0.8);
+      await k.hold(0.6);
+      // 2 つ目の並びにも曲を入れる（空のままだと比べにくい、と利用者）。入れる操作はほかの動画で見せているので一度に入れる
+      const sq = square();
+      await k.page.evaluate((cells) => { window.__setGridUI(3, 3, { title: "雨の日に聴く曲", bg: "cerulean" }, cells); document.querySelector("#title").value = "雨の日に聴く曲"; document.querySelector("#title").dispatchEvent(new Event("input", { bubbles: true })); }, sq.slice(9, 18));
+      await k.waitArt();
+      await k.hold(1.2);
       await popPick(k, "layout-sel", "私を構成する9曲");
       await k.waitArt();
       await k.hold(1.2);
       await popPick(k, "layout-sel", "雨の日に聴く曲");
-      await k.hold(0.8);
+      await k.waitArt();
+      await k.hold(1.2);
       await k.press("#layout-del");
       await k.until(() => k.page.evaluate(() => !document.querySelector("#confirm-modal").hidden), "確認の窓", 5000);
       await k.hold(0.6);
@@ -307,9 +329,9 @@ export default [
   },
   {
     id: "o-zoom",
-    what: "「大きく見る」でグリッドを画面いっぱいに。細長い並びは横に送って見られ、窓の中でマスを選んで直せる",
+    what: "「大きく見る」でグリッドを画面いっぱいに。窓の中で送って見て、2 本指（Ctrl＋ホイール）でマスの大きさも変えられる",
     async setup(k) {
-      await place(k, 12, 1, square().slice(0, 12), { title: "今月かなり聴いた曲" });
+      await place(k, 8, 8, Array.from({ length: 64 }, (_, i) => square()[i % 24]), { title: "今月かなり聴いた曲" });
       k.wide(0);
       await k.park(900, 400);
     },
@@ -317,13 +339,18 @@ export default [
       await k.hold(0.6);
       await k.press("#zoom-btn");
       await k.until(() => k.page.evaluate(() => !document.querySelector("#zoom-modal").hidden), "大きく見る", 5000);
+      await k.hold(0.6);
+      await k.glide("#zoom-slot", 0.4);
+      const [x, y] = [640, 400];
+      for (let i = 0; i < 10; i++) { await k.ctrlWheel(x, y, -60); await k.hold(0.08); }   // 拡大
+      await k.hold(0.6);
+      const sc = () => k.page.evaluate(() => { const el = [...document.querySelectorAll("#zoom-modal *")].find((e) => e.scrollHeight > e.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(e).overflowY)); if (el) el.scrollBy({ top: 70 }); });
+      for (let i = 0; i < 8; i++) { await sc(); await k.hold(0.1); }   // 送って見る
+      await k.hold(0.6);
+      for (let i = 0; i < 10; i++) { await k.ctrlWheel(x, y, 60); await k.hold(0.08); }   // 縮小
       await k.hold(0.8);
-      for (let i = 0; i < 6; i++) { await k.page.evaluate(() => document.querySelector("#zoom-slot .grid-scroll, #zoom-slot").scrollBy({ left: 120 })); await k.hold(0.12); }
-      await k.hold(0.5);
-      await k.press("#zoom-slot .cell:nth-child(7)");
-      await k.hold(1.4);
       await k.press("#zoom-modal-close");
-      await k.hold(0.8);
+      await k.hold(0.6);
     },
   },
   {
@@ -374,19 +401,19 @@ export default [
     what: "出力オプションは「マス」「文字」「背景と余白」のまとまりに分かれ、枠の形は「枠とサムネ」の三角で開け閉めできる",
     async setup(k) {
       await ready(k, 9, [3, 3], {}, square().slice(0, 9));
-      await k.arrange({ ".pane-options": { x: 440, y: 16, w: 400 } });
-      await k.look([OT, ".pane-options .gbox:nth-of-type(1)"]);
-      await k.park(900, 400);
+      k.wide(0);   // 最初は引きの絵（画面ぜんぶ）から（利用者の指摘）
+      await k.park(1100, 300);
     },
     async run(k) {
-      await k.hold(0.8);
+      await k.hold(1.0);
+      await k.look([OT, ".pane-options .opts"], 0.8);   // 出力オプションの窓へ寄る
+      await k.hold(1.0);
+      await k.look([OT, ".pane-options .gbox:nth-of-type(1)"], 0.6);
       await k.press("#cells-more-btn");
       await k.hold(1.4);
       await k.press("#cells-more-btn");
       await k.hold(0.6);
-      await k.look([OT, ".pane-options .opts"], 0.6);
-      await k.hold(1.2);
-      await k.look([OT, ".pane-options .gbox:nth-of-type(1)"], 0.6);
+      k.wide(0.8);
       await k.hold(0.6);
     },
   },
@@ -395,8 +422,8 @@ export default [
     what: "「並びを保存」でファイルに書き出し、「並びを読み込み…」で同じ並びに戻せる（共有は 30 日で消えるので、長く残したいとき）",
     async setup(k) {
       await place(k, 3, 3, square().slice(0, 9));
-      await k.arrange(GRID_ONLY);
-      await k.stage(".grid-actions > :not(.minor) { display: none !important; } #color-sort { display: none !important; }");
+      await k.arrange({ ".pane-grid": { x: 400, y: 16, w: 480, only: ["#grid-scroll", "#grid-msg", ".grid-actions"] } });
+      await k.stage(".grid-actions > :not(.minor) { display: none !important; } #color-sort { display: none !important; } #grid-scroll { height: auto !important; }");
       await k.look([GT, "#grid", "#grid-msg", ".grid-actions"]);
       await k.park(640, 650);
     },
@@ -406,8 +433,8 @@ export default [
       await k.press("#json-export");
       const file = path.join(os.tmpdir(), `x-json-${Date.now()}.json`);
       await (await dl).saveAs(file);
-      await k.hold(0.8);
-      // 並びを崩す（全部外す。確認の窓は撮らない）
+      await k.hold(1.0);
+      // 並びを崩す（トラックを全部外す。確認の窓は撮らない）
       await k.page.evaluate(() => { window.__setGridUI(3, 3, {}, Array(9).fill(null)); });
       await k.hold(1.0);
       const fc = k.page.waitForEvent("filechooser");
@@ -422,7 +449,7 @@ export default [
     id: "o-keys",
     what: "キーボードでも操作できる … Tab でグリッドへ、矢印でマスを移り、Return で選ぶ、Esc でやめる",
     async setup(k) {
-      await place(k, 3, 3, square().slice(0, 9));
+      await place(k, 3, 3, square().slice(0, 9), { bg: "paper" });   // 背景は選んだ枠（マスタード）と違う色に（同化して見づらい、と利用者）
       await k.arrange(GRID_ONLY);
       await k.look([GT, "#grid", "#grid-msg"]);
       await k.hideCursor();
@@ -442,7 +469,7 @@ export default [
   },
   {
     id: "o-lang-us",
-    what: "英語表示で探すと、iTunes の米国の表記でトラック名とアーティスト名が出る",
+    what: "右上の「EN」で英語表示に。英語表示で探すと、iTunes の米国の表記でトラック名とアーティスト名が出る",
     async setup(k) {
       const sq = square();
       const jp = [sq[0], sq[2], sq[6]].map((t, i) => ({ ...t, source: "itunes", external_url: `https://music.apple.com/jp/album/x?i=90000${i}` }));
@@ -453,38 +480,54 @@ export default [
         route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: ids.filter((i) => en[i]).map((i) => ({ wrapperType: "track", trackId: +i, trackName: en[i][0], artistName: en[i][1], collectionName: null })) }) });
       });
       await place(k, 3, 3, Array(9).fill(null));
-      await k.arrange(FLOW); await k.stage(onlySubs());
-      await k.look([ST, "#search-form", RT, "#results"]);
-      await k.park(640, 400);
+      k.wide(0);   // 画面ぜんぶ（「EN」を押して、画面ごと英語に替わるところを見せる。利用者の指摘）
+      await k.park(900, 300);
     },
     async run(k) {
-      await k.hold(0.6);
-      await k.page.$eval("#lang-switch", (el) => el.click());   // 英語に（ボタンは並べ直した窓の外なので、押した所は映さない）
       await k.hold(0.8);
+      await k.press("#lang-switch");
+      await k.hold(1.4);
+      await k.look([".pane-search > .pane-title", "#search-form", ".pane-results > .pane-title", "#results"], 0.7);
       await k.glide("#q", 0.3);
       await k.type("#q", "夜明け", 0.08);
       await k.press("#search-btn");
       await k.until(() => k.page.evaluate(() => /Dawn Signal/.test(document.querySelector("#results").textContent)), "英語の候補", 15000);
-      await k.hold(2.0);
+      await k.hold(1.8);
+      k.wide(0.6);
+      await k.press("#lang-switch");   // 日本語に戻して終わる
+      await k.hold(0.8);
     },
   },
   {
     id: "o-sub",
-    what: "検索の窓の補助の欄（URL から・一覧から・手入力）は 1 つ開くとほかが閉じる。ソースの「?」で説明が出る",
+    what: "検索のほかに 3 つの入れ方がある … 「URL から」「トラック名の一覧から」「手入力」。見出しを押すと切り替わる",
     async setup(k) {
       await place(k, 3, 3, square().slice(0, 9));
       await k.arrange({ ".pane-search": { x: 400, y: 16, w: 480 } });
+      await k.stage("#search-form { display: none !important; }");   // 検索の欄は隠す（3 つの入れ方に絞る）
       await k.look([ST, ".pane-search"]);
       await k.park(900, 400);
     },
     async run(k) {
+      // それぞれ開いて、何を入れる欄かが分かるように少し打つ（何をしているか分からない、と利用者）
+      await k.hold(0.6);
+      await k.look([ST, "#sub-bandcamp"], 0.5);
+      await k.glide("#bc-url", 0.3); await k.type("#bc-url", "https://www.nicovideo.jp/watch/sm45012345", 0.025);
       await k.hold(0.8);
-      for (const sel of ["#sub-list", "#sub-manual", "#sub-bandcamp"]) { await k.press(`${sel} > .sub-title`); await k.hold(0.9); }
-      await k.press("#src-hint-btn");
-      await k.until(() => k.page.evaluate(() => !document.querySelector("#src-modal").hidden), "ソースについて", 5000);
-      await k.hold(1.6);
-      await k.press("#src-modal-close");
+      await k.press("#sub-list > .sub-title");
+      await k.look([ST, "#sub-list"], 0.5);
+      await k.glide('#list-rows input[data-row="0"][data-key="artist"]', 0.3);
+      await k.type('#list-rows input[data-row="0"][data-key="artist"]', "ミナトリ", 0.06);
+      await k.page.focus('#list-rows input[data-row="0"][data-key="title"]');
+      await k.type('#list-rows input[data-row="0"][data-key="title"]', "夜明けのシグナル", 0.06);
       await k.hold(0.8);
+      await k.press("#sub-manual > .sub-title");
+      await k.look([ST, "#sub-manual"], 0.5);
+      await k.glide("#m-title", 0.3); await k.type("#m-title", "文化祭で弾いた曲", 0.06);
+      await k.hold(1.0);
+      await k.press("#sub-bandcamp > .sub-title");
+      await k.look([ST, ".pane-search"], 0.5);
+      await k.hold(0.6);
     },
   },
   {
@@ -541,19 +584,32 @@ export default [
   },
   {
     id: "o-share-open",
-    what: "共有 URL から開くと、その並びが新しい並びとして入る（今の並びはそのまま残り、「並び」のメニューで戻れる）",
+    what: "共有ページの「TRACKMENTO で開く」を押すと、その並びが新しい並びとして入る（今の並びはそのまま残り、「並び」のメニューで戻れる）",
     async setup(k) {
       const sq = square();
-      const doc = { title: "雨の日に聴く曲", cols: 3, rows: 2, cells: sq.slice(10, 16), stash: [],
+      const doc = { id: "fa4e0ab1c2d3", title: "雨の日に聴く曲", cols: 3, rows: 2, cells: sq.slice(10, 16), stash: [], createdAt: "2026-09-26T10:00:00Z",
         options: { ratio: "16:9", bg: "cerulean", showTitle: true, sidebar: true, numbers: true, gap: 16, margin: 16 } };
+      // 架空の共有ページと共有画像（promo/fake_share_page.py。本番の R2 には何も置かない）
+      const dir = path.join(os.tmpdir(), "x-share-open"), docFile = path.join(dir, "doc.json");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(docFile, JSON.stringify(doc));
+      const imgUrl = execFileSync(".venv/Scripts/python", ["promo/fake_share_page.py", docFile, dir], { env: { ...process.env, PYTHONUTF8: "1", PUBLIC_MODE: "1" }, encoding: "utf-8" }).trim();
+      await k.page.route((u) => u.href === imgUrl, (route) => route.fulfill({ status: 200, contentType: "image/jpeg", body: fs.readFileSync(path.join(dir, "image.jpg")) }));
+      await k.page.route(/\/s\/fa4e0ab1c2d3$/, (route) => route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fs.readFileSync(path.join(dir, "page.html"), "utf-8") }));
       await k.page.route(/\/shares\/fa4e0ab1c2d3\.json/, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(doc) }));
       await place(k, 3, 3, sq.slice(0, 9));
-      await k.hold(0.5);
-      await k.page.evaluate(() => { try { localStorage.setItem("trackmento:x-dummy", "1"); } catch {} });
+      // 共有ページを開いておく（撮り始めはここから）
+      await k.page.goto("http://127.0.0.1:8000/s/fa4e0ab1c2d3", { waitUntil: "domcontentloaded" });
+      await k.until(() => k.page.evaluate(() => [...document.images].every((i) => i.complete && i.naturalWidth)), "共有ページ", 15000);
+      await k.look(["header", "main h1, main img"], 0);
+      await k.park(900, 600);
     },
     async run(k) {
-      // 共有 URL を開く（手元のサーバーで。共有の中身は差し替え）
-      await k.page.goto("http://127.0.0.1:8000/?share=fa4e0ab1c2d3", { waitUntil: "domcontentloaded" });
+      await k.hold(1.6);
+      await k.look(["main img", ".btns"], 0.6);
+      await k.hold(0.6);
+      await k.press('.btns a[href*="?share="]');
+      await k.page.waitForURL(/127\.0\.0\.1:8000\/(\?|$)/, { timeout: 20000 });
       for (let i = 0; i < 200 && !(await k.page.evaluate(() => !!window.__setGridUI)); i++) { await k.page.clock.runFor(50); await new Promise((r) => setTimeout(r, 50)); }
       await k.page.addStyleTag({ content: '#sources label:has(input[value="discogs"]) { display: none !important; }' });
       await k.arrange({ ".pane-grid": { x: 330, y: 16, w: 620, only: [".layouts", "#grid-scroll", "#grid-msg"] } });
@@ -562,7 +618,7 @@ export default [
       await k.waitArt();
       await k.look([GT, ".layouts", "#grid", "#grid-msg"], 0);
       await k.park(900, 300);
-      await k.hold(1.6);
+      await k.hold(1.8);
       await popPick(k, "layout-sel", "私を構成する9曲");
       await k.waitArt();
       await k.hold(1.4);
