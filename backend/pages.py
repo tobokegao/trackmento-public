@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-26", "「ぼかし背景」にしたマスで、サムネイルが真ん中でなく下に寄って見えていたのを直しました（書き出しの画像は前から正しく出ていました）。",
+     "Fixed thumbnails in “Blurred backdrop” tiles sitting low instead of centered on screen (exported images were already correct)."),
     ("2026-09-26", "共有したあとのボタンに小さなアイコンを添え、「URL をコピー」「SNS に共有」「共有ページを開く」と「画像を保存」を線で区切って分けました。",
      "The buttons after sharing now have small icons, and “Copy URL”, “Share on social” and “Open share page” are separated from “Save image” by a line."),
     ("2026-09-26", "スマホで、共有したあとの「URL をコピー」「SNS に共有」「共有ページを開く」「画像を保存」を 2 列にそろえて並べるようにしました。",
