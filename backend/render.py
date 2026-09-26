@@ -701,7 +701,7 @@ INLINE_GAP_EM = 1.0       # 曲名とアーティスト名のあいだの最低�
 TABLE_FONT = 0.5          # 1 行の高さに対する字の大きさ
 TABLE_MAX_COLS = 3
 TABLE_RULE = 0.86         # 行の間の線の色（文字の色を地の色へこれだけ寄せる）
-LIST_VEIL = 0.8           # 背景が画像・グラデーションのとき、曲名リストの後ろに敷く地の濃さ（背景色をこの割合で重ねる）。
+LIST_VEIL = 0.8           # 背景がグラデーションのとき、曲名リストの後ろに敷く地の濃さ（背景色をこの割合で重ねる）。画像のときは敷かない（利用者の判断）。
                           # 模様の上に字が直に乗って読みづらかった（2026-09-26、利用者の指摘）。frontend の LIST_VEIL と同じ
 TABLE_LH_CAP = 2.5        # 表の 1 行の高さの上限（字の大きさに対する倍率。ふつうは 1 / TABLE_FONT = 2.0）。
                           # 行の高さは「リストの高さ ÷ 1 列の曲数」で決まるので、曲が少ないと字は幅で止まったまま行だけ広がり、
@@ -2399,7 +2399,7 @@ def render(doc: GridDoc) -> Image.Image:
     if L.side != "none":
         sx = L.ox + L.gw + L.sb_gap if L.side == "right" else L.ox
         sy = (y0 if L.side == "right" else y0 + L.gh + L.sb_gap) + L.sb_top
-        if (o.bgMode == "image" and o.bgImage) or (o.bgMode == "gradient" and o.bgGrad and o.bgGrad.image):
+        if o.bgMode == "gradient" and o.bgGrad and o.bgGrad.image:   # 画像のときは敷かない（2026-09-26、利用者の判断）
             # **曲名リストの後ろに地を敷く**（`LIST_VEIL`）。範囲はリストの枠をマスとの間隔の半分だけ広げたもの（マスには掛からない）。
             # 右ならタイトルも含めてマスの塊と同じ高さ、下ならリストの高さ
             vp = L.sb_gap / 2

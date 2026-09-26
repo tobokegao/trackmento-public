@@ -8405,8 +8405,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (L.side !== "none") {
       const sx = L.side === "right" ? L.ox + L.gw + L.sbGap : L.ox;
       let sy = (L.side === "right" ? y0 : y0 + L.gh + L.sbGap) + (L.sbTop || 0);
-      // 曲名リストの後ろに地を敷く（背景が画像・グラデーションのとき。backend/render.py の LIST_VEIL と同じ範囲・濃さ）
-      if ((state.bgMode === "image" && state.bgImage) || (state.bgMode === "gradient" && state.bgGrad?.image)) {
+      // 曲名リストの後ろに地を敷く（背景がグラデーションのとき。backend/render.py の LIST_VEIL と同じ範囲・濃さ）
+      if (state.bgMode === "gradient" && state.bgGrad?.image) {   // 画像のときは敷かない（backend/render.py と同じ。2026-09-26、利用者の判断）
         const vp = L.sbGap / 2;
         let box = L.side === "right" ? [sc(sx - vp), sc(y0 - vp), sc(sx + L.sbW + vp), sc(y0 + L.gh + vp)]
           : [sc(L.ox - vp), sc(y0 + L.gh + vp), sc(L.ox + L.sbW + vp), sc(y0 + L.gh + L.sbGap + L.sbH + vp)];
