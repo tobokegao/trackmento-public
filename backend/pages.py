@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-26", "「サーバー代のおねがい」の欄と共有したあとの欄を、作者からのひとことにしました。アルバムは値段を自由に決めて買えます。",
+     "The “A word about server bills” box and the box shown after you share are now a short note from me, the maker. You can choose your own price for the album."),
     ("2026-09-26", "音楽を買わなくてもサーバー代を支援できるように、「サーバー代のおねがい」の欄と共有したあとの欄に PayPal へのリンクを置きました。",
      "You can now support the server bills without buying music: a PayPal link is in the “A word about server bills” box and in the box shown after you share."),
     ("2026-09-26", "「サーバー代のおねがい」の欄と、トラックを共有したあとの欄に、その月のサーバー代のうち、支援でまかなえた分を棒で出すようにしました。",

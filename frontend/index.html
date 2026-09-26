@@ -1380,6 +1380,9 @@ output { font-variant-numeric: tabular-nums; }
 .share-own { display: flex; flex-wrap: wrap; gap: var(--space-2); } .share-own .btn[hidden] { display: none; }   /* .btn の display が hidden 属性に勝つので打ち消す */
 .support { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: var(--line) solid var(--color-rule); font-size: var(--text-sm); color: var(--color-ink-2); }
 .support .album { font-family: var(--font-display); color: var(--color-ink); }
+/* 作者の顔（ボタンの絵 88×31 の左の四角 27×27（2〜28 ドット目）を 2 倍で切り抜く）と一人称の一言 */
+.maker { display: flex; align-items: center; gap: var(--space-2); }
+.maker-face { flex: none; width: 54px; height: 54px; background-size: 176px 62px; background-position: -4px -4px; image-rendering: pixelated; }
 /* 広告枠。いまは中身が自分の音楽（つなぎ）で、AdSense の審査が通ったら中身とラベルを差し替える */
 /* body が flex なので、幅を絞るだけだと左に寄る。align-self で中央に置く */
 /* 見た目は「本体から切り離した、隅の小箱」（2026-09-25）。灰色の平らな見出しの帯に、左は題名、右は小さな札。
@@ -1699,7 +1702,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
         <div class="support">
           <!-- お礼を言う瞬間に、サーバー代の棒と一緒に出す（2026-09-26、利用者の希望。以前は「バズっちゃった…😭」の文） -->
-          <span>共有できました。使ってくださってありがとうございます！サーバー代は、作者の音楽を買っていただいたお金でまかなっています。</span>
+          <span>共有できました。使ってくださってありがとうございます！</span>
+          <!-- 作者の顔と一人称で頼む（2026-09-26、利用者の希望。本人が語りかける形が効くという Wikipedia の記録）。顔は「サーバー代のおねがい」の
+               ボタンの絵の左の四角を切り抜いて使う（paintFund が同じ data: URI を背景に入れる。絵を 2 回埋めない） -->
+          <div class="maker"><span class="maker-face" aria-hidden="true"></span><span>作っている Tobokegao です。サーバー代は、私の音楽を買っていただいたお金でまかなっています。値段は自由なので、100 円からでもうれしいです。</span></div>
           <div class="fund" hidden><div class="fund-head"><span class="fund-lbl"></span><span class="fund-pct"></span></div><div class="up-bar fund-bar"><div class="up-fill"></div></div><span class="fund-note"></span></div>
           <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a></span>
           <span>音楽を買わずに支援する: <a href="https://www.paypal.com/paypalme/tbkgao" target="_blank" rel="noopener noreferrer">PayPal</a></span>
@@ -2048,12 +2054,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 <aside class="promo" aria-label="サーバー代のおねがい">
   <div class="promo-head"><span class="lbl">サーバー代のおねがい</span><span class="promo-tag">PR</span></div>
   <div class="promo-body">
-  <p>無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。</p>
+  <p>作っている Tobokegao です。無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！私の音楽を聴いてもらえると助かります。</p>
   <div class="fund" hidden><div class="fund-head"><span class="fund-lbl"></span><span class="fund-pct"></span></div><div class="up-bar fund-bar"><div class="up-fill"></div></div><span class="fund-note"></span></div>
   <div class="promo-row">
   <a class="promo-btn" href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-button" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAAAfCAIAAADsqp23AAADR0lEQVR4nO1YPWjbUBB+CVkcUCjKoIAzZeok8BZs5CkloUOLQVBKIRQydXemZPDQTvXcIbSTcCEgCGQQCDwl2KSTwFOmTC4tlJoSjNTFtNQPH+d3px+HlkaJP4J5utzde/fp3vP7vKAbRTGHEEI3ir/uN969/6gbxSXZDatr63+3LXpBkK8+W/oXSzdLJZE3LP7vBdwWzIkgW2Omns/dEXBzIkxunw/qrt60lf+mkkLpkxblUUlFfeQYD9i0CROxliQizFIJah7UXYULGOtNe1B341IDLjqdzUrlotOB5HIMJUmfKIpwkdRHCFG2LMgjo/Ca8SObJC4tT4Q5YWFQdxvProW4bhyvsBVismhqwPLyMnxiC8bW9jYbhVG2LN/zsF1Gdc/PIaRsWdiSJW3KYTkYv/nG8UocC9htVoRjYEvLcT4cHRUKhQQf3/Nqto2NLcdpOY4cFwqFMAxbjjMajcDhxHVP3KkV0rR8R5hkU8jWSK0tuSkwekFAd9PTWg1bWB9N09q+j2fBUZ+6XRpiGEbq1DwRACj+Zu9cgTJx8mOyDx1kD0k4yxZpOwhyItIwvWlTOxyceQTTETrZC1Az7BrsCScrO8Gp1xa3FU8ebzFEmJN2wMBl968u1zceyk/WgW2KV3vPxW3F5y/fMt0s9abdv7oUQkDl8pGSAgzS/YIny436NCcvE9eD33+cEfyVO1+OMHVY9oJA/uGXj/HjrEqN0hMCcwr+QtULAuh8zMiD6hnmCHxyTUEm9dkf10xPCrZf7iYRvUlTgIUt/m60Q0pH9MZcwCPeEdgndY6ZVHay0M6irLOnykqEmP4WUL4pZmqELCq7bFmgGuMCQYaDc0IqqUSVVOws6USYYwqUC6W8NaT+DIFB5TC1+J5HV6mo5uFwKC1YU8al8j2vUq0qbr7nsStMIsJEd016jwY6snDRcpyfUfRybw8sspJHOztg0TRNFoADwzCMogjkudTaQogXu7tt309IdeK6mqbhVNJNMWYiAiOjGI+DorKpQMYF4JI2KxUcmEVrxxlZN8CCbhS/f+2vrq0rL5aVHiz0pk1jc/RVcuq1Dw/2p0SXmAYrwFnk8U7NdMTrN2/F/cbhwf4fIsQcQvwG381boswLtxoAAAAASUVORK5CYII=" alt="Tobokegao（Bandcamp）" width="88" height="31"></a>
   <div class="promo-text">
   <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-promo" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a>（Bandcamp）</span>
+  <span class="elsewhere">値段は自由です。100 円からでもうれしいです。</span>   <!-- 小さい額を先に見せる（2026-09-26）。アルバムは最低 0 円の「name your price」 -->
   <span class="elsewhere">音楽を買わずに支援する: <a href="https://www.paypal.com/paypalme/tbkgao" target="_blank" rel="noopener noreferrer">PayPal</a></span>   <!-- 2026-09-26、利用者のビジネスアカウント（表示名は TBKgao、本名は出ない） -->
   <span class="elsewhere">ほかで聴く:
     <a href="https://soundcloud.com/tobokegao" target="_blank" rel="noopener noreferrer">SoundCloud</a> /
@@ -2347,12 +2354,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "SNS に共有": "Share on social",
         "共有ページを開く": "Open share page",
         "画像を保存": "Save image",
-        "共有できました。使ってくださってありがとうございます！サーバー代は、作者の音楽を買っていただいたお金でまかなっています。": "Shared! Thanks for using TRACKMENTO. The server bills are paid for by people buying my music.",
+        "共有できました。使ってくださってありがとうございます！": "Shared! Thanks for using TRACKMENTO.",
+        "作っている Tobokegao です。サーバー代は、私の音楽を買っていただいたお金でまかなっています。値段は自由なので、100 円からでもうれしいです。": "Hi, I’m Tobokegao, and I make this tool. The server bills are paid for by people buying my music. You choose the price, and even ¥100 means a lot.",
+        "値段は自由です。100 円からでもうれしいです。": "You choose the price. Even ¥100 means a lot.",
         "{} 月のサーバー代": "{0} server bills",
         "約 {} 円のうち {} 円を、{} 人の方の支援でまかなえました。ありがとうございます！あと約 {} 円です。": "¥{1} of about ¥{0} covered by {2} supporters. Thank you! About ¥{3} to go.",
         "{} 円の支援で、この月のサーバー代（約 {} 円）をまかなえました。ありがとうございます！": "Supporters covered this month's server bills (about ¥{1}) with ¥{0}. Thank you!",
         "約 {} 円のうち、支援でまかなえた分はまだありません。": "None of the roughly ¥{0} is covered by support yet.",
-        "無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！作者の音楽を聴いてもらえると助かります。": "This tool is free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
+        "作っている Tobokegao です。無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！私の音楽を聴いてもらえると助かります。": "Hi, I’m Tobokegao, and I make this tool. It’s free to use, but the response has been bigger than expected and the server bills are adding up. Listening to my music would really help.",
         "Tobokegao「おかねがたりないときのうた」": "Tobokegao \"Okane ga Tarinai Toki no Uta\"",
         "出力オプション": "Output options",
         "横": "Cols",
@@ -2781,6 +2790,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* **サーバー代の進み具合の棒**（2026-09-26）。数字は backend/support.py が <meta name="trackmento-support"> に
      「月,サーバー代,支援の額,人数」で入れる。置き換わっていない（__SUPPORT__ のまま）・壊れているときは棒ごと出さない */
   function paintFund() {
+    const face = document.querySelector(".promo-btn img");
+    if (face) for (const el of document.querySelectorAll(".maker-face")) el.style.backgroundImage = `url("${face.src}")`;
     const [ym = "", cost, got, n] = ((document.querySelector('meta[name="trackmento-support"]') || {}).content || "").split(",").map((v, i) => i ? +v : v);
     if (!/^\d{4}-\d{2}$/.test(ym) || !(cost > 0) || !(got >= 0)) return;
     const mo = +ym.slice(5);
