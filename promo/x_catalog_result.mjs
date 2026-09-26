@@ -105,19 +105,16 @@ export default [
       await k.park(1000, 600);
     },
     async run(k) {
+      // カメラは動かしすぎない（無駄なスクロールが多い、と利用者）。構図は 2 つだけ: グリッドとできあがり → 開いた窓
       await k.hold(0.8);
       await refresh(k);
       await k.hold(1.0);
-      await k.look([OUT, "#out-shot"], 0.5);   // 押す見本に寄ってから押す
       await k.press("#out-shot");
       await k.until(() => k.page.evaluate(() => !document.querySelector("#preview-modal").hidden && document.querySelector("#preview-img").complete), "大きく見る", 10000);
-      // **窓の題名「できあがりの見本」が読めるように寄る**（何の窓か分かりにくい、と利用者）
-      await k.look(["#preview-modal .sheet-head"], 0.5);
-      await k.hold(0.9);
-      await k.look(["#preview-modal .modal-panel"], 0.6);
-      await k.hold(1.6);
+      await k.look(["#preview-modal .modal-panel"], 0.6);   // 窓の題名「できあがりの見本」も入る
+      await k.hold(2.2);
       await k.press("#preview-modal-close");
-      await k.look([GT, "#grid", OUT, "#output"], 0.5);
+      await k.look([GT, "#grid", OUT, "#output"], 0.6);
       await k.hold(1.0);
     },
   },
@@ -177,7 +174,7 @@ export default [
       // **横長 16:9 のマスに正方形のサムネイル**（利用者の案）。「トリミング」だと上下が切れ、「ぼかし背景」だと左右にぼかしが入る
       await ready(k, 9, [3, 3], { cellRatio: "16:9", cellFit: "crop" }, square().slice(0, 9));
       await k.arrange({ ".pane-grid": { x: 40, y: 30, w: 600, only: ["#grid-scroll", "#grid-msg"] }, ".pane-search": { x: 680, y: 30, w: 560 } });
-      await k.stage(".pane-search > :not(.pane-title):not(#editor) { display: none !important; }");
+      await k.stage(".pane-search > :not(.pane-title):not(#editor) { display: none !important; } #grid-scroll { height: auto !important; }");
       await k.look([GT, "#grid"]);
       await k.park(900, 600);
     },
