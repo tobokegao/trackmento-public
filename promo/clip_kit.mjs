@@ -141,6 +141,24 @@ export function makeKit(page, tracks) {
     await page.locator(sel).first().click();
     for (const ch of text) { await page.keyboard.insertText(ch); await hold(perChar); }
   }
+  /** 掴んで運ぶ（マスのドラッグ・窓の題名バーなど）。from は掴む要素、to は運ぶ先の要素か {dx, dy}。
+      Chromium ではマウスを少しずつ動かすと HTML5 のドラッグも起きる（2026-09-26） */
+  async function drag(from, to, sec = 0.8, grab = null) {
+    const a = grab ? await (async () => { const b = await page.locator(from).first().boundingBox(); return { x: b.x + b.width * grab[0], y: b.y + b.height * grab[1] }; })() : await centerOf(from);
+    const b = typeof to === "string" ? await centerOf(to) : { x: a.x + to.dx, y: a.y + to.dy };
+    ev("cursor", { x: a.x, y: a.y, dur: nFrames(0.35) }); await hold(0.35);
+    await page.mouse.move(a.x, a.y);
+    ev("down", { x: a.x, y: a.y, ring: false });
+    await page.mouse.down(); await frame();
+    const n = nFrames(sec);
+    for (let i = 1; i <= n; i++) {
+      const t = i / n, e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e;
+      ev("cursor", { x, y, dur: 1 });
+      await page.mouse.move(x, y); await frame();
+    }
+    await page.mouse.up(); await frame();
+  }
   /** つまみを掴んで動かす（つまみの位置は画面側の thumbOnly と同じ式。幅 19px） */
   async function dragThumb(sel, dx, sec = 0.5) {
     const c = await page.evaluate((sel) => {
@@ -170,7 +188,7 @@ export function makeKit(page, tracks) {
       only のセレクタに当たるものだけ残す（背景色の欄だけ見せる、など）。窓は並びの流れから外して画面に固定する
       （サイトの「窓を動かす」とは別。撮影のときだけ）。見本の窓などのモーダルはそのまま前に出る */
   async function arrange(layout) {
-    const lines = ["body * { visibility: hidden !important; } .modal, .modal * { visibility: visible !important; }"];
+    const lines = ["body * { visibility: hidden !important; } .modal, .modal *, .popmenu, .popmenu * { visibility: visible !important; }"];   // ポップアップメニュー（#popmenu）も前に出す（2026-09-26。隠れたままだと項目を押せなかった）
     const others = Object.keys(layout).join("):not(");
     for (const [sel, o] of Object.entries(layout)) {
       lines.push(`${sel}, ${sel} * { visibility: visible !important; }`);
@@ -250,6 +268,6 @@ export function makeKit(page, tracks) {
     return frames;
   }
 
-  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, key, type, dragThumb,
+  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, key, type, drag, dragThumb,
            ctrlWheel, arrange, stage, scrollTo, seed, mock, waitArt, start, finish };
 }
