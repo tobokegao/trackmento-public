@@ -284,23 +284,18 @@ img { max-width: 100%; display: block; }
 .help-btn { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 5px 10px;
   border: var(--line) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); cursor: pointer; }
 .help-btn:hover, .help-btn[aria-pressed="true"] { background: var(--color-ink); color: var(--color-paper); }
-.balloon { position: fixed; z-index: 90; left: 0; top: 0; max-width: min(20rem, calc(100vw - 16px));
+/* 枠としっぽは JS が SVG の 1 本の輪郭で描く（.balloon-frame）。Inside Macintosh（More Macintosh Toolbox の Help Manager、
+   図 3-4「Standard balloon positions」）の形に合わせ、**しっぽは吹き出しの角から斜めに出る細い楔**にする（2026-09-27、利用者の指摘。
+   最初は辺の真ん中に CSS の三角を 2 枚重ねていて、付け根で枠線が途切れて見えた）。角は四角のまま（サイトの決まり） */
+.balloon { position: fixed; z-index: 90; left: 0; top: 0; max-width: min(20rem, calc(100vw - 16px)); isolation: isolate;
   display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3);
-  font-family: var(--font-body); font-size: var(--text-sm); line-height: 1.6; color: var(--color-ink);
-  background: var(--color-paper); border: var(--line) solid var(--color-ink); box-shadow: var(--shadow-sm); }
+  font-family: var(--font-body); font-size: var(--text-sm); line-height: 1.6; color: var(--color-ink); }
 .balloon[hidden] { display: none; }
 .balloon p { margin: 0; }
 .balloon a { justify-self: start; color: var(--color-ink); }
-/* しっぽ。黒の三角の上に、線の太さ（斜めなので約 1.5 倍）だけずらした紙の色の三角を重ねて、枠の線だけ残す。
-   紙の三角は吹き出しの枠にかぶせて、付け根の枠線を消す。--tail-x は吹き出しの左端からの位置（JS が入れる） */
-.balloon::before, .balloon::after { content: ""; position: absolute; left: calc(var(--tail-x, 24px) - 10px);
-  border: 10px solid transparent; }
-.balloon[data-side="below"]::before, .balloon[data-side="below"]::after { border-top-width: 0; }
-.balloon[data-side="above"]::before, .balloon[data-side="above"]::after { border-bottom-width: 0; }
-.balloon[data-side="below"]::before { top: -12px; border-bottom-color: var(--color-ink); }
-.balloon[data-side="below"]::after { top: -9px; border-bottom-color: var(--color-paper); }
-.balloon[data-side="above"]::before { bottom: -12px; border-top-color: var(--color-ink); }
-.balloon[data-side="above"]::after { bottom: -9px; border-top-color: var(--color-paper); }
+.balloon-frame { position: absolute; left: 0; top: 0; z-index: -1; overflow: visible; pointer-events: none; }
+.balloon-frame .shade { fill: var(--color-ink); }
+.balloon-frame .face { fill: var(--color-paper); stroke: var(--color-ink); stroke-width: var(--line); stroke-linejoin: miter; }
 .balloon-veil { position: fixed; inset: 0; z-index: 80; }
 .balloon-veil[hidden] { display: none; }
 /* 出しているあいだの帯。スマホは覆いで「?」も押せなくなるので、ここに「吹き出しを隠す」を置く */
@@ -2142,7 +2137,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 
 <!-- 吹き出しの説明（2026-09-27）。中身と出し方は JS の「吹き出しの説明」の節 -->
 <div class="balloon-veil" id="balloon-veil" hidden></div>
-<div class="balloon" id="balloon" role="tooltip" hidden><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
+<div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
 <script id="app-js">
@@ -9092,8 +9087,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     return null;
   }
-  // 吹き出しを部品の下（入らなければ上）に出し、しっぽを部品の真ん中へ向ける。
-  // 大きな部品（グリッド・候補の一覧）は指やマウスの位置を指す（真ん中が画面の外に出ることがあるため）
+  /* 吹き出しを出す。Mac の Help Manager と同じく、しっぽの先（tip）を部品の中の 1 点に置き、吹き出しは既定で右上に出す
+     （Finder の既定の variation code 6。しっぽは左下の角から出る）。上に入らなければ下へ、右に入らなければ左へ回す。
+     両方の端に入らない（スマホの真ん中の部品）ときは、吹き出しを画面に収めて、しっぽを下辺（上辺）の途中から出す。
+     大きな部品（グリッド・候補の一覧）は指やマウスの位置を指す（部品の角だと画面の外に出ることがあるため） */
+  const TAIL_H = 16, TAIL_W = 22, TAIL_LEAN = 4;   // しっぽの長さ・付け根の幅・角からの張り出し（px）
   function showBalloon(h, x, y) {
     clearTimeout(balloonTimer);
     balloonFor = h.el;
@@ -9102,18 +9100,39 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     v.hidden = !h.video;
     if (h.video) v.href = `/howto${LANG === "en" ? "?lang=en" : ""}#${h.video}`;
     balloon.hidden = false;
-    let r = h.el.getBoundingClientRect();
-    if ((r.height > 120 || r.width > 420) && x != null) r = { left: x, right: x, top: y - 4, bottom: y + 4, width: 0, height: 8 };
-    const vw = document.documentElement.clientWidth;
+    const r = h.el.getBoundingClientRect(), big = (r.height > 120 || r.width > 420) && x != null;
+    const vw = document.documentElement.clientWidth, m = 8;
     const vh = balloonBar.hidden ? window.innerHeight : balloonBar.getBoundingClientRect().top;   // 下の帯には重ねない
-    const w = balloon.offsetWidth, bh = balloon.offsetHeight, tail = 12, m = 8;
-    const below = vh - r.bottom >= bh + tail + m || r.top < bh + tail + m;
-    const cx = Math.min(Math.max(r.left + r.width / 2, m), vw - m);
-    const left = Math.round(Math.min(Math.max(cx - 28, m), vw - w - m));
-    const top = Math.round(below ? r.bottom + tail : r.top - tail - bh);
-    balloon.dataset.side = below ? "below" : "above";
-    balloon.style.left = `${left}px`; balloon.style.top = `${Math.max(m, top)}px`;
-    balloon.style.setProperty("--tail-x", `${Math.round(Math.min(Math.max(cx - left, 16), w - 16))}px`);
+    const W = balloon.offsetWidth, H = balloon.offsetHeight;
+    // しっぽの先。小さな部品は左上寄り（上に出すとき）／左下寄り（下に出すとき）の、部品の内側の 1 点
+    const tx = Math.round(big ? x : r.left + Math.min(r.width / 2, 24));
+    const tyUp = Math.round(big ? y : r.top + Math.min(r.height / 2, 6));
+    const tyDown = Math.round(big ? y : r.bottom - Math.min(r.height / 2, 6));
+    const up = tyUp - TAIL_H - H >= m || vh - tyDown - TAIL_H - H < tyUp - TAIL_H - H;
+    const ty = up ? tyUp : tyDown;
+    let left = tx + TAIL_LEAN;                                   // 右へ出す（しっぽは左の角）
+    if (left + W > vw - m) left = tx - TAIL_LEAN - W;            // 左へ出す（しっぽは右の角）
+    if (left < m) left = Math.min(Math.max(tx - W / 2, m), vw - m - W);
+    left = Math.round(left);
+    const top = Math.round(up ? ty - TAIL_H - H : ty + TAIL_H);
+    balloon.style.left = `${left}px`; balloon.style.top = `${top}px`;
+    // 付け根の区間 [b0, b1]。しっぽの先より右に付け根があれば左へ傾いた楔、左にあれば右へ傾いた楔
+    const lx = tx - left;
+    let b0, b1;
+    if (lx + TAIL_LEAN + TAIL_W <= W) { b0 = Math.max(0, lx + TAIL_LEAN); b1 = b0 + TAIL_W; }
+    else { b1 = Math.min(W, lx - TAIL_LEAN); b0 = b1 - TAIL_W; }
+    // 枠としっぽを 1 本の輪郭にする（線は枠の内側に 1px 寄せ、外形が W×H に収まるように）
+    const k = 1, e = up ? H - k : k, tip = `${lx} ${up ? H + TAIL_H : -TAIL_H}`;
+    const pts = up
+      ? [`${k} ${k}`, `${W - k} ${k}`, `${W - k} ${e}`, `${Math.min(b1, W - k)} ${e}`, tip, `${Math.max(b0, k)} ${e}`, `${k} ${e}`]
+      : [`${k} ${e}`, `${Math.max(b0, k)} ${e}`, tip, `${Math.min(b1, W - k)} ${e}`, `${W - k} ${e}`, `${W - k} ${H - k}`, `${k} ${H - k}`];
+    const d = `M${pts.join("L")}Z`;
+    const svg = $("#balloon-frame");
+    svg.setAttribute("width", W); svg.setAttribute("height", H);
+    svg.querySelector(".face").setAttribute("d", d);
+    const sh = svg.querySelector(".shade");
+    // 影は本体の四角だけを右下へ 2px（--shadow-sm と同じ）。しっぽにも付けると先が二重に見える。付け根の下は本体の紙の色が隠す
+    sh.setAttribute("d", `M2 2H${W + 2}V${H + 2}H2Z`);
   }
   function hideBalloon() { clearTimeout(balloonTimer); balloon.hidden = true; balloonFor = null; }
   // 出している間は title の吹き出し（ブラウザのもの）が重なるので、title を data-help-title に移しておく
