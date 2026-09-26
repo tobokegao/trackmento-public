@@ -66,6 +66,11 @@ def tracked() -> list[str]:
     return [p for p in out.split("\n") if p and not p.startswith("promo/node_modules")]
 
 
+def _ignored(ref: str) -> bool:
+    """.gitignore の対象（grids/・outputs/ など手元にだけあるもの）。CI の clone には無いので数えない（2026-09-27）"""
+    return subprocess.run(["git", "check-ignore", "-q", "--no-index", ref], cwd=ROOT).returncode == 0
+
+
 # ---- 1. 参照されているファイルが実在するか ----
 _PATH_RE = re.compile(r"`([A-Za-z0-9_.][A-Za-z0-9_./-]*/[A-Za-z0-9_./-]+\.(?:py|md|mjs|ts|tsx|html|json|ya?ml|js|sh|txt|css))`")
 # ディレクトリの区切りを含むものだけ見る（`index.html` のような一般名は対象外）。
@@ -81,7 +86,7 @@ def check_paths() -> list[str]:
             ref = m.group(1)
             if any(s in ref for s in _PATH_SKIP):
                 continue
-            if (ROOT / ref).exists() or _somewhere(ref):
+            if (ROOT / ref).exists() or _somewhere(ref) or _ignored(ref):
                 continue
             line = body[:m.start()].count("\n") + 1
             ng.append(f"{doc}:{line} 参照先が無い: {ref}")
