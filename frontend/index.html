@@ -1378,6 +1378,12 @@ output { font-variant-numeric: tabular-nums; }
 .share-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 /* 自分の共有をあとから外す・消す（2026-09-26）。取り消せない「消す」は URL の列から離して下の段に置く */
 .share-own { display: flex; flex-wrap: wrap; gap: var(--space-2); } .share-own .btn[hidden] { display: none; }   /* .btn の display が hidden 属性に勝つので打ち消す */
+/* **スマホでは共有のあとのボタンを 2 列の格子に**（2026-09-26、利用者の指摘）。流し込みだと「3 つ・1 つ」と不ぞろいに折れた。
+   グリッド窓のボタン（2×2）と同じ考え。外す・消すの段も 2 列。隠れているボタンは数えない */
+@media (max-width: 59.99rem) {
+  .share-actions, .share-own { display: grid; grid-template-columns: 1fr 1fr; }
+  .share-actions > [hidden] { display: none; }
+}
 .support { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: var(--line) solid var(--color-rule); font-size: var(--text-sm); color: var(--color-ink-2); }
 .support .album { font-family: var(--font-display); color: var(--color-ink); }
 /* 作者の顔（ボタンの絵 88×31 の左の四角 27×27（2〜28 ドット目）を 2 倍で切り抜く）と一人称の一言 */

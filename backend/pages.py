@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-26", "スマホで、共有したあとの「URL をコピー」「SNS に共有」「共有ページを開く」「画像を保存」を 2 列にそろえて並べるようにしました。",
+     "On phones, “Copy URL”, “Share on social”, “Open share page” and “Save image” after sharing are now lined up in two even columns."),
     ("2026-09-26", "書き出しの画像で、下や右の端の空いた段を詰めて組むようにしました（曲の入っていない段のぶん下が空いたり、トラックリストの行の間が広がりすぎたりしていました）。背景の「画像」の既定の模様も薄くしました。",
      "Exported images now leave out empty rows and columns at the bottom and right edges (they used to leave a gap below and spread the track list too far apart). The default background image pattern is also fainter."),
     ("2026-09-26", "みんなのグリッドの検索欄に枠が付かず、消えたように見えることがあったのを直しました。",
