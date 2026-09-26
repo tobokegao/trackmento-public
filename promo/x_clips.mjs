@@ -57,10 +57,11 @@ for (const c of picked) {
   } finally {
     // **失敗しても記録は書く**（2026-09-26。途中で失敗すると共有だけ R2 に残り、どれか分からなくなった）。
     // 手元の架空の絵（/uploads/fa4e…。k.mock や台本の route で返したもの）は R2 に無いので記録しない
-    const ups = uploaded.filter((u) => u && !u.includes("/uploads/fa4e"));
-    if (ups.length || shares.length) {
+    const ups = uploaded.filter((u) => u && !u.includes("/uploads/fa4e") && !/\/s\/fa4e/.test(u));
+    const sids = shares.filter((id) => id && !id.startsWith("fa4e"));   // 差し替えた架空の共有（f-find）は R2 に無い
+    if (ups.length || sids.length) {
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, "uploads.json"), JSON.stringify({ uploads: ups, shares: shares.filter(Boolean) }));
+      fs.writeFileSync(path.join(dir, "uploads.json"), JSON.stringify({ uploads: ups, shares: sids }));
     }
     await page.context().close();
   }

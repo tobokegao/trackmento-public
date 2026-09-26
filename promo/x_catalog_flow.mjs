@@ -5,6 +5,7 @@
 // - **検索・URL・プレイリストの応答は k.mock で架空の曲に差し替える**（実在のジャケットを映さない。本物の相手にも問い合わせない）
 // - 窓は k.arrange で「検索」「候補」「グリッド」を横に並べる（出力オプションは映さない）
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import { ready, nico, GT } from "./x_catalog.mjs";
 
 const square = () => JSON.parse(fs.readFileSync("promo/public/fake-tracks.json", "utf-8"));
@@ -34,6 +35,11 @@ const ARRANGE_SHARE = {
 };
 /** 共有の場面で「できあがり」の窓を縮める。見本の絵が入ると窓が 720px を超え、「共有ページを開く」が画面の外に出る */
 const SHARE_CSS = "#output .msg-under, #output .support, #output .listed { display: none !important; }";
+/** みんなのグリッドの場面。「載せる」のチェックは見せたいので、下の説明文と宣伝だけ隠す */
+const FIND_CSS = "#output .msg-under, #output .support { display: none !important; }";
+/** 架空の「みんなのグリッドを探す」ページ（promo/fake_find.py。本番の探すページは利用者の本物の題が並ぶので使わない） */
+const fakeFind = (q, own) => execFileSync(".venv/Scripts/python", ["promo/fake_find.py", JSON.stringify({ q, own })],
+  { env: { ...process.env, PYTHONUTF8: "1" }, encoding: "utf-8" });
 /** 検索の窓で、使わない補助の欄を隠す（keep に書いた欄だけ残す） */
 const onlySubs = (...keep) => ["#sub-bandcamp", "#sub-list", "#sub-manual"].filter((s) => !keep.includes(s))
   .map((s) => `${s} { display: none !important; }`).join(" ");
@@ -379,6 +385,51 @@ export default [
       await k.until(() => k.page.evaluate(() => [...document.images].every((i) => i.complete)), "共有ページ", 20000);
       k.wide(0);
       await k.hold(2.6);
+    },
+  },
+  {
+    id: "f-find",
+    what: "「みんなのグリッドに載せる」にチェックして共有すると、トラック名やアーティスト名で探せるようになる。自分の並びは × で外せる",
+    async setup(k) {
+      // **本番には何も置かない**: 共有の返事も探すページも差し替える（載せると本番の探すページに出てしまうため）
+      const own = { id: "fa4e0ab1c2d3", title: "私を構成する9曲" };
+      await k.page.route(/\/share\/upload$/, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        id: own.id, url: `https://trackmento.com/s/${own.id}`, image: "/uploads/fa4e010000000000.jpg", png: "/uploads/fa4e010000000000.jpg",
+        ext: "jpg", width: 2400, height: 1350, ownerKey: "clip-owner-key-0000", listed: true }) }));
+      await k.page.route(/\/find(\?.*)?$/, (route) => {
+        const q = new URL(route.request().url()).searchParams.get("q") || "";
+        route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fakeFind(q, own) });
+      });
+      // 「× で外す」の返事も差し替える（架空の共有なので本物のサーバーには無い）
+      await k.page.route(/\/s\/fa4e[0-9a-f]+\/unlist$/, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: own.id, action: "unlist" }) }));
+      await ready(k, 9, [3, 3], {}, square().slice(0, 9));
+      await k.arrange(ARRANGE_SHARE); await k.stage(FIND_CSS);
+      await k.look([GT, "#grid", "#output"]);
+      await k.park(900, 600);
+    },
+    async run(k) {
+      await k.hold(0.8);
+      await k.press("#opt-listed");
+      await k.hold(0.5);
+      await k.press("#share-btn");
+      await k.live(() => k.page.evaluate(() => !document.querySelector("#share-done").hidden && document.querySelector("#up-modal").hidden), { min: 0.8, timeout: 90 });
+      await k.hold(0.8);
+      // 「みんなのグリッド」の文字から探すページへ（新しいタブではなく同じ画面で）
+      await k.page.evaluate(() => document.querySelector("#find-link").removeAttribute("target"));
+      await k.press("#find-link");
+      await k.page.waitForURL(/\/find/, { timeout: 20000 });
+      await k.hold(0.2);
+      await k.look(["main h1", "form.find", "main section"], 0);
+      await k.hold(1.4);
+      await k.type('form.find input[name="q"]', "シグナル", 0.09);
+      await k.hold(0.3);
+      await k.key("Enter");
+      await k.page.waitForURL(/\/find\?q=/, { timeout: 20000 });
+      await k.hold(0.2);
+      await k.look(["main h1", "form.find", "main ol"], 0);
+      await k.hold(1.4);
+      await k.press(".own-rm");
+      await k.hold(2.0);
     },
   },
 ];
