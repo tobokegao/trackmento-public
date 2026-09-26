@@ -800,6 +800,8 @@ async def rate_limit(request: Request, call_next):
     return response
 app.mount("/outputs", StaticFiles(directory=OUTPUTS, check_dir=False), name="outputs")
 app.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
+# 画面に貼る絵（PayPal の広告など）。殻を配るときは R2 の app/banners/ に差し替わる（CSS・JS と同じ）。1 枚の HTML で配るときだけここから出る
+app.mount("/app/banners", StaticFiles(directory=FRONTEND / "banners", check_dir=False), name="banners")
 if not storage.get_storage().is_remote:
     app.mount("/uploads", StaticFiles(directory=uploads.UPLOADS, check_dir=False), name="uploads")
 else:

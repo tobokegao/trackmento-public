@@ -133,6 +133,7 @@ def check_r2() -> None:
     """配る物が R2 にあるか。手元に鍵があれば一覧（数回の呼び出し）で、無ければ公開 URL への HEAD で見る"""
     shell = SHELL.read_text(encoding="utf-8") if SHELL.is_file() else ""
     keys = [f"app/{n}" for n in re.findall(r'"app/(app\.[0-9a-f]{8}\.(?:css|js))"', shell)]
+    keys += [f"app/{n}" for n in re.findall(r'"app/(banners/[\w.-]+\.(?:gif|png))"', shell)]   # 画面に貼る絵
     keys += [f"fonts/{n}" for n, _ in _css_entries()]
     if not keys:
         ng.append("R2 に上げる物が見つからない（殻と fonts.css を確かめる）")

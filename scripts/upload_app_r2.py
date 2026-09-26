@@ -34,7 +34,8 @@ from backend import storage  # noqa: E402
 
 PREFIX = "app/"
 DIST = ROOT / "frontend" / "dist"
-CTYPE = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8"}
+CTYPE = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".gif": "image/gif", ".png": "image/png"}
+BANNERS = ROOT / "frontend" / "banners"   # 画面に貼る絵。キーは app/banners/<名前>（名前に中身のハッシュが入っている）
 
 
 def main() -> int:
@@ -51,6 +52,7 @@ def main() -> int:
         return 1
 
     files = sorted(DIST.glob("app.*.css")) + sorted(DIST.glob("app.*.js"))
+    banners = sorted(BANNERS.glob("*.gif")) + sorted(BANNERS.glob("*.png"))
     if not files:
         print("frontend/dist/app.*.{css,js} がありません（python scripts/build_app.py で生成）", file=sys.stderr)
         return 1
@@ -61,8 +63,8 @@ def main() -> int:
         have = {k for k, _, _ in st.list_objects(PREFIX)}
 
     up = skip = 0
-    for f in files:
-        key = PREFIX + f.name
+    for f in files + banners:
+        key = PREFIX + ("banners/" if f.parent == BANNERS else "") + f.name
         if key in have:
             print(f"  そのまま: {f.name}")
             skip += 1
