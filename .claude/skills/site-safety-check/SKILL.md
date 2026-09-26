@@ -10,7 +10,7 @@ TRACKMENTO を公開したまま安全に保つための点検手順。月 1 回
 
 ## 0. 前提
 
-- Python は必ず `.venv/Scripts/python`。ローカルを点検するときは uvicorn を先に起動する（CLAUDE.md の起動手順）
+- Python は必ず `PYTHONUTF8=1 .venv/Scripts/python`（cp932 で落ちるため）。ローカルを点検するときは uvicorn を先に起動する（CLAUDE.md の起動手順）
 - 検査は読み取り中心。書き込みは検査用グリッド 1 件・画像 1 枚・共有 1 件だけで、R2 の資格情報（.env）があれば最後に消す
 - 秘密（.env の値、R2 のキー、トークン）を出力や報告に含めない。マスクする
 - 引数が無ければ公開サイト `https://trackmento.com` を対象にする。「ローカル」と言われたら `http://127.0.0.1:8000`
@@ -18,7 +18,7 @@ TRACKMENTO を公開したまま安全に保つための点検手順。月 1 回
 ## 1. 自動チェックを走らせる
 
 ```bash
-.venv/Scripts/python scripts/safety_check.py https://trackmento.com
+PYTHONUTF8=1 .venv/Scripts/python scripts/safety_check.py https://trackmento.com
 ```
 
 `[NG]` の行が対処対象。項目の意味と直し方の当たりは次のとおり。
