@@ -59,7 +59,12 @@
   保持日数は `config.share_retention_days()` から差し込む（文章に焼き付けない）。日本語の字と字のあいだの改行は
   `body_of` が詰める（ソースの折り返しが表示で空白になるため）。共有ページはもともと `noindex`。
   **再送信は利用者が管理画面で行う**（ポリシーを読んだチェック → 再送信）
-- **AdSense の審査待ち**（「準備中」）。ads.txt と meta タグは本番で配信済み・ID も一致、設定側の問題は無い
+- **AdSense は 2026-09-26 に 2 度目の不承認**（9/19 の再申請の結果。今回も理由は「AdSense プログラム ポリシーを遵守する」
+  のチェック欄だけで、具体的な指摘は無い）。9/26 に外から確かめたこと: 5 ページ（`/`・`/guide`・`/privacy`・`/about`・
+  `/updates`）は AdSense のクローラー（Mediapartners-Google）の UA でも 200、robots.txt はそれらを塞いでいない、
+  ads.txt と meta タグの ID は一致。**設定ではなく中身の判定**と見るのが自然（道具の画面が主で文章が少ない・
+  他人のジャケット画像を並べる道具であること、のどちらか。どちらかは示されない）。再送信は急がない
+- ads.txt と meta タグは本番で配信済み・ID も一致、設定側の問題は無い
   - **承認後、自動広告をオンにするだけでは広告は出ない**。TRACKMENTO は nonce ベースの CSP で固めているので、
     `script-src` に `pagead2.googlesyndication.com`、`frame-src` に `googleads.g.doubleclick.net`、
     `img-src` / `connect-src` にも追加が要る（`backend/main.py` の CSP ヘッダ）
