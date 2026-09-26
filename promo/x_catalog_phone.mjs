@@ -156,7 +156,14 @@ export default [
       // 呼ぶので、それを撮影用の Android の共有シートに差し替える（本物のシートは撮れない）。TRACKMENTO の絵はページに埋め込む
       // （よそのページの安全設定で、手元のサーバーの画像は読めない）
       const icon = "data:image/png;base64," + fs.readFileSync("frontend/icon-192.png").toString("base64");
-      await k.page.addInitScript(({ icon }) => {
+      // ほかの 3 つは素朴な絵（実在のアプリの絵は使わない）。白い線の絵を色の丸に載せる
+      const svg = (bg, path) => "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><circle cx="24" cy="24" r="24" fill="${bg}"/><g fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">${path}</g></svg>`);
+      const others = {
+        msg: svg("#2f7de1", '<path d="M13 15h22a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H22l-6 5v-5h-3a3 3 0 0 1-3-3V18a3 3 0 0 1 3-3z"/>'),
+        mail: svg("#e0533d", '<rect x="11" y="15" width="26" height="18" rx="2"/><path d="M12 16l12 9 12-9"/>'),
+        copy: svg("#6b7178", '<rect x="18" y="17" width="15" height="18" rx="2"/><path d="M15 31V14a2 2 0 0 1 2-2h12"/>'),
+      };
+      await k.page.addInitScript(({ icon, others }) => {
         const show = (url) => {
           const st = document.createElement("style");
           st.textContent = `.x-share,.x-share *{box-sizing:border-box;font:15px/1.4 "Roboto","Noto Sans JP",sans-serif}
@@ -164,11 +171,12 @@ export default [
             .x-share .s{width:100%;background:#fff;color:#222;border-radius:18px 18px 0 0;padding:18px 16px 28px}
             .x-share .h{margin-bottom:4px}.x-share .u{color:#777;font-size:12px;margin-bottom:16px;word-break:break-all}
             .x-share .apps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 8px}.x-share .a{display:grid;justify-items:center;gap:6px;font-size:12px;color:#333}
-            .x-share .a i{width:48px;height:48px;border-radius:50%;background:#ddd}.x-share .a.tm i{background:#fff url('${icon}') center/100% no-repeat;border:1px solid #ccc}`;
+            .x-share .a i{width:48px;height:48px;border-radius:50%;background:#ddd}.x-share .a.tm i{background:#fff url('${icon}') center/100% no-repeat;border:1px solid #ccc}
+            .x-share .a.msg i{background:url("${others.msg}") center/100% no-repeat}.x-share .a.mail i{background:url("${others.mail}") center/100% no-repeat}.x-share .a.copy i{background:url("${others.copy}") center/100% no-repeat}`;
           // YouTube は TrustedTypes で innerHTML を使わせないので、部品ごとに組み立てる
           const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
           const d = el("div", "x-share"), sh = el("div", "s"), apps = el("div", "apps");
-          for (const [name, cls, id] of [["メッセージ", "a"], ["メール", "a"], ["TRACKMENTO", "a tm", "x-share-tm"], ["コピー", "a"]]) {
+          for (const [name, cls, id] of [["メッセージ", "a msg"], ["メール", "a mail"], ["TRACKMENTO", "a tm", "x-share-tm"], ["コピー", "a copy"]]) {
             const a = el("div", cls); if (id) a.id = id; a.append(el("i"), name); apps.append(a);
           }
           sh.append(el("div", "h", "共有"), el("div", "u", url), apps); d.append(sh);
@@ -176,7 +184,7 @@ export default [
         };
         Object.defineProperty(navigator, "share", { configurable: true, value: async (data) => { show((data && data.url) || location.href); } });
         Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
-      }, { icon });
+      }, { icon, others });
       await k.page.goto("https://m.youtube.com/watch?v=CQ-DZfQhXcc", { waitUntil: "domcontentloaded", timeout: 30000 });
       for (let i = 0; i < 70; i++) { await k.page.clock.runFor(100); await new Promise((r) => setTimeout(r, 100)); }
       // 広告の枠があれば撮影のときだけ隠す（撮るたびに中身が替わり、よその商品が映るため）
