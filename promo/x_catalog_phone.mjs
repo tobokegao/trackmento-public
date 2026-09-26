@@ -147,49 +147,56 @@ export default [
   {
     id: "sp-share-target",
     phone: true,
-    // 本物のニコニコ動画のページを開くので、Android の Chrome の名乗りで開く（スマホ向けのページになる）
+    // 本物の YouTube のページを開くので、Android の Chrome の名乗りで開く（スマホ向けのページになる）
     ctx: { userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36" },
-    what: "Android でホーム画面に追加しておくと、ブラウザやアプリの「共有」から TRACKMENTO に URL を送れる（送ると自動で取り込む）",
+    what: "Android でホーム画面に追加しておくと、YouTube などの「共有」から TRACKMENTO に URL を送れる（送ると自動で取り込む）",
     async setup(k) {
       await place(k, 3, 3, withHoles(square(), 9, [3, 4, 5, 6, 7, 8]));
-      // **共有元は本物のニコニコ動画のページ**（2026-09-26、利用者の指定 sm44887188）。アプリへの誘導の窓は閉じ、
-      // 第三者の広告と上の帯は撮影のときだけ隠す（広告の中身が撮るたびに替わり、よその商品が映るため）
-      await k.page.goto("https://sp.nicovideo.jp/watch/sm44887188", { waitUntil: "domcontentloaded", timeout: 30000 });
-      for (let i = 0; i < 60; i++) { await k.page.clock.runFor(100); await new Promise((r) => setTimeout(r, 100)); }
-      await k.page.getByText("引き続きWeb版で視聴する").click({ timeout: 5000 }).catch(() => {});
-      await k.page.addStyleTag({ content: "#Middle320x50Ad, #FooterAd, #OverlayAd, iframe[id^='ads_'] { display: none !important; } " + `.x-share, .x-share * { box-sizing: border-box; font: 15px/1.4 "Roboto", "Noto Sans JP", sans-serif; visibility: visible !important; }
-        .x-share { position: fixed; inset: 0; z-index: 2147483000; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; }
-        .x-share .s { width: 100%; background: #fff; color: #222; border-radius: 18px 18px 0 0; padding: 18px 16px 28px; }
-        .x-share .h { margin-bottom: 4px; } .x-share .u { color: #777; font-size: 12px; margin-bottom: 16px; word-break: break-all; }
-        .x-share .apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 8px; }
-        .x-share .a { display: grid; justify-items: center; gap: 6px; font-size: 12px; color: #333; }
-        .x-share .a i { width: 48px; height: 48px; border-radius: 50%; background: #ddd; }
-        .x-share .a.tm i { background: #fff url('http://127.0.0.1:8000/icon-192.png') center / 100% no-repeat; border: 1px solid #ccc; }` });
-      await k.page.evaluate(() => {
-        for (const text of ["バックグラウンド再生で動画が楽しめる", "アプリで高画質を見るなら"]) {
-          const el = [...document.querySelectorAll("body *")].find((e) => e.childElementCount < 6 && (e.textContent || "").includes(text) && e.getBoundingClientRect().height < 140);
-          let box = el; while (box && box.parentElement && box.parentElement.getBoundingClientRect().height < 140) box = box.parentElement;
-          if (box) box.style.display = "none";
-        }
-        window.scrollTo(0, 0);
-      });
-      for (let i = 0; i < 10; i++) { await k.page.clock.runFor(100); await new Promise((r) => setTimeout(r, 100)); }
+      // **共有元は本物の YouTube のページ**（2026-09-26、利用者の指定）。スマホの YouTube の「共有」はブラウザの共有シート（navigator.share）を
+      // 呼ぶので、それを撮影用の Android の共有シートに差し替える（本物のシートは撮れない）。TRACKMENTO の絵はページに埋め込む
+      // （よそのページの安全設定で、手元のサーバーの画像は読めない）
+      const icon = "data:image/png;base64," + fs.readFileSync("frontend/icon-192.png").toString("base64");
+      await k.page.addInitScript(({ icon }) => {
+        const show = (url) => {
+          const st = document.createElement("style");
+          st.textContent = `.x-share,.x-share *{box-sizing:border-box;font:15px/1.4 "Roboto","Noto Sans JP",sans-serif}
+            .x-share{position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end}
+            .x-share .s{width:100%;background:#fff;color:#222;border-radius:18px 18px 0 0;padding:18px 16px 28px}
+            .x-share .h{margin-bottom:4px}.x-share .u{color:#777;font-size:12px;margin-bottom:16px;word-break:break-all}
+            .x-share .apps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 8px}.x-share .a{display:grid;justify-items:center;gap:6px;font-size:12px;color:#333}
+            .x-share .a i{width:48px;height:48px;border-radius:50%;background:#ddd}.x-share .a.tm i{background:#fff url('${icon}') center/100% no-repeat;border:1px solid #ccc}`;
+          // YouTube は TrustedTypes で innerHTML を使わせないので、部品ごとに組み立てる
+          const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+          const d = el("div", "x-share"), sh = el("div", "s"), apps = el("div", "apps");
+          for (const [name, cls, id] of [["メッセージ", "a"], ["メール", "a"], ["TRACKMENTO", "a tm", "x-share-tm"], ["コピー", "a"]]) {
+            const a = el("div", cls); if (id) a.id = id; a.append(el("i"), name); apps.append(a);
+          }
+          sh.append(el("div", "h", "共有"), el("div", "u", url), apps); d.append(sh);
+          document.body.append(st, d);
+        };
+        Object.defineProperty(navigator, "share", { configurable: true, value: async (data) => { show((data && data.url) || location.href); } });
+        Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
+      }, { icon });
+      await k.page.goto("https://m.youtube.com/watch?v=CQ-DZfQhXcc", { waitUntil: "domcontentloaded", timeout: 30000 });
+      for (let i = 0; i < 70; i++) { await k.page.clock.runFor(100); await new Promise((r) => setTimeout(r, 100)); }
+      // 広告の枠があれば撮影のときだけ隠す（撮るたびに中身が替わり、よその商品が映るため）
+      await k.page.addStyleTag({ content: "ytm-promoted-sparkles-web-renderer, ad-slot-renderer, ytm-companion-slot, .ytp-ad-module, ytm-statement-banner-renderer { display: none !important; }" });
+      await k.page.evaluate(() => window.scrollTo(0, 0));
       k.wide(0);
       await k.park(300, 700);
     },
     async run(k) {
-      await k.hold(1.6);
-      // ブラウザの「共有」から開いた共有シート（Android のもの。撮れないので描く）
-      await k.page.evaluate(() => {
-        const d = document.createElement("div"); d.className = "x-share";
-        d.innerHTML = `<div class="s"><div class="h">共有</div><div class="u">https://www.nicovideo.jp/watch/sm44887188</div>
-          <div class="apps"><div class="a"><i></i>メッセージ</div><div class="a"><i></i>メール</div><div class="a tm" id="x-share-tm"><i></i>TRACKMENTO</div><div class="a"><i></i>コピー</div></div></div>`;
-        document.body.append(d);
+      await k.hold(1.4);
+      const share = k.page.locator('button[aria-label*="共有"], [aria-label="共有"]').first();
+      const box = await share.boundingBox();
+      await k.tapAt(box.x + box.width / 2, box.y + box.height / 2);
+      await k.until(() => k.page.evaluate(() => !!document.querySelector("#x-share-tm")), "共有シート", 8000).catch(async () => {
+        await k.page.evaluate(() => navigator.share({ url: "https://www.youtube.com/watch?v=CQ-DZfQhXcc" }));   // YouTube 側の窓が出たときの保険
       });
       await k.hold(1.0);
       await k.tap("#x-share-tm");
-      // 共有から開いたのと同じ URL で開く（manifest の share_target が /?st_url=… で開く）。取り込みは本物（手元のサーバーがニコニコに問い合わせる）
-      await k.page.goto("http://127.0.0.1:8000/?st_url=" + encodeURIComponent("https://www.nicovideo.jp/watch/sm44887188"), { waitUntil: "domcontentloaded" });
+      // 共有から開いたのと同じ URL で開く（manifest の share_target が /?st_url=… で開く）。取り込みは本物（手元のサーバーが YouTube に問い合わせる）
+      await k.page.goto("http://127.0.0.1:8000/?st_url=" + encodeURIComponent("https://www.youtube.com/watch?v=CQ-DZfQhXcc"), { waitUntil: "domcontentloaded" });
       for (let i = 0; i < 200 && !(await k.page.evaluate(() => !!window.__setGridUI)); i++) { await k.page.clock.runFor(50); await new Promise((r) => setTimeout(r, 50)); }
       await k.until(() => k.page.evaluate(() => document.querySelectorAll("#results .result").length >= 1), "取り込み", 30000);
       await k.until(() => k.page.evaluate(() => [...document.querySelectorAll("#results img")].every((i) => i.complete)), "サムネ", 15000).catch(() => {});
