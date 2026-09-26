@@ -23,7 +23,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "プライバシーポリシー", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "Privacy policy", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年9月25日", "en": "Last updated: September 25, 2026"}
+UPDATED = {"ja": "最終更新: 2026年9月26日", "en": "Last updated: September 26, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
 
@@ -177,7 +177,7 @@ def _privacy(lang: str, days: int) -> str:
 (local storage). To let you restore your session, a temporary backup is also kept on the server, linked to a random ID issued for
 each browser. It contains no personally identifying information such as your name or email address.</li>
 <li><b>Shared images and share pages:</b> When you share, the image data and layout data (including any notes you wrote for each track) are stored on Cloudflare R2. Notes are shown on the share page to anyone with its URL. This data is
-permanently deleted automatically {days} days after it is created.</li>
+permanently deleted automatically {days} days after it is created. From the device and browser you shared from, you can also delete it yourself earlier or remove it from everyone's grids (the key for this is kept in your browser's local storage).</li>
 <li><b>Images uploaded from your device:</b> These are resized appropriately and stored after removing metadata such as location
 information (Exif). They are deleted 90 days after upload.</li>
 <li><b>Everyone's grids:</b> Only data you have allowed to be listed (opted in) when sharing is stored and made searchable within the Site.</li>
@@ -220,7 +220,7 @@ The latest version is always published on this page.</p>
 <h2>1. 当サイトが保存する情報</h2>
 <ul>
 <li><b>グリッドの編集データ：</b>マスに配置したトラック、タイトル、表示・出力設定は、お使いのブラウザの保存領域（ローカルストレージ）に保存されます。また、セッションを復元できるようにするため、ブラウザごとに発行されるランダムなIDと紐づけてサーバーにも一時バックアップを保持します。氏名、メールアドレス等の個人を特定する情報は一切含みません。</li>
-<li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データ（トラックごとに書いたメモを含みます）をCloudflare R2に保存します。メモは共有ページで、URL を知っている人が見られます。これらのデータは生成から{days}日後に自動で削除されます。</li>
+<li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データ（トラックごとに書いたメモを含みます）をCloudflare R2に保存します。メモは共有ページで、URL を知っている人が見られます。これらのデータは生成から{days}日後に自動で削除されます。共有した端末・ブラウザからは、期限の前に自分で消したり、みんなのグリッドから外したりもできます（そのための鍵をブラウザのローカルストレージに保存します）。</li>
 <li><b>端末からアップロードされた画像：</b>適切なサイズへのリサイズを行い、位置情報などのメタデータ（Exif）を削除したうえで保存します。保存から90日で削除します。</li>
 <li><b>みんなのグリッド：</b>共有時に「みんなのグリッドに載せる」にチェックを入れたデータに限り、当サイト内の検索対象として公開・保存されます。</li>
 </ul>
@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-26", "共有したグリッドを、あとから自分で「みんなのグリッドから外す」「共有を消す」ができるようにしました。共有したのと同じ端末・ブラウザから、「できあがり」の窓・共有ページ・みんなのグリッドの一覧（× ボタン）で操作できます。これより前に共有したものは対象外です。",
+     "You can now take a grid you shared off “everyone’s grids” or delete the share yourself. It works from the same device and browser you shared from, in the result window, on the share page, or with the × button in the everyone’s grids list. Shares made before this change are not covered."),
     ("2026-09-25", "サムネイルを取れなかったマスに「画像取得失敗」と出すようにしました（マスが小さいときは「失敗」）。前は番号だけの空のマスになり、入れていないマスと見分けがつきませんでした。",
      "Tiles whose thumbnail could not be loaded now say “Load failed” (“Failed” on small tiles). Before, they looked the same as empty tiles."),
     ("2026-09-25", "スマホで「マスの間隔」や色のつまみを掴みやすくしました。つまみの少し横に指を置いても掴めます。",

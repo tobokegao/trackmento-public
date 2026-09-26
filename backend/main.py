@@ -2155,6 +2155,47 @@ async def share_upload(request: Request) -> dict:
                 _note_upload(save=time.monotonic() - t_save)
 
 
+# ---------- 自分の共有をあとから外す・消す（2026-09-26、利用者の案） ----------
+# 共有したときに返した鍵（ownerKey）を持っている端末だけが頼める。鍵は並びの JSON に SHA-256 だけ置いてある（backend/share.py）。
+# 鍵は 144 ビットの乱数なので総当たりは現実的でないが、念のため端末ごとに 1 時間 30 回まで
+_OWNER_TRIES: dict[str, list[float]] = defaultdict(list)
+_OWNER_TRIES_MAX = 30
+
+
+def _check_owner_tries(request: Request) -> None:
+    ip, now = _client_ip(request), time.monotonic()
+    tries = [t for t in _OWNER_TRIES[ip] if now - t < 3600]
+    if len(tries) >= _OWNER_TRIES_MAX:
+        raise HTTPException(429, "しばらく時間をおいてからもう一度お試しください")
+    tries.append(now)
+    _OWNER_TRIES[ip] = tries
+    if len(_OWNER_TRIES) > 10_000:   # 覚えている端末が増えすぎたら古いものを捨てる
+        for k in [k for k, v in _OWNER_TRIES.items() if not v or now - v[-1] >= 3600]:
+            _OWNER_TRIES.pop(k, None)
+
+
+class OwnerBody(BaseModel):
+    key: str = Field("", max_length=64)
+
+
+@app.post("/s/{sid}/unlist")
+@app.post("/s/{sid}/delete")
+async def share_owner_action(request: Request, sid: str, body: OwnerBody) -> dict:
+    """みんなのグリッドから外す（unlist）／共有ごと消す（delete）。鍵が合わなければ 403、共有が無ければ 404。"""
+    _check_owner_tries(request)
+    if not share.valid_id(sid):
+        raise HTTPException(404, "共有が見つかりません")
+    action = request.url.path.rsplit("/", 1)[-1]
+    try:
+        await run_in_threadpool(share.unlist if action == "unlist" else share.delete, sid, body.key)
+    except FileNotFoundError:
+        raise HTTPException(404, "共有が見つかりません（期限切れか、もう消えています）")
+    except share.NotOwner:
+        raise HTTPException(403, "この端末からは操作できません（共有したときの端末・ブラウザからだけ操作できます）")
+    print(f"[share] {action}: 共有した人の操作")
+    return {"id": sid, "action": action}
+
+
 # 「みんなの並びを探す」。**印を付けた共有だけ**が対象（backend/shareindex.py）。
 # `/shares/{fname}` と経路がぶつからないよう、JSON は `/find.json` にしてある
 # 文章のページ（使い方・プライバシーポリシー・運営者）。backend/pages.py。言語は共有ページと同じ決め方
@@ -2175,7 +2216,7 @@ async def find_page(request: Request, q: str = "") -> HTMLResponse:
     varied = [] if q else shareindex.varied()
     rows = shareindex.search(q) if q else shareindex.newest(skip={r["id"] for r in varied})
     return HTMLResponse(share.find_html(q, rows, base_url_for(request), app_url_for(request),
-                                        _lang_for(request), shareindex.count(), varied))
+                                        _lang_for(request), shareindex.count(), varied, nonce=request.state.csp_nonce))
 
 
 @app.get("/find.json")
@@ -2200,4 +2241,4 @@ async def share_page(request: Request, sid: str) -> HTMLResponse:
         shareindex.forget(sid)   # 期限より前に消した共有（scripts/delete_share.py）を「みんなのグリッド」から外す
         # JSON の 404 だと X から開いた人に何が起きたか伝わらない。案内ページ（期限切れ・作り直し）を返す
         return HTMLResponse(share.expired_html(sid, base_url_for(request), app_url_for(request), _lang_for(request)), status_code=410)   # 消えた共有は 410（Gone）
-    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request)))
+    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request), nonce=request.state.csp_nonce))

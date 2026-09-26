@@ -1375,6 +1375,8 @@ output { font-variant-numeric: tabular-nums; }
 .share-url .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
 .share-url .input { font-family: ui-monospace, monospace; font-size: var(--text-sm); }
 .share-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* 自分の共有をあとから外す・消す（2026-09-26）。取り消せない「消す」は URL の列から離して下の段に置く */
+.share-own { display: flex; flex-wrap: wrap; gap: var(--space-2); } .share-own .btn[hidden] { display: none; }   /* .btn の display が hidden 属性に勝つので打ち消す */
 .support { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: var(--line) solid var(--color-rule); font-size: var(--text-sm); color: var(--color-ink-2); }
 .support .album { font-family: var(--font-display); color: var(--color-ink); }
 /* 広告枠。いまは中身が自分の音楽（つなぎ）で、AdSense の審査が通ったら中身とラベルを差し替える */
@@ -1678,6 +1680,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <button class="btn" type="button" id="native-share-btn">SNS に共有</button>
           <a class="btn" id="open-share" href="#" target="_blank" rel="noopener">共有ページを開く</a>
           <a class="btn dl" id="download" download="trackmento.jpg" href="#">画像を保存</a>
+        </div>
+        <!-- **自分の共有をあとから外す・消す**（2026-09-26、利用者の案）。共有したときにサーバーが返した鍵を端末に覚え、
+             それを持っている端末だけが頼める。共有ページ・探すページにも同じボタンが出る（backend/share.py の _owner_script） -->
+        <div class="share-own">
+          <button class="btn btn-sm" type="button" id="unlist-btn" hidden>みんなのグリッドから外す</button>
+          <button class="btn btn-sm" type="button" id="share-del-btn">共有を消す</button>
         </div>
         <div class="support">
           <span>予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭</span>
@@ -2458,6 +2466,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     "送信を仕上げています。回線が遅いと、ここで少し時間がかかります。このままお待ちください。": "Finishing the upload. On a slow connection this step can take a little while, so please wait.",
     "待っているあいだに、作者のトラックはいかがですか": "While you wait, how about a track by the creator?",
     "みんなのグリッド": "everyone's grids",
+    "みんなのグリッドから外す": "Remove from everyone's grids",
+    "共有を消す": "Delete this share",
+    "みんなのグリッドから外しました。共有 URL はそのまま開けます。": "Removed from everyone's grids. The share URL still works.",
+    "外せませんでした（{}）。": "Couldn't remove it ({0}).",
+    "共有を消しました。並びはこの画面に残っています。": "The share was deleted. Your layout is still here.",
+    "消せませんでした（{}）。": "Couldn't delete it ({0}).",
+    "共有を消すと、この URL も画像も見られなくなります（取り消せません）。並びはこの画面に残ります。": "Deleting the share makes the URL and the image stop working. This can't be undone. Your layout stays here.",
+    "消す": "Delete",
+    "この端末には鍵がありません": "This device doesn't have the key",
     "に載せる": "",
     "チェックを入れると、共有されたグリッドがトラック名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。":
       "Tick the box and the shared grid can be found by track or artist name. Leave it unticked and only people with the URL can see it.",
@@ -2637,6 +2654,31 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      乗せたので、サーバーは触れない。DOM 側は置換済みなので、鍵と訳文をここで同じ値にそろえる。
      1 枚で配るとき（R2 に上げ忘れたときの控え）はサーバーが置換済みなので、置き換えは何も起きない */
   const RETENTION_DAYS = ((document.querySelector('meta[name="trackmento-retention"]') || {}).content || "").trim();
+  /* **自分の共有の鍵**（2026-09-26）。共有したときにサーバーが返す ownerKey を {id: {k, at, l}} で覚える。
+     共有ページ・探すページのスクリプト（backend/share.py の OWNER_STORE）も同じ名前で読む。期限を過ぎたものは書くときに捨てる */
+  const SHARE_KEYS = "trackmento:shareKeys";
+  let ownShareId = null;
+  function readShareKeys() { try { return JSON.parse(localStorage.getItem(SHARE_KEYS) || "{}") || {}; } catch { return {}; } }
+  function writeShareKeys(m) { try { localStorage.setItem(SHARE_KEYS, JSON.stringify(m)); } catch { /* 覚えられなければ、あとから消せないだけ */ } }
+  function rememberShare(d) {
+    ownShareId = d.ownerKey ? d.id : null;
+    $("#unlist-btn").hidden = !(d.ownerKey && d.listed);
+    $("#share-del-btn").hidden = !d.ownerKey;
+    if (!d.ownerKey) return;
+    const m = readShareKeys(), now = Date.now(), keep = ((+RETENTION_DAYS || 30) + 1) * 864e5;
+    for (const [k, v] of Object.entries(m)) if (!v || now - (v.at || 0) > keep) delete m[k];
+    m[d.id] = { k: d.ownerKey, at: now, l: !!d.listed };
+    writeShareKeys(m);
+  }
+  async function ownerAction(action) {
+    const m = readShareKeys(), sid = ownShareId;
+    if (!sid || !m[sid]) throw new Error(tr("この端末には鍵がありません"));
+    const r = await fetch(api(`/s/${sid}/${action}`), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: m[sid].k }) });
+    const d = await readJson(r);
+    if (!r.ok && r.status !== 404) throw new Error(d.detail || `HTTP ${r.status}`);
+    if (action === "delete" || r.status === 404) delete m[sid]; else m[sid].l = false;
+    writeShareKeys(m);
+  }
   if (RETENTION_DAYS) {
     for (const [k, v] of Object.entries(EN)) {
       if (!k.includes("__RETENTION__") && !v.includes("__RETENTION__")) continue;
@@ -4684,6 +4726,21 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   $("#confirm-no").addEventListener("click", closeConfirm);
   $("#confirm-backdrop").addEventListener("click", closeConfirm);
   $("#confirm-yes").addEventListener("click", () => { const f = confirmYes; closeConfirm(); if (f) f(); });
+  /* みんなのグリッドから外す（共有 URL はそのまま）／共有ごと消す（取り消せないので確認窓を挟む） */
+  $("#unlist-btn").addEventListener("click", async () => {
+    const b = $("#unlist-btn");
+    setBtnState(b, "loading");
+    try { await ownerAction("unlist"); b.hidden = true; say(els.gridMsg, tr("みんなのグリッドから外しました。共有 URL はそのまま開けます。")); }
+    catch (err) { say(els.gridMsg, tr`外せませんでした（${err.message}）。`, "error"); }
+    setBtnState(b, null);
+  });
+  $("#share-del-btn").addEventListener("click", () => openConfirm(async () => {
+    try {
+      await ownerAction("delete");
+      resetOutput();
+      say(els.gridMsg, tr("共有を消しました。並びはこの画面に残っています。"));
+    } catch (err) { say(els.gridMsg, tr`消せませんでした（${err.message}）。`, "error"); }
+  }, tr("共有を消すと、この URL も画像も見られなくなります（取り消せません）。並びはこの画面に残ります。"), tr("消す"), $("#share-del-btn")));
 
   els.clearBtn.addEventListener("click", () => {
     const n = state.cells.filter(Boolean).length + state.stash.length;
@@ -8524,7 +8581,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
          （別オリジンだと download 属性が効かないので、その場合もバックエンド経由にする） */
       els.download.href = lastObjUrl || api(`/shares/${d.id}.${ext}`);
       els.download.download = (state.title.trim() || "trackmento").replace(/[\\/:*?"<>|]/g, "_") + "." + (d.localPng ? "png" : ext);
-      els.shareUrl.value = d.url; els.openShare.href = d.url;
+      els.shareUrl.value = d.url; els.openShare.href = d.url; rememberShare(d);
       els.nativeShareBtn.hidden = false;
       $("#share-done").hidden = false; $("#out-shot").hidden = false;
       setBtnState(els.shareBtn, null);

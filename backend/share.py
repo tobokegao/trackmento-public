@@ -138,9 +138,13 @@ def store(doc: GridDoc, image: bytes, og: bytes | None, width: int, height: int,
     sid = _new_id(doc)
     # name はブラウザごとの固有 ID（u-…）。公開 JSON に載せると同じ人の共有を突き合わせたり、そのグリッドを読み書きされたりするので外す
     snap = doc.model_dump(exclude={"name", "savedAt"})
+    # **あとから自分で外す・消すための鍵**（2026-09-26、利用者の案）。鍵そのものは共有した端末にだけ返し、
+    # 並びの JSON には SHA-256 だけを置く（JSON は誰でも読めるが、144 ビットの乱数のハッシュからは戻せない）
+    owner_key = secrets.token_urlsafe(18)
     snap.update({"id": sid, "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
                  "og": True,    # カード用 JPEG がある印（古い共有には無い）
-                 "ext": ext})   # 本体画像の拡張子（無ければ png）
+                 "ext": ext,    # 本体画像の拡張子（無ければ png）
+                 "ownerKeyHash": _key_hash(owner_key)})
     js = json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8")
     need = len(image) + len(js) + len(og)
     if budget > 0:
@@ -155,7 +159,8 @@ def store(doc: GridDoc, image: bytes, og: bytes | None, width: int, height: int,
         shareindex.add(snap)
     url = image_url(sid, ext)
     return {"id": sid, "image": url, "png": url, "ext": ext, "og": og_url(sid), "json": f"/shares/{sid}.json",
-            "width": width, "height": height, "bytes": need}   # png は旧キー（古いタブ・CLI 互換）
+            "width": width, "height": height, "bytes": need,   # png は旧キー（古いタブ・CLI 互換）
+            "ownerKey": owner_key, "listed": bool(getattr(doc, "listed", False))}
 
 
 MAX_UPLOAD_IMAGE = MAX_IMAGE_BYTES + 200_000   # ブラウザ側の縮小判定の誤差ぶんだけ許す
@@ -226,6 +231,46 @@ def load(sid: str) -> dict | None:
         return None
 
 
+def _key_hash(key: str) -> str:
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+class NotOwner(Exception):
+    """鍵が合わない・鍵の無い古い共有（2026-09-26 より前）。"""
+
+
+def _owned(sid: str, key: str) -> dict:
+    """共有を読み、鍵が合えばそのスナップショットを返す。共有が無ければ FileNotFoundError、鍵が合わなければ NotOwner。"""
+    snap = load(sid)
+    if snap is None:
+        raise FileNotFoundError(sid)
+    want = snap.get("ownerKeyHash")
+    if not want or not isinstance(key, str) or not (8 <= len(key) <= 64) or not secrets.compare_digest(_key_hash(key), want):
+        raise NotOwner(sid)
+    return snap
+
+
+def unlist(sid: str, key: str) -> None:
+    """**みんなのグリッドから外す**（共有 URL はそのまま開ける）。索引の控え（listed/<id>.json）を消し、
+    並びの JSON の listed も false に書き直す（共有ページの表示と揃えるため）。"""
+    snap = _owned(sid, key)
+    st = storage.get_storage()
+    st.delete(f"{shareindex.PREFIX}{sid}.json")
+    shareindex.forget(sid)
+    if snap.get("listed"):
+        snap["listed"] = False
+        st.put(f"{sid}.json", json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8"), "application/json;charset=utf-8")
+
+
+def delete(sid: str, key: str) -> None:
+    """**共有ごと消す**（取り消せない）。消すものは scripts/delete_share.py と同じ: 本体画像・カード画像・並び・
+    みんなのグリッドの控え。アップロード画像は同じ人の別の並びも使っていることがあるので残す。
+    画像は img.trackmento.com（Cloudflare）のキャッシュにしばらく残ることがある。"""
+    _owned(sid, key)
+    storage.get_storage().delete_many([f"{sid}.jpg", f"{sid}.png", f"{sid}-og.jpg", f"{sid}.json", f"{shareindex.PREFIX}{sid}.json"])
+    shareindex.forget(sid)
+
+
 # 共有ページ・案内ページの文言。フロント（frontend/index.html の EN 表）と違い、こちらはサーバーで組み立てるので
 # 開いた人の Accept-Language で選ぶ（共有ページは受け取った人が開くため、共有した人の設定ではなく開く人に合わせる）。
 # お問い合わせは Google フォーム（2026-09-19。backend/pages.py の CONTACT_FORM と同じ URL）
@@ -275,6 +320,17 @@ TEXT = {
         "find_hits": "{n} 件見つかりました",
         "find_untitled": "無題のグリッド",
         "find_back": "TRACKMENTO を開く",
+        # 自分の共有をあとから外す・消す（2026-09-26）。鍵を持っている端末にだけ出る
+        "own_note": "この共有は、この端末から作りました。",
+        "own_unlist": "みんなのグリッドから外す",
+        "own_delete": "共有を消す",
+        "own_confirm": "消すと、この URL も画像も見られなくなります（取り消せません）。",
+        "own_yes": "消す",
+        "own_cancel": "やめる",
+        "own_unlisted": "みんなのグリッドから外しました。共有 URL はそのまま開けます。",
+        "own_deleted": "共有を消しました。",
+        "own_fail": "できませんでした",
+        "find_own_done": "外しました",
         "find_varied": "いろんな切り口",
         "find_recent": "最近のグリッド",
     },
@@ -319,6 +375,16 @@ TEXT = {
         "find_hits": "{n} found",
         "find_untitled": "Untitled grid",
         "find_back": "Open TRACKMENTO",
+        "own_note": "You shared this from this device.",
+        "own_unlist": "Remove from everyone's grids",
+        "own_delete": "Delete this share",
+        "own_confirm": "The URL and the image will stop working. This can't be undone.",
+        "own_yes": "Delete",
+        "own_cancel": "Cancel",
+        "own_unlisted": "Removed from everyone's grids. The share URL still works.",
+        "own_deleted": "The share was deleted.",
+        "own_fail": "Couldn't do that",
+        "find_own_done": "Removed",
         "find_varied": "Different themes",
         "find_recent": "Recent grids",
     },
@@ -393,6 +459,25 @@ img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b;
 .btn {{ display: inline-flex; align-items: center; min-height: 44px; padding: 4px 16px; border: 2px solid #12171b; background: #f6f5f3; color: #12171b;
   font-weight: 700; text-decoration: none; box-shadow: 2px 2px 0 #12171b; }}
 .btn.primary {{ background: #12171b; color: #f6f5f3; }}
+/* 自分の共有を外す・消す（2026-09-26）。鍵を持つ端末にだけ出る。button は a と同じ見た目に */
+button.btn {{ font: inherit; font-weight: 700; cursor: pointer; }}
+button.btn:disabled {{ opacity: .5; cursor: default; }}
+.btn.danger {{ background: oklch(62% 0.200 32); color: #f6f5f3; }}
+.own {{ display: grid; gap: 8px; padding: 12px; border: 2px dashed #12171b; }}
+.own[hidden] {{ display: none; }}
+.own .note {{ margin: 0; padding: 0; border: 0; background: none; }}   /* 破線の枠の中なので、ふだんの .note の枠は付けない */
+.own .own-msg:empty {{ display: none; }}
+/* 探すページの「外す」は **Mac OS 8 のクローズボックス**（題名バーの左端の、中が空の小さな立体の四角。× は描かない。
+   HIG の Window Guidelines の図 HIG_W-007）。× を四角で囲んだ形は一覧の中で目立ちすぎた（2026-09-26、利用者の指摘）。
+   押せる広さは 24px 四方で、見た目の箱は真ん中の 13px。押すと凹む。何のボタンかは title と読み上げで伝える */
+.own-rm {{ position: relative; display: inline-block; width: 24px; height: 24px; padding: 0; vertical-align: middle;
+  background: none; border: 0; cursor: pointer; }}
+.own-rm::before {{ content: ""; position: absolute; left: 5px; top: 5px; width: 13px; height: 13px; box-sizing: border-box;
+  border: 1px solid #12171b; background: #dddcd8; box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #8b8f93; }}
+.own-rm:hover::before {{ background: #cfcdc8; }}
+.own-rm:active::before {{ background: #8b8f93; box-shadow: inset 1px 1px 0 #53595f, inset -1px -1px 0 #c2c4c6; }}
+.own-rm:disabled {{ opacity: .5; cursor: default; }}
+li.own-gone .t a {{ text-decoration: line-through; opacity: .5; }}
 ol {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }}
 li {{ display: flex; gap: 10px; align-items: baseline; }}
 /* 曲名とアーティスト名は 1 つの流し込み。別々の flex 項目にすると狭い画面でアーティスト名だけ細長く折り返る */
@@ -485,7 +570,83 @@ def notice_html(status: int, base: str, app_url: str | None = None, detail: str 
 ALT_TRACKS = 10   # 画像の代替テキストに入れる曲の数
 
 
-def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja") -> str:
+# 端末に覚えた「自分の共有の鍵」（frontend/index.html の SHARE_KEYS と同じ名前・同じ形 {id: {k, at, l}}）
+OWNER_STORE = "trackmento:shareKeys"
+
+# 鍵を持っている端末にだけ「外す」「消す」を出すスクリプト。__T__ / __MODE__ / __STORE__ を差し替えて使う
+_OWNER_JS = """
+(() => {
+  const T = __T__, MODE = "__MODE__", STORE = "__STORE__";
+  let keys = {};
+  try { keys = JSON.parse(localStorage.getItem(STORE) || "{}") || {}; } catch { return; }
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(keys)); } catch {} };
+  const ask = async (sid, action) => {
+    const r = await fetch(`/s/${sid}/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: keys[sid].k }) });
+    let d = {}; try { d = await r.json(); } catch {}
+    if (r.status === 404) { delete keys[sid]; save(); }
+    if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+    if (action === "delete") delete keys[sid]; else keys[sid].l = false;
+    save();
+  };
+  const btn = (text, cls) => { const b = document.createElement("button"); b.type = "button"; b.className = "btn" + (cls ? " " + cls : ""); b.textContent = text; return b; };
+  if (MODE === "find") {
+    for (const a of document.querySelectorAll('main li a[href^="/s/"]')) {
+      const sid = a.getAttribute("href").slice(3);
+      if (!keys[sid]) continue;
+      // Mac OS 8 のクローズボックスの形（中が空の四角。2026-09-26、利用者の選択）。何のボタンかは title と読み上げで伝える
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "own-rm";
+      b.title = T.own_unlist; b.setAttribute("aria-label", T.own_unlist);
+      const note = document.createElement("span"); note.className = "a";
+      b.addEventListener("click", async () => {
+        b.disabled = true;
+        try { await ask(sid, "unlist"); a.closest("li").classList.add("own-gone"); note.textContent = T.find_own_done; b.replaceWith(note); }
+        catch (e) { b.disabled = false; note.textContent = `${T.own_fail}（${e.message}）`; b.after(" ", note); }
+      });
+      a.closest("li").querySelector(".t").append(" ", b);
+    }
+    return;
+  }
+  const box = document.getElementById("own"), sid = box && box.dataset.sid;
+  if (!box || !keys[sid]) return;
+  const msg = box.querySelector(".own-msg"), row = box.querySelector(".btns");
+  const say = (text) => { msg.textContent = text; };
+  const unlist = btn(T.own_unlist), del = btn(T.own_delete);
+  const reset = () => { row.replaceChildren(); if (box.dataset.listed === "1") row.append(unlist); row.append(del); };
+  unlist.addEventListener("click", async () => {
+    unlist.disabled = true;
+    try { await ask(sid, "unlist"); box.dataset.listed = ""; unlist.remove(); say(T.own_unlisted); }
+    catch (e) { unlist.disabled = false; say(`${T.own_fail}（${e.message}）`); }
+  });
+  // 消すのは取り消せないので、もう一度押してもらう（ブラウザの confirm は使わない）
+  del.addEventListener("click", () => {
+    say(T.own_confirm);
+    const yes = btn(T.own_yes, "danger"), no = btn(T.own_cancel);
+    yes.addEventListener("click", async () => {
+      yes.disabled = no.disabled = true;
+      try { await ask(sid, "delete"); row.replaceChildren(); say(T.own_deleted); setTimeout(() => location.reload(), 1200); }
+      catch (e) { yes.disabled = no.disabled = false; say(`${T.own_fail}（${e.message}）`); }
+    });
+    no.addEventListener("click", () => { reset(); say(""); });
+    row.replaceChildren(yes, no);
+  });
+  reset();
+  box.hidden = false;
+})();
+"""
+
+
+def _owner_script(nonce: str, lang: str, mode: str) -> str:
+    """鍵を持っている端末にだけ「外す」「消す」を出す（2026-09-26）。**鍵の無い端末では何も出ない**。
+    mode: "page"（共有ページ）/ "find"（探すページ）。文言はサーバーで入れる。CSP の nonce を付ける"""
+    tx = {k: t(lang, k) for k in ("own_note", "own_unlist", "own_delete", "own_confirm", "own_yes", "own_cancel",
+                                   "own_unlisted", "own_deleted", "own_fail", "find_own_done")}
+    js = (_OWNER_JS.replace("__T__", json.dumps(tx, ensure_ascii=False).replace("</", "<\\/"))
+          .replace("__MODE__", mode).replace("__STORE__", OWNER_STORE))
+    return f'<script nonce="{html.escape(nonce, quote=True)}">{js}</script>'
+
+
+def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja", nonce: str = "") -> str:
     """共有ページ。依存なしの単一 HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
     app_url = (app_url or base).rstrip("/")
@@ -565,15 +726,20 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
   <p class="meta">{t(lang, 'this_url')}: {base}/s/{sid} · {_expires_text(snap.get('createdAt'), lang)} · {t(lang, 'keep')}</p>
   <p class="meta"><a href="{CONTACT_FORM}" target="_blank" rel="noopener noreferrer">{t(lang, "contact_form")}</a>
     · <a href="{CONTACT_FORM}" target="_blank" rel="noopener noreferrer">{t(lang, "report")}</a>{t(lang, "report_note", sid=sid)}</p>
+  <section class="own" id="own" data-sid="{sid}" data-listed="{'1' if snap.get('listed') else ''}" hidden>
+    <p class="note">{t(lang, "own_note")}</p><div class="btns"></div><p class="note own-msg" role="status" aria-live="polite"></p>
+  </section>
 </main>
+{_owner_script(nonce, lang, "page") if nonce else ""}
 </body></html>"""
 
 
 def find_html(q: str, results: list[dict], base: str, app_url: str | None = None,
-              lang: str = "ja", listed_total: int = 0, varied: list[dict] | None = None) -> str:
+              lang: str = "ja", listed_total: int = 0, varied: list[dict] | None = None, nonce: str = "") -> str:
     """「みんなの並びを探す」ページ。**ここに出るのは opt-in の共有だけ**（`backend/shareindex.py`）。
 
-    JavaScript は使わない（フォームの GET だけ）。共有ページと同じ見た目・同じ CSS。
+    探すのはフォームの GET だけ。スクリプトは、自分の共有の横に「外す」を出す小さなもの 1 つだけ（2026-09-26。
+    鍵を持っている端末にだけ出る。`_owner_script`）。共有ページと同じ見た目・同じ CSS。
     検索避けは付けたまま（`noindex`）: 載せた人が同意したのは「このサイトの中で探せること」で、
     外部の検索結果に出ることまでは同意していない。
     """
@@ -626,4 +792,5 @@ h2 {{ font-weight: 700; font-size: 1rem; margin: 0; }}
   <div class="btns"><a class="btn" href="{app_url}/">{t(lang, "find_back")}</a></div>
   <p class="meta"><a href="{CONTACT_FORM}" target="_blank" rel="noopener noreferrer">{t(lang, "contact_form")}</a></p>
 </main>
+{_owner_script(nonce, lang, "find") if nonce else ""}
 </body></html>"""

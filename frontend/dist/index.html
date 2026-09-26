@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.c7056764.css">
+<link rel="stylesheet" href="app/app.9295abdd.css">
 </head>
 <body>
 
@@ -274,6 +274,12 @@
           <button class="btn" type="button" id="native-share-btn">SNS に共有</button>
           <a class="btn" id="open-share" href="#" target="_blank" rel="noopener">共有ページを開く</a>
           <a class="btn dl" id="download" download="trackmento.jpg" href="#">画像を保存</a>
+        </div>
+        <!-- **自分の共有をあとから外す・消す**（2026-09-26、利用者の案）。共有したときにサーバーが返した鍵を端末に覚え、
+             それを持っている端末だけが頼める。共有ページ・探すページにも同じボタンが出る（backend/share.py の _owner_script） -->
+        <div class="share-own">
+          <button class="btn btn-sm" type="button" id="unlist-btn" hidden>みんなのグリッドから外す</button>
+          <button class="btn btn-sm" type="button" id="share-del-btn">共有を消す</button>
         </div>
         <div class="support">
           <span>予想以上にバズっちゃったので、サーバー代がモリモリ増えています…！よかったら買って助けてください😭</span>
@@ -652,6 +658,6 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.c7710a8b.js"></script>
+<script id="app-js" src="app/app.29b190b3.js"></script>
 </body>
 </html>
