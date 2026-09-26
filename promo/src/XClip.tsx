@@ -21,7 +21,7 @@ type Ev =
   | { f: number; type: "down"; x: number; y: number; ring?: boolean }
   | { f: number; type: "hide" }
   | { f: number; type: "key"; key: string };
-export type Take = { id: string; fps: number; frames: number; vw: number; vh: number; dpr: number; events: Ev[] };
+export type Take = { id: string; fps: number; frames: number; vw: number; vh: number; dpr: number; twin?: boolean; events: Ev[] };
 export type XClipProps = { id: string; take?: Take };
 
 const LOOP = 15;      // 終わりに最初の絵を溶かし込むコマ数（0.5 秒）
@@ -110,21 +110,27 @@ const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
     );
   }
   const H = Math.round(height * 0.88), W = Math.round(H * take.vw / take.vh), bez = Math.round(H * 0.022);
-  const x = Math.round((width - W) / 2), y = Math.round((height - H) / 2);
+  // 2 台のときは左右に並べる（右は 2 台目の録画。指の印とカメラは付けない）
+  const gap = Math.round(W * 0.35), n = take.twin ? 2 : 1;
+  const x0 = Math.round((width - (W * n + gap * (n - 1))) / 2), y = Math.round((height - H) / 2);
+  const phone = (x: number, body: React.ReactNode, key: string) => (
+    <React.Fragment key={key}>
+      <div style={{ position: "absolute", left: x - bez, top: y - bez * 2, width: W + bez * 2, height: H + bez * 4, background: "#16181b",
+                    borderRadius: bez * 3.2, boxShadow: `${bez}px ${bez}px 0 rgba(0,0,0,.18)` }} />
+      <div style={{ position: "absolute", left: x, top: y, width: W, height: H, overflow: "hidden", borderRadius: bez * 1.2, background: "#fff" }}>{body}</div>
+    </React.Fragment>
+  );
   return (
     // 地はサイトの机の色（ごく薄い灰色）。枠は角の丸い黒（スマホの本体。サイトの部品ではないので角丸でよい）
     <AbsoluteFill style={{ backgroundColor: "#e9e8e3" }}>
-      <div style={{ position: "absolute", left: x - bez, top: y - bez * 2, width: W + bez * 2, height: H + bez * 4, background: "#16181b",
-                    borderRadius: bez * 3.2, boxShadow: `${bez}px ${bez}px 0 rgba(0,0,0,.18)` }} />
-      <div style={{ position: "absolute", left: x, top: y, width: W, height: H, overflow: "hidden", borderRadius: bez * 1.2, background: "#fff" }}>
-        <View id={id} take={take} w={W} h={H} touch />
-      </div>
+      {phone(x0, <View id={id} take={take} w={W} h={H} touch />, "a")}
+      {take.twin && phone(x0 + W + gap, <View id={id} take={{ ...take, events: [] }} w={W} h={H} touch src="take2.mp4" />, "b")}
     </AbsoluteFill>
   );
 };
 
 /** 録画＋カメラ＋カーソル（指）＋輪を w×h の箱に描く */
-const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: boolean }> = ({ id, take, w: width, touch }) => {
+const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: boolean; src?: string }> = ({ id, take, w: width, touch, src = "take.mp4" }) => {
   const f = useCurrentFrame();
   const { vw, vh, events } = take;
   const k = width / vw;   // 出力の px ÷ 画面の CSS px（引いたとき）
@@ -146,7 +152,7 @@ const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: bool
 
   return (
     <AbsoluteFill style={{ overflow: "hidden" }}>
-      <OffthreadVideo src={staticFile(`xclips/${id}/take.mp4`)} muted
+      <OffthreadVideo src={staticFile(`xclips/${id}/${src}`)} muted
         style={{ position: "absolute", left: 0, top: 0, width: vw * k, height: vh * k, transformOrigin: "0 0",
                  transform: `translate(${-cam.x * s}px, ${-cam.y * s}px) scale(${vw / cam.w})` }} />
       {downs.filter((d) => d.ring !== false && f >= d.f && f < d.f + 14).map((d, i) => {

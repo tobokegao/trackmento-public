@@ -30,6 +30,7 @@ export async function openPage(browser, opts) {
 /** ページ 1 枚ぶんの道具。コマの数・印・カーソルの位置はここで持つ */
 export function makeKit(page, tracks) {
   let frames = 0, frameDir = null, events = [];
+  let twin = null;   // 2 台目のスマホ（setTwin）。{ page, sync, dir }
   const vp = page.viewportSize();
   const nFrames = (sec) => Math.max(1, Math.round(sec * FPS));
   const ev = (type, extra = {}) => events.push({ f: frames, type, ...extra });
@@ -38,6 +39,7 @@ export function makeKit(page, tracks) {
   async function frame() {
     const dt = Math.round((frames + 1) * 1000 / FPS) - Math.round(frames * 1000 / FPS);
     await page.clock.runFor(dt);
+    if (twin) { await twin.page.clock.runFor(dt); await twin.sync(); }
     if (!frameDir) return;
     await page.evaluate(() => {
       const now = performance.now();
@@ -48,6 +50,7 @@ export function makeKit(page, tracks) {
     }).catch(() => {});
     frames++;
     fs.writeFileSync(path.join(frameDir, `${String(frames).padStart(5, "0")}.jpg`), await page.screenshot({ type: "jpeg", quality: 92 }));
+    if (twin) fs.writeFileSync(path.join(twin.dir, `${String(frames).padStart(5, "0")}.jpg`), await twin.page.screenshot({ type: "jpeg", quality: 92 }));
   }
   /** sec 秒ぶんのコマを撮る */
   async function hold(sec) { for (let i = 0, n = nFrames(sec); i < n; i++) await frame(); }
@@ -79,7 +82,9 @@ export function makeKit(page, tracks) {
       const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
       x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
     }
-    return x1 > x0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+    // **縮小表示の倍率を掛ける**（スマホの「PC 版の表示」は幅 1024 の画面を縮めて見せるので、CSS の座標と画面の座標が違う。2026-09-26）
+    const v = window.visualViewport, sc = v ? v.scale : 1, ox = v ? v.offsetLeft : 0, oy = v ? v.offsetTop : 0;
+    return x1 > x0 ? { x: (x0 - ox) * sc, y: (y0 - oy) * sc, w: (x1 - x0) * sc, h: (y1 - y0) * sc } : null;
   }, sels);
 
   /** カメラの行き先を決める（sels の要素をまとめた四角に寄る）。sec 秒かけて移る。撮影前なら最初の構図になる */
@@ -106,6 +111,12 @@ export function makeKit(page, tracks) {
     const b = await page.locator(sel).first().boundingBox();
     if (!b) throw new Error(`見えていない: ${sel}`);
     return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  }
+  /** 印に使う座標（画面の座標）。縮小表示のときは CSS の座標に倍率を掛ける（rectOf と同じ） */
+  async function screenCenterOf(sel) {
+    const r = await rectOf([sel]);
+    if (!r) throw new Error(`見えていない: ${sel}`);
+    return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
   }
   /** カーソルを要素まで運ぶ（動きは Remotion が描く。ページのマウスは着く直前に動かして、:hover を出す） */
   async function glide(sel, sec = 0.45) {
@@ -136,11 +147,18 @@ export function makeKit(page, tracks) {
   }
   /** 指で押す（スマホの場面。印は press と同じなので、XClip は指の丸と輪を描く） */
   async function tap(sel, { sec = 0.4 } = {}) {
-    await glide(sel, sec);
+    const s = await screenCenterOf(sel);
+    ev("cursor", { x: s.x, y: s.y, dur: nFrames(sec) }); await hold(sec);
     await hold(0.1);
-    const { x, y } = await centerOf(sel);
-    ev("down", { x, y });
-    await page.touchscreen.tap(x, y); await frame(); await frame();
+    ev("down", { x: s.x, y: s.y });
+    // 縮小表示のページでは Playwright の tap が「画面の外」と判断して押せないことがあるので、そのときはページの中から押す
+    await page.locator(sel).first().tap({ timeout: 2000 }).catch(() => page.$eval(sel, (el) => el.click()));
+    await frame(); await frame();
+  }
+  /** ページが読み直されるのを待つ（時計は止めてあるので、進めながら待つ） */
+  async function waitReload() {
+    for (let i = 0; i < 40; i++) { await page.clock.runFor(50); await sleep(50); }
+    for (let i = 0; i < 200 && !(await page.evaluate(() => !!window.__setGridUI).catch(() => false)); i++) { await page.clock.runFor(50); await sleep(50); }
   }
   /** 指で座標を押す（要素の真ん中でない所を押すとき） */
   async function tapAt(x, y, sec = 0.4) {
@@ -275,10 +293,14 @@ export function makeKit(page, tracks) {
   }), "ジャケット", 30000).catch(() => {});
 
   /** 撮り始める（ここから先の印とコマが動画になる）。撮影前に置いた印（最初の構図・カーソル）は 0 コマ目に寄せる */
+  /** **2 台目のスマホ**（2026-09-26、利用者の案「スマホを 2 つ並べて同期させる」）。twinPage も同じ時計で進め、コマごとに sync() で
+      1 台目の状態を写してから撮る。書き出しは take2.mp4、XClip が右に並べて描く（指の印は 1 台目だけ） */
+  function setTwin(twinPage, sync) { twin = { page: twinPage, sync, dir: null }; }
   function start(dir) {
     fs.rmSync(dir, { recursive: true, force: true });
     frameDir = path.join(dir, "frames");
     fs.mkdirSync(frameDir, { recursive: true });
+    if (twin) { twin.dir = path.join(dir, "frames2"); fs.mkdirSync(twin.dir, { recursive: true }); }
     for (const e of events) e.f = 0;
     frames = 0;
   }
@@ -287,11 +309,16 @@ export function makeKit(page, tracks) {
     execFileSync(FF, ["-y", "-v", "error", "-framerate", String(FPS), "-i", path.join(frameDir, "%05d.jpg"),
       "-c:v", "libx264", "-preset", "medium", "-crf", "14", "-pix_fmt", "yuv420p", "-g", "15", "-movflags", "+faststart", path.join(dir, "take.mp4")]);
     fs.rmSync(frameDir, { recursive: true, force: true });
+    if (twin) {
+      execFileSync(FF, ["-y", "-v", "error", "-framerate", String(FPS), "-i", path.join(twin.dir, "%05d.jpg"),
+        "-c:v", "libx264", "-preset", "medium", "-crf", "14", "-pix_fmt", "yuv420p", "-g", "15", "-movflags", "+faststart", path.join(dir, "take2.mp4")]);
+      fs.rmSync(twin.dir, { recursive: true, force: true });
+    }
     const dpr = await page.evaluate(() => devicePixelRatio);
-    fs.writeFileSync(path.join(dir, "events.json"), JSON.stringify({ ...meta, fps: FPS, frames, vw: vp.width, vh: vp.height, dpr, events }, null, 1));
+    fs.writeFileSync(path.join(dir, "events.json"), JSON.stringify({ ...meta, fps: FPS, frames, vw: vp.width, vh: vp.height, dpr, twin: !!twin, events }, null, 1));
     return frames;
   }
 
-  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, tap, tapAt, swipe, key, type, drag, dragThumb,
-           ctrlWheel, arrange, stage, scrollTo, seed, mock, waitArt, start, finish };
+  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, tap, tapAt, swipe, waitReload, key, type, drag, dragThumb,
+           ctrlWheel, arrange, stage, setTwin, scrollTo, seed, mock, waitArt, start, finish };
 }

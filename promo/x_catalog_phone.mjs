@@ -82,29 +82,36 @@ export default [
   {
     id: "sp-view",
     phone: true,
-    what: "スマホでもページのいちばん下の「PC 版の表示」で PC の画面にできる。窓は指で題名バーを掴んで動かせる。「スマホ版の表示」で戻る",
+    what: "スマホでもページのいちばん下の「PC 版の表示」で PC の画面にできる。「スマホ版の表示」で戻る",
     async setup(k) {
       await place(k, 3, 3, square().slice(0, 9));
-      await k.page.evaluate(() => document.querySelector("#view-pc").scrollIntoView({ block: "center" }));
+      await k.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await k.hold(0.3);
-      await k.look(["#view-pc", "#view-sp"], 0);   // 切り替えのリンクに寄って始める（何を押すか見えるように、と利用者）
+      k.wide(0);   // スマホ版の引きの絵から（利用者の指定）
       await k.park(200, 600);
     },
     async run(k) {
       await k.hold(1.0);
+      await k.look(["#view-pc", "#view-sp"], 0.7);   // リンクに寄る
+      await k.hold(0.6);
       await k.tap("#view-pc");
-      await k.hold(0.3);
-      await k.page.evaluate(() => window.scrollTo(0, 0));
-      k.wide(0.5);
-      await k.hold(1.0);
-      await k.drag(".pane-results > .pane-title", { dx: 60, dy: 220 }, 1.0, [0.3, 0.5]);
-      await k.hold(1.0);
-      await k.page.$eval("#win-reset", (el) => el.click()).catch(() => {});
-      await k.page.evaluate(() => document.querySelector("#view-sp").scrollIntoView({ block: "center" }));
-      await k.hold(0.3);
-      await k.look(["#view-pc", "#view-sp"], 0.4);
+      await k.waitReload();   // 切り替えはページを読み直す
+      // 撮影用のブラウザは幅 1024 の画面を縮めて見せないので、実機と同じく画面の幅に合わせて縮める（390 / 1024）
+      const cdp = await k.page.context().newCDPSession(k.page);
+      await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 390 / 1024 });
+      for (let i = 0; i < 5; i++) { await k.page.clock.runFor(50); await new Promise((r) => setTimeout(r, 50)); }
+      // PC 版も引きの絵から、いちばん下の「スマホ版の表示」に寄る
+      await k.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      k.wide(0);   // PC 版は画面ぜんぶが縮めて入る（リンクは右下）
+      await k.hold(1.4);
+      await k.look(["#view-pc", "#view-sp"], 0.7);
+      await k.hold(0.6);
       await k.tap("#view-sp");
-      await k.hold(0.8);
+      await k.waitReload();
+      await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 });
+      await k.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      k.wide(0);
+      await k.hold(1.0);
     },
   },
   {
@@ -140,44 +147,52 @@ export default [
   {
     id: "sp-share-target",
     phone: true,
-    what: "Android でホーム画面に追加しておくと、動画や音楽のアプリの「共有」から TRACKMENTO に URL を送れる（送ると自動で取り込む）",
+    // 本物のニコニコ動画のページを開くので、Android の Chrome の名乗りで開く（スマホ向けのページになる）
+    ctx: { userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36" },
+    what: "Android でホーム画面に追加しておくと、ブラウザやアプリの「共有」から TRACKMENTO に URL を送れる（送ると自動で取り込む）",
     async setup(k) {
-      const wide = nico();
-      await k.mock({ url: () => ({ ...wide[2], source: "youtube", external_url: "https://www.youtube.com/watch?v=AbCdEfGhIjK" }) });
       await place(k, 3, 3, withHoles(square(), 9, [3, 4, 5, 6, 7, 8]));
-      // **共有元のページから始める**（利用者の指摘）。本物のサービスの画面は写さず、架空の動画のページを描く（撮影のときだけ）
-      const thumb = wide[2].image;
-      await k.page.route(/\/x-fake-video$/, (route) => route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>*{box-sizing:border-box}body{margin:0;font:15px/1.5 "Roboto","Noto Sans JP",sans-serif;background:#0f0f10;color:#eee}
-        header{display:flex;align-items:center;gap:8px;padding:12px 14px;font-weight:700}header i{width:26px;height:18px;border-radius:5px;background:#e33}
-        .v{width:100%;aspect-ratio:16/9;background:#000 url('${thumb}') center/cover}.b{padding:12px 14px}.t{font-size:17px;font-weight:700;margin-bottom:4px}.m{color:#aaa;font-size:13px}
-        .row{display:flex;gap:10px;margin-top:14px}.row span{padding:8px 14px;border-radius:18px;background:#272727;font-size:14px}
-        .x-share,.x-share *{box-sizing:border-box}.x-share{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end}
-        .x-share .s{width:100%;background:#fff;color:#222;border-radius:18px 18px 0 0;padding:18px 16px 28px}.x-share .h{margin-bottom:4px}.x-share .u{color:#777;font-size:12px;margin-bottom:16px;word-break:break-all}
-        .x-share .apps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 8px}.x-share .a{display:grid;justify-items:center;gap:6px;font-size:12px}
-        .x-share .a i{width:48px;height:48px;border-radius:50%;background:#ddd}.x-share .a.tm i{background:#fff url('/icon-192.png') center/100% no-repeat;border:1px solid #ccc}</style></head>
-        <body><header><i></i>どうがサイト</header><div class="v"></div><div class="b"><div class="t">自作シンセで1曲</div><div class="m">ラボ32 ・ 1.2万 回視聴</div>
-        <div class="row"><span>高評価 842</span><span id="share-btn">共有</span><span>保存</span></div></div></body></html>` }));
-      await k.page.goto("http://127.0.0.1:8000/x-fake-video", { waitUntil: "domcontentloaded" });
-      await k.until(() => k.page.evaluate(() => [...document.querySelectorAll(".v")].length > 0), "動画のページ", 5000);
+      // **共有元は本物のニコニコ動画のページ**（2026-09-26、利用者の指定 sm44887188）。アプリへの誘導の窓は閉じ、
+      // 第三者の広告と上の帯は撮影のときだけ隠す（広告の中身が撮るたびに替わり、よその商品が映るため）
+      await k.page.goto("https://sp.nicovideo.jp/watch/sm44887188", { waitUntil: "domcontentloaded", timeout: 30000 });
+      for (let i = 0; i < 60; i++) { await k.page.clock.runFor(100); await new Promise((r) => setTimeout(r, 100)); }
+      await k.page.getByText("引き続きWeb版で視聴する").click({ timeout: 5000 }).catch(() => {});
+      await k.page.addStyleTag({ content: "#Middle320x50Ad, #FooterAd, #OverlayAd, iframe[id^='ads_'] { display: none !important; } " + `.x-share, .x-share * { box-sizing: border-box; font: 15px/1.4 "Roboto", "Noto Sans JP", sans-serif; visibility: visible !important; }
+        .x-share { position: fixed; inset: 0; z-index: 2147483000; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; }
+        .x-share .s { width: 100%; background: #fff; color: #222; border-radius: 18px 18px 0 0; padding: 18px 16px 28px; }
+        .x-share .h { margin-bottom: 4px; } .x-share .u { color: #777; font-size: 12px; margin-bottom: 16px; word-break: break-all; }
+        .x-share .apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 8px; }
+        .x-share .a { display: grid; justify-items: center; gap: 6px; font-size: 12px; color: #333; }
+        .x-share .a i { width: 48px; height: 48px; border-radius: 50%; background: #ddd; }
+        .x-share .a.tm i { background: #fff url('http://127.0.0.1:8000/icon-192.png') center / 100% no-repeat; border: 1px solid #ccc; }` });
+      await k.page.evaluate(() => {
+        for (const text of ["バックグラウンド再生で動画が楽しめる", "アプリで高画質を見るなら"]) {
+          const el = [...document.querySelectorAll("body *")].find((e) => e.childElementCount < 6 && (e.textContent || "").includes(text) && e.getBoundingClientRect().height < 140);
+          let box = el; while (box && box.parentElement && box.parentElement.getBoundingClientRect().height < 140) box = box.parentElement;
+          if (box) box.style.display = "none";
+        }
+        window.scrollTo(0, 0);
+      });
+      for (let i = 0; i < 10; i++) { await k.page.clock.runFor(100); await new Promise((r) => setTimeout(r, 100)); }
       k.wide(0);
-      await k.park(300, 600);
+      await k.park(300, 700);
     },
     async run(k) {
-      await k.hold(1.2);
-      await k.tap("#share-btn");
+      await k.hold(1.6);
+      // ブラウザの「共有」から開いた共有シート（Android のもの。撮れないので描く）
       await k.page.evaluate(() => {
         const d = document.createElement("div"); d.className = "x-share";
-        d.innerHTML = `<div class="s"><div class="h">共有</div><div class="u">https://www.youtube.com/watch?v=AbCdEfGhIjK</div>
+        d.innerHTML = `<div class="s"><div class="h">共有</div><div class="u">https://www.nicovideo.jp/watch/sm44887188</div>
           <div class="apps"><div class="a"><i></i>メッセージ</div><div class="a"><i></i>メール</div><div class="a tm" id="x-share-tm"><i></i>TRACKMENTO</div><div class="a"><i></i>コピー</div></div></div>`;
         document.body.append(d);
       });
       await k.hold(1.0);
       await k.tap("#x-share-tm");
-      // 共有から開いたのと同じ URL で開く（manifest の share_target が /?st_url=… で開く）
-      await k.page.goto("http://127.0.0.1:8000/?st_url=" + encodeURIComponent("https://www.youtube.com/watch?v=AbCdEfGhIjK"), { waitUntil: "domcontentloaded" });
+      // 共有から開いたのと同じ URL で開く（manifest の share_target が /?st_url=… で開く）。取り込みは本物（手元のサーバーがニコニコに問い合わせる）
+      await k.page.goto("http://127.0.0.1:8000/?st_url=" + encodeURIComponent("https://www.nicovideo.jp/watch/sm44887188"), { waitUntil: "domcontentloaded" });
       for (let i = 0; i < 200 && !(await k.page.evaluate(() => !!window.__setGridUI)); i++) { await k.page.clock.runFor(50); await new Promise((r) => setTimeout(r, 50)); }
-      await k.until(() => k.page.evaluate(() => document.querySelectorAll("#results .result").length >= 1), "取り込み", 15000);
+      await k.until(() => k.page.evaluate(() => document.querySelectorAll("#results .result").length >= 1), "取り込み", 30000);
+      await k.until(() => k.page.evaluate(() => [...document.querySelectorAll("#results img")].every((i) => i.complete)), "サムネ", 15000).catch(() => {});
       await k.hold(0.6);
       await k.swipe(await k.page.evaluate(() => { const r = document.querySelector("#results").getBoundingClientRect(); return Math.max(0, r.top - 300); }), 0.7, "#sheet .sheet-body");
       await k.hold(1.0);
@@ -189,12 +204,24 @@ export default [
   {
     id: "sp-slider",
     phone: true,
-    what: "スマホのスライダーは、つまみを掴んだときだけ動く（ページを送ろうとして溝に触れても値が飛ばない）",
+    what: "スマホのスライダーは、つまみを掴んだときだけ動く（ページを送ろうとして溝に触れても値が飛ばない）。右は同じ並びのグリッド",
     async setup(k) {
-      await place(k, 3, 3, square().slice(0, 9), { gap: 16 });
-      // スマホでは出力オプションの窓が畳まれて始まるので開く
+      const cells = square().slice(0, 9);
+      await place(k, 3, 3, cells, { gap: 16 });
       if (await k.page.evaluate(() => document.querySelector(".pane-options").dataset.collapsed === "true")) await k.page.click(".pane-options > .pane-title .fold");
       await scrollTo(k, "#gap", 420);
+      // **2 台目のスマホ**（右）にグリッドを映し、コマごとに左のマスの間隔を写す（2026-09-26、利用者の案）
+      const p2 = await k.page.context().newPage();
+      await p2.clock.install({ time: new Date("2026-09-25T12:00:00+09:00") });
+      await p2.goto("http://127.0.0.1:8000/", { waitUntil: "domcontentloaded" });
+      for (let i = 0; i < 200 && !(await p2.evaluate(() => !!window.__setGridUI)); i++) { await p2.clock.runFor(50); await new Promise((r) => setTimeout(r, 50)); }
+      await p2.evaluate((cells) => { window.__setGridUI(3, 3, { title: "私を構成する9曲", gap: 16 }, cells); }, cells);
+      for (let i = 0; i < 20; i++) { await p2.clock.runFor(100); await new Promise((r) => setTimeout(r, 50)); }
+      await p2.evaluate(() => window.scrollBy(0, document.querySelector("#grid-scroll").getBoundingClientRect().top - 60));
+      k.setTwin(p2, async () => {
+        const v = await k.page.$eval("#gap", (g) => g.value);
+        await p2.evaluate((v) => { const g = document.querySelector("#gap"); if (g.value !== v) { g.value = v; g.dispatchEvent(new Event("input", { bubbles: true })); } }, v);
+      });
       k.wide(0);
       await k.park(300, 700);
     },
@@ -202,16 +229,12 @@ export default [
       await k.hold(0.8);
       // 溝の右のほうを押しても値は変わらない（つまみから離れた所を指で押す）
       const r = await k.page.locator("#gap").boundingBox();
-      const x = r.x + r.width * 0.8, y = r.y + r.height / 2;
-      await k.page.evaluate(() => {});   // （印はページの外で付ける）
-      await k.hold(0.1);
-      await k.glide("#gap", 0.01).catch(() => {});
-      await k.tapAt(x, y);
+      await k.tapAt(r.x + r.width * 0.8, r.y + r.height / 2);
       await k.hold(1.0);
-      await k.dragThumb("#gap", 120, 0.9);
+      await k.dragThumb("#gap", 120, 1.0);
       await k.hold(1.0);
-      await k.dragThumb("#gap", -120, 0.6);
-      await k.hold(0.6);
+      await k.dragThumb("#gap", -120, 0.8);
+      await k.hold(0.8);
     },
   },
   {

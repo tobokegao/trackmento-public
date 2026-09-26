@@ -39,7 +39,7 @@ const browser = await chromium.launch();
 const failed = [];
 for (const c of picked) {
   // **場面ごとに新しいページで撮る**。前の場面の状態（開いた窓・スクロール・パレット）を持ち越さないため
-  const page = await openPage(browser, c.phone ? PHONE : PC);
+  const page = await openPage(browser, c.phone ? { ...PHONE, ...(c.ctx || {}) } : PC);   // c.ctx で場面ごとに足せる（本物のサイトを開く場面の userAgent など）
   const k = makeKit(page, TRACKS);
   const dir = path.join(OUT, c.id);
   // **撮影で本番の R2 に上げた画像を記録する**（背景の画像の場面は /upload を通る。手元のサーバーも .env の R2 を使うため）。

@@ -22,27 +22,33 @@ export default [
     what: "見た目は Mac OS 9 風 … 縞の題名バー、ドット絵のラジオボタン、グループボックス、ポップアップメニュー、注意の絵の確認窓",
     async setup(k) {
       await ready(k, 9, [3, 3], {}, square().slice(0, 9));
-      k.wide(0);
-      await k.park(1100, 300);
+      // 画面を送らずに全部が見えるよう窓を並べ直す（送る動きが邪魔、と利用者）。カメラも移らずに切り替える
+      await k.arrange({ ".pane-grid": { x: 60, y: 24, w: 560, only: [".themes", "#grid-scroll", ".clear-row"] },
+                        ".pane-options": { x: 660, y: 24, w: 360, only: [".gbox:has(#cols)", ".gbox:has(#bg-mode-seg)"] } });
+      await k.stage("#grid-scroll { height: auto !important; max-height: 420px !important; } .gbox:has(#bg-mode-seg) > :not(.gbox-title):not(fieldset:has(#bg-mode-seg)) { display: none !important; } #bg-mode-seg ~ * { display: none !important; }");
+      await k.look([".pane-grid > .pane-title", ".themes", "#grid-scroll", ".clear-row", ".pane-options > .pane-title", ".pane-options .opts"]);
+      await k.park(640, 650);
     },
     async run(k) {
-      await k.hold(0.5);
-      await k.look([".pane-grid > .pane-title"], 0.7); await k.hold(0.9);           // 縞の題名バー
-      await k.look(["#bg-mode-seg"], 0.7); await k.hold(0.9);                        // ラジオボタン
-      await k.look([OT, ".pane-options .gbox:nth-of-type(1)"], 0.7); await k.hold(0.8);   // グループボックス
-      await k.look([".themes", "#grid-scroll"], 0.6);
-      await k.press(".popup:has(#theme-sel) .popup-hit");                             // ポップアップメニュー
+      const all = [".pane-grid > .pane-title", ".themes", "#grid-scroll", ".clear-row", ".pane-options > .pane-title", ".pane-options .opts"];
+      await k.hold(1.4);
+      await k.look([".pane-grid > .pane-title"], 0); await k.hold(1.8);                                   // 縞の題名バー
+      await k.look(["#bg-mode-seg"], 0); await k.hold(1.8);                                              // ラジオボタン
+      await k.look([".pane-options > .pane-title", ".pane-options .gbox:has(#cols)"], 0); await k.hold(1.8);   // グループボックス
+      await k.look([".themes", "#grid-scroll"], 0);
+      await k.hold(0.4);
+      await k.press(".popup:has(#theme-sel) .popup-hit");                                                // ポップアップメニュー
       await k.until(() => k.page.evaluate(() => !document.querySelector("#popmenu").hidden), "メニュー", 5000);
-      await k.look([".popmenu-panel"], 0.5); await k.hold(1.0);
+      await k.look([".popmenu-panel"], 0); await k.hold(1.8);
       await k.key("Escape");
-      await k.page.evaluate(() => document.querySelector("#clear-btn").scrollIntoView({ block: "center" }));
-      await k.press("#clear-btn");                                                     // 注意の絵の確認窓
-      await k.until(() => k.page.evaluate(() => !document.querySelector("#confirm-modal").hidden), "確認の窓", 5000);
-      await k.look(["#confirm-modal .modal-panel"], 0.5); await k.hold(1.2);
-      await k.press("#confirm-no");
-      await k.page.evaluate(() => window.scrollTo(0, 0));
-      k.wide(0.6);
+      await k.look(all, 0);
       await k.hold(0.6);
+      await k.press("#clear-btn");                                                                        // 注意の絵の確認窓
+      await k.until(() => k.page.evaluate(() => !document.querySelector("#confirm-modal").hidden), "確認の窓", 5000);
+      await k.look(["#confirm-modal .modal-panel"], 0); await k.hold(2.0);
+      await k.press("#confirm-no");
+      await k.look(all, 0);
+      await k.hold(1.0);
     },
   },
   {
