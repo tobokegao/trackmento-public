@@ -1023,8 +1023,7 @@ body.sheet-open { overflow: hidden; }
 /* マスが小さいときは × と曲名を出さない。28px の × と曲名の帯が小さいマスを覆って、
    ジャケットがほとんど見えなくなるため（横 7 マスあたりから起きる）。
    曲名と「このマスを外す」はマスをタップすると出る編集パネル（.editor）に寄せる */
-.grid[data-dense="true"] .cell .rm,
-.grid[data-dense="true"] .cell .cap { display: none; }
+.grid[data-dense="true"] .cell .rm, .grid[data-nocap="true"] .cell .cap { display: none; }   /* × は角の部品なので幅 64px まで出す。帯は高さ 72px から（2026-09-26） */
 /* 番号も同じ理由で隠す（31px のマスだと番号だけで 3 分の 1 を覆う）。
    選んだマスにも出さない。番号は編集パネルの見出し（「01 選択中のマス」）とメッセージ欄に出るので
    情報は失われないし、マスに乗せればツールチップでも分かる。
@@ -1041,8 +1040,8 @@ body.sheet-open { overflow: hidden; }
   font-family: var(--font-display); font-size: var(--dot-size); line-height: calc(var(--dot-size) + 4px);   /* 帯の高さを整数の px に（ドット字がにじまない） */
   background: var(--color-paper); color: var(--color-ink); border-block: var(--line) solid var(--color-ink);
 }
-.cell .fail-short, .grid[data-dense="true"] .cell .fail-long { display: none; }
-.grid[data-dense="true"] .cell .fail-short { display: inline; }
+.cell .fail-short, .grid[data-narrow="true"] .cell .fail-long { display: none; }
+.grid[data-narrow="true"] .cell .fail-short { display: inline; }
 
 .grid-actions { container-type: inline-size; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }   /* グリッドと同じ幅いっぱい（上限を付けると右に空きが残る） */
 .grid-actions .btn { padding-inline: var(--space-2); }
@@ -4612,12 +4611,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (selected !== null && !state.cells[selected]) selected = null;
     renderGrid();
   }
-  // マスの 1 辺がこれより小さいと、× と曲名の帯がジャケットを覆ってしまう
-  const DENSE_CELL_PX = 96;
+  /* **小さいマスで隠すものを、置き場所ごとに分けて決める**（2026-09-26、利用者の指摘。幅 360px のスマホの 3 列が 95px で、
+     前の「幅 96px 未満なら全部隠す」にわずかに足りず、× も番号も消えていた）。
+     - 角の部品（× 28px・番号）… 幅 64px まで出す（dense）
+     - 曲名の帯（約 20px）… 高さ 72px から出す（nocap）。横長 16:9 のマスは幅があっても低いので、帯と × で高さが埋まる
+     - 失敗の字（「画像取得失敗」6 字）… 幅 96px 未満は「失敗」の 2 字（narrow。ドット字は縮められない） */
+  const DENSE_CELL_PX = 64, CAP_CELL_H = 72, NARROW_CELL_PX = 96;
   function updateGridDensity() {
     const first = els.grid.querySelector(".cell");
-    const px = first ? first.getBoundingClientRect().width : 0;
-    els.grid.dataset.dense = px && px < DENSE_CELL_PX ? "true" : "false";
+    const r = first ? first.getBoundingClientRect() : { width: 0, height: 0 };
+    els.grid.dataset.dense = r.width && r.width < DENSE_CELL_PX ? "true" : "false";
+    els.grid.dataset.nocap = r.height && r.height < CAP_CELL_H ? "true" : "false";
+    els.grid.dataset.narrow = r.width && r.width < NARROW_CELL_PX ? "true" : "false";
   }
   function renderGrid() {
     const hadFocus = els.grid.contains(document.activeElement);

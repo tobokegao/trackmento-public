@@ -290,6 +290,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-26", "幅の狭いスマホで、3 列のマスに × や番号が出なかったのを直しました。× と番号はもう少し小さいマスまで出し、トラック名の帯は高さに余裕があるマスにだけ出します。",
+     "On narrow phones, three-column grids now show the × and number again. Those show on smaller tiles than before, and the track-name strip appears only when a tile is tall enough."),
     ("2026-09-26", "「ぼかし背景」にしたマスで、サムネイルが真ん中でなく下に寄って見えていたのを直しました（書き出しの画像は前から正しく出ていました）。",
      "Fixed thumbnails in “Blurred backdrop” tiles sitting low instead of centered on screen (exported images were already correct)."),
     ("2026-09-26", "共有したあとのボタンに小さなアイコンを添え、「URL をコピー」「SNS に共有」「共有ページを開く」と「画像を保存」を線で区切って分けました。",
