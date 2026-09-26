@@ -193,7 +193,9 @@ export function makeKit(page, tracks) {
     await page.mouse.move(c.x, c.y); await page.mouse.down();
     const n = nFrames(sec);
     for (let i = 1; i <= n; i++) {
-      const x = c.x + dx * i / n;
+      // **手で動かしたような速さ**（ゆっくり動き出し、途中で速く、止まる前に減速。2026-09-26、利用者の指摘「等速だと機械っぽい」）
+      const t = i / n, e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const x = c.x + dx * e;
       ev("cursor", { x, y: c.y, dur: 1 });
       await page.mouse.move(x, c.y); await frame();
     }
