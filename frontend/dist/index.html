@@ -36,7 +36,7 @@
 /* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.27555b59.css">
+<link rel="stylesheet" href="app/app.c19276a6.css">
 </head>
 <body>
 
@@ -44,6 +44,7 @@
   <h1 class="wordmark"><a class="mark" id="home-link" href="/">TRACKMENTO</a> <small id="wordmark-tag"></small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite"></p>
   <button class="win-reset" type="button" id="win-reset" hidden title="動かした窓を元の位置に戻す">窓を元に戻す</button>
+  <button class="help-btn" type="button" id="help-btn" aria-pressed="false" aria-label="吹き出しで説明を見る" title="吹き出しで説明を見る">?</button>
   <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
 <aside class="inapp" id="migrate-notice" hidden>
@@ -672,6 +673,11 @@
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<script id="app-js" src="app/app.90edb857.js"></script>
+<!-- 吹き出しの説明（2026-09-27）。中身と出し方は JS の「吹き出しの説明」の節 -->
+<div class="balloon-veil" id="balloon-veil" hidden></div>
+<div class="balloon" id="balloon" role="tooltip" hidden><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
+<div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
+
+<script id="app-js" src="app/app.b0c52985.js"></script>
 </body>
 </html>

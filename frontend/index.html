@@ -278,6 +278,39 @@ img { max-width: 100%; display: block; }
 .win-reset { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 5px 10px;
   border: var(--line) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); cursor: pointer; }
 .win-reset[hidden] { display: none; }
+/* **吹き出しの説明**（2026-09-27、Mac OS 8/9 のバルーンヘルプ。運用ボードの help-videos の②）。「?」で出す・隠すを切り替える。
+   出しているあいだは、PC は部品にマウスを重ねると、スマホは部品に触れると吹き出しが出る（スマホは覆い #balloon-veil が
+   触れた所を受けるので、部品そのものは動かない）。中身は JS の HELP 表（無ければ title の文）。仕組みは docs/ui.md */
+.help-btn { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 5px 10px;
+  border: var(--line) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); cursor: pointer; }
+.help-btn:hover, .help-btn[aria-pressed="true"] { background: var(--color-ink); color: var(--color-paper); }
+.balloon { position: fixed; z-index: 90; left: 0; top: 0; max-width: min(20rem, calc(100vw - 16px));
+  display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  font-family: var(--font-body); font-size: var(--text-sm); line-height: 1.6; color: var(--color-ink);
+  background: var(--color-paper); border: var(--line) solid var(--color-ink); box-shadow: var(--shadow-sm); }
+.balloon[hidden] { display: none; }
+.balloon p { margin: 0; }
+.balloon a { justify-self: start; color: var(--color-ink); }
+/* しっぽ。黒の三角の上に、線の太さ（斜めなので約 1.5 倍）だけずらした紙の色の三角を重ねて、枠の線だけ残す。
+   紙の三角は吹き出しの枠にかぶせて、付け根の枠線を消す。--tail-x は吹き出しの左端からの位置（JS が入れる） */
+.balloon::before, .balloon::after { content: ""; position: absolute; left: calc(var(--tail-x, 24px) - 10px);
+  border: 10px solid transparent; }
+.balloon[data-side="below"]::before, .balloon[data-side="below"]::after { border-top-width: 0; }
+.balloon[data-side="above"]::before, .balloon[data-side="above"]::after { border-bottom-width: 0; }
+.balloon[data-side="below"]::before { top: -12px; border-bottom-color: var(--color-ink); }
+.balloon[data-side="below"]::after { top: -9px; border-bottom-color: var(--color-paper); }
+.balloon[data-side="above"]::before { bottom: -12px; border-top-color: var(--color-ink); }
+.balloon[data-side="above"]::after { bottom: -9px; border-top-color: var(--color-paper); }
+.balloon-veil { position: fixed; inset: 0; z-index: 80; }
+.balloon-veil[hidden] { display: none; }
+/* 出しているあいだの帯。スマホは覆いで「?」も押せなくなるので、ここに「吹き出しを隠す」を置く */
+.balloon-bar { position: fixed; z-index: 85; left: 50%; bottom: var(--space-3); transform: translateX(-50%);
+  width: max-content; max-width: calc(100vw - 16px);
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3);
+  font-family: var(--font-display); font-size: var(--dot-size); line-height: 1.4;
+  background: var(--color-bar); color: var(--color-ink); border: var(--line) solid var(--color-ink); box-shadow: var(--shadow-sm); }
+.balloon-bar[hidden] { display: none; }
+.balloon-bar .btn { flex: none; }
 /* **窓は題名バーを掴んで動かせる**（PC だけ。2026-09-25、利用者の案）。並びの流れからは外さず、ずらして描く（transform）ので
    周りの組み方は崩れない。動かしている間は掴んだ窓を前に出し、影を少し深くする */
 @media (min-width: 60rem) {
@@ -1478,6 +1511,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   <h1 class="wordmark"><a class="mark" id="home-link" href="/">TRACKMENTO</a> <small id="wordmark-tag"></small></h1>
   <p class="bar-status" id="bar-status" aria-live="polite"></p>
   <button class="win-reset" type="button" id="win-reset" hidden title="動かした窓を元の位置に戻す">窓を元に戻す</button>
+  <button class="help-btn" type="button" id="help-btn" aria-pressed="false" aria-label="吹き出しで説明を見る" title="吹き出しで説明を見る">?</button>
   <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
 <aside class="inapp" id="migrate-notice" hidden>
@@ -2106,6 +2140,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
+<!-- 吹き出しの説明（2026-09-27）。中身と出し方は JS の「吹き出しの説明」の節 -->
+<div class="balloon-veil" id="balloon-veil" hidden></div>
+<div class="balloon" id="balloon" role="tooltip" hidden><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
+<div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
+
 <script id="app-js">
 (() => {
   "use strict";
@@ -2696,7 +2735,70 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "「{}」（{} トラック）を消します。元に戻せません。": "This deletes “{0}” ({1} tracks). You can't undo this.",
         "消す": "Delete",
         "「{}」を消しました。": "Deleted “{0}”.",
-        "共有 {} を読み込めませんでした（{}）。": "Could not load share {0} ({1})."
+        "共有 {} を読み込めませんでした（{}）。": "Could not load share {0} ({1}).",
+        "使い方の動画で見る": "Watch the how-to video",
+        "吹き出しを隠す": "Hide balloons",
+        "吹き出しで説明を見る": "Show help balloons",
+        "知りたい部品にマウスを重ねると、説明が出ます。": "Point at any part to see what it does.",
+        "知りたい部品に触れると、説明が出ます。": "Touch any part to see what it does.",
+        "部品の説明を吹き出しで出します。出しているあいだは、部品にマウスを重ねると（スマホでは触れると）説明が出ます。もう一度押すと隠れます。": "Shows help balloons. While they’re on, point at a part (or touch it on a phone) to see what it does. Press again to hide them.",
+        "画面を英語にします。英語で探すと、トラック名とアーティスト名が iTunes の米国の表記で出ます。": "Switches the screen to Japanese. Press again to come back to English.",
+        "窓を畳んで題名バーだけにします。もう一度押すと開きます。": "Collapses the window to its title bar. Press again to open it.",
+        "窓の題名バーです。PC では掴んで動かせます。": "The window’s title bar. On a computer, drag it to move the window.",
+        "探したいトラック名を入れます。アーティスト名だけで探すこともできます。": "Enter the track name you’re looking for. You can also search by artist name alone.",
+        "アーティスト名を入れると、そのアーティストのトラックに絞って探します。": "Enter an artist name to search only that artist’s tracks.",
+        "それぞれのソースで何が見つかるかの説明を開きます。": "Opens a note on what each source can find.",
+        "どこから探すかを選びます。ボカロの原曲なら VocaDB、音MADなら otoDB で見つかります。": "Choose where to search. VocaDB finds original Vocaloid songs, and otoDB finds otomad.",
+        "選んだソースで探して、見つかったトラックを「候補」に並べます。": "Searches the chosen source and lists what it finds under “Results”.",
+        "押すたびに、この入れ方の欄を開いたり閉じたりします。": "Opens or closes this way of adding tracks.",
+        "YouTube・ニコニコ動画・Bandcamp などのページの URL を貼ります。1 行に 1 つずつ貼れば、違うサイトのものもまとめて取り込めます。プレイリストやマイリストなら、最大 500 曲まで入ります。": "Paste the URL of a page on YouTube, Niconico, Bandcamp and so on. Put one URL per line to import several at once, even from different sites. A playlist or mylist brings in up to 500 tracks.",
+        "貼った URL から、トラック名とジャケットを取ってきます。": "Fetches the track name and cover from the pasted URL.",
+        "アーティスト名とトラック名を、1 行に 1 トラックずつ入れる表です。Excel などの表や「トラック名をコピー」の一覧も、そのまま貼れます。": "A table with one track per row: artist name and track name. You can paste a table from Excel and similar apps, or a list from “Copy track names”.",
+        "表の行を iTunes で 1 行ずつ探し、名前がぴったり合ったものをマスに入れます。": "Looks up each row on iTunes and puts exact matches into the cells.",
+        "ジャケットにする画像の URL を入れます。下のボタンで、端末の画像を選ぶこともできます。": "Enter the URL of the image to use as the cover. You can also pick an image from your device with the button below.",
+        "端末の画像を選んで取り込みます。撮影日時などの情報は消してから保存します。": "Picks an image from your device. Details such as when the photo was taken are removed before it’s saved.",
+        "入れておくと、共有ページのトラック名からこのページへ移れるようになります。": "If you fill this in, the track name on the share page links to this page.",
+        "入れた画像と名前で、トラックをマスに追加します。": "Adds the track to the grid with the image and names you entered.",
+        "探して見つかったトラックが並びます。押すと空いているマスに入ります。先に空いているマスを押しておくと、そのマスに入ります。": "Tracks found by your search. Press one to put it in an empty cell. Press an empty cell first to choose where it goes.",
+        "選んだマスのトラック名とアーティスト名を直せます。直した名前が画像と共有ページに出ます。": "Edit the track and artist names of the selected cell. The edited names appear in the image and on the share page.",
+        "アーティスト名がチャンネル名になっているときに、otoDB やニコニコ動画の古い投稿から作者を探します。": "When the artist shows up as a channel name, this looks for the creator in otoDB and older Niconico uploads.",
+        "このマスだけ、サムネイルの入れ方を変えます。「全体と同じ」なら出力オプションの「サムネ余白」に従います。": "Changes how the thumbnail fits in this cell only. “Follow the setting” uses “Thumbnail fill” in the output options.",
+        "このマスからトラックを外します。「元に戻す」で戻せます。": "Removes the track from this cell. You can bring it back with “Undo”.",
+        "マスを選ぶのをやめます。": "Deselects the cell.",
+        "並びを切り替えます。並びは 10 個まで持てます。": "Switches between layouts. You can keep up to 10.",
+        "画像に入れるタイトルです。「表示」の「タイトル」を外すと、画像には出ません。": "The title for the image. Uncheck “Title” under “Show” to leave it out of the image.",
+        "見本から選ぶとタイトルが入ります。「私を構成する9曲」なら、横 × 縦も 3 × 3 になります。": "Pick one to fill in the title. “9 tracks that made me” also sets the grid to 3 × 3.",
+        "並べたトラックです。マスを押して選び、別のマスを押すと入れ替わります。PC ではマスを掴んで運ぶこともできます。": "Your tracks. Press a cell to select it, then press another cell to swap them. On a computer you can also drag cells.",
+        "トラックを探す欄を開きます。": "Opens the panel for finding tracks.",
+        "書き出す画像の見本です。押すと大きく見られます。": "A preview of the image. Press it to see it larger.",
+        "今の並びと設定で、書き出す画像の見本を作り直します。共有はしません。": "Remakes the preview with the current layout and settings. Nothing is shared.",
+        "チェックを入れて共有すると、「みんなのグリッド」でトラック名やアーティスト名から探せるようになります。": "Check this before sharing to let people find your grid by track or artist name in “everyone's grids”.",
+        "共有 URL をコピーします。": "Copies the share URL.",
+        "端末の共有の画面を開いて、共有 URL を SNS などに送ります。": "Opens your device’s share menu to send the share URL to social apps and more.",
+        "共有ページを新しいタブで開きます。": "Opens the share page in a new tab.",
+        "書き出した画像を端末に保存します。": "Saves the image to your device.",
+        "この共有を「みんなのグリッド」に出さないようにします。共有 URL はそのまま使えます。": "Takes this share off “everyone's grids”. The share URL still works.",
+        "この共有を消します。共有 URL は開けなくなります。": "Deletes this share. The share URL will stop working.",
+        "横と縦のマスの数です。小さな矢印でも増やしたり減らしたりできます。マスは全部で 256 までです。": "The number of columns and rows. The little arrows also change them. Up to 256 cells in total.",
+        "全体枠・マス枠・サムネ余白の設定を開いたり閉じたりします。": "Shows or hides the settings for the image frame, cell frame and thumbnail fill.",
+        "書き出す画像全体の形です。": "The shape of the whole image.",
+        "1 マスの形です。動画のサムネイルを並べるなら、横長 16:9 にすると左右が切れません。": "The shape of each cell. For video thumbnails, choose Wide 16:9 so the sides aren’t cut off.",
+        "マスと形の違うサムネイルの入れ方です。「トリミング」ははみ出た所を切り、「ぼかし背景」は切らずに入れて、すき間をぼかした絵で埋めます。": "How to fit thumbnails that don’t match the cell shape. “Crop” cuts off the overflow, and “Blurred backdrop” fits the whole thumbnail and fills the gaps with a blurred copy.",
+        "画像に入れるものを選びます。「トラック名の省略表示」は、【東方Vocal】や「- Topic」のような部分を外して出します。": "Choose what goes in the image. “Trim needless title text” leaves out bits like 【東方Vocal】 or “- Topic”.",
+        "画像にトラック名の一覧を入れるかどうかと、その置き方です。「重ね表示」はサムネイルの上に重ねます。": "Whether to put a list of track names in the image, and where. “Over the cells” lays it on top of the thumbnails.",
+        "背景の決め方です。「サムネの近似色」と「サムネの補色」は、並んだサムネイルから色を取ります（補色は色相環で向かい側の色）。「透過」は背景が透明な PNG になります。": "How to choose the background. “Match the thumbnails” and “Complement the thumbnails” take colors from your thumbnails (the complement is the color opposite on the color wheel). “Transparent” gives a PNG with a clear background.",
+        "背景の色を選びます。": "Choose the background color.",
+        "画面全体の色の組み合わせ（配色パレット）を選びます。": "Choose the color scheme (palette) for the whole screen.",
+        "色相・彩度・明度を決めて、好きな背景の色を作ります。": "Set hue, saturation and lightness to make any background color.",
+        "グラデーションの色を、サムネイルから取るか、自分で選ぶかです。": "Whether the gradient takes its colors from your thumbnails or from colors you pick.",
+        "透明な背景の上に書く字の色です。画像を置く先の色に合わせて選びます。": "The text color on a clear background. Choose it to suit wherever you’ll place the image.",
+        "端末の画像を選んで背景に敷きます。撮影日時などの情報は消してから保存します。": "Picks an image from your device for the background. Details such as when the photo was taken are removed before it’s saved.",
+        "背景の画像を、枠いっぱいに 1 枚で敷くか、並べて敷くかです。": "Whether the background image fills the frame once or repeats as tiles.",
+        "並べて敷くときの 1 枚の大きさです。": "The size of each tile.",
+        "並んだサムネイルから取った色の候補です。押すとその色になります。": "Colors taken from your thumbnails. Press one to use it.",
+        "画像のふちの余白の広さです。": "How much margin goes around the edge of the image.",
+        "マスとマスのすき間です。0 にすると、すき間なく並びます。": "The space between cells. At 0 the cells touch.",
+        "書き出す画像の大きさ、1 マスの大きさ、ふちの余白です。": "The size of the image, the size of each cell, and the margin."
     };
   /* **共有が消えるまでの日数を表にも入れる**（2026-09-20）。以前はサーバーが HTML 全体を置換していて、
      鍵と DOM の文字列が自動で一致していた。この JS を app.<hash>.js として外に出し 1 年キャッシュに
@@ -8892,11 +8994,193 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     fitUrlBox();
     els.bcForm.requestSubmit();
   }
+  /* ---------- 吹き出しの説明（2026-09-27、Mac OS 8/9 のバルーンヘルプ） ---------- */
+  /* 部品ごとの説明と、使い方の動画（/howto の問いの id）。**部品から親へたどって最初に当たった行を出す**。
+     表に無ければ title の文を出す（文を null にした行は、title の文に動画だけ添える）。
+     **表の行は title より先に見る**（マスの title は曲名なので、グリッドの説明を出したい）。
+     部品を足したり名前を変えたりしたら、ここも直す（セレクタが外れても何も出ないだけで、エラーにはならない） */
+  const HELP = () => [
+    ["#help-btn", tr("部品の説明を吹き出しで出します。出しているあいだは、部品にマウスを重ねると（スマホでは触れると）説明が出ます。もう一度押すと隠れます。"), null],
+    ["#lang-switch", tr("画面を英語にします。英語で探すと、トラック名とアーティスト名が iTunes の米国の表記で出ます。"), "o-lang-us"],
+    ["#win-reset", null, "o-window"],
+    [".fold", tr("窓を畳んで題名バーだけにします。もう一度押すと開きます。"), "o-window"],
+    [".pane-title", tr("窓の題名バーです。PC では掴んで動かせます。"), "o-window"],
+    [".field:has(#q)", tr("探したいトラック名を入れます。アーティスト名だけで探すこともできます。"), "f-search"],
+    [".field:has(#artist)", tr("アーティスト名を入れると、そのアーティストのトラックに絞って探します。"), "f-search"],
+    ["#src-hint-btn", tr("それぞれのソースで何が見つかるかの説明を開きます。"), "f-sources"],
+    ["#sources", tr("どこから探すかを選びます。ボカロの原曲なら VocaDB、音MADなら otoDB で見つかります。"), "f-sources"],
+    ["#search-btn", tr("選んだソースで探して、見つかったトラックを「候補」に並べます。"), "f-search"],
+    [".sub-title", tr("押すたびに、この入れ方の欄を開いたり閉じたりします。"), "o-sub"],
+    [".field:has(#bc-url)", tr("YouTube・ニコニコ動画・Bandcamp などのページの URL を貼ります。1 行に 1 つずつ貼れば、違うサイトのものもまとめて取り込めます。プレイリストやマイリストなら、最大 500 曲まで入ります。"), "f-multi-url"],
+    ["#bc-btn", tr("貼った URL から、トラック名とジャケットを取ってきます。"), "f-url"],
+    [".list-sheet", tr("アーティスト名とトラック名を、1 行に 1 トラックずつ入れる表です。Excel などの表や「トラック名をコピー」の一覧も、そのまま貼れます。"), "f-copy-paste"],
+    ["#list-btn", tr("表の行を iTunes で 1 行ずつ探し、名前がぴったり合ったものをマスに入れます。"), "f-list"],
+    [".field:has(#m-image)", tr("ジャケットにする画像の URL を入れます。下のボタンで、端末の画像を選ぶこともできます。"), "f-manual"],
+    ["#m-file-btn", tr("端末の画像を選んで取り込みます。撮影日時などの情報は消してから保存します。"), "f-manual"],
+    [".field:has(#m-link)", tr("入れておくと、共有ページのトラック名からこのページへ移れるようになります。"), null],
+    ["#m-btn", tr("入れた画像と名前で、トラックをマスに追加します。"), "f-manual"],
+    ["#results", tr("探して見つかったトラックが並びます。押すと空いているマスに入ります。先に空いているマスを押しておくと、そのマスに入ります。"), "o-target"],
+    [".editor-fields", tr("選んだマスのトラック名とアーティスト名を直せます。直した名前が画像と共有ページに出ます。"), "o-editor"],
+    ["#e-origin-find", tr("アーティスト名がチャンネル名になっているときに、otoDB やニコニコ動画の古い投稿から作者を探します。"), "o-origin"],
+    ["#e-fit-seg", tr("このマスだけ、サムネイルの入れ方を変えます。「全体と同じ」なら出力オプションの「サムネ余白」に従います。"), "s-fit-one"],
+    ["#e-remove", tr("このマスからトラックを外します。「元に戻す」で戻せます。"), "o-remove"],
+    ["#e-close", tr("マスを選ぶのをやめます。"), null],
+    ["#layout-sel", tr("並びを切り替えます。並びは 10 個まで持てます。"), "o-layouts"],
+    ["#layout-new", null, "o-layouts"],
+    ["#layout-del", null, "o-layouts"],
+    [".field:has(#title)", tr("画像に入れるタイトルです。「表示」の「タイトル」を外すと、画像には出ません。"), "s-labels"],
+    ["#zoom-btn", null, "o-zoom"],
+    ["#theme-sel", tr("見本から選ぶとタイトルが入ります。「私を構成する9曲」なら、横 × 縦も 3 × 3 になります。"), "o-theme"],
+    ["#grid", tr("並べたトラックです。マスを押して選び、別のマスを押すと入れ替わります。PC ではマスを掴んで運ぶこともできます。"), "o-swap"],
+    ["#undo-btn", null, "undo-buttons"],
+    ["#redo-btn", null, "undo-buttons"],
+    ["#find-btn", tr("トラックを探す欄を開きます。"), "sp-sheet"],
+    ["#preview-btn", null, "r-output"],
+    ["#json-export", null, "o-json"],
+    ["#json-import", null, "o-json"],
+    ["#color-sort", null, "color-sort"],
+    ["#trim-all-btn", null, "o-trim"],
+    ["#out-shot", tr("書き出す画像の見本です。押すと大きく見られます。"), "r-output"],
+    ["#out-refresh", tr("今の並びと設定で、書き出す画像の見本を作り直します。共有はしません。"), "r-output"],
+    ["#text-copy", null, "f-copy-paste"],
+    ["#share-btn", null, "f-share"],
+    [".listed", tr("チェックを入れて共有すると、「みんなのグリッド」でトラック名やアーティスト名から探せるようになります。"), "f-find"],
+    ["#copy-btn", tr("共有 URL をコピーします。"), "f-share"],
+    ["#native-share-btn", tr("端末の共有の画面を開いて、共有 URL を SNS などに送ります。"), "f-share"],
+    ["#open-share", tr("共有ページを新しいタブで開きます。"), "f-share"],
+    ["#download", tr("書き出した画像を端末に保存します。"), "f-share"],
+    ["#unlist-btn", tr("この共有を「みんなのグリッド」に出さないようにします。共有 URL はそのまま使えます。"), "f-find"],
+    ["#share-del-btn", tr("この共有を消します。共有 URL は開けなくなります。"), null],
+    ["#clear-btn", null, "o-clear"],
+    ["#custom-size", tr("横と縦のマスの数です。小さな矢印でも増やしたり減らしたりできます。マスは全部で 256 までです。"), "o-grid-size"],
+    ["#cells-more-btn", tr("全体枠・マス枠・サムネ余白の設定を開いたり閉じたりします。"), "o-tri"],
+    ["#ratio-seg", tr("書き出す画像全体の形です。"), "s-ratio"],
+    ["#cell-ratio-seg", tr("1 マスの形です。動画のサムネイルを並べるなら、横長 16:9 にすると左右が切れません。"), "cell-ratio"],
+    ["#cell-fit-seg", tr("マスと形の違うサムネイルの入れ方です。「トリミング」ははみ出た所を切り、「ぼかし背景」は切らずに入れて、すき間をぼかした絵で埋めます。"), "cell-fit"],
+    [".check-row", tr("画像に入れるものを選びます。「トラック名の省略表示」は、【東方Vocal】や「- Topic」のような部分を外して出します。"), "s-labels"],
+    ["#list-seg", tr("画像にトラック名の一覧を入れるかどうかと、その置き方です。「重ね表示」はサムネイルの上に重ねます。"), "r-tracklist"],
+    ["#bg-mode-seg", tr("背景の決め方です。「サムネの近似色」と「サムネの補色」は、並んだサムネイルから色を取ります（補色は色相環で向かい側の色）。「透過」は背景が透明な PNG になります。"), "bg-modes"],
+    ["#swatches", tr("背景の色を選びます。"), "s-swatch"],
+    ["#palette-btn", tr("画面全体の色の組み合わせ（配色パレット）を選びます。"), "s-palette"],
+    [".custom-color", tr("色相・彩度・明度を決めて、好きな背景の色を作ります。"), "s-swatch"],
+    ["#bg-grad-src", tr("グラデーションの色を、サムネイルから取るか、自分で選ぶかです。"), "s-grad"],
+    ["#bg-grad-shuffle", null, "s-grad"],
+    ["#bg-ink-seg", tr("透明な背景の上に書く字の色です。画像を置く先の色に合わせて選びます。"), "s-none"],
+    ["#bg-image-btn", tr("端末の画像を選んで背景に敷きます。撮影日時などの情報は消してから保存します。"), "bg-image"],
+    ["#bg-fit-seg", tr("背景の画像を、枠いっぱいに 1 枚で敷くか、並べて敷くかです。"), "s-img-tile"],
+    ["#bg-tile-seg", tr("並べて敷くときの 1 枚の大きさです。"), "s-img-tile"],
+    ["#bg-cands", tr("並んだサムネイルから取った色の候補です。押すとその色になります。"), "bg-modes"],
+    ["#pad-seg", tr("画像のふちの余白の広さです。"), "s-pad-gap"],
+    [".field:has(#gap)", tr("マスとマスのすき間です。0 にすると、すき間なく並びます。"), "s-pad-gap"],
+    [".spec", tr("書き出す画像の大きさ、1 マスの大きさ、ふちの余白です。"), null],
+  ];
+  const balloon = $("#balloon"), balloonVeil = $("#balloon-veil"), balloonBar = $("#balloon-bar");
+  let balloonsOn = false, balloonFor = null, balloonTimer = 0;
+  // 部品から親へたどって、表の行（無ければ title）を探す。出すものが無ければ null
+  function helpOf(el) {
+    const rows = HELP();
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const row = rows.find(([sel]) => { try { return n.matches(sel); } catch { return false; } });
+      if (!row) continue;
+      const text = row[1] || n.dataset.helpTitle || n.getAttribute("title");
+      if (text) return { el: n, text, video: row[2] };
+    }
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const text = n.dataset.helpTitle || n.getAttribute("title");
+      if (text) return { el: n, text, video: null };
+    }
+    return null;
+  }
+  // 吹き出しを部品の下（入らなければ上）に出し、しっぽを部品の真ん中へ向ける。
+  // 大きな部品（グリッド・候補の一覧）は指やマウスの位置を指す（真ん中が画面の外に出ることがあるため）
+  function showBalloon(h, x, y) {
+    clearTimeout(balloonTimer);
+    balloonFor = h.el;
+    $("#balloon-text").textContent = h.text;
+    const v = $("#balloon-video");
+    v.hidden = !h.video;
+    if (h.video) v.href = `/howto${LANG === "en" ? "?lang=en" : ""}#${h.video}`;
+    balloon.hidden = false;
+    let r = h.el.getBoundingClientRect();
+    if ((r.height > 120 || r.width > 420) && x != null) r = { left: x, right: x, top: y - 4, bottom: y + 4, width: 0, height: 8 };
+    const vw = document.documentElement.clientWidth;
+    const vh = balloonBar.hidden ? window.innerHeight : balloonBar.getBoundingClientRect().top;   // 下の帯には重ねない
+    const w = balloon.offsetWidth, bh = balloon.offsetHeight, tail = 12, m = 8;
+    const below = vh - r.bottom >= bh + tail + m || r.top < bh + tail + m;
+    const cx = Math.min(Math.max(r.left + r.width / 2, m), vw - m);
+    const left = Math.round(Math.min(Math.max(cx - 28, m), vw - w - m));
+    const top = Math.round(below ? r.bottom + tail : r.top - tail - bh);
+    balloon.dataset.side = below ? "below" : "above";
+    balloon.style.left = `${left}px`; balloon.style.top = `${Math.max(m, top)}px`;
+    balloon.style.setProperty("--tail-x", `${Math.round(Math.min(Math.max(cx - left, 16), w - 16))}px`);
+  }
+  function hideBalloon() { clearTimeout(balloonTimer); balloon.hidden = true; balloonFor = null; }
+  // 出している間は title の吹き出し（ブラウザのもの）が重なるので、title を data-help-title に移しておく
+  function stashTitles(on) {
+    if (on) for (const el of document.querySelectorAll("[title]")) { el.dataset.helpTitle = el.title; el.removeAttribute("title"); }
+    else for (const el of document.querySelectorAll("[data-help-title]")) { el.title = el.dataset.helpTitle; delete el.dataset.helpTitle; }
+  }
+  // 触って使う端末（マウスを重ねられない）は覆いで触れた所を受ける。部品は動かさず、説明だけ出す
+  const balloonTouch = () => window.matchMedia("(hover: none)").matches;
+  function paintBalloonBar() {
+    const b = $("#help-btn");
+    const label = balloonsOn ? tr("吹き出しを隠す") : tr("吹き出しで説明を見る");
+    b.setAttribute("aria-pressed", String(balloonsOn));
+    b.setAttribute("aria-label", label);
+    if (b.hasAttribute("title") || !balloonsOn) b.title = label;
+    $("#balloon-bar-text").textContent = balloonTouch() ? tr("知りたい部品に触れると、説明が出ます。") : tr("知りたい部品にマウスを重ねると、説明が出ます。");
+  }
+  function setBalloons(on) {
+    balloonsOn = on;
+    hideBalloon();
+    if (on) stashTitles(true);
+    else stashTitles(false);
+    balloonVeil.hidden = !(on && balloonTouch());
+    balloonBar.hidden = !on;
+    paintBalloonBar();
+  }
+  $("#help-btn").addEventListener("click", () => setBalloons(!balloonsOn));
+  $("#balloon-off").addEventListener("click", () => setBalloons(false));
+  // PC: 重ねてから少し待って出す（通りがかりの部品で次々に替わらないように）。吹き出しの上に来たら消さない（動画のリンクを押せるように）
+  document.addEventListener("pointerover", (e) => {
+    if (!balloonsOn || e.pointerType === "touch" || balloonTouch()) return;
+    if (balloon.contains(e.target)) { clearTimeout(balloonTimer); return; }
+    if (balloonBar.contains(e.target)) return;
+    // あとから描き直した部品（小さいマスなど）の title も、その都度よけておく
+    for (let n = e.target; n && n.removeAttribute; n = n.parentElement) if (n.hasAttribute("title")) { n.dataset.helpTitle = n.title; n.removeAttribute("title"); }
+    const h = helpOf(e.target);
+    if (h && h.el === balloonFor) { clearTimeout(balloonTimer); return; }
+    clearTimeout(balloonTimer);
+    const x = e.clientX, y = e.clientY;
+    balloonTimer = setTimeout(() => (h ? showBalloon(h, x, y) : hideBalloon()), h ? 120 : 300);
+  });
+  // 押したら消す（窓を畳むなどで部品が動くと、しっぽが別の所を指すため）
+  document.addEventListener("pointerdown", (e) => { if (balloonsOn && !balloon.contains(e.target)) hideBalloon(); }, true);
+  // スマホ: 覆いに触れたら、その下の部品の説明を出す。「?」に触れたら隠す
+  balloonVeil.addEventListener("click", (e) => {
+    const under = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n !== balloonVeil);
+    if (!under) return;
+    if (under.closest("#help-btn")) { setBalloons(false); return; }
+    const h = helpOf(under);
+    if (h) showBalloon(h, e.clientX, e.clientY); else hideBalloon();
+  });
+  // 送ると吹き出しの位置がずれるので消す（PC は次に重ねたときにまた出る）
+  window.addEventListener("scroll", () => { if (!balloon.hidden) hideBalloon(); }, { passive: true, capture: true });
+  window.addEventListener("resize", () => { if (balloonsOn) { hideBalloon(); balloonVeil.hidden = !balloonTouch(); paintBalloonBar(); } });
+  // Esc はいちばん上に重なっているものから閉じる（窓の Esc の処理より先に見る）
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !balloonsOn) return;
+    e.stopImmediatePropagation();
+    setBalloons(false);
+  }, true);
+
   $("#lang-switch").addEventListener("click", () => {
     LANG = LANG === "ja" ? "en" : "ja";
     try { localStorage.setItem(LANG_KEY, LANG); } catch { /* ignore */ }
+    if (balloonsOn) stashTitles(false);   // applyI18n は title を書き直すので、よけた分をいったん戻してから
     applyI18n();
     reRenderForLang();
+    if (balloonsOn) { stashTitles(true); hideBalloon(); paintBalloonBar(); }
   });
 
 })();

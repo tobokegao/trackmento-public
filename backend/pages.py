@@ -294,6 +294,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-27", "右上の「?」で、部品の説明を吹き出しで出せるようにしました。PC はマウスを重ねると、スマホは触れると説明が出ます。「使い方の動画で見る」から、その操作の動画へ移れます。",
+     "Added help balloons: press “?” at the top right, then point at a part (or touch it on a phone) to see what it does. “Watch the how-to video” takes you to a video of that feature."),
     ("2026-09-27", "編集画面のいちばん下のリンクに「使い方の動画」を足しました。",
      "Added “How-to videos” to the links at the bottom of the editor."),
     ("2026-09-26", "「使い方の動画」のページを足しました。知りたいことの題を押すと、その操作の数秒の動画が流れます（動画は開いたときだけ読み込みます）。",
@@ -782,4 +784,7 @@ document.querySelectorAll("details.clip").forEach(function (d) {{
     if (d.open) {{ v.preload = "auto"; var p = v.play(); if (p) p.catch(function () {{}}); }} else v.pause();
   }});
 }});
+// /howto#<id> で来たら、その問いを開いておく（編集画面の吹き出しの「使い方の動画で見る」、SNS での返事のリンク。2026-09-27）
+var d0 = location.hash.length > 1 && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+if (d0 && d0.tagName === "DETAILS") d0.open = true;
 </script>"""
