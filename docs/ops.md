@@ -167,9 +167,9 @@
   PYTHONUTF8=1 .venv/Scripts/python scripts/board_data.py --out <どこか>/board.json
   ```
 
-  最後に ArtifactData の `set` で `board/metrics` に `board.json` を入れる。R2 の使用量だけは
-  `series.jsonl` に無いので、数え直したときだけ `--r2-gb` / `--r2-note` / `--r2-counted` を足す
-  （渡さないとタイルが消えるので、前の値をそのまま渡す）。
+  最後に ArtifactData の `set` で `board/metrics` に `board.json` を入れる。R2 の使用量は下の
+  `metrics/r2.jsonl` から自動で入るので、ふだんは `--r2-gb` などを渡さない（渡すと自動の値を丸ごと上書きし、
+  共有数・画像キャッシュの件数などのタイル項目が消える。2026-09-26）。
 
 - **R2 の使用量は、毎日の掃除に相乗りして数える**（2026-09-21）。`r2_prune.py --append metrics/r2.jsonl` が
   種類ごとの件数と容量を 1 行残し、`board_data.py` がその最後の行からボードのタイルを組む。
