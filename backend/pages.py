@@ -1,4 +1,4 @@
-"""サイトの文章のページ（使い方・使い方の動画・プライバシーポリシー・利用規約・運営者・更新情報）。
+"""サイトの文章のページ（使い方・使い方の動画・読みもの・プライバシーポリシー・利用規約・運営者・更新情報）。
 
 2026-09-18 に AdSense の審査に通らなかった（理由は示されない）ため足した。道具の画面だけでは
 「完全な文章や段落」と言える文章がほとんど無く、プライバシーポリシーも同じドメインに無かった。
@@ -13,19 +13,20 @@ from __future__ import annotations
 import html
 import re
 
-from backend import howto, share, storage
+from backend import articles, howto, share, storage
 from backend.config import share_retention_days
 
 TITLES = {
     "guide": {"ja": "使い方", "en": "How to use"},
     "howto": {"ja": "使い方の動画", "en": "How-to videos"},
+    "articles": {"ja": "読みもの", "en": "Articles"},
     "privacy": {"ja": "プライバシーポリシー", "en": "Privacy policy"},
     "terms": {"ja": "利用規約", "en": "Terms of use"},
     "about": {"ja": "運営者・お問い合わせ", "en": "About & contact"},
     "updates": {"ja": "更新情報", "en": "Updates"},
 }
-NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
-       "en": ("Back to the app", "How to use", "How-to videos", "Privacy policy", "Terms", "About", "Updates")}
+NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "読みもの", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
+       "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
 UPDATED = {"ja": "最終更新: 2026年9月27日", "en": "Last updated: September 27, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
@@ -467,6 +468,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-27", "「読みもの」のページを足しました。1 本目は、消えたニコニコ動画のサムネイルを otoDB から取り戻す方法です。編集画面と各ページのいちばん下のリンクから開けます。",
+     "Added an “Articles” page (in Japanese). The first article explains how to bring back the thumbnails of deleted Niconico videos from otoDB. Open it from the links at the bottom of the editor and of each page."),
     ("2026-09-27", "「利用規約」のページを足しました。編集画面と各ページのいちばん下のリンクから開けます。",
      "Added a “Terms of use” page. You can open it from the links at the bottom of the editor and of each page."),
     ("2026-09-27", "「サーバー代のおねがい」の欄の PayPal へのリンクを、昔の広告のような動くバナーに替えました。",
@@ -876,7 +879,19 @@ def _howto(lang: str, days: int) -> str:
     return "\n".join(out)
 
 
-BODIES = {"guide": _guide, "howto": _howto, "privacy": _privacy, "terms": _terms, "about": _about, "updates": _updates}
+
+def _articles(lang: str, days: int) -> str:
+    """読みものの一覧（backend/articles.py）。記事は日本語だけなので、英語の画面ではそう断る"""
+    en = lang == "en"
+    out = ["<p>Articles that dig deeper into ways to use TRACKMENTO. They are currently available in Japanese only.</p>" if en else
+           "<p>TRACKMENTO の使い方を、もう一歩踏み込んで紹介する読みものです。</p>"]
+    items = [f'<dt><a href="/articles/{a["slug"]}">{html.escape(a["title"])}</a></dt>'
+             f'<dd>{_date_label(a["date"], lang)} ・ {html.escape(a["description"])}</dd>' for a in articles.ARTICLES]
+    out.append('<dl class="articles" lang="ja">' + "\n".join(items) + "</dl>")
+    return "\n".join(out)
+
+
+BODIES = {"guide": _guide, "howto": _howto, "articles": _articles, "privacy": _privacy, "terms": _terms, "about": _about, "updates": _updates}
 
 _JA_BREAK = re.compile(r"(?<=[^\x00-\x7f>])\n(?=[^\x00-\x7f<])")
 
@@ -895,19 +910,44 @@ def body_of(kind: str, lang: str) -> str:
 
 def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja", nonce: str = "") -> str:
     lang = lang if lang in ("ja", "en") else "ja"
-    app_url = (app_url or base).rstrip("/")
     title = TITLES[kind][lang]
     other = "en" if lang == "ja" else "ja"
+    b = base.rstrip("/")
     q = "?lang=en" if lang == "en" else ""
-    back, n_guide, n_howto, n_privacy, n_terms, n_about, n_updates = NAV[lang]
-    body = body_of(kind, lang)
+    head = (f'<link rel="canonical" href="{b}/{kind}{q}">\n'
+            f'<link rel="alternate" hreflang="ja" href="{b}/{kind}"><link rel="alternate" hreflang="en" href="{b}/{kind}?lang=en">')
+    meta = (f"{_updated_of(lang) if kind == 'updates' else UPDATED[lang]} ・ "
+            f"<a href=\"/{kind}{'?lang=' + other if other == 'en' else ''}\">{'English' if other == 'en' else '日本語'}</a>")
+    js = _HOWTO_JS.format(nonce=nonce) if kind == "howto" else ""
+    return _frame(lang, title, f"{html.escape(title)} — TRACKMENTO", head, body_of(kind, lang), meta, base, app_url, js)
+
+
+def article_html(slug: str, base: str, app_url: str | None = None, lang: str = "ja") -> str | None:
+    """読みもの 1 本（/articles/<slug>）。無い名前なら None。本文は日本語だけなので、ページは常に日本語で組む。
+    下の案内のリンクだけ、英語の画面から来た人には英語のまま出す"""
+    a = articles.BY_SLUG.get(slug)
+    if a is None:
+        return None
+    lang = lang if lang in ("ja", "en") else "ja"
+    head = f'<link rel="canonical" href="{base.rstrip("/")}/articles/{slug}">'
+    meta = f'{_date_label(a["date"], "ja")} ・ Tobokegao ・ <a href="/articles{"?lang=en" if lang == "en" else ""}">{html.escape(NAV[lang][3])}</a>'
+    body = _JA_BREAK.sub("", a["body"])
+    return _frame("ja", a["title"], a["description"], head, body, meta, base, app_url, "", nav_lang=lang)
+
+
+def _frame(lang: str, title: str, description: str, head: str, body: str, meta: str, base: str,
+           app_url: str | None, js: str, nav_lang: str | None = None) -> str:
+    """文章のページの枠（見出し・本文・日付の行・下の案内）。nav_lang は下の案内の言語（既定はページと同じ）"""
+    app_url = (app_url or base).rstrip("/")
+    nav_lang = nav_lang or lang
+    q = "?lang=en" if nav_lang == "en" else ""
+    back, n_guide, n_howto, n_articles, n_privacy, n_terms, n_about, n_updates = NAV[nav_lang]
     return f"""<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)} — TRACKMENTO</title>
-<meta name="description" content="{html.escape(title)} — TRACKMENTO">
+<meta name="description" content="{html.escape(description)}">
 <link rel="icon" href="/favicon.ico"><link rel="icon" type="image/png" href="/favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="canonical" href="{base.rstrip('/')}/{kind}{q}">
-<link rel="alternate" hreflang="ja" href="{base.rstrip('/')}/{kind}"><link rel="alternate" hreflang="en" href="{base.rstrip('/')}/{kind}?lang=en">
+{head}
 <style>{share._page_css(base)}
 main {{ max-width: 44rem; }}
 h3 {{ font-size: .95rem; margin: 12px 0 4px; }}
@@ -939,16 +979,18 @@ nav.pages a {{ color: #12171b; }}
 details.clip summary {{ cursor: pointer; font-weight: 700; }}
 .clip-body {{ display: grid; gap: 6px; margin: 4px 0 10px 1.1em; }}
 .clip-body video {{ width: 100%; height: auto; aspect-ratio: 16 / 9; background: #12171b; border: 2px solid #12171b; }}
+/* 読みものの一覧（/articles） */
+dl.articles dt {{ font-size: 1rem; }}
 </style></head>
 <body>
 <header><a class="mark" href="{app_url}/" style="color:inherit;text-decoration:none">TRACKMENTO</a></header>
 <main>
   <h1>{html.escape(title)}</h1>
   {body}
-  <p class="meta">{_updated_of(lang) if kind == "updates" else UPDATED[lang]} ・ <a href="/{kind}{'?lang=' + other if other == 'en' else ''}">{'English' if other == 'en' else '日本語'}</a></p>
-  <nav class="pages"><a href="{app_url}/{q}">{back}</a><a href="/guide{q}">{n_guide}</a><a href="/howto{q}">{n_howto}</a><a href="/privacy{q}">{n_privacy}</a><a href="/terms{q}">{n_terms}</a><a href="/about{q}">{n_about}</a><a href="/updates{q}">{n_updates}</a></nav>
+  <p class="meta">{meta}</p>
+  <nav class="pages"><a href="{app_url}/{q}">{back}</a><a href="/guide{q}">{n_guide}</a><a href="/howto{q}">{n_howto}</a><a href="/articles{q}">{n_articles}</a><a href="/privacy{q}">{n_privacy}</a><a href="/terms{q}">{n_terms}</a><a href="/about{q}">{n_about}</a><a href="/updates{q}">{n_updates}</a></nav>
 </main>
-{_HOWTO_JS.format(nonce=nonce) if kind == "howto" else ""}
+{js}
 </body></html>"""
 
 

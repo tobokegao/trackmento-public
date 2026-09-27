@@ -194,7 +194,7 @@ R2 の無料枠はストレージ 10GB / 月、書き込み 100 万回、読み�
 
 ```
 backend/                FastAPI。検索 /search、URL /from-url・/from-playlist、画像 /image-proxy・/image-r2、並び /grids、
-                        共有 /share・/share/upload・/s/<id>、探す /find、案内 /guide・/howto・/privacy・/terms・/about・/updates、/health
+                        共有 /share・/share/upload・/s/<id>、探す /find、案内 /guide・/howto・/articles・/privacy・/terms・/about・/updates、/health
 backend/sources/        iTunes / MusicBrainz / otoDB（音MAD） / VocaDB（ボカロ） / Discogs と、URL 貼付
                         （Bandcamp / SoundCloud / Spotify / Apple Music / YouTube / ニコニコ動画、プレイリスト）
 backend/merge.py        出どころの違う結果を 1 つにまとめる（重複を消す）

@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend import grids, housekeeping, imgtools, netguard, pages, render, searchcache, share, shareindex, storage, support, uploads
+from backend import articles, grids, housekeeping, imgtools, netguard, pages, render, searchcache, share, shareindex, storage, support, uploads
 from backend.cache import R2_IMAGE_TTL, _search_ttl, cache
 from backend.logutil import brief
 from backend.config import (app_url_for, base_url_for, cors_origins, frontend_url, max_cells, migrate_to, public_base_url, public_mode,
@@ -716,7 +716,7 @@ async def request_stats(request: Request, call_next):
 
 # 移転先へ 301 で送る経路。**画面（`/`）と API は送らない**。
 # API を送ると、開いたままの古いタブが別オリジンへ投げることになり CORS で落ちる
-_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/howto", "/privacy", "/terms", "/about", "/updates")
+_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/howto", "/articles", "/privacy", "/terms", "/about", "/updates")
 
 
 def _migrate_host(request: Request) -> str:
@@ -1002,6 +1002,8 @@ async def sitemap(request: Request) -> Response:
     body = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
             f"<url><loc>{base}/</loc><changefreq>weekly</changefreq></url>"
             + "".join(f"<url><loc>{base}/{k}</loc><changefreq>monthly</changefreq></url>" for k in pages.BODIES)
+            + "".join(f"<url><loc>{base}/articles/{a['slug']}</loc><lastmod>{a['date']}</lastmod></url>"
+                      for a in articles.ARTICLES)
             + "</urlset>\n")
     return Response(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=86400"})
 
@@ -2201,9 +2203,10 @@ async def share_owner_action(request: Request, sid: str, body: OwnerBody) -> dic
 
 # 「みんなの並びを探す」。**印を付けた共有だけ**が対象（backend/shareindex.py）。
 # `/shares/{fname}` と経路がぶつからないよう、JSON は `/find.json` にしてある
-# 文章のページ（使い方・プライバシーポリシー・利用規約・運営者）。backend/pages.py。言語は共有ページと同じ決め方
+# 文章のページ（使い方・読みもの・プライバシーポリシー・利用規約・運営者）。backend/pages.py。言語は共有ページと同じ決め方
 @app.get("/guide", response_class=HTMLResponse)
 @app.get("/howto", response_class=HTMLResponse)
+@app.get("/articles", response_class=HTMLResponse)
 @app.get("/privacy", response_class=HTMLResponse)
 @app.get("/terms", response_class=HTMLResponse)
 @app.get("/about", response_class=HTMLResponse)
@@ -2212,6 +2215,15 @@ async def text_page(request: Request) -> HTMLResponse:
     kind = request.url.path.strip("/")
     return HTMLResponse(pages.page_html(kind, base_url_for(request), app_url_for(request), _lang_for(request), nonce=request.state.csp_nonce),
                         headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/articles/{slug}", response_class=HTMLResponse)
+async def article_page(request: Request, slug: str) -> HTMLResponse:
+    """読みもの 1 本（backend/articles.py）。本文は日本語だけ"""
+    page = pages.article_html(slug, base_url_for(request), app_url_for(request), _lang_for(request))
+    if page is None:
+        raise HTTPException(404, "読みものが見つかりません")
+    return HTMLResponse(page, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/find", response_class=HTMLResponse)
