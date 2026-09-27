@@ -25,7 +25,7 @@ type Ev =
   | { f: number; type: "hide" }
   | { f: number; type: "key"; key: string };
 export type Take = { id: string; fps: number; frames: number; vw: number; vh: number; dpr: number; twin?: boolean; events: Ev[] };
-export type XClipProps = { id: string; take?: Take; lang?: "ja" | "en"; title?: string };
+export type XClipProps = { id: string; take?: Take; lang?: "ja" | "en"; title?: string; phoneMode?: "frame" | "fill" };
 
 const LOOP = 15;      // 終わりに最初の絵を溶かし込むコマ数（0.5 秒）
 const MAX_ZOOM = 2;   // 録画は倍率 2 なので、2 倍まではぼやけない
@@ -119,9 +119,9 @@ const Finger: React.FC<{ r: number; pressing: boolean }> = ({ r, pressing }) => 
 };
 
 /** 1 コマぶんの絵。**スマホの場面**（録画が縦長）は、16:9 の真ん中にスマホの枠を置いてその中に映す（2026-09-26、利用者の決定） */
-const Scene: React.FC<{ id: string; take: Take; title?: string }> = ({ id, take, title }) => {
+const Scene: React.FC<{ id: string; take: Take; title?: string; phoneMode?: "frame" | "fill" }> = ({ id, take, title, phoneMode }) => {
   const { width, height } = useVideoConfig();
-  if (height > width) return <TallScene id={id} take={take} title={title} />;
+  if (height > width) return <TallScene id={id} take={take} title={title} phoneMode={phoneMode} />;
   if (take.vh <= take.vw) {
     return (
       <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>
@@ -154,7 +154,7 @@ const Scene: React.FC<{ id: string; take: Take; title?: string }> = ({ id, take,
  *  PC の録画は 16:9 のまま縦に置くと字が読めないので、窓の中身を正方形にして印の四角に寄る。スマホの録画は枠ごと大きく置く。
  *  下の 2 割と右端はアプリの字幕・ボタンが重なるので、大事なものを置かない */
 const TALL = { ink: "#1b1d24", desk: "#e9e8e3", stripe: ["#e6b731", "#008bc7", "#e5462c", "#af9ee4", "#80e2b9", "#f594c3"] };
-const TallScene: React.FC<{ id: string; take: Take; title?: string }> = ({ id, take, title }) => {
+const TallScene: React.FC<{ id: string; take: Take; title?: string; phoneMode?: "frame" | "fill" }> = ({ id, take, title, phoneMode = "frame" }) => {
   const { width } = useVideoConfig();
   const f = useCurrentFrame();
   const head = (
@@ -166,9 +166,21 @@ const TallScene: React.FC<{ id: string; take: Take; title?: string }> = ({ id, t
       {title && <div lang="ja" style={{ wordBreak: "auto-phrase" as React.CSSProperties["wordBreak"], marginTop: 28, fontFamily: "XPlex", fontWeight: 700, fontSize: 62, lineHeight: 1.36, color: TALL.ink }}>{title}</div>}
     </div>
   );
+  if (take.vh > take.vw && phoneMode === "fill" && !take.twin) {
+    // B 案: スマホの画面を幅いっぱいに寄せ、縦は指を追う（枠は描かない。見出しの下から画面の下まで）
+    const top = 560;
+    return (
+      <AbsoluteFill style={{ backgroundColor: TALL.desk }}>
+        {head}
+        <div style={{ position: "absolute", left: 0, top, width, height: 1920 - top, overflow: "hidden", background: "#fff", borderTop: `4px solid ${TALL.ink}` }}>
+          <View id={id} take={take} w={width} h={1920 - top} touch followY />
+        </div>
+      </AbsoluteFill>
+    );
+  }
   if (take.vh > take.vw) {
-    const n = take.twin ? 2 : 1, H = n === 2 ? 940 : 1000, W = Math.round(H * take.vw / take.vh), bez = 22, gap = 56;
-    const x0 = Math.round((width - (W * n + gap * (n - 1))) / 2), y = 640;
+    const n = take.twin ? 2 : 1, H = n === 2 ? 940 : 1100, W = Math.round(H * take.vw / take.vh), bez = 22, gap = 56;
+    const x0 = Math.round((width - (W * n + gap * (n - 1))) / 2), y = 610;
     const phone = (x: number, body: React.ReactNode, key: string) => (
       <React.Fragment key={key}>
         <div style={{ position: "absolute", left: x - bez, top: y - bez * 2, width: W + bez * 2, height: H + bez * 4, background: "#16181b",
@@ -205,7 +217,7 @@ const TallScene: React.FC<{ id: string; take: Take; title?: string }> = ({ id, t
 };
 
 /** 録画＋カメラ＋カーソル（指）＋輪を w×h の箱に描く */
-const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: boolean; src?: string; follow?: boolean }> = ({ id, take, w: width, h: height, touch, src = "take.mp4", follow = false }) => {
+const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: boolean; src?: string; follow?: boolean; followY?: boolean }> = ({ id, take, w: width, h: height, touch, src = "take.mp4", follow = false, followY = false }) => {
   const f = useCurrentFrame();
   const { vw, vh, events } = take;
   const k = width / vw;   // 出力の px ÷ 画面の CSS px（引いたとき）
@@ -217,6 +229,17 @@ const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: bool
   const place = (r: Rect): CamR => follow ? fitFollow(r, vw, vh, A, width / take.dpr) : { ...fit(r, vw, vh, A), rx0: NaN, rx1: NaN };
   const cams = camEvs.map((e) => ({ f: e.f, to: place(e.rect), dur: e.dur }));
   const cam = cams.length ? track(cams, f, lerpCam) : place({ x: 0, y: 0, w: vw, h: vh });
+  if (followY) {
+    // 幅はいつも画面ぜんぶ。縦は指の位置（前後 0.5 秒の平均）が箱の上から 45% に来るように送る。指が無いときは印の四角の真ん中
+    const w = vw, h = w / A;
+    let ty = cam.y + cam.h / 2;
+    if (curs.length) {
+      let sy = 0, n = 0;
+      for (let d = -15; d <= 15; d += 3) { sy += track(curs, Math.max(0, f + d), (a, b, t) => ({ x: mix(a.x, b.x, t), y: mix(a.y, b.y, t) })).y; n++; }
+      ty = sy / n + h * 0.05;
+    }
+    Object.assign(cam, { x: 0, w, h, y: Math.min(Math.max(ty - h / 2, 0), vh - h) });
+  }
   if (follow && cam.rx1 > cam.rx0 && curs.length) {
     // 横はカーソルを追う（前後 0.5 秒の平均。少し先を見て動き出すので、押す前に押す所が映る）
     let sx = 0, n = 0;
@@ -251,15 +274,15 @@ const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: bool
   );
 };
 
-export const XClip: React.FC<XClipProps> = ({ id, take, title }) => {
+export const XClip: React.FC<XClipProps> = ({ id, take, title, phoneMode }) => {
   const f = useCurrentFrame();
   if (!take) return null;
   const N = take.frames;
   const fade = interpolate(f, [N, N + LOOP], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
   return (
     <AbsoluteFill>
-      <Freeze frame={N - 1} active={f >= N}><Scene id={id} take={take} title={title} /></Freeze>
-      {f >= N && <AbsoluteFill style={{ opacity: fade }}><Freeze frame={0}><Scene id={id} take={take} title={title} /></Freeze></AbsoluteFill>}
+      <Freeze frame={N - 1} active={f >= N}><Scene id={id} take={take} title={title} phoneMode={phoneMode} /></Freeze>
+      {f >= N && <AbsoluteFill style={{ opacity: fade }}><Freeze frame={0}><Scene id={id} take={take} title={title} phoneMode={phoneMode} /></Freeze></AbsoluteFill>}
     </AbsoluteFill>
   );
 };
@@ -269,6 +292,6 @@ export const xclipMetadata: CalculateMetadataFunction<XClipProps> = async ({ pro
   const take: Take = await (await fetch(staticFile(`xclips/${props.id}/events.json`))).json();
   // 縦の動画の見出し（promo/x_titles.py が書く。横では使わない）
   const titles: Record<string, Record<string, string>> = await fetch(staticFile("xclips-titles.json")).then((r) => r.ok ? r.json() : {}).catch(() => ({}));
-  const title = props.title ?? titles[props.id]?.[props.lang ?? "ja"];
+  const title = props.title ?? (titles[props.id] ?? titles[props.id.replace(/-sp$/, "")])?.[props.lang ?? "ja"];   // スマホ版（-sp）は元の場面の見出し
   return { durationInFrames: take.frames + LOOP, fps: take.fps, props: { ...props, take, title } };
 };

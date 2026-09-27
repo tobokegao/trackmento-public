@@ -45,7 +45,7 @@ const onlySubs = (...keep) => ["#sub-bandcamp", "#sub-list", "#sub-manual"].filt
   .map((s) => `${s} { display: none !important; }`).join(" ");
 
 /** 同じ曲名の候補をいくつか作る（別の人のカバー・ライブ版など）。絵は架空のジャケットを順に使う */
-function variants(title, list, n = 6, source = "itunes") {
+export function variants(title, list, n = 6, source = "itunes") {
   const tails = ["", " (Acoustic)", " - Remix", " (Live)", " -Instrumental-", " (2026 Remaster)", " (Piano ver.)", " - Short"];
   return Array.from({ length: n }, (_, i) => {
     const c = list[(i * 5) % list.length];
@@ -54,10 +54,10 @@ function variants(title, list, n = 6, source = "itunes") {
   });
 }
 /** 架空の曲をそのまま候補にする（出どころの札だけ替える） */
-const as = (source, list, extra = {}) => list.map((t, i) => ({ ...t, source, external_url: `https://example.com/${source}/${i}`, ...extra }));
+export const as = (source, list, extra = {}) => list.map((t, i) => ({ ...t, source, external_url: `https://example.com/${source}/${i}`, ...extra }));
 
 /** 空の 3×3 から始める（入れていくところを見せる） */
-async function empty(k, size = [3, 3], opts = {}, first = []) {
+export async function empty(k, size = [3, 3], opts = {}, first = []) {
   // seed(0) だと空の配列が「見本で埋める」扱いになるので、空きマスを null で渡す。first は先に入れておく曲
   await k.page.evaluate(({ size, opts, first }) => {
     const cells = Array(size[0] * size[1]).fill(null);
@@ -71,7 +71,7 @@ async function empty(k, size = [3, 3], opts = {}, first = []) {
   await k.waitArt();
 }
 /** 補助の欄（URL から・トラック名の一覧から・手入力）を開いておく（撮る前に。1 つ開くとほかは閉じる） */
-async function openSub(k, sel) {
+export async function openSub(k, sel) {
   if (await k.page.getAttribute(`${sel} > .sub-title`, "aria-expanded") !== "true") await k.page.click(`${sel} > .sub-title`);
 }
 /** 欄を空にしてから 1 字ずつ打つ */
