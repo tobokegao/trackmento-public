@@ -84,7 +84,7 @@ async function cycle(k, steps, { hold = 1.1, sec = 0.6, y = 800 } = {}) {
 }
 const BG = "fieldset:has(#bg-mode-seg)";
 /** s-labels-sp で寄る所（見本の画像に対する割合 x, y, w, h）。2×2 の見本は左にマス・右に曲名リスト・タイトルは右上（撮った絵で測った） */
-const LABEL_PARTS = { title: [0.5, 0, 0.5, 0.35], numbers: [0, 0, 0.45, 0.5], trim: [0.5, 0.15, 0.5, 0.45] };
+const LABEL_PARTS = { title: [0.5, 0, 0.5, 0.35], numbers: [0, 0, 0.45, 0.5] };
 
 export default [
   {
@@ -208,12 +208,13 @@ export default [
   {
     id: "s-labels-sp",
     phone: true,
-    what: "「表示」でタイトル・番号バッジ・トラック名の省略表示を切り替えられる。切り替えて「更新」を押すと見本に出る",
+    what: "「表示」のチェックを外すと、タイトルや番号バッジを消せる。外して「更新」を押すと見本から消える",
     // 2026-09-27 に直した（利用者「見本の中の番号や曲名の違いが分かりにくい」）。3×3 だと見本の字が小さいので 2×2 にし、
-    // 「更新」の前に見本の変わる所へ寄って、同じ寄りのまま前と後を見せる
+    // 「更新」の前に見本の変わる所へ寄って、同じ寄りのまま前と後を見せる。
+    // 見出しは「タイトルや番号を消せますか？」なので、出ている状態から消していく（足していくのは逆、と利用者）。
+    // トラック名の省略表示は外すと長い名前が戻る（足す向き）ので、ここでは見せない
     async setup(k) {
-      const sq = square().slice(0, 4).map((t, i) => (i === 1 ? { ...t, title: `${t.title}【Official Music Video】` } : t));
-      await ready(k, 4, [2, 2], { numbers: false, showTitle: false, trimNames: false, title: "私を構成する4曲" }, sq);
+      await ready(k, 4, [2, 2], { numbers: true, showTitle: true, title: "私を構成する4曲" }, square().slice(0, 4));
       await openOptions(k);
       await primeOutput(k);
       await place(k, "fieldset:has(#opt-numbers)", 800, "bottom");
@@ -222,7 +223,7 @@ export default [
     async run(k) {
       await k.hold(0.8);
       const F = "fieldset:has(#opt-numbers)";
-      for (const [box, part] of [["#opt-title", LABEL_PARTS.title], ["#opt-numbers", LABEL_PARTS.numbers], ["#opt-trim", LABEL_PARTS.trim]]) {
+      for (const [box, part] of [["#opt-title", LABEL_PARTS.title], ["#opt-numbers", LABEL_PARTS.numbers]]) {
         await toField(k, F, 0.5);
         await k.tap(box);
         await k.hold(0.3);
