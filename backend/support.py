@@ -13,8 +13,8 @@
 
 MONTH = "2026-09"
 COST_JPY = 4375                    # 2026-09-26 の money()（$27.76 × 157.59）
-RECEIVED_JPY = 388 + 104 + 1596    # 2026-09 の Bandcamp の購入 3 件（受け取った額）
-SUPPORTERS = 3
+RECEIVED_JPY = 388 + 104 + 1596 + 1841    # 2026-09 の Bandcamp の購入 4 件（受け取った額）
+SUPPORTERS = 4
 
 
 def meta() -> str:
