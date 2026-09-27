@@ -1,4 +1,4 @@
-"""サイトの文章のページ（使い方・使い方の動画・プライバシーポリシー・運営者・更新情報）。
+"""サイトの文章のページ（使い方・使い方の動画・プライバシーポリシー・利用規約・運営者・更新情報）。
 
 2026-09-18 に AdSense の審査に通らなかった（理由は示されない）ため足した。道具の画面だけでは
 「完全な文章や段落」と言える文章がほとんど無く、プライバシーポリシーも同じドメインに無かった。
@@ -20,11 +20,12 @@ TITLES = {
     "guide": {"ja": "使い方", "en": "How to use"},
     "howto": {"ja": "使い方の動画", "en": "How-to videos"},
     "privacy": {"ja": "プライバシーポリシー", "en": "Privacy policy"},
+    "terms": {"ja": "利用規約", "en": "Terms of use"},
     "about": {"ja": "運営者・お問い合わせ", "en": "About & contact"},
     "updates": {"ja": "更新情報", "en": "Updates"},
 }
-NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "プライバシーポリシー", "運営者", "更新情報"),
-       "en": ("Back to the app", "How to use", "How-to videos", "Privacy policy", "About", "Updates")}
+NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
+       "en": ("Back to the app", "How to use", "How-to videos", "Privacy policy", "Terms", "About", "Updates")}
 UPDATED = {"ja": "最終更新: 2026年9月27日", "en": "Last updated: September 27, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
@@ -249,6 +250,178 @@ The latest version is always published on this page.</p>
 """
 
 
+def _terms(lang: str, days: int) -> str:
+    """利用規約（2026-09-27）。AdSense の 2 度目の不承認のあと、文章のページで欠けていたので足した。
+    下書きを Gemini が添削し、利用者が確かめたもの。共有の保持日数は設定から差し込む。
+    ソースは公開リポジトリなので「リバースエンジニアリングの禁止」は入れない。作った画像は SNS に載せるのが
+    本来の使い方なので「私的利用の範囲内で」とは書かない"""
+    if lang == "en":
+        return f"""
+<p>These terms set out the conditions for using TRACKMENTO (https://trackmento.com, “the Site”). By using the Site, you are deemed to
+have agreed to these terms.</p>
+
+<h2>Article 1 (The service)</h2>
+<ol class="steps">
+<li>The Site is a service for laying out the thumbnails of tracks in a grid, making them into a single image and sharing it.</li>
+<li>As a rule, every feature of the Site is free and can be used without registering an account.</li>
+</ol>
+
+<h2>Article 2 (Content you enter or send)</h2>
+<ol class="steps">
+<li>You are responsible for all content you enter or send to the Site, such as titles, notes and uploaded images (“your content”).</li>
+<li>You warrant that you hold the lawful rights to your content and that it does not infringe the rights of any third party.</li>
+<li>You permit the operator to use your content free of charge (to copy, resize and transmit it, for example) to the extent necessary
+to store, display and share it on the Site.</li>
+</ol>
+
+<h2>Article 3 (Prohibited conduct)</h2>
+<p>When using the Site, you must not:</p>
+<ol class="steps">
+<li>Act against the law or public order and morals.</li>
+<li>Infringe the copyright, portrait rights, privacy, reputation or other rights or interests of any third party.</li>
+<li>Send or share content that defames, discriminates against, intimidates or offends others.</li>
+<li>Access the Site in large volumes by automated means such as programs, or place an excessive load on the servers.</li>
+<li>Gain unauthorized access to the Site's systems or otherwise interfere with its operation.</li>
+<li>Violate the terms of use or guidelines of external services.</li>
+<li>Do anything else the operator considers inappropriate.</li>
+</ol>
+
+<h2>Article 4 (Sharing and everyone's grids)</h2>
+<ol class="steps">
+<li>Images and share pages created with the share feature can be viewed by anyone who knows their URL.</li>
+<li>Content shared with “Add to everyone's grids” turned on appears in search results and lists within the Site.</li>
+<li>Shared content is deleted automatically {days} days after it is created.</li>
+<li>Content that violates these terms, or about which a rights holder or another party has made a legitimate complaint, may be deleted
+without prior notice.</li>
+<li>If you find a problematic share, please let us know through “Report inappropriate content” on the share page.</li>
+</ol>
+
+<h2>Article 5 (Rights in thumbnails and track information)</h2>
+<ol class="steps">
+<li>Intellectual property rights in the cover images, artwork, track titles and other material shown or retrieved on the Site belong to
+the respective artists, music platforms or other rightful holders.</li>
+<li>The Site retrieves and displays this information through APIs and similar means provided by each external music service.</li>
+<li>When you use an image made with the Site, for example in a social media post, please follow the terms of use and guidelines of
+each music service.</li>
+</ol>
+
+<h2>Article 6 (Rights in the Site)</h2>
+<p>Intellectual property rights in the programs, design, logo, text and other content that make up the Site belong to the operator or
+other rightful holders.</p>
+
+<h2>Article 7 (Changes, suspension and termination)</h2>
+<p>The operator may change the content of the Site, or suspend or end the service, without prior notice to users.</p>
+
+<h2>Article 8 (Disclaimer)</h2>
+<ol class="steps">
+<li>Data you are editing is kept on your device (in your browser), so it may be lost if the browser's data is cleared or because of your
+device's environment. Please keep your own backup of anything you need, for example with “Save layout”.</li>
+<li>The operator makes no guarantee as to the accuracy, completeness or currency of information retrieved from external services, or
+that images and data will remain available.</li>
+<li>The operator is not liable for any damage you suffer in connection with your use of the Site, except in cases of intent or gross
+negligence on the operator's part. Even where the operator is liable, compensation is limited to direct and ordinary damage you have
+actually suffered.</li>
+</ol>
+
+<h2>Article 9 (Advertising)</h2>
+<p>The operator may place advertisements on the Site to help cover the cost of running and maintaining it.</p>
+
+<h2>Article 10 (Changes to these terms)</h2>
+<ol class="steps">
+<li>The operator may change these terms when it considers this necessary, without obtaining users' prior consent.</li>
+<li>When the terms are changed, the changes and the date they take effect will be announced on the Site in advance. By using the Site
+after the change, you are deemed to have agreed to the revised terms.</li>
+</ol>
+
+<h2>Article 11 (Governing law and jurisdiction)</h2>
+<ol class="steps">
+<li>These terms are governed by the laws of Japan.</li>
+<li>Any dispute concerning the Site shall be subject to the exclusive jurisdiction, in the first instance, of the district court or
+summary court having jurisdiction over the operator's location.</li>
+</ol>
+
+<h2>Article 12 (Contact)</h2>
+<p>For questions about these terms or the Site, please use the
+<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">contact form</a>. These terms were written in Japanese; if the
+Japanese and English versions differ, the Japanese version prevails.</p>
+"""
+    return f"""
+<p>TRACKMENTO（https://trackmento.com、以下「当サイト」）をご利用いただく際の条件を、以下のとおり定めます。利用者が当サイトを利用された時点で、本規約に同意いただいたものとみなします。</p>
+
+<h2>第1条（サービスの内容）</h2>
+<ol class="steps">
+<li>当サイトは、楽曲等のトラックのサムネイルを格子状に並べて1枚の画像を作成し、共有できるサービスです。</li>
+<li>当サイトのすべての機能は、原則として無料で、会員登録なしでご利用いただけます。</li>
+</ol>
+
+<h2>第2条（利用者が入力・送信するコンテンツ）</h2>
+<ol class="steps">
+<li>タイトル、メモ、アップロードした画像など、利用者が当サイトに入力・送信したコンテンツ（以下「送信コンテンツ」）に関する責任は、すべてその利用者が負うものとします。</li>
+<li>利用者は、送信コンテンツについて、適法な権利を有していること、および第三者の権利を侵害していないことを保証するものとします。</li>
+<li>利用者は、当サイトでの保存・表示・共有に必要な範囲において、運営者が送信コンテンツを無償で利用（複製、縮小などの加工、公衆送信など）することを許諾するものとします。</li>
+</ol>
+
+<h2>第3条（禁止事項）</h2>
+<p>利用者は、当サイトの利用にあたり、以下の行為を行ってはなりません。</p>
+<ol class="steps">
+<li>法令または公序良俗に反する行為</li>
+<li>第三者の著作権、肖像権、プライバシー権、名誉その他の権利または利益を侵害する行為</li>
+<li>他人を誹謗中傷、差別、威圧し、または不快感を与える内容を送信・共有する行為</li>
+<li>プログラム等の自動化された手段による大量のアクセスや、サーバーに過度の負荷をかける行為</li>
+<li>当サイトのシステムへの不正アクセス、その他運営を妨害する行為</li>
+<li>外部サービスの利用規約やガイドラインに違反する行為</li>
+<li>その他、運営者が不適切と判断する行為</li>
+</ol>
+
+<h2>第4条（共有機能と「みんなのグリッド」）</h2>
+<ol class="steps">
+<li>共有機能を用いて作成された画像および共有ページは、該当するURLを知るすべての第三者が閲覧できる状態となります。</li>
+<li>「みんなのグリッドに載せる」を選択して共有されたコンテンツは、当サイト内の検索結果や一覧ページに表示されます。</li>
+<li>共有されたコンテンツは、作成から{days}日が経過した時点で自動的に削除されます。</li>
+<li>本規約に違反するコンテンツや、権利者等から正当な申し立てがあったコンテンツは、事前通知なく削除することがあります。</li>
+<li>問題のある共有を発見した場合は、共有ページ内の「問題のある内容を報告する」よりご連絡ください。</li>
+</ol>
+
+<h2>第5条（サムネイルおよびトラック情報の権利）</h2>
+<ol class="steps">
+<li>当サイト上で表示・取得されるジャケット画像、アートワーク、トラック名等の知的財産権は、それぞれのアーティスト、配信プラットフォーム、または正当な権利者に帰属します。</li>
+<li>当サイトは、各外部配信サービスが提供するAPI等を利用して情報を取得・表示しています。</li>
+<li>当サイトで作成した画像をSNSへの投稿などに使う際は、各配信サービスの利用規約やガイドラインを遵守してください。</li>
+</ol>
+
+<h2>第6条（当サイトの権利）</h2>
+<p>当サイトを構成するプログラム、デザイン、ロゴ、文章、その他のコンテンツに関する知的財産権は、運営者または正当な権利者に帰属します。</p>
+
+<h2>第7条（サービスの変更・中断・終了）</h2>
+<p>運営者は、利用者に事前通知することなく、当サイトの内容を変更し、またはサービスの提供を一時停止・終了することができるものとします。</p>
+
+<h2>第8条（免責事項）</h2>
+<ol class="steps">
+<li>編集中のデータはお使いの端末（ブラウザ）に保存される仕組みのため、ブラウザのデータの消去や端末の環境等によって消失する場合があります。必要なデータは「並びを保存」機能等を利用して、ご自身でバックアップを行ってください。</li>
+<li>運営者は、外部サービスから取得する情報の正確性、完全性、最新性、および画像・データの継続的な取得可能性について、いかなる保証も行いません。</li>
+<li>当サイトの利用に関連して利用者に生じた損害について、運営者は故意または重大な過失がある場合を除き、責任を負いません。なお、運営者が損害賠償責任を負う場合であっても、賠償の範囲は利用者に現実に生じた直接かつ通常の損害に限られるものとします。</li>
+</ol>
+
+<h2>第9条（広告の表示）</h2>
+<p>運営者は、当サイトの運営および維持を目的として、当サイト上に広告を掲載・表示することがあります。</p>
+
+<h2>第10条（利用規約の変更）</h2>
+<ol class="steps">
+<li>運営者は、必要と判断した場合には、利用者の事前の承諾を得ることなく本規約を変更できるものとします。</li>
+<li>規約の変更にあたっては、変更内容および効力発生時期を当サイト上にあらかじめ告知します。変更後に利用者が当サイトを利用した時点で、変更後の規約に同意したものとみなします。</li>
+</ol>
+
+<h2>第11条（準拠法および管轄裁判所）</h2>
+<ol class="steps">
+<li>本規約の解釈にあたっては、日本法を準拠法とします。</li>
+<li>当サイトに関して紛争が生じた場合は、運営者の所在地を管轄する地方裁判所または簡易裁判所を第一審の専属的合意管轄裁判所とします。</li>
+</ol>
+
+<h2>第12条（お問い合わせ）</h2>
+<p>本規約または当サイトに関するお問い合わせは、<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>よりご連絡ください。</p>
+"""
+
+
 def _about(lang: str, days: int) -> str:
     ja_url, en_url = OFFICIAL
     if lang == "en":
@@ -294,6 +467,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-27", "「利用規約」のページを足しました。編集画面と各ページのいちばん下のリンクから開けます。",
+     "Added a “Terms of use” page. You can open it from the links at the bottom of the editor and of each page."),
     ("2026-09-27", "「サーバー代のおねがい」の欄の PayPal へのリンクを、昔の広告のような動くバナーに替えました。",
      "In the “A word about server bills” box, the PayPal link is now an animated banner in the style of old web ads."),
     ("2026-09-27", "右上の「?」で、部品の説明を吹き出しで出せるようにしました。PC はマウスを重ねると、スマホは触れると説明が出ます。「使い方の動画で見る」から、その操作の動画へ移れます。",
@@ -701,7 +876,7 @@ def _howto(lang: str, days: int) -> str:
     return "\n".join(out)
 
 
-BODIES = {"guide": _guide, "howto": _howto, "privacy": _privacy, "about": _about, "updates": _updates}
+BODIES = {"guide": _guide, "howto": _howto, "privacy": _privacy, "terms": _terms, "about": _about, "updates": _updates}
 
 _JA_BREAK = re.compile(r"(?<=[^\x00-\x7f>])\n(?=[^\x00-\x7f<])")
 
@@ -724,7 +899,7 @@ def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja"
     title = TITLES[kind][lang]
     other = "en" if lang == "ja" else "ja"
     q = "?lang=en" if lang == "en" else ""
-    back, n_guide, n_howto, n_privacy, n_about, n_updates = NAV[lang]
+    back, n_guide, n_howto, n_privacy, n_terms, n_about, n_updates = NAV[lang]
     body = body_of(kind, lang)
     return f"""<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -771,7 +946,7 @@ details.clip summary {{ cursor: pointer; font-weight: 700; }}
   <h1>{html.escape(title)}</h1>
   {body}
   <p class="meta">{_updated_of(lang) if kind == "updates" else UPDATED[lang]} ・ <a href="/{kind}{'?lang=' + other if other == 'en' else ''}">{'English' if other == 'en' else '日本語'}</a></p>
-  <nav class="pages"><a href="{app_url}/{q}">{back}</a><a href="/guide{q}">{n_guide}</a><a href="/howto{q}">{n_howto}</a><a href="/privacy{q}">{n_privacy}</a><a href="/about{q}">{n_about}</a><a href="/updates{q}">{n_updates}</a></nav>
+  <nav class="pages"><a href="{app_url}/{q}">{back}</a><a href="/guide{q}">{n_guide}</a><a href="/howto{q}">{n_howto}</a><a href="/privacy{q}">{n_privacy}</a><a href="/terms{q}">{n_terms}</a><a href="/about{q}">{n_about}</a><a href="/updates{q}">{n_updates}</a></nav>
 </main>
 {_HOWTO_JS.format(nonce=nonce) if kind == "howto" else ""}
 </body></html>"""

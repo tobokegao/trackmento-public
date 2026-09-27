@@ -716,7 +716,7 @@ async def request_stats(request: Request, call_next):
 
 # 移転先へ 301 で送る経路。**画面（`/`）と API は送らない**。
 # API を送ると、開いたままの古いタブが別オリジンへ投げることになり CORS で落ちる
-_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/howto", "/privacy", "/about", "/updates")
+_MIGRATE_PATHS = ("/s/", "/find", "/sitemap.xml", "/robots.txt", "/guide", "/howto", "/privacy", "/terms", "/about", "/updates")
 
 
 def _migrate_host(request: Request) -> str:
@@ -2201,10 +2201,11 @@ async def share_owner_action(request: Request, sid: str, body: OwnerBody) -> dic
 
 # 「みんなの並びを探す」。**印を付けた共有だけ**が対象（backend/shareindex.py）。
 # `/shares/{fname}` と経路がぶつからないよう、JSON は `/find.json` にしてある
-# 文章のページ（使い方・プライバシーポリシー・運営者）。backend/pages.py。言語は共有ページと同じ決め方
+# 文章のページ（使い方・プライバシーポリシー・利用規約・運営者）。backend/pages.py。言語は共有ページと同じ決め方
 @app.get("/guide", response_class=HTMLResponse)
 @app.get("/howto", response_class=HTMLResponse)
 @app.get("/privacy", response_class=HTMLResponse)
+@app.get("/terms", response_class=HTMLResponse)
 @app.get("/about", response_class=HTMLResponse)
 @app.get("/updates", response_class=HTMLResponse)
 async def text_page(request: Request) -> HTMLResponse:
