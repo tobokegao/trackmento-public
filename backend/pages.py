@@ -1,4 +1,4 @@
-"""サイトの文章のページ（使い方・使い方の動画・読みもの・プライバシーポリシー・利用規約・運営者・更新情報）。
+"""サイトの文章のページ（使い方・使い方の動画・コラム・プライバシーポリシー・利用規約・運営者・更新情報）。
 
 2026-09-18 に AdSense の審査に通らなかった（理由は示されない）ため足した。道具の画面だけでは
 「完全な文章や段落」と言える文章がほとんど無く、プライバシーポリシーも同じドメインに無かった。
@@ -19,13 +19,13 @@ from backend.config import share_retention_days
 TITLES = {
     "guide": {"ja": "使い方", "en": "How to use"},
     "howto": {"ja": "使い方の動画", "en": "How-to videos"},
-    "articles": {"ja": "読みもの", "en": "Articles"},
+    "articles": {"ja": "コラム", "en": "Articles"},
     "privacy": {"ja": "プライバシーポリシー", "en": "Privacy policy"},
     "terms": {"ja": "利用規約", "en": "Terms of use"},
     "about": {"ja": "運営者・お問い合わせ", "en": "About & contact"},
     "updates": {"ja": "更新情報", "en": "Updates"},
 }
-NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "読みもの", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
+NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
 UPDATED = {"ja": "最終更新: 2026年9月27日", "en": "Last updated: September 27, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
@@ -468,7 +468,7 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-27", "「読みもの」のページを足しました。1 本目は、消えたニコニコ動画のサムネイルを otoDB から取り戻す方法です。編集画面と各ページのいちばん下のリンクから開けます。",
+    ("2026-09-27", "「コラム」のページを足しました。1 本目は、消えたニコニコ動画のサムネイルを otoDB から取り戻す方法です。編集画面と各ページのいちばん下のリンクから開けます。",
      "Added an “Articles” page (in Japanese). The first article explains how to bring back the thumbnails of deleted Niconico videos from otoDB. Open it from the links at the bottom of the editor and of each page."),
     ("2026-09-27", "「利用規約」のページを足しました。編集画面と各ページのいちばん下のリンクから開けます。",
      "Added a “Terms of use” page. You can open it from the links at the bottom of the editor and of each page."),
@@ -881,10 +881,10 @@ def _howto(lang: str, days: int) -> str:
 
 
 def _articles(lang: str, days: int) -> str:
-    """読みものの一覧（backend/articles.py）。記事は日本語だけなので、英語の画面ではそう断る"""
+    """コラムの一覧（backend/articles.py）。記事は日本語だけなので、英語の画面ではそう断る"""
     en = lang == "en"
     out = ["<p>Articles that dig deeper into ways to use TRACKMENTO. They are currently available in Japanese only.</p>" if en else
-           "<p>TRACKMENTO の使い方を、もう一歩踏み込んで紹介する読みものです。</p>"]
+           "<p>TRACKMENTO の使い方を、もう一歩踏み込んで紹介するコラムです。</p>"]
     items = [f'<dt><a href="/articles/{a["slug"]}">{html.escape(a["title"])}</a></dt>'
              f'<dd>{_date_label(a["date"], lang)} ・ {html.escape(a["description"])}</dd>' for a in articles.ARTICLES]
     out.append('<dl class="articles" lang="ja">' + "\n".join(items) + "</dl>")
@@ -923,7 +923,7 @@ def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja"
 
 
 def article_html(slug: str, base: str, app_url: str | None = None, lang: str = "ja") -> str | None:
-    """読みもの 1 本（/articles/<slug>）。無い名前なら None。本文は日本語だけなので、ページは常に日本語で組む。
+    """コラム 1 本（/articles/<slug>）。無い名前なら None。本文は日本語だけなので、ページは常に日本語で組む。
     下の案内のリンクだけ、英語の画面から来た人には英語のまま出す"""
     a = articles.BY_SLUG.get(slug)
     if a is None:
@@ -979,7 +979,7 @@ nav.pages a {{ color: #12171b; }}
 details.clip summary {{ cursor: pointer; font-weight: 700; }}
 .clip-body {{ display: grid; gap: 6px; margin: 4px 0 10px 1.1em; }}
 .clip-body video {{ width: 100%; height: auto; aspect-ratio: 16 / 9; background: #12171b; border: 2px solid #12171b; }}
-/* 読みものの一覧（/articles） */
+/* コラムの一覧（/articles） */
 dl.articles dt {{ font-size: 1rem; }}
 </style></head>
 <body>
