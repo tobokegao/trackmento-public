@@ -51,11 +51,18 @@ export default [
       await k.until(() => k.page.evaluate(() => document.querySelector("#sheet").hidden), "シートが閉じる", 5000);
       await k.waitArt();
       await k.hold(1.0);
-      await k.tap("#grid .cell:nth-child(7)");   // 空きマス → その番号でシートが開く（5 番はさっき入った）
+      // 空きマス → その番号でシートが開き、選んだ候補がそのマスに入る（2026-09-27、利用者の指摘。前は開いて閉じるだけで伝わらなかった）。
+      // 押すのは 9 番（5 番が埋まった今、次の空きは 7 番なので、7 番を押しても違いが見えない）
+      await k.tap("#grid .cell:nth-child(9)");
       await k.until(() => k.page.evaluate(() => !document.querySelector("#sheet").hidden), "シート", 5000);
+      await k.hold(0.9);
+      const dy = await k.page.evaluate(() => document.querySelector(".pane-results").getBoundingClientRect().top - 150);
+      if (dy > 4) await k.swipe(dy, 0.5, "#sheet-body");
+      await k.hold(0.5);
+      await k.tap("#results li:nth-child(2) .result");
+      await k.until(() => k.page.evaluate(() => document.querySelector("#sheet").hidden), "シートが閉じる", 5000);
+      await k.waitArt();
       await k.hold(1.4);
-      await k.tap("#sheet-close");
-      await k.hold(0.8);
     },
   },
   {
