@@ -68,23 +68,6 @@ async function searchFirst(k, q, list) {
   await k.page.evaluate((q) => { document.querySelector("#q").value = q; document.querySelector("#search-btn").click(); }, q);
   await resultsAtLeast(k, 3);
 }
-/** 2 本指で広げる・つまむ（CDP のタッチ。指の丸は 1 本しか描けないので、そのあいだは隠す） */
-async function pinch(k, cx, cy, d0, d1, sec = 0.8) {
-  const cdp = await k.page.context().newCDPSession(k.page);
-  const pts = (d) => [{ x: cx - d * 0.35, y: cy - d * 0.35, id: 0 }, { x: cx + d * 0.35, y: cy + d * 0.35, id: 1 }];
-  await k.hideCursor();
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pts(d0) });
-  await k.frame();
-  const n = Math.round(sec * 30);
-  for (let i = 1; i <= n; i++) {
-    const t = i / n, e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pts(d0 + (d1 - d0) * e) });
-    await k.frame();
-  }
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  await k.frame();
-  await cdp.detach();
-}
 
 /** **撮影用の擬似の保存・ファイル選択**（スマホ版。ヘッドレスでは本物が出ないので、撮影のときだけページの上に描く）。
     Android の Chrome の「ダウンロードしました」の帯と、ファイルを選ぶ画面に寄せた素朴なもの（サイトの OS 9 の部品と混ざらないよう角丸・灰色） */
@@ -396,11 +379,11 @@ export default [
       await k.tap("#grid .cell:nth-child(19)"); await k.hold(1.0);
       // 2 本指で広げる（マスが大きくなる）
       const r = await k.page.evaluate(() => { const b = document.querySelector("#grid-scroll").getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; });
-      await pinch(k, r.x, r.y, 80, 260, 0.9);
+      await k.pinch(r.x, r.y, 80, 260, 0.9, [1, 1]);
       await k.hold(0.6);
       await k.swipe(360, 1.0, "#grid-scroll");   // 指で送って見る
       await k.hold(0.6);
-      await pinch(k, r.x, r.y, 260, 80, 0.8);
+      await k.pinch(r.x, r.y, 260, 80, 0.8, [1, 1]);
       await k.hold(0.8);
       await k.tap("#zoom-modal-close");
       await k.hold(0.8);

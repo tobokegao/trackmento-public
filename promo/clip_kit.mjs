@@ -178,6 +178,30 @@ export function makeKit(page, tracks) {
       await frame();
     }
   }
+  /** **2 本指で広げる・すぼめる**（スマホの場面。2026-09-27）。CDP で指 2 本の touch を送り、指の位置をコマごとに印（touches）に残す
+      （XClip が指の丸を 2 つ描く。前は指を 1 本しか描けず、マスがひとりでに大きくなるように見えた、と利用者）。
+      cx, cy は 2 本の真ん中、d0 → d1 は指の間の距離、dir は指を並べる向き（[1, 0] で横、[1, 1] で斜め） */
+  async function pinch(cx, cy, d0, d1, sec = 0.9, dir = [1, 0]) {
+    const L = Math.hypot(dir[0], dir[1]) || 1, ux = dir[0] / L, uy = dir[1] / L;
+    const pts = (d) => [{ x: cx - ux * d / 2, y: cy - uy * d / 2 }, { x: cx + ux * d / 2, y: cy + uy * d / 2 }];
+    const cdp = await page.context().newCDPSession(page);
+    ev("hide"); await page.mouse.move(-10, -10);
+    ev("touches", { pts: pts(d0) }); await hold(0.25);   // 指を置いてから動かす（置いた所が見えるように）
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pts(d0).map((p, id) => ({ ...p, id })) });
+    await frame();
+    const n = nFrames(sec);
+    for (let i = 1; i <= n; i++) {
+      const t = i / n, e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, d = d0 + (d1 - d0) * e;
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pts(d).map((p, id) => ({ ...p, id })) });
+      ev("touches", { pts: pts(d) });
+      await frame();
+    }
+    await hold(0.15);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    ev("touches", { pts: [] });
+    await frame();
+    await cdp.detach().catch(() => {});
+  }
   /** キーを押す（押した印も残す。Remotion で押したキーを出すときに使える） */
   async function key(k) { ev("key", { key: k }); await page.keyboard.press(k); await frame(); }
   /** 1 字ずつ打つ */
@@ -325,6 +349,6 @@ export function makeKit(page, tracks) {
     return frames;
   }
 
-  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, tap, tapAt, swipe, waitReload, key, type, drag, dragThumb,
+  return { page, tracks, frame, hold, until, live, look, lookPart, wide, park, hideCursor, glide, press, tap, tapAt, swipe, pinch, waitReload, key, type, drag, dragThumb,
            ctrlWheel, arrange, stage, setTwin, setOnFrame, lookRect, scrollTo, seed, mock, waitArt, start, finish };
 }

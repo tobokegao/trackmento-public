@@ -23,7 +23,8 @@ type Ev =
   | { f: number; type: "cursor"; x: number; y: number; dur: number }
   | { f: number; type: "down"; x: number; y: number; ring?: boolean }
   | { f: number; type: "hide" }
-  | { f: number; type: "key"; key: string };
+  | { f: number; type: "key"; key: string }
+  | { f: number; type: "touches"; pts: { x: number; y: number }[] };   // 2 本指（clip_kit の pinch）。空の配列で指を離す
 export type Take = { id: string; fps: number; frames: number; vw: number; vh: number; dpr: number; twin?: boolean; events: Ev[] };
 export type XClipProps = { id: string; take?: Take; lang?: "ja" | "en"; title?: string; phoneMode?: "frame" | "fill" };
 
@@ -268,6 +269,11 @@ const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: bool
         return <div key={i} style={{ position: "absolute", left: p.x - r, top: p.y - r, width: r * 2, height: r * 2, borderRadius: "50%",
                                      border: `${3 * Math.max(1, s * 0.7)}px solid #e5462c`, opacity: 1 - age, boxSizing: "border-box" }} />;
       })}
+      {(() => {
+        // 2 本指（pinch）。いちばん新しい印の位置に指の丸を置く（押している濃さ）
+        const t = [...events].reverse().find((e): e is Extract<Ev, { type: "touches" }> => e.type === "touches" && e.f <= f);
+        return t?.pts.map((q, i) => { const p = toScreen(q.x, q.y); return <div key={`t${i}`} style={{ position: "absolute", left: p.x, top: p.y }}><Finger r={18 * s} pressing /></div>; });
+      })()}
       {cp && (() => { const p = toScreen(cp.x, cp.y); return <div style={{ position: "absolute", left: p.x, top: p.y }}>
         {touch ? <Finger r={18 * s} pressing={pressing} /> : <Arrow size={size} tilt={pressing} />}</div>; })()}
     </AbsoluteFill>

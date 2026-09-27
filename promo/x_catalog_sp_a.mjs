@@ -46,20 +46,6 @@ async function swipeTop(k, sec = 0.8) {
 }
 const sheetShown = (k) => k.until(() => k.page.evaluate(() => !document.querySelector("#sheet").hidden), "シートが開く", 5000);
 const sheetGone = (k) => k.until(() => k.page.evaluate(() => document.querySelector("#sheet").hidden), "シートが閉じる", 5000);
-/** 2 本指で広げる・すぼめる（CDP で指 2 本の touch を送る。XClip は指を 1 本しか描かないので、指の丸は出さない） */
-async function pinch(k, cx, cy, d0, d1, sec = 1.0) {
-  const cdp = await k.page.context().newCDPSession(k.page);
-  const pts = (d) => [{ x: cx - d / 2, y: cy, id: 1 }, { x: cx + d / 2, y: cy, id: 2 }];
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pts(d0) });
-  const n = Math.max(1, Math.round(sec * 30));
-  for (let i = 1; i <= n; i++) {
-    const t = i / n, e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pts(d0 + (d1 - d0) * e) });
-    await k.frame();
-  }
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  await k.frame();
-}
 
 export default [
   {
@@ -415,9 +401,9 @@ export default [
       const b = await k.page.locator("#grid-scroll").boundingBox();
       const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
       await k.hideCursor();
-      await pinch(k, cx, cy, 80, 200, 1.0);
+      await k.pinch(cx, cy, 80, 200, 1.0);
       await k.hold(1.2);
-      await pinch(k, cx, cy, 200, 80, 1.0);
+      await k.pinch(cx, cy, 200, 80, 1.0);
       await k.hold(0.8);
       await k.tap("#zoom-modal-close");
       await k.hold(0.8);
