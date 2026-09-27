@@ -78,7 +78,7 @@ export default [
   {
     id: "f-url-sp",
     phone: true,
-    what: "動画やストアのページの URL を貼ると、そのトラックが取れる。ニコニコなら sm… の ID だけでもいい",
+    what: "YouTube やニコニコ動画などのページの URL を貼るだけで、そのトラックが取れる。ニコニコなら sm… の ID だけでもいい",
     async setup(k) {
       const wide = nico();
       let n = 0;
