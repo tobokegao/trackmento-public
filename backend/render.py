@@ -2192,6 +2192,11 @@ def _title_width(title: str, title_size: int) -> int:
 
 
 # ---------- 描画 ----------
+# **マスの番号バッジの大きさ**（論理 px。マスの幅 CELL_W=600 に対して）。frontend の BADGE_PX / BADGE_PAD / BADGE_SHADOW と同じ値にする。
+# 2026-09-27 に字 22・余白 12・影 3 から大きくした（書き出しでバッジが小さすぎる、と利用者）
+BADGE_PX, BADGE_PAD, BADGE_SHADOW = 48, 20, 6
+
+
 def render(doc: GridDoc) -> Image.Image:
     """レイアウト（論理 px。CELL_PX=600 基準）を計算し、最終サイズ（max_side 以内）で直接描く。
     以前は原寸で描いてから縮小していたが、8×8 だと原寸キャンバスだけで 140MB になり、無料ホストのメモリ上限を超えた。"""
@@ -2235,8 +2240,7 @@ def render(doc: GridDoc) -> Image.Image:
 
     # グリッド（画像は並列に取得し、取得スレッドの中でマスの大きさに切り抜く。原寸を抱えない）
     cw, ch = sc(CELL_W), sc(cell_h(doc))     # マスの幅と高さ（出力 px）
-    num_px = max(8, sc(34))       # 番号の字の大きさ。**8px を下限にする**（ピクセルフォントはこれ以下で潰れる）。
-                                  # 2026-09-27 に 22 → 34（書き出しでバッジが小さすぎる、と利用者）。余白 12 → 16・影 3 → 4 もそろえた
+    num_px = max(8, sc(BADGE_PX))   # 番号の字の大きさ。**8px を下限にする**（ピクセルフォントはこれ以下で潰れる）
     num_font = font("pixel", num_px)
     from backend.config import public_mode
     with ThreadPoolExecutor(max_workers=2 if public_mode() else 6, initializer=lower_thread_priority) as ex:   # 公開時は控えめに（0.1 vCPU）
@@ -2285,11 +2289,11 @@ def render(doc: GridDoc) -> Image.Image:
             # 字面が上に寄るので、em の高さで枠を作ると数字が下に寄って見える。余白は 2px を下限にした
             # （マスが小さいときは 2px、大きいときは今までどおり sc(12)）
             bx0, by0, bx1, by1 = num_font.getbbox(label)
-            pad = max(2, sc(16))
+            pad = max(2, sc(BADGE_PAD))
             bw, bh = (bx1 - bx0) + pad * 2, (by1 - by0) + pad * 2
             d.rectangle((x, y, x + bw - 1, y + bh - 1), fill=badge_bg)
-            d.rectangle((x + bw, y, x + bw + sc(4), y + bh - 1), fill=ink)
-            d.rectangle((x, y + bh, x + bw + sc(4), y + bh + sc(4)), fill=ink)
+            d.rectangle((x + bw, y, x + bw + sc(BADGE_SHADOW), y + bh - 1), fill=ink)
+            d.rectangle((x, y + bh, x + bw + sc(BADGE_SHADOW), y + bh + sc(BADGE_SHADOW)), fill=ink)
             d.text((x + pad - bx0, y + pad - by0), label, font=num_font, fill=ink)
     covers = None
 

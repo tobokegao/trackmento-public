@@ -468,8 +468,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-27", "書き出す画像の番号バッジを、これまでの約 1.5 倍の大きさにしました。",
-     "The number badges in the exported image are now about 1.5 times larger."),
+    ("2026-09-27", "書き出す画像の番号バッジを、これまでの約 2 倍の大きさにしました。",
+     "The number badges in the exported image are now about twice as large."),
     ("2026-09-27", "幅の狭いスマホで、画面のいちばん上の帯（ロゴ・「?」・言語の切り替え）が 2 行に折り返していたのを、1 行に収めました。",
      "On narrow phones, the top bar (logo, “?” and language switch) no longer wraps onto two lines."),
     ("2026-09-27", "コラムに「「私を構成する9曲」をきれいに見せる」を足しました。",
