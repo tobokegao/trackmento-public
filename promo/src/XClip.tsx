@@ -13,6 +13,9 @@ import { AbsoluteFill, CalculateMetadataFunction, Easing, Freeze, OffthreadVideo
 import { loadFont } from "@remotion/fonts";
 
 loadFont({ family: "XKey", url: staticFile("fonts/DotGothic16-Regular.ttf"), weight: "400" });
+loadFont({ family: "XPlex", url: staticFile("fonts/IBMPlexSansJP-Bold.ttf"), weight: "700" });
+loadFont({ family: "XMark", url: staticFile("fonts/TrackmentoMark-Bold.ttf"), weight: "700" });
+loadFont({ family: "XSilk", url: staticFile("fonts/Silkscreen-Regular.ttf"), weight: "400" });
 
 type Rect = { x: number; y: number; w: number; h: number };
 type Ev =
@@ -22,24 +25,41 @@ type Ev =
   | { f: number; type: "hide" }
   | { f: number; type: "key"; key: string };
 export type Take = { id: string; fps: number; frames: number; vw: number; vh: number; dpr: number; twin?: boolean; events: Ev[] };
-export type XClipProps = { id: string; take?: Take };
+export type XClipProps = { id: string; take?: Take; lang?: "ja" | "en"; title?: string };
 
 const LOOP = 15;      // 終わりに最初の絵を溶かし込むコマ数（0.5 秒）
 const MAX_ZOOM = 2;   // 録画は倍率 2 なので、2 倍まではぼやけない
 const PAD = 28;       // 寄る四角のまわりに残す余白（画面の CSS px）
 const ease = Easing.bezier(0.45, 0, 0.2, 1);
 
-/** 印の四角を、画面と同じ縦横比の「映す範囲」にする */
-function fit(r: Rect, vw: number, vh: number): Rect {
-  const A = vw / vh;
+/** 印の四角を、映す箱と同じ縦横比 A の「映す範囲」にする（横の動画は A＝画面の比。縦の動画は箱が正方形なので A＝1） */
+function fit(r: Rect, vw: number, vh: number, A = vw / vh): Rect {
   let w = r.w + PAD * 2, h = r.h + PAD * 2;
   if (w / h < A) w = h * A; else h = w / A;
   if (w < vw / MAX_ZOOM) { w = vw / MAX_ZOOM; h = w / A; }
-  if (w > vw) { w = vw; h = vh; }
+  const maxW = Math.min(vw, vh * A);   // 録画の外は映さない
+  if (w > maxW) { w = maxW; h = w / A; }
   const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
   return { x: Math.min(Math.max(cx - w / 2, 0), vw - w), y: Math.min(Math.max(cy - h / 2, 0), vh - h), w, h };
 }
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** 縦の動画の「映す範囲」。箱（正方形）に横長の四角を丸ごと入れると字が読めないので、横は KEEP の割合まで削って寄り、
+ *  削った分はカーソルを追って動かす（rx0〜rx1 がカメラの左端の動ける範囲）。寄るのは録画の倍率で字がぼやけない所（minW）まで */
+type CamR = Rect & { rx0: number; rx1: number };
+const KEEP = 0.75;
+function fitFollow(r: Rect, vw: number, vh: number, A: number, minW: number): CamR {
+  const w0 = r.w + PAD * 2, h0 = r.h + PAD * 2;
+  let h = Math.max(h0, (w0 * KEEP) / A), w = h * A;
+  if (w < minW) { w = minW; h = w / A; }
+  const maxW = Math.min(vw, vh * A);
+  if (w > maxW) { w = maxW; h = w / A; }
+  const clampX = (x: number) => Math.min(Math.max(x, 0), vw - w);
+  const y = Math.min(Math.max(r.y + r.h / 2 - h / 2, 0), vh - h);
+  if (w >= w0) { const x = clampX(r.x + r.w / 2 - w / 2); return { x, y, w, h, rx0: x, rx1: x }; }
+  const rx0 = clampX(r.x - PAD), rx1 = clampX(r.x + r.w + PAD - w);
+  return { x: (rx0 + rx1) / 2, y, w, h, rx0, rx1 };
+}
 
 /** 「from から to へ dur コマで移る」を印の順に重ねて、f コマ目の値を出す（移る途中で次の印が来たら、その時点の値から移り直す） */
 function track<T>(marks: { f: number; to: T; dur: number }[], f: number, lerp: (a: T, b: T, t: number) => T): T {
@@ -99,8 +119,9 @@ const Finger: React.FC<{ r: number; pressing: boolean }> = ({ r, pressing }) => 
 };
 
 /** 1 コマぶんの絵。**スマホの場面**（録画が縦長）は、16:9 の真ん中にスマホの枠を置いてその中に映す（2026-09-26、利用者の決定） */
-const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
+const Scene: React.FC<{ id: string; take: Take; title?: string }> = ({ id, take, title }) => {
   const { width, height } = useVideoConfig();
+  if (height > width) return <TallScene id={id} take={take} title={title} />;
   if (take.vh <= take.vw) {
     return (
       <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>
@@ -129,19 +150,82 @@ const Scene: React.FC<{ id: string; take: Take }> = ({ id, take }) => {
   );
 };
 
+/** 縦 9:16（Instagram のリール・TikTok 向け、2026-09-27）。上に見出し（/howto の問い）、真ん中に OS 9 風の窓で録画。
+ *  PC の録画は 16:9 のまま縦に置くと字が読めないので、窓の中身を正方形にして印の四角に寄る。スマホの録画は枠ごと大きく置く。
+ *  下の 2 割と右端はアプリの字幕・ボタンが重なるので、大事なものを置かない */
+const TALL = { ink: "#1b1d24", desk: "#e9e8e3", stripe: ["#e6b731", "#008bc7", "#e5462c", "#af9ee4", "#80e2b9", "#f594c3"] };
+const TallScene: React.FC<{ id: string; take: Take; title?: string }> = ({ id, take, title }) => {
+  const { width } = useVideoConfig();
+  const f = useCurrentFrame();
+  const head = (
+    <div style={{ position: "absolute", left: 80, right: 80, top: 250 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ fontFamily: "XMark", fontWeight: 700, fontSize: 34, letterSpacing: "0.06em", color: TALL.ink, lineHeight: 1 }}>TRACKMENTO</div>
+        <div style={{ display: "flex", flex: 1, height: 12 }}>{TALL.stripe.map((c) => <div key={c} style={{ flex: 1, background: c }} />)}</div>
+      </div>
+      {title && <div lang="ja" style={{ wordBreak: "auto-phrase" as React.CSSProperties["wordBreak"], marginTop: 28, fontFamily: "XPlex", fontWeight: 700, fontSize: 62, lineHeight: 1.36, color: TALL.ink }}>{title}</div>}
+    </div>
+  );
+  if (take.vh > take.vw) {
+    const n = take.twin ? 2 : 1, H = n === 2 ? 940 : 1000, W = Math.round(H * take.vw / take.vh), bez = 22, gap = 56;
+    const x0 = Math.round((width - (W * n + gap * (n - 1))) / 2), y = 640;
+    const phone = (x: number, body: React.ReactNode, key: string) => (
+      <React.Fragment key={key}>
+        <div style={{ position: "absolute", left: x - bez, top: y - bez * 2, width: W + bez * 2, height: H + bez * 4, background: "#16181b",
+                      borderRadius: bez * 3.2, boxShadow: `${bez}px ${bez}px 0 rgba(0,0,0,.18)` }} />
+        <div style={{ position: "absolute", left: x, top: y, width: W, height: H, overflow: "hidden", borderRadius: bez * 1.2, background: "#fff" }}>{body}</div>
+      </React.Fragment>
+    );
+    return (
+      <AbsoluteFill style={{ backgroundColor: TALL.desk }}>
+        {head}
+        {phone(x0, <View id={id} take={take} w={W} h={H} touch />, "a")}
+        {take.twin && phone(x0 + W + gap, <View id={id} take={{ ...take, events: [] }} w={W} h={H} touch src="take2.mp4" />, "b")}
+      </AbsoluteFill>
+    );
+  }
+  // 窓の中身の高さは、寄る四角でいちばん横長なものに合わせる（正方形のままだと横長の場面で下半分が空く）。幅は 920 で固定
+  // 窓の中身は正方形。横長の場面は fitFollow で寄ってカーソルを追う
+  const S = 920, SH = 920, bar = 44, x = (width - S) / 2, y = 600;
+  return (
+    <AbsoluteFill style={{ backgroundColor: TALL.desk }}>
+      {head}
+      {/* 窓（OS 9 のプラチナ風。角丸なし・影は真っ黒を右下へ・題名バーは縞） */}
+      <div style={{ position: "absolute", left: x - 4, top: y - 4, width: S + 8, height: bar + SH + 8, background: TALL.ink, boxShadow: `12px 12px 0 ${TALL.ink}` }} />
+      <div style={{ position: "absolute", left: x, top: y, width: S, height: bar, background: "#dcdcdc", display: "flex", alignItems: "center", justifyContent: "center",
+                    backgroundImage: `repeating-linear-gradient(#dcdcdc 0 6px, #8a8a8a 6px 8px)`, backgroundClip: "content-box", padding: "8px 12px", boxSizing: "border-box" }}>
+        <span style={{ background: "#dcdcdc", padding: "0 16px", fontFamily: "XSilk", fontSize: 26, color: TALL.ink, lineHeight: 1 }}>trackmento.com</span>
+      </div>
+      <div style={{ position: "absolute", left: x, top: y + bar, width: S, height: SH, overflow: "hidden", background: "#fff" }}>
+        <View id={id} take={take} w={S} h={SH} touch={false} follow />
+        <Keys events={take.events} f={f} unit={S / 1280 * 1.15} />
+      </div>
+    </AbsoluteFill>
+  );
+};
+
 /** 録画＋カメラ＋カーソル（指）＋輪を w×h の箱に描く */
-const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: boolean; src?: string }> = ({ id, take, w: width, touch, src = "take.mp4" }) => {
+const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: boolean; src?: string; follow?: boolean }> = ({ id, take, w: width, h: height, touch, src = "take.mp4", follow = false }) => {
   const f = useCurrentFrame();
   const { vw, vh, events } = take;
   const k = width / vw;   // 出力の px ÷ 画面の CSS px（引いたとき）
+  const A = width / height;
 
-  const cams = events.filter((e): e is Extract<Ev, { type: "cam" }> => e.type === "cam").map((e) => ({ f: e.f, to: fit(e.rect, vw, vh), dur: e.dur }));
-  const cam = cams.length ? track(cams, f, (a, b, t) => ({ x: mix(a.x, b.x, t), y: mix(a.y, b.y, t), w: mix(a.w, b.w, t), h: mix(a.h, b.h, t) }))
-                          : { x: 0, y: 0, w: vw, h: vh };
+  const curs = events.filter((e): e is Extract<Ev, { type: "cursor" }> => e.type === "cursor").map((e) => ({ f: e.f, to: { x: e.x, y: e.y }, dur: e.dur }));
+  const camEvs = events.filter((e): e is Extract<Ev, { type: "cam" }> => e.type === "cam");
+  const lerpCam = (a: CamR, b: CamR, t: number): CamR => ({ x: mix(a.x, b.x, t), y: mix(a.y, b.y, t), w: mix(a.w, b.w, t), h: mix(a.h, b.h, t), rx0: mix(a.rx0, b.rx0, t), rx1: mix(a.rx1, b.rx1, t) });
+  const place = (r: Rect): CamR => follow ? fitFollow(r, vw, vh, A, width / take.dpr) : { ...fit(r, vw, vh, A), rx0: NaN, rx1: NaN };
+  const cams = camEvs.map((e) => ({ f: e.f, to: place(e.rect), dur: e.dur }));
+  const cam = cams.length ? track(cams, f, lerpCam) : place({ x: 0, y: 0, w: vw, h: vh });
+  if (follow && cam.rx1 > cam.rx0 && curs.length) {
+    // 横はカーソルを追う（前後 0.5 秒の平均。少し先を見て動き出すので、押す前に押す所が映る）
+    let sx = 0, n = 0;
+    for (let d = -15; d <= 15; d += 3) { sx += track(curs, Math.max(0, f + d), (a, b, t) => ({ x: mix(a.x, b.x, t), y: mix(a.y, b.y, t) })).x; n++; }
+    cam.x = Math.min(Math.max(sx / n - cam.w / 2, cam.rx0), cam.rx1);
+  }
   const s = (vw / cam.w) * k;   // 画面の CSS px → 出力の px
   const toScreen = (x: number, y: number) => ({ x: (x - cam.x) * s, y: (y - cam.y) * s });
 
-  const curs = events.filter((e): e is Extract<Ev, { type: "cursor" }> => e.type === "cursor").map((e) => ({ f: e.f, to: { x: e.x, y: e.y }, dur: e.dur }));
   const lastVis = [...events].reverse().find((e) => e.f <= f && (e.type === "cursor" || e.type === "hide"));
   const showCursor = curs.length > 0 && lastVis?.type === "cursor";
   const cp = showCursor ? track(curs, f, (a, b, t) => ({ x: mix(a.x, b.x, t), y: mix(a.y, b.y, t) })) : null;
@@ -167,15 +251,15 @@ const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: bool
   );
 };
 
-export const XClip: React.FC<XClipProps> = ({ id, take }) => {
+export const XClip: React.FC<XClipProps> = ({ id, take, title }) => {
   const f = useCurrentFrame();
   if (!take) return null;
   const N = take.frames;
   const fade = interpolate(f, [N, N + LOOP], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
   return (
     <AbsoluteFill>
-      <Freeze frame={N - 1} active={f >= N}><Scene id={id} take={take} /></Freeze>
-      {f >= N && <AbsoluteFill style={{ opacity: fade }}><Freeze frame={0}><Scene id={id} take={take} /></Freeze></AbsoluteFill>}
+      <Freeze frame={N - 1} active={f >= N}><Scene id={id} take={take} title={title} /></Freeze>
+      {f >= N && <AbsoluteFill style={{ opacity: fade }}><Freeze frame={0}><Scene id={id} take={take} title={title} /></Freeze></AbsoluteFill>}
     </AbsoluteFill>
   );
 };
@@ -183,5 +267,8 @@ export const XClip: React.FC<XClipProps> = ({ id, take }) => {
 /** 長さは素材のコマ数＋つなぎ。events.json を読んで props に入れる（描くたびに読み直さないように） */
 export const xclipMetadata: CalculateMetadataFunction<XClipProps> = async ({ props }) => {
   const take: Take = await (await fetch(staticFile(`xclips/${props.id}/events.json`))).json();
-  return { durationInFrames: take.frames + LOOP, fps: take.fps, props: { ...props, take } };
+  // 縦の動画の見出し（promo/x_titles.py が書く。横では使わない）
+  const titles: Record<string, Record<string, string>> = await fetch(staticFile("xclips-titles.json")).then((r) => r.ok ? r.json() : {}).catch(() => ({}));
+  const title = props.title ?? titles[props.id]?.[props.lang ?? "ja"];
+  return { durationInFrames: take.frames + LOOP, fps: take.fps, props: { ...props, take, title } };
 };

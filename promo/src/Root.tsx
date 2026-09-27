@@ -13,5 +13,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="PromoWideEn" component={Promo} durationInFrames={DURATION_FRAMES} fps={FPS} width={1920} height={1080} defaultProps={{ layout: "wide" as const, lang: "en" as const }} />
     {/* X に載せる 1 機能 1 本の短い動画（render_x.mjs が id を渡して 1 本ずつ書き出す。長さは素材から決まる） */}
     <Composition id="XClip" component={XClip} calculateMetadata={xclipMetadata} durationInFrames={1} fps={30} width={1280} height={720} defaultProps={{ id: "color-sort" }} />
+    {/* 縦 9:16（Instagram のリール・TikTok 向け、2026-09-27）。素材は XClip と同じ録画 */}
+    <Composition id="XClipTall" component={XClip} calculateMetadata={xclipMetadata} durationInFrames={1} fps={30} width={1080} height={1920} defaultProps={{ id: "color-sort" }} />
   </>
 );
