@@ -341,6 +341,11 @@ async def fetch_nicovideo(url: str, *, client: httpx.AsyncClient | None = None) 
         if not artist:
             # 投稿者が退会・非公開だと名前が返らない。VocaDB に登録があれば作者名で埋める（転載なら題から探す）
             artist = await vocadb.artist_for_video(vid, (root.findtext(".//title") or "").strip(), client=client)
+        if not artist:
+            # VocaDB に無ければ otoDB（音MAD など）の作品の作者で埋める（2026-09-27、利用者の希望）。
+            # origin_by_video は結果を 7 日覚えるので、同じ動画を貼り直しても roxy を叩き直さない
+            got = await otodb.origin_by_video(f"https://www.nicovideo.jp/watch/{vid}", client=client)
+            artist = (got or {}).get("artist") or ""
     finally:
         if own:
             await client.aclose()

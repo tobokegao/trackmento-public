@@ -115,22 +115,32 @@ async def _nicovideo(url: str, client: httpx.AsyncClient) -> list[Track]:
             continue
         out.append(Track(source="nicovideo", title=title, artist=((v.get("owner") or {}).get("name") or "").strip(),
                          image=image, thumb=image, external_url=f"https://www.nicovideo.jp/watch/{vid}"))
-    await _fill_artist_from_vocadb(out, client)
+    await _fill_missing_artists(out, client)
     return out
 
 
-_PV_FILL_MAX = 24        # 1 つのマイリストで VocaDB に聞く上限
-_PV_FILL_BUDGET = 10     # 全体で待つ秒数（間に合った分だけ反映する）
+_PV_FILL_MAX = 24        # 1 つのマイリストで作者名を聞く上限
+_PV_FILL_BUDGET = 15     # 全体で待つ秒数（間に合った分だけ反映する）。otoDB に回る分を見て 10 → 15（2026-09-27）
 
 
-async def _fill_artist_from_vocadb(out: list[Track], client: httpx.AsyncClient) -> None:
-    """投稿者名が空の動画（退会・非公開・転載）を VocaDB で埋める。消えた動画（`is_gone`）は otoDB 側で埋めるので除く"""
+async def _fill_missing_artists(out: list[Track], client: httpx.AsyncClient) -> None:
+    """投稿者名が空の動画（退会・非公開・転載）の作者名を埋める。消えた動画（`is_gone`）は `_fill_from_otodb` が
+    題・サムネイルごと埋めるので除く。
+
+    まず VocaDB（ボカロなど）、無ければ otoDB（音MAD など）の作品の作者（2026-09-27、利用者の希望。
+    それまでは VocaDB だけで、音MAD は空のままだった）。otoDB は roxy を通すので `_ROXY_SEM` で数を絞る。
+    `origin_by_video` は見つからなかった分も 7 日覚えるので、同じマイリストを貼り直しても roxy を叩き直さない
+    """
     holes = [i for i, t in enumerate(out) if not t.artist and not is_gone(t.title) and t.external_url]
     if not holes:
         return
 
     async def one(i: int) -> None:
         name = await vocadb.artist_for_video(out[i].external_url.rsplit("/", 1)[-1], out[i].title, client=client)
+        if not name:
+            async with _ROXY_SEM:
+                got = await otodb.origin_by_video(out[i].external_url, client=client)
+            name = (got or {}).get("artist") or ""
         if name:
             out[i] = out[i].model_copy(update={"artist": name})
 

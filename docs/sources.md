@@ -75,8 +75,13 @@ YouTube の取得は **Data API（`videos.list`）**が主になった（概要�
   - **ニコニコの投稿者名が取れない動画は、VocaDB で作者名を補う**（`vocadb.artist_by_pv`、2026-09-19）。
     投稿者が退会・非公開だと `getthumbinfo` に user_nickname も ch_name も無く、アーティスト名が空になっていた
     （利用者の 25 曲の共有で 2 曲）。`/api/songs/byPv?pvService=NicoNicoDouga&pvId=sm…` で引く。単体の URL
-    （`video.fetch_nicovideo`）とマイリスト（`playlist._fill_artist_from_vocadb`、上限 24 件・10 秒）の両方。
+    （`video.fetch_nicovideo`）とマイリスト（`playlist._fill_missing_artists`、上限 24 件・15 秒）の両方。
     同時 3 本、見つからなかった分も 1 日メモリに覚える
+    - **VocaDB に無ければ otoDB の作品の作者で埋める**（`otodb.origin_by_video`、2026-09-27、利用者の希望）。
+      音MAD は VocaDB に無いので、それまでは空のままだった。roxy に動画の URL を渡し、`otodb:<id>` が返れば作品の Creator タグ。
+      結果は `otodb-origin` に 7 日（見つからなかった分も）。マイリストでは roxy を `_ROXY_SEM` で絞り、
+      待つ時間を 10 → 15 秒に延ばした。例: sm29308357 → 「CB」。**YouTube の再生リストには掛けていない**
+      （投稿者名はチャンネル名で、空になるのは消えた動画だけ。そちらは `_fill_from_otodb` が埋める）
   - **転載の動画（動画 ID が VocaDB に無い）は題から曲を探す**（`vocadb.artist_by_title`、利用者の提案）。
     括弧の中身などから曲名の候補を取り（「初音ミク」「オリジナル」「歌ってみた」「MAD」などは外す）、VocaDB で検索する。
     **間違った作者名は空欄より悪い**ので、採るのは「原曲（songType=Original）で、曲名が題に含まれ、題に歌声の名前が
