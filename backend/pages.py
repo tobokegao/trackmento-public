@@ -468,6 +468,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-27", "コラムに「プレイリストを丸ごとグリッドにする」を足しました。",
+     "Added the article “Turning a whole playlist into a grid” (in Japanese) to Articles."),
     ("2026-09-27", "「コラム」のページを足しました。1 本目は、消えたニコニコ動画のサムネイルを otoDB から取り戻す方法です。編集画面と各ページのいちばん下のリンクから開けます。",
      "Added an “Articles” page (in Japanese). The first article explains how to bring back the thumbnails of deleted Niconico videos from otoDB. Open it from the links at the bottom of the editor and of each page."),
     ("2026-09-27", "「利用規約」のページを足しました。編集画面と各ページのいちばん下のリンクから開けます。",
