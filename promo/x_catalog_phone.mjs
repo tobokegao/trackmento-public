@@ -206,6 +206,8 @@ export default [
       // 共有から開いたのと同じ URL で開く（manifest の share_target が /?st_url=… で開く）。取り込みは本物（手元のサーバーが YouTube に問い合わせる）
       await k.page.goto("http://127.0.0.1:8000/?st_url=" + encodeURIComponent("https://www.youtube.com/watch?v=AjH6MO9XOjM"), { waitUntil: "domcontentloaded" });
       for (let i = 0; i < 200 && !(await k.page.evaluate(() => !!window.__setGridUI)); i++) { await k.page.clock.runFor(50); await new Promise((r) => setTimeout(r, 50)); }
+      // 開き直したので、openPage が隠した Discogs（本番に無いソース）をもう一度隠す（2026-09-27。前の版には映っていた）
+      await k.page.addStyleTag({ content: '#sources label:has(input[value="discogs"]) { display: none !important; }' });
       await k.until(() => k.page.evaluate(() => document.querySelectorAll("#results .result").length >= 1), "取り込み", 30000);
       await k.until(() => k.page.evaluate(() => [...document.querySelectorAll("#results img")].every((i) => i.complete)), "サムネ", 15000).catch(() => {});
       await k.hold(0.6);
