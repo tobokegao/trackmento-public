@@ -285,6 +285,16 @@ img { max-width: 100%; display: block; }
 .help-btn { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 5px 10px;
   border: var(--line) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); cursor: pointer; }
 .help-btn:hover, .help-btn[aria-pressed="true"] { background: var(--color-ink); color: var(--color-paper); }
+/* **狭いスマホでは間隔とボタンの内側を詰める**（2026-09-27）。「?」を足してから、幅 360〜375px ではロゴ・「?」・「EN」が 1 行に
+   収まらず（328px に 330px）、390px でも英語の画面の「日本語」が 2 行目に落ちて、上の帯が 49px から 91px に伸びていた。
+   ロゴはピクセルの字なので縮めない。空の部品（ロゴ横の札・状態の 1 行）にも間隔が付いていたので、空のときは間隔を打ち消す。
+   詰めると 360px で「日本語」まで 326px に収まる（320px は 2 行のまま） */
+@media (max-width: 420px) {
+  .bar { gap: var(--space-2); }
+  .lang-switch, .help-btn, .win-reset { padding-inline: 7px; }
+  .wordmark small:empty { display: none; }
+  .bar-status:empty { margin-right: calc(-1 * var(--space-2)); }
+}
 /* 枠としっぽは JS が SVG の 1 本の輪郭で描く（.balloon-frame）。Inside Macintosh（More Macintosh Toolbox の Help Manager、
    図 3-4「Standard balloon positions」）の形に合わせ、**しっぽは吹き出しの角から斜めに出る細い楔**にする（2026-09-27、利用者の指摘。
    最初は辺の真ん中に CSS の三角を 2 枚重ねていて、付け根で枠線が途切れて見えた）。角は四角のまま（サイトの決まり） */
