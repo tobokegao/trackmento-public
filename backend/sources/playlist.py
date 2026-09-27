@@ -6,8 +6,9 @@
       nvapi.nicovideo.jp の公開 API。X-Frontend-Id が要る。サムネイル・投稿者まで取れる
   - SoundCloud のセット        **やめた**（2026-09-20。内部 API が要るため。曲ごとの URL は使える）
   - bilibili の収藏夹          **やめた**（2026-09-20。規約が書面許可を要求しているため）
-  - Spotify のプレイリスト      https://open.spotify.com/playlist/<id>
-      公式の Web API（playlists/<id>/tracks）。`SPOTIFY_CLIENT_ID` / `_SECRET` が要る（無ければ取らない）
+  - Spotify のプレイリスト      **本番では取らない**（鍵を入れていないため。画面の案内も「まとめて取れません」）
+      鍵（`SPOTIFY_CLIENT_ID` / `_SECRET`）があれば公式の Web API（playlists/<id>/tracks）で取る作りだけ残してある。
+      鍵の登録には 2026 年 2 月から Spotify Premium が要る（docs/services-terms.md）
   - Bandcamp のプレイリスト     https://bandcamp.com/<user>/playlist/<name>
       data-blob の appData.tracklist.tracks。画像は artId から組み立てる
   - YouTube の再生リスト        https://www.youtube.com/playlist?list=<id>
