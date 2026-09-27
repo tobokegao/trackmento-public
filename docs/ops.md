@@ -318,6 +318,7 @@
 | `/image-proxy` の 5xx の割合 | `[stats]` の `/image-proxy` | `image_proxy`・`_s3_missing`（`main.py`）、配信元ごとの `clamp_size`（`backend/sources/`） | `docs/sources.md` |
 | ブラウザ側の失敗 | `[client]`（種類は `CLIENT_KINDS`） | `up_*`（共有画像の送信）→ frontend の送信部（`hiccup("up_…")` の所）と `share_upload`、`canvas_*` → `renderShareCanvas`、`itunes_*` / `mb_*` → ブラウザからの直接検索（`itunesSearch` ほか） | `docs/share.md`・`docs/layout.md` |
 | 検索の失敗 | `[srch]` の失敗の数 | そのソースの `backend/sources/<名前>.py` | `docs/sources.md` |
+| `[loop] lag` がデプロイの回数くらいだけ出る（`[health]` の uptime のリセットと同じ頃） | `[loop] lag=… render_queue=0` | 起動直後の R2 の一覧（`lifespan` の `_seed_*`、`_load_r2_index` の同時に走らせる本数） | 2026-09-27: 16 本同時で 1 デプロイ 1 回 2〜5 秒止まり、4 本に落とした |
 
 ## 共有を期限より前に消す（荒らし・削除の依頼、2026-09-22）
 

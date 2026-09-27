@@ -1486,10 +1486,13 @@ def _load_r2_index(prefix: str = "") -> tuple[dict[str, tuple[str, float]], int]
     # **imgcache/ だけのときは、鍵の頭の 16 進 1 文字ごとに 16 本並べて一覧する**（2026-09-25）。
     # 1 本で順に一覧すると 14 万件で 143 秒かかり（1000 件ごとの呼び出しが順番待ちになる）、その間は
     # R2 に控えがあっても見つけられずに配信元から取り直していた（デプロイ直後にニコニコのサムネ 49 枚が
-    # 遅いと利用者から）。呼び出しの回数（Class A）は同じ。鍵は _image_hash の 16 進なので 16 通りで漏れない
+    # 遅いと利用者から）。呼び出しの回数（Class A）は同じ。鍵は _image_hash の 16 進なので 16 通りで漏れない。
+    # **同時に走らせるのは 4 本まで**（2026-09-27）。16 本同時だと応答の XML の読み取りが GIL を取り合い、
+    # 1 vCPU の本番ではデプロイのたびにイベントループが 2〜5 秒止まった（点検の [loop] lag）。
+    # 手元を 1 コアに絞って測ると、16 本は 14 秒・遅れ最大 0.87 秒、4 本は 35 秒・0.14 秒、1 本は 100 秒・0.08 秒
     if prefix == IMAGE_R2_PREFIX:
         from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=16) as ex:
+        with ThreadPoolExecutor(max_workers=4) as ex:
             parts = list(ex.map(walk, [f"{IMAGE_R2_PREFIX}{h}" for h in "0123456789abcdef"]))
         rows = [r for part in parts for r in part]   # 索引が拾うのは 16 進 20 桁の鍵だけなので、ほかの形の鍵は要らない
     else:
