@@ -154,7 +154,7 @@ export default [
   },
   {
     id: "f-url",
-    what: "動画やストアのページの URL を貼ると 1 曲取れる。ニコニコなら sm… の ID だけでもいい",
+    what: "動画や音楽サイトのページの URL を貼ると 1 曲取れる。ニコニコなら sm… の ID だけでもいい",
     async setup(k) {
       const wide = nico();
       let n = 0;

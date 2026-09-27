@@ -89,7 +89,7 @@ the color codes and share them with others.</li>
 <li><b>Everyone's grids:</b> If you turn on “Add to everyone's grids” when sharing, other users can find your grid by track title or
 artist name (shares without the check are not listed).</li>
 <li><b>Japanese and English:</b> Switch the language with the button at the top right of the screen. In English, iTunes track
-information is also fetched as it appears in the US store.</li>
+information is also fetched as it appears on US iTunes.</li>
 </ul>
 
 <h2>Data storage and retention</h2>
@@ -151,7 +151,7 @@ and share the music they love. When sharing, please follow the terms of use and 
 <li><b>選べる3種類のトラックリスト：</b>トラックリストは「横並び」「重ね表示」「非表示」の3通りから選択可能です。マスが小さく文字が潰れてしまう場合は、重ね表示が自動でオフになります。</li>
 <li><b>カラーパレット：</b>画面全体の配色テーマを切り替えられます。好みの8色セットを自作してカラーコードをコピーし、他の人と共有することも可能です。</li>
 <li><b>みんなのグリッド：</b>共有時に「みんなのグリッドに載せる」を有効にすると、他のユーザーがトラック名やアーティスト名からあなたのグリッドを探せるようになります（チェックを外した共有は一覧に載りません）。</li>
-<li><b>日本語・英語対応：</b>画面右上のボタンから言語を切り替えられます。英語表示時は、iTunesのトラック情報もUSストアの表記で取得されます。</li>
+<li><b>日本語・英語対応：</b>画面右上のボタンから言語を切り替えられます。英語表示時は、iTunesのトラック情報も米国版iTunesの英語表記で取得されます。</li>
 </ul>
 
 <h2>データの保存と保持期間</h2>
