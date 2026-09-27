@@ -468,6 +468,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-27", "コラムに「どこで探す？ ソースごとの得意なもの」を足しました。",
+     "Added the article “Where to search? What each source is good at” (in Japanese) to Articles."),
     ("2026-09-27", "ニコニコ動画で投稿者名が空になっている動画（投稿者の退会など）は、otoDB に登録があれば作者名が入るようにしました（otoDB に無ければ、これまでどおり VocaDB で探します）。URL から入れたときも、マイリストをまとめて入れたときも同じです。",
      "For Niconico videos with no uploader name (for example, when the uploader has left), the creator's name is now filled in from otoDB when the video is registered there (otherwise VocaDB is checked as before). This works both for single URLs and for whole mylists."),
     ("2026-09-27", "コラムに「プレイリストを丸ごとグリッドにする」を足しました。",
