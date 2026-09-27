@@ -77,7 +77,8 @@ YouTube の取得は **Data API（`videos.list`）**が主になった（概要�
     （利用者の 25 曲の共有で 2 曲）。`/api/songs/byPv?pvService=NicoNicoDouga&pvId=sm…` で引く。単体の URL
     （`video.fetch_nicovideo`）とマイリスト（`playlist._fill_missing_artists`、上限 24 件・15 秒）の両方。
     同時 3 本、見つからなかった分も 1 日メモリに覚える
-    - **VocaDB に無ければ otoDB の作品の作者で埋める**（`otodb.origin_by_video`、2026-09-27、利用者の希望）。
+    - **先に otoDB の作品の作者で埋め、無ければ VocaDB**（`otodb.origin_by_video`、2026-09-27、利用者の希望。
+      音MAD のほうが作者の退会が多そう、という見立てで otoDB を先にした。転載の音MAD を VocaDB が題から別の曲に取り違えるのも減る）。
       音MAD は VocaDB に無いので、それまでは空のままだった。roxy に動画の URL を渡し、`otodb:<id>` が返れば作品の Creator タグ。
       結果は `otodb-origin` に 7 日（見つからなかった分も）。マイリストでは roxy を `_ROXY_SEM` で絞り、
       待つ時間を 10 → 15 秒に延ばした。例: sm29308357 → 「CB」。**YouTube の再生リストには掛けていない**
