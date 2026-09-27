@@ -8404,7 +8404,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       ctx.fillText(ellipsizeText(ctx, oneLine(L.title), L.gw * S), sc(L.ox), sc(y0 + L.titleH / 2));
       y0 += L.titleH;
     }
-    const numPx = Math.max(8, sc(22));   // 番号の字の大きさ。**8px を下限にする**
+    const numPx = Math.max(8, sc(34));   // 番号の字の大きさ。**8px を下限にする**（2026-09-27 に 22 → 34。余白 16・影 4。backend/render.py と同じ）
     const cw = sc(CELL_W), ch = sc(cellH()), cs = Math.min(cw, ch), numF = fontPixel(numPx);   /* 帯の文字は**短辺**から */
     // 描く前に R2 の場所をまとめて聞く（302 を追わないため。上の preloadR2Map を参照）
     const wantPx = cw < CELL_W * 0.55 ? Math.ceil(cw / 50) * 50 : 0;
@@ -8463,12 +8463,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         // ピクセルフォントは em ボックスの中で字面が上に寄るので、em の高さで枠を作ると数字が下に寄る
         ctx.font = numF; ctx.textBaseline = "alphabetic";
         const m2 = ctx.measureText(label);
-        const pad = Math.max(2, sc(12));
+        const pad = Math.max(2, sc(16));
         const iw = Math.ceil(m2.actualBoundingBoxLeft + m2.actualBoundingBoxRight);
         const ih = Math.ceil(m2.actualBoundingBoxAscent + m2.actualBoundingBoxDescent);
         const bw = iw + pad * 2, bh = ih + pad * 2;
         ctx.fillStyle = cssRgb(badgeBg); ctx.fillRect(x, y, bw, bh);
-        ctx.fillStyle = cssRgb(ink); ctx.fillRect(x + bw, y, sc(3) + 1, bh); ctx.fillRect(x, y + bh, bw + sc(3) + 1, sc(3) + 1);
+        ctx.fillStyle = cssRgb(ink); ctx.fillRect(x + bw, y, sc(4) + 1, bh); ctx.fillRect(x, y + bh, bw + sc(4) + 1, sc(4) + 1);
         ctx.fillText(label, x + pad + m2.actualBoundingBoxLeft, y + pad + m2.actualBoundingBoxAscent);
       }
     }
