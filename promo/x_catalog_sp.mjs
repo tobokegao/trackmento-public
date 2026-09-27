@@ -76,6 +76,54 @@ export default [
     },
   },
   {
+    // sp-sheet（x_catalog_phone.mjs）の直し。元は終わりに空きマスを押してシートを開き、何も入れずに閉じていた
+    // （開いて閉じるだけでは伝わらない、と利用者。2026-09-27）。押したマスに候補を入れるところまで見せる
+    id: "sp-sheet-sp",
+    phone: true,
+    what: "スマホでは「トラックを探す」で検索のシートが開き、候補を押すと次の空きマスに入る。空いているマスを押せば、そのマスに入れられる",
+    async setup(k) {
+      const sq = square();
+      await k.mock({ itunes: () => [sq[15], sq[9], sq[12]].map((t, i) => ({ ...t, source: "itunes", title: `夜明けのシグナル${["", " (Live)", " - Remix"][i]}` })) });
+      await k.page.evaluate((cells) => {
+        window.__setGridUI(3, 3, { title: "私を構成する9曲", showTitle: true, sidebar: true, numbers: true, margin: 16, gap: 16, bg: "mustard", bgCustom: null }, cells);
+        document.querySelector("#title").value = "私を構成する9曲";
+      }, Array.from({ length: 9 }, (_, i) => ([4, 6, 7, 8].includes(i) ? null : sq[i])));
+      await k.hold(0.3);
+      await k.waitArt();
+      await scrollTo(k, "#grid-scroll", 60);
+      k.wide(0);
+      await k.park(300, 600);
+    },
+    async run(k) {
+      await k.hold(0.8);
+      await k.tap("#find-btn");
+      await sheetShown(k);
+      await k.hold(0.5);
+      await k.tap("#q");
+      await k.type("#q", "夜明けのシグナル", 0.07);
+      await k.tap("#search-btn");
+      await resultsAtLeast(k, 3);
+      await k.hold(0.3);
+      await toResults(k);
+      await k.hold(0.8);
+      await k.tap("#results li:nth-child(1) .result");
+      await sheetGone(k);
+      await k.waitArt();
+      await k.hold(1.0);
+      // 空いているマスを押すと「09 番に入れるトラックを探す」でシートが開き、選んだ候補がそのマスに入る。
+      // 押すのは 9 番（次の空きの 7 番を押すと、押さなくても同じ所に入るので違いが伝わらない）
+      await k.tap("#grid .cell:nth-child(9)");
+      await sheetShown(k);
+      await k.hold(0.9);
+      await toResults(k);
+      await k.hold(0.5);
+      await k.tap("#results li:nth-child(2) .result");
+      await sheetGone(k);
+      await k.waitArt();
+      await k.hold(1.8);
+    },
+  },
+  {
     id: "f-url-sp",
     phone: true,
     what: "YouTube やニコニコ動画などのページの URL を貼るだけで、そのトラックが取れる。ニコニコなら sm… の ID だけでもいい",
