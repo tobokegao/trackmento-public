@@ -744,7 +744,7 @@ CHANGES: list[tuple[str, str, str]] = [
      "Color palettes now come in sets of eight and switch the background of the whole interface too, including the dark “Night” palette."),
     ("2026-09-16", "画像共有時に、アップロードの進捗状況（プログレスバー）を表示するようにしました。途中でキャンセルすることも可能です。",
      "Sharing now shows an upload progress bar, and you can cancel partway through."),
-    ("2026-09-16", "「マスを全部外す」ボタンを誤タップしづらい位置へ移動し、実行後も「元に戻す」で復元できるようにしました。",
+    ("2026-09-16", "「マスを全部外す」ボタンを誤タップしにくい位置へ移動し、実行後も「元に戻す」で復元できるようにしました。",
      "Moved “Clear all cells” to a spot that’s harder to tap by mistake, and made it possible to undo."),
     ("2026-09-16", "長い曲名の自動折り返しを最大3行までに拡張し、文字が途中で省略（…）されにくくしました。",
      "Long titles now wrap onto up to three lines, so they are cut off with “…” less often."),
