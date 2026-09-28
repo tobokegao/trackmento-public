@@ -270,9 +270,23 @@ const View: React.FC<{ id: string; take: Take; w: number; h: number; touch: bool
                                      border: `${3 * Math.max(1, s * 0.7)}px solid #e5462c`, opacity: 1 - age, boxSizing: "border-box" }} />;
       })}
       {(() => {
-        // 2 本指（pinch）。いちばん新しい印の位置に指の丸を置く（押している濃さ）
-        const t = [...events].reverse().find((e): e is Extract<Ev, { type: "touches" }> => e.type === "touches" && e.f <= f);
-        return t?.pts.map((q, i) => { const p = toScreen(q.x, q.y); return <div key={`t${i}`} style={{ position: "absolute", left: p.x, top: p.y }}><Finger r={18 * s} pressing /></div>; });
+        // 2 本指（pinch）。いちばん新しい印の位置に指の丸を置く。1 本指と同じ丸だと、にぎやかなジャケットの上で見えなかった
+        // （2026-09-28、利用者）→ 濃く大きく縁取り、指を置いたときに赤い輪を広げる（1 本指で押したときと同じ輪）
+        const tv = events.filter((e): e is Extract<Ev, { type: "touches" }> => e.type === "touches" && e.f <= f);
+        const t = tv[tv.length - 1];
+        if (!t?.pts.length) return null;
+        let i0 = tv.length - 1;
+        while (i0 > 0 && tv[i0 - 1].pts.length) i0--;
+        const start = tv[i0], age = (f - start.f) / 14;
+        const R = 24 * s, bw = 3 * Math.max(1, s * 0.7);
+        return <>
+          {t.pts.map((q, i) => { const p = toScreen(q.x, q.y);
+            return <div key={`t${i}`} style={{ position: "absolute", left: p.x - R, top: p.y - R, width: R * 2, height: R * 2, borderRadius: "50%",
+                                              background: "rgba(20,20,20,.6)", border: `${bw}px solid #fff`, boxShadow: "0 0 0 2px rgba(20,20,20,.7)", boxSizing: "border-box" }} />; })}
+          {age < 1 && start.pts.map((q, i) => { const p = toScreen(q.x, q.y), r = interpolate(age, [0, 1], [R, R * 2.2]);
+            return <div key={`ring${i}`} style={{ position: "absolute", left: p.x - r, top: p.y - r, width: r * 2, height: r * 2, borderRadius: "50%",
+                                                 border: `${bw}px solid #e5462c`, opacity: 1 - age, boxSizing: "border-box" }} />; })}
+        </>;
       })()}
       {cp && (() => { const p = toScreen(cp.x, cp.y); return <div style={{ position: "absolute", left: p.x, top: p.y }}>
         {touch ? <Finger r={18 * s} pressing={pressing} /> : <Arrow size={size} tilt={pressing} />}</div>; })()}
