@@ -8220,7 +8220,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     return sharePlanCache;
   }
-  const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|; wv\)/i.test(navigator.userAgent) || location.hash === "#inapp";
+  // TikTok は iOS だと "; wv)" が付かないので名前で拾う（musical_ly・BytedanceWebview・trill は TikTok の UA に入る語。2026-09-28 に投稿先に加えたため）
+  const inAppBrowser = () => /\bLine\/|FBAN|FBAV|Instagram|Twitter for|TwitterAndroid|musical_ly|BytedanceWebview|\btrill_|; wv\)/i.test(navigator.userAgent) || location.hash === "#inapp";
   /* アプリ内ブラウザなら外部ブラウザを勧める帯を出す（「閉じる」でそのタブの間は出さない） */
   function showInAppNotice() {
     const box = $("#inapp-notice");

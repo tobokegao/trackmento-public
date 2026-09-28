@@ -27,7 +27,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年9月27日", "en": "Last updated: September 27, 2026"}
+UPDATED = {"ja": "最終更新: 2026年9月28日", "en": "Last updated: September 28, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
 
@@ -468,6 +468,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-09-28", "TikTok のアプリの中で開いたときも、ブラウザで開き直す案内と「URL をコピー」を出すようにしました。",
+     "When opened inside the TikTok app, TRACKMENTO now also suggests reopening it in your browser and shows “Copy URL”."),
     ("2026-09-27", "書き出す画像の番号バッジを、これまでの約 2 倍の大きさにしました。",
      "The number badges in the exported image are now about twice as large."),
     ("2026-09-27", "幅の狭いスマホで、画面のいちばん上の帯（ロゴ・「?」・言語の切り替え）が 2 行に折り返していたのを、1 行に収めました。",
