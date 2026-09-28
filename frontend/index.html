@@ -161,7 +161,12 @@
 
 *, *::before, *::after { box-sizing: border-box; border-radius: 0; }
 html, body { overflow-x: clip; }
-html { background: var(--color-paper); color: var(--color-ink); }
+html { background: var(--color-paper); color: var(--color-ink); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }   /* iPhone を横にしたとき字が勝手に大きくならないように */
+/* 日本語の組み（kiso.css から借りた。2026-09-28）: 行頭の括弧・句読点を詰める、和文と英数字の間を少し空ける、
+   小さい「ゃ」や「ー」を行頭に来させない。効かないブラウザでは何も起きない */
+body { text-spacing-trim: trim-start; text-autospace: normal; line-break: strict; }
+/* 入力欄と選択欄は空けない。ドット字の選択欄（題名の候補「私を構成する9曲」）に 1.5px の半端なすき間が入り、升目からずれた */
+button, input, select, textarea { text-autospace: no-autospace; }
 body {
   margin: 0;
   font-family: var(--font-body);

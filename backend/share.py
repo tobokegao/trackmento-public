@@ -439,7 +439,11 @@ def _page_css(base: str) -> str:
 @font-face {{ font-family: "Silkscreen"; font-weight: 700; font-display: swap; src: url("{silk}") format("woff2"), url("/fonts/Silkscreen-Bold.ttf") format("truetype"); }}
 @font-face {{ font-family: "TrackmentoMark"; font-weight: 700; font-display: swap; src: url("{logo}") format("woff2"), url("/fonts/TrackmentoMark-Bold.ttf") format("truetype"); }}
 * {{ box-sizing: border-box; border-radius: 0; }}
-body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.55; }}
+html {{ -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }}
+/* 日本語の組みは本体（frontend/index.html の body）と同じ。kiso.css から借りた（2026-09-28） */
+body {{ margin: 0; background: #f6f5f3; color: #12171b; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif; line-height: 1.55;
+  text-spacing-trim: trim-start; text-autospace: normal; line-break: strict; }}
+button, input, select, textarea {{ text-autospace: no-autospace; }}
 header {{ display: flex; align-items: baseline; gap: 8px; padding: 10px 16px; border-bottom: 2px solid #12171b; }}
 /* ワードマークは本体（frontend/index.html の .wordmark .mark）と同じ規則: Silkscreen 25px、行送り 16px（大文字のインク高）、
    インクの 3px 下にリソ 6 色の太線（5px）、線の頭に離して 5px 角の四角。色も本体の oklch トークンと同値。
