@@ -59,7 +59,8 @@
         otoDB は bilibili の投稿も登録していて（検索で当たった 36 件中 20 件が bilibili）、roxy に BV の URL を渡すと
         登録済みなら題とサムネイル（otoDB の CDN）が返る。無ければ VocaDB の byPv（bilibili の PV は av 番号）。
         **bilibili には一度も問い合わせない**（BV↔av は手元の計算、b23.tv は展開できないので断る、hdslb の画像は使わない）。
-        書面許可のメールは送っていない（送るかは未決）
+        書面許可のメールは送っていない。**2026-09-28 に利用者の判断で「頼まない」と決めた**（個人・非商用では
+        「双方の定量的な利益・会社情報」を書けず、望みが薄い。DB 経由で足りている）
     - **名乗りを正直にする** … `playlist.py` と `applemusic.py` が素の Chrome の UA を、旧 `spotify.py` が
       facebookexternalhit を名乗っていた。**ブラウザやクローラのふりをすると、相手は誰が来ているか分からず、
       連絡も遮断もできない**。今は全部 `trackmento/0.1 (+https://trackmento.com)`（HTML を読む所は
