@@ -268,6 +268,12 @@
 
 - 本番の点検: `PYTHONUTF8=1 .venv/Scripts/python scripts/render_check.py --hours 2`（Render API でログ・イベント・帯域・メモリを要約。`.env` の `RENDER_API_KEY`。**手元の `.env` には入っていないので、ローカルで動かすなら Render → Account Settings → API Keys で発行して足す**。GitHub Actions 側は Secrets にある）。`gh workflow run render-check.yml` でいつでも回せる
   - GitHub Actions `render-check.yml` が 2 時間おきに同じ点検を回し、異常時は Issue（ラベル render-check）に書く。ただし **GitHub の cron は大幅に間引かれ、`*/10` 指定でも実測 2〜5 時間おきだった**（`keepalive.yml` の schedule を止めたのはこのため。フリープランに戻すなら外部の監視サービスが要る）
+  - **飛んだ時間は後から埋める**（2026-09-30）。ボードの推移の図は点どうしが 8 時間より離れると線を切る
+    （`scripts/board/index.html` の `GAP`）。9/28 14:36〜23:08 JST は予定実行が 1 回も起きず 8.5 時間あいて図が切れた。
+    `gh workflow run render-check.yml -f hours=2 -f until="2026-09-28 16:40"` のように窓の終わり（JST）を渡すと、
+    その 2 時間を点検して `series.jsonl` の時刻の順の位置に差し込む（図は時刻の順に並んでいる前提）。
+    Render のログが残っている間しか埋められない。同じ所を重ねて書かないよう、回す前に `series.jsonl` の前後の時刻を見る。
+    ワークフローは記録の commit を再度取り込んでから push するので、埋める回は 1 本ずつ回す
   - **`?src=…` でどこから来たかを数える**（2026-09-15）。投稿に貼るリンクへ `?src=x` のように付けると、
     60 秒ごとに `[src] x=12 bsky=3` の形でログに出る（`main.py` の `_note_src`。画面と共有ページの両方で数える）。
     **数えるだけで、誰が来たかは残さない**（`[ua]` と同じ方針）。名前は英数と `-` `_` の 16 文字までに刈り込み、

@@ -1,7 +1,10 @@
 """Render のログ・イベント・メトリクスを API で取り、直近の状態を要約する（定期点検用）。
 
 使い方:
-  .venv/Scripts/python scripts/render_check.py [--hours 2] [--strict] [--out summary.md] [--json]
+  .venv/Scripts/python scripts/render_check.py [--hours 2] [--until "2026-09-28 16:40"] [--strict] [--out summary.md] [--json]
+
+  --until は窓の終わり（既定は今）。タイムゾーンが無ければ JST。点検が飛んだ時間を後から埋めるときに使う。
+  --append と一緒なら、記録は終わりの時刻の位置に差し込む（図は時刻の順に並んでいる前提なので）。
 
   RENDER_API_KEY（必須）を環境変数か .env から読む。サービスは RENDER_SERVICE_NAME（既定 trackmento）で探す。
   --strict は異常があれば終了コード 2（GitHub Actions で失敗扱いにして通知を出す）。
@@ -30,6 +33,7 @@ from pathlib import Path
 
 API = "https://api.render.com/v1"
 ROOT = Path(__file__).resolve().parent.parent
+JST = timezone(timedelta(hours=9))
 
 # インスタンスの種類 → (vCPU, メモリ MB)。メモリの閾値はここから出すので、種類を変えたら点検も自動で追随する。
 # API が返すのは "1c_2g"（1 vCPU / 2GB）のような形式で、これは _PLAN_RE で解く。下は名前で返る分。
@@ -470,13 +474,18 @@ def analyze_logs(logs: list[dict]) -> dict:
 
 # ---- 要約 ----
 
-def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[str, list], mem: tuple[str, list], cpu: tuple[str, list]) -> tuple[str, list[str]]:
+def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[str, list], mem: tuple[str, list], cpu: tuple[str, list],
+              until: datetime | None = None) -> tuple[str, list[str]]:
     plan = plan_of(svc)
     T, cpu_alloc, mem_mb = thresholds_for(plan)
     problems: list[str] = []
     lines: list[str] = []
-    now_jst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M JST")
-    lines.append(f"## Render 点検: {svc.get('name')}（直近 {hours:g} 時間、{now_jst}）")
+    if until:
+        s_jst = (until - timedelta(hours=hours)).astimezone(JST).strftime("%Y-%m-%d %H:%M")
+        lines.append(f"## Render 点検: {svc.get('name')}（{s_jst}〜{until.astimezone(JST):%H:%M} JST の {hours:g} 時間、後から埋めた分）")
+    else:
+        now_jst = datetime.now(JST).strftime("%Y-%m-%d %H:%M JST")
+        lines.append(f"## Render 点検: {svc.get('name')}（直近 {hours:g} 時間、{now_jst}）")
     lines.append(f"- インスタンス: {plan or '不明'}"
                  + (f"（{cpu_alloc:g} vCPU / {mem_mb} MB）" if cpu_alloc else f"（種類が読めないので {mem_mb} MB として判定）"))
 
@@ -667,12 +676,13 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
 # あとから推移の図を描けるようにする（`outputs/note/series.json` は手で作っていたので 09-17 で止まっていた）。
 # 1 行 1 回分の JSON Lines。**語や URL は入れない**（ホスト名と件数だけ。`[out]` と同じ方針）
 
-def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: list[str]) -> None:
-    """点検 1 回分を JSON Lines で書き足す。読みやすさより機械で読める形を優先する"""
+def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: list[str], end: datetime) -> None:
+    """点検 1 回分を JSON Lines で書き足す。読みやすさより機械で読める形を優先する。
+    `jst` は窓の終わり。`--until` で過去を埋めた回は、時刻の順になる位置に差し込む（2026-09-30）"""
     gb = sum(_to_gb(v, bw[0]) for _, v in (bw[1] or []))   # API の単位は mb のことがある（生の値を足さない）
     rss = [v for _, v in (la.get("rss") or [])]   # (時刻, MB) の並び
     rec = {
-        "jst": datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M"),
+        "jst": end.astimezone(JST).strftime("%Y-%m-%d %H:%M"),
         "hours": round(hours, 2),
         "req": sum(v["count"] for v in (la.get("per_path") or {}).values()),
         "gb": round(gb, 3),
@@ -690,9 +700,19 @@ def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: li
     }
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(rec, ensure_ascii=False) + chr(10))
-    print(f"[append] {p} に 1 行足した（{rec['jst']} JST）")
+    line = json.dumps(rec, ensure_ascii=False) + chr(10)
+    old = p.read_text(encoding="utf-8").splitlines(keepends=True) if p.exists() else []
+    # 末尾より前の時刻なら差し込む。jst は "YYYY-MM-DD HH:MM" なので文字列の比較で順が決まる
+    at = len(old)
+    while at and json.loads(old[at - 1])["jst"] > rec["jst"]:
+        at -= 1
+    if at == len(old):
+        with p.open("a", encoding="utf-8") as f:
+            f.write(line)
+        print(f"[append] {p} に 1 行足した（{rec['jst']} JST）")
+    else:
+        p.write_text("".join(old[:at] + [line] + old[at:]), encoding="utf-8")
+        print(f"[append] {p} の {at + 1} 行目に差し込んだ（{rec['jst']} JST）")
 
 
 def _to_mb(metric) -> float:
@@ -705,6 +725,7 @@ def _to_mb(metric) -> float:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--hours", type=float, default=2.0, help="さかのぼる時間（既定 2）")
+    ap.add_argument("--until", help="窓の終わり（既定は今）。例 \"2026-09-28 16:40\"。タイムゾーンが無ければ JST")
     ap.add_argument("--strict", action="store_true", help="異常があれば終了コード 2")
     ap.add_argument("--out", help="要約（Markdown）を書き出すファイル")
     ap.add_argument("--json", action="store_true", help="集計結果を JSON でも標準出力に出す")
@@ -718,7 +739,20 @@ def main() -> int:
         return 1
     name = os.getenv("RENDER_SERVICE_NAME", "trackmento").strip()
 
-    end = datetime.now(timezone.utc)
+    until = None
+    if args.until:
+        try:
+            until = datetime.fromisoformat(args.until.strip().replace("Z", "+00:00"))
+        except ValueError:
+            print(f"--until が読めません: {args.until}（例 \"2026-09-28 16:40\"）", file=sys.stderr)
+            return 1
+        if until.tzinfo is None:
+            until = until.replace(tzinfo=JST)
+        until = until.astimezone(timezone.utc)
+        if until > datetime.now(timezone.utc):
+            print(f"--until が未来です: {args.until}", file=sys.stderr)
+            return 1
+    end = until or datetime.now(timezone.utc)
     start = end - timedelta(hours=args.hours)
     try:
         svc = find_service(key, name)
@@ -734,7 +768,7 @@ def main() -> int:
         bw = fetch_metric(key, "bandwidth", sid, start.replace(minute=0, second=0, microsecond=0), end, 3600)
         mem = fetch_metric(key, "memory", sid, start, end, 300, "MAX")
         cpu = fetch_metric(key, "cpu", sid, start, end, 300, "MAX")
-        text, problems = summarize(svc, args.hours, events, la, bw, mem, cpu)
+        text, problems = summarize(svc, args.hours, events, la, bw, mem, cpu, until)
     except Exception as ex:   # API 側の失敗も「異常」として要約に残す（点検が黙って止まらないように）
         problems = [f"点検自体が失敗: {type(ex).__name__}: {ex}"]
         text = "\n".join([f"## Render 点検: {name}（直近 {args.hours:g} 時間）", "", "### 判定: **異常あり**", f"- {problems[0]}"])
@@ -747,7 +781,7 @@ def main() -> int:
     if args.json:
         print(json.dumps({"problems": problems, "per_path": la["per_path"], "rss": la["rss"][-5:], "events": [e.get("type") for e in events]}, ensure_ascii=False))
     if args.append:
-        _append_record(args.append, args.hours, la, bw, mem, cpu, problems)
+        _append_record(args.append, args.hours, la, bw, mem, cpu, problems, end)
     return 2 if (problems and args.strict) else 0
 
 
