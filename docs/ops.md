@@ -55,6 +55,7 @@
       利用者がスマホのブラウザで見ると、まだ **Uncategorized URL・Trust: Unverified**。同じページの「Optional categorization suggestion」から出し直せる
     - 出し直す先: ネットスターは https://category.netstar-inc.com/report/form.php?numb=0&numb2=0&url=https://trackmento.com/ （確認結果の「カテゴリ分類の誤り・不足についてネットスターに連絡」）、
       トレンドマイクロは確認ページで調べた結果の「RECLASSIFY REQUEST」（ボタンで窓が開く形なので、専用の URL は無い）
+    - **2026-10-01 に利用者が 3 社（ネットスター・トレンドマイクロ・McAfee）に再申請した**。McAfee の目安は 3〜5 営業日。**10/15 ごろにもう一度見る**
     - Cloudflare・Norton は付いているので見ていない
     → 2 社とも自然には付かないので、ネットスターは「知らせる」（カテゴリ登録の連絡）、トレンドマイクロは結果ページの
     「RECLASSIFY REQUEST」から出し直す（利用者の操作。フォームの送信なので）
