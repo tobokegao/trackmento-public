@@ -43,6 +43,12 @@
 5. **確認**。http://localhost:8000/ を開き、適当なアーティストで検索 → マスに入る →「トラックを共有」で
    画像ができれば一通り動いている。起動ログの `[public] PNG の URL は …` が、返ってくる URL のベース。
 
+- **Claude Code に `.env` を読ませない**（2026-09-30）。`.claude/settings.json` の `permissions.deny` が
+  Read ツールでの読み取りを、`.claude/hooks/block_env.py`（PreToolUse）が Bash / PowerShell / Grep で
+  `.env` を名指しする操作を止める。指示（CLAUDE.md など）は約束にすぎず、読み取りそのものは防げないため。
+  スクリプトが自分で `.env` を読むのは止めない。`git log` / `ls-files` / `check-ignore` / `status` は
+  中身を出さないので通す（`-p` や命令のつなぎがあれば止める）。`.env` を名指ししない広い検索
+  （`grep -r` でリポジトリ全体など）までは止められない。フックは PATH の `python` で動く
 - **動画（`promo/`）を触るときだけ** Node と `npm install` が要る。Remotion（React で動画を書く）と
   Playwright（画面を録る）を使う。素材の作り方は `video-notes.md`
 - **`scripts/` を動かすとき**も同じ venv を使う。`python` を直に叩くと `.env` が読まれず、
