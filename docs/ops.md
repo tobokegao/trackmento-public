@@ -51,7 +51,10 @@
   - **2026-10-01 に見た結果**（申請から 12 日。ネットスターとトレンドマイクロは curl で確認ページのフォームに送って読んだ）:
     - ネットスター … まだ**登録されていません**（通常版・for Kids 版とも）
     - トレンドマイクロ … まだ **Untested**（また「初めて調べる」と出た。問い合わせても調べられていない）
-    - McAfee … **curl だと「automated program detection」で 403**（IP が記録されると出た）。自動で取りに行かず、ブラウザで見る
+    - McAfee … **curl だと「automated program detection」で 403**（IP が記録されると出た）。自動で取りに行かず、ブラウザで見る。
+      利用者がスマホのブラウザで見ると、まだ **Uncategorized URL・Trust: Unverified**。同じページの「Optional categorization suggestion」から出し直せる
+    - 出し直す先: ネットスターは https://category.netstar-inc.com/report/form.php?numb=0&numb2=0&url=https://trackmento.com/ （確認結果の「カテゴリ分類の誤り・不足についてネットスターに連絡」）、
+      トレンドマイクロは確認ページで調べた結果の「RECLASSIFY REQUEST」（ボタンで窓が開く形なので、専用の URL は無い）
     - Cloudflare・Norton は付いているので見ていない
     → 2 社とも自然には付かないので、ネットスターは「知らせる」（カテゴリ登録の連絡）、トレンドマイクロは結果ページの
     「RECLASSIFY REQUEST」から出し直す（利用者の操作。フォームの送信なので）
