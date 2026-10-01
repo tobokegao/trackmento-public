@@ -2768,7 +2768,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "空の並びをもう1つ作る。今の並びはそのまま残る": "Start another, empty layout. The current one stays as it is",
         "いま開いている並びを消す。ほかの並びは残る": "Delete the layout that is open now. Your other layouts stay",
         "並び{}": "Layout {0}",
-        "並びは{}個までです。使わない並びを消すと作れます": "You can keep up to {0} layouts. Delete one you no longer use to make room",
+        "一覧から外れていた並びを{}個、「並び」のメニューに戻しました。": "Put {0} layouts that had dropped out of the list back into the “Layout” menu.",
+        "並びは{}個までです。使わない並びを消すと作れます":"You can keep up to {0} layouts. Delete one you no longer use to make room",
         "「{}」を開きました（{}トラック）。": "Opened “{0}” ({1} tracks).",
         "新しい並びを作りました。前の並びは「並び」のメニューから開けます。": "Started a new layout. Your previous layout is still in the “Layout” menu.",
         "「{}」（{}トラック）を消します。元に戻せません。": "This deletes “{0}” ({1} tracks). You can't undo this.",
@@ -7857,6 +7858,55 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function saveLayouts() {
     try { localStorage.setItem(LAYOUTS_KEY, JSON.stringify(layouts)); } catch { /* ignore */ }
   }
+  /* **一覧に無い並びの中身を、一覧に戻す**（2026-10-01、利用者の報告「保持させていた並びがいくつか消えた」）。
+     タブを2つ開いていると、古いほうのタブが自分の持っている一覧で書き戻し、ほかのタブで足した並びが
+     メニューから消えていた。中身（trackmento:grid:<id>）は残っているので、起動のたびに拾い直す。
+     上限を超える分は中身を残したまま一覧に入れない（並びを消せば、次に開いたときに入る） */
+  function recoverLayouts() {
+    const known = new Set(layouts.list.map(e => e.id)), found = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || "", id = k.startsWith("trackmento:grid:") ? k.slice(16) : "";
+        if (!LAYOUT_ID_RE.test(id) || known.has(id)) continue;
+        try {
+          const d = JSON.parse(localStorage.getItem(k));
+          if (d && Array.isArray(d.cells)) found.push({ id, title: typeof d.title === "string" ? d.title.slice(0, 60) : "", at: Date.parse(d.savedAt) || 0 });
+        } catch { /* 壊れた中身は拾わない */ }
+      }
+    } catch { return 0; }
+    const add = found.sort((a, b) => a.at - b.at).slice(0, Math.max(0, LAYOUTS_MAX - layouts.list.length));
+    if (!add.length) return 0;
+    layouts.list.push(...add.map(({ id, title }) => ({ id, title })));
+    saveLayouts();
+    return add.length;
+  }
+  const recoveredLayouts = recoverLayouts();
+  /* **ほかのタブで一覧が変わったら読み直す**（同じ日。上の書き戻しを起こさないため）。
+     知らせの一覧に無い並びは、中身が残っていれば古いタブの書き戻しとみなして残し（書き戻して知らせ返す）、
+     中身が無ければほかのタブで消されたとみなす。開いている並びが消されていたら一覧の先頭へ移る
+     （書き出しはしない。書くと消した並びが戻ってくる） */
+  function syncLayouts() {
+    let v = null;
+    try { v = JSON.parse(localStorage.getItem(LAYOUTS_KEY) || "null"); } catch { return; }
+    if (!v || !Array.isArray(v.list)) return;
+    const stored = v.list.filter(e => e && LAYOUT_ID_RE.test(e.id)).slice(0, LAYOUTS_MAX)
+      .map(e => ({ id: e.id, title: typeof e.title === "string" ? e.title.slice(0, 60) : "" }));
+    const has = (id) => { try { return localStorage.getItem(storageKey(id)) !== null; } catch { return false; } };
+    const list = [...stored, ...layouts.list.filter(e => !stored.some(s => s.id === e.id) && has(e.id))].slice(0, LAYOUTS_MAX);
+    if (!list.length) return;
+    const same = JSON.stringify(list) === JSON.stringify(layouts.list);
+    layouts.list = list;
+    if (list.length !== stored.length) saveLayouts();   // 古いタブが落とした分を書き戻す
+    if (same) return;
+    const gone = !list.some(e => e.id === layouts.active);
+    if (gone) {
+      clearTimeout(saveTimer); clearTimeout(pushTimer);
+      openLayout(list[0].id);
+    } else renderLayoutMenu();
+  }
+  addEventListener("storage", (e) => { if (e.key === LAYOUTS_KEY && ready) syncLayouts(); });
+  // スマホでは裏に回ったタブが止まり、storageの知らせを受け取れないことがあるので、表に戻ったときにも読み直す
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && ready) syncLayouts(); });
   const layoutEntry = (id = layouts.active) => layouts.list.find(e => e.id === id);
   const layoutLabel = (e) => e.title.trim() || tr`並び${layouts.list.indexOf(e) + 1}`;
   const isTrack = (t) => !!t && typeof t === "object" && typeof t.image === "string" && typeof t.title === "string";
@@ -9030,7 +9080,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   loadHealth()
     .then(() => { if (isPublic || API) GRID_BASE = browserGridId(); GRID_NAME = serverGridName(); renderLayoutMenu(); })
     .then(restoreFromShare).then(ok => ok ? Promise.resolve() : restore())
-    .finally(() => { ready = true; save(); takeSharedUrl(); });
+    .finally(() => {
+      ready = true; save(); takeSharedUrl();
+      if (recoveredLayouts) say(els.gridMsg, tr`一覧から外れていた並びを${recoveredLayouts}個、「並び」のメニューに戻しました。`);
+    });
   /* **Androidの「共有」から届いたURLを取り込む**（Web Share Target、2026-09-24、運用ボードのideas-0923）。
      manifest.webmanifestのshare_targetが /?st_title=…&st_text=…&st_url=… で開く。アプリによってURLが
      urlに入るもの・textの中に文章と一緒に入るもの（YouTubeなど）があるので、両方からhttpのURLを拾う。
