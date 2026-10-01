@@ -1,18 +1,18 @@
-"""分割フォント（fonts/split/*.woff2）を R2 に上げる。
+"""分割フォント（fonts/split/*.woff2）をR2に上げる。
 
 使い方:
   .venv/Scripts/python scripts/upload_fonts_r2.py [--force]
 
-フォントは新規の訪問 1 回あたり 210KB（実測）で、Render の転送量の大半を占めていた。
-Render 前段の Cloudflare は Web Service の応答をキャッシュしないため、訪問のたびに
-サーバーから出ていく。R2 は転送量が無料なので、断片だけをそちらから配る。
+フォントは新規の訪問1回あたり210KB（実測）で、Renderの転送量の大半を占めていた。
+Render前段のCloudflareはWeb Serviceの応答をキャッシュしないため、訪問のたびに
+サーバーから出ていく。R2は転送量が無料なので、断片だけをそちらから配る。
 
-バックエンドは /fonts-css/<name> で CSS の src を R2 の公開 URL に差し替えて返す
-（FONTS_FROM_R2=0 で従来どおりサーバーから配る）。
+バックエンドは /fonts-css/<name> でCSSのsrcをR2の公開URLに差し替えて返す
+（FONTS_FROM_R2=0で従来どおりサーバーから配る）。
 
-R2 のキーは fonts/<ファイル名>。ファイル名にハッシュが入っているので、内容が変われば
+R2のキーはfonts/<ファイル名>。ファイル名にハッシュが入っているので、内容が変われば
 別のキーになり、古いものは共有と同じライフサイクルで消える。
-既に同じキーがあれば上げ直さない（--force で上書き）。
+既に同じキーがあれば上げ直さない（--forceで上書き）。
 """
 from __future__ import annotations
 
@@ -44,30 +44,30 @@ def main() -> int:
 
     st = storage.get_storage()
     if not st.is_remote:
-        print("R2 が設定されていません（.env の R2_* を確認）", file=sys.stderr)
+        print("R2が設定されていません（.envのR2_* を確認）", file=sys.stderr)
         return 1
     if not st.public_url(""):
-        print("R2_PUBLIC_URL がありません。公開 URL が無いと R2 から配れません", file=sys.stderr)
+        print("R2_PUBLIC_URLがありません。公開URLが無いとR2から配れません", file=sys.stderr)
         return 1
 
-    # 分割フォント（断片）＋ ピクセルフォント（Silkscreen）。Silkscreen は分割していないので
-    # fonts/ 直下にあり、本体と共有ページの両方が読む。R2 に置かないとサーバーから出続ける
+    # 分割フォント（断片）＋ ピクセルフォント（Silkscreen）。Silkscreenは分割していないので
+    # fonts/ 直下にあり、本体と共有ページの両方が読む。R2に置かないとサーバーから出続ける
     files = (sorted((ROOT / "fonts" / "split").glob("*.woff2")) + sorted((ROOT / "fonts").glob("Silkscreen-*.woff2"))
              + sorted((ROOT / "fonts").glob("TrackmentoMark-*.woff2")))
     if not files:
-        print("fonts/split/*.woff2 がありません（python scripts/build_fonts.py で生成）", file=sys.stderr)
+        print("fonts/split/*.woff2がありません（python scripts/build_fonts.pyで生成）", file=sys.stderr)
         return 1
 
     have: set[str] = set()
     if not args.force:
-        # **fonts/ だけ一覧する**（バケット全体は 20 万件あり、一覧に 2 分かかる。2026-09-19）
+        # **fonts/ だけ一覧する**（バケット全体は20万件あり、一覧に2分かかる。2026-09-19）
         have = {k for k, _, _ in st.list_objects(PREFIX)}
 
     up = skip = 0
     total = 0
     for f in files:
         key = PREFIX + f.name
-        # ロゴのフォントは名前を変えずに作り直すので、毎回上げ直す（数 KB）
+        # ロゴのフォントは名前を変えずに作り直すので、毎回上げ直す（数KB）
         if key in have and not f.name.startswith("TrackmentoMark-"):
             skip += 1
             continue
@@ -76,11 +76,11 @@ def main() -> int:
         up += 1
         total += len(data)
         if up % 50 == 0:
-            print(f"  {up} 件…")
+            print(f"  {up}件…")
 
-    print(f"上げた {up} 件（{total / 1024 / 1024:.1f} MB）、そのまま {skip} 件")
+    print(f"上げた{up}件（{total / 1024 / 1024:.1f} MB）、そのまま{skip}件")
     if up:
-        print(f"公開 URL の例: {st.public_url(PREFIX + files[0].name)}")
+        print(f"公開URLの例: {st.public_url(PREFIX + files[0].name)}")
     return 0
 
 

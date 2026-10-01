@@ -1,19 +1,19 @@
-"""運用ボード（claude.ai の artifact）に流し込む数字を metrics/series.jsonl から組み立てる。
+"""運用ボード（claude.aiのartifact）に流し込む数字をmetrics/series.jsonlから組み立てる。
 
 使い方:
   PYTHONUTF8=1 .venv/Scripts/python scripts/board_data.py [--out board.json] [--limit 0]
-                                    [--r2-gb 30.3 --r2-note "..." --r2-counted "09-21 09:10 に一覧して数えた"]
+                                    [--r2-gb 30.3 --r2-note "..." --r2-counted "09-21 09:10に一覧して数えた"]
 
-  ログ確認（`gh workflow run render-check.yml` → `git pull`）のあとに回す。書き出した JSON を
-  ArtifactData の set で `board/metrics` に入れると、ボードの「いまの状況」「推移」「外へ出した要求」が
-  そのまま置き換わる（ボード側は scripts/board/index.html。db が読めないときは作り付けの控えが出る）。
+  ログ確認（`gh workflow run render-check.yml` → `git pull`）のあとに回す。書き出したJSONを
+  ArtifactDataのsetで `board/metrics` に入れると、ボードの「いまの状況」「推移」「外へ出した要求」が
+  そのまま置き換わる（ボード側はscripts/board/index.html。dbが読めないときは作り付けの控えが出る）。
 
 出すもの:
-  latest … いちばん新しい点検 1 回ぶん（タイルの元）
-  series … 推移の図の元。窓の長さが違う回は 2 時間に直す
+  latest … いちばん新しい点検1回ぶん（タイルの元）
+  series … 推移の図の元。窓の長さが違う回は2時間に直す
   out    … 外へ出した要求のホスト別。画像かどうかで色を分ける
-  services … 相手ごとの「1 日に直すと何回か」（多い日の値）。外部サービスの表の実測列
-  r2     … R2 の使用量。--r2-gb を渡したときだけ入れる（series.jsonl には無いので手で数える）
+  services … 相手ごとの「1日に直すと何回か」（多い日の値）。外部サービスの表の実測列
+  r2     … R2の使用量。--r2-gbを渡したときだけ入れる（series.jsonlには無いので手で数える）
 """
 from __future__ import annotations
 
@@ -25,11 +25,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SERIES_PATH = ROOT / "metrics" / "series.jsonl"
 R2_PATH = ROOT / "metrics" / "r2.jsonl"              # 毎日の掃除（r2_prune.py --append）が書く。種類ごとの内訳つき
-R2_HISTORY_PATH = ROOT / "metrics" / "r2_history.jsonl"   # scripts/r2_history.py が GraphQL から引く合計だけの履歴
+R2_HISTORY_PATH = ROOT / "metrics" / "r2_history.jsonl"   # scripts/r2_history.pyがGraphQLから引く合計だけの履歴
 STATUS_PATH = ROOT / "scripts" / "board" / "status.json"  # 人が書く欄（やること・外部サービスの状態）
 STALE_DAYS = 3      # 人が書く欄をこれより長く見直していなければ警告する
 
-# 推移の図で使う種類のまとめ方。9 種類そのままだと帯が細かすぎて読めない
+# 推移の図で使う種類のまとめ方。9種類そのままだと帯が細かすぎて読めない
 KIND_GROUPS = [
     ("共有", ("共有（本体画像）", "共有（カード用）", "共有（並び）")),
     ("画像キャッシュ", ("imgcache/",)),
@@ -37,25 +37,25 @@ KIND_GROUPS = [
     ("その他", ("fonts/", "searchcache/", "listed/", "app/")),
 ]
 
-FREE_GB = 10.0      # R2 の無料枠
-PER_GB = 0.015      # 超過 1GB あたりの月額（USD）
-# 月の見込み（円）。数字の出どころは docs/ops.md「帯域と R2 の操作回数」とボードの「お金」（2026-09-24）
-RENDER_INSTANCE_USD = 25.0   # Standard インスタンス
-RENDER_FREE_BW_GB = 5.0      # Hobby プランの込みの帯域（月）
-RENDER_BW_PER_GB = 0.15      # 超過 1GB あたり（USD）
+FREE_GB = 10.0      # R2の無料枠
+PER_GB = 0.015      # 超過1GBあたりの月額（USD）
+# 月の見込み（円）。数字の出どころはdocs/ops.md「帯域とR2の操作回数」とボードの「お金」（2026-09-24）
+RENDER_INSTANCE_USD = 25.0   # Standardインスタンス
+RENDER_FREE_BW_GB = 5.0      # Hobbyプランの込みの帯域（月）
+RENDER_BW_PER_GB = 0.15      # 超過1GBあたり（USD）
 BW_DAYS = 7                  # 帯域の見込みに使う直近の日数
 FX_URL = "https://api.frankfurter.dev/v1/latest?base=USD&symbols=JPY"   # 欧州中央銀行の参照レート（鍵なし）
 FX_CACHE = Path(__file__).resolve().parent.parent / "metrics" / "fx.json"   # 取れなかったときの控え
 
-# 画像を取りに行くホスト。ここに当たらないものは API への問い合わせ扱いにする。
+# 画像を取りに行くホスト。ここに当たらないものはAPIへの問い合わせ扱いにする。
 IMG_HOST = re.compile(
     r"ytimg|nimg\.jp|sndcdn|bcbits|hdslb|cdn\.otodb|coverartarchive|mzstatic|scdn\.co|i\.scdn"
 )
 
 # 「外部サービスの使い方と上限」の表に出す実測。相手ごとにドメインをまとめる（2026-09-21）。
-# 以前は表の数字を手で書いていて、いつの値か分からなくなっていた（iTunes の 264 は
-# 14 回の点検のうち 1 回だけ出た値だった）。ここから db に入れて、表はそれを読む。
-# 画像か API かは `IMG_HOST` が分ける（cdn.otodb.net と otodb.net のように同じ相手で分かれる）
+# 以前は表の数字を手で書いていて、いつの値か分からなくなっていた（iTunesの264は
+# 14回の点検のうち1回だけ出た値だった）。ここからdbに入れて、表はそれを読む。
+# 画像かAPIかは `IMG_HOST` が分ける（cdn.otodb.netとotodb.netのように同じ相手で分かれる）
 SERVICE_DOMAINS = {
     "itunes": ("itunes.apple.com", "mzstatic.com"),
     "musicbrainz": ("musicbrainz.org",),
@@ -75,7 +75,7 @@ SERVICE_DOMAINS = {
 def rows(path: Path) -> list[dict]:
     out = []
     if not path.exists():
-        return out   # まだ 1 度も書かれていない記録（r2_history.jsonl など）は空として扱う
+        return out   # まだ1度も書かれていない記録（r2_history.jsonlなど）は空として扱う
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -88,7 +88,7 @@ def rows(path: Path) -> list[dict]:
 
 
 def to_2h(value, hours):
-    """窓の長さが違う回を 2 時間に直す。図の点をそろえるため。"""
+    """窓の長さが違う回を2時間に直す。図の点をそろえるため。"""
     if value is None:
         return 0
     h = float(hours or 2) or 2.0
@@ -97,7 +97,7 @@ def to_2h(value, hours):
 
 def build(data: list[dict], limit: int) -> dict:
     if not data:
-        raise SystemExit("metrics/series.jsonl が空。先に点検を回す")
+        raise SystemExit("metrics/series.jsonlが空。先に点検を回す")
 
     last = data[-1]
     series = []
@@ -140,10 +140,10 @@ def _service_of(host: str) -> str | None:
 
 
 def services(data: list[dict]) -> dict | None:
-    """相手ごとの「1 日に直すと何回か」。表の実測列に出す。
+    """相手ごとの「1日に直すと何回か」。表の実測列に出す。
 
     **多い日の値（最大）を出す。** 上限を守れているかを見る表なので、平均ではなくピークで比べる。
-    `out`（外へ出した要求）は 2026-09-20 に入った記録なので、それが空の回は数に入れない。
+    `out`（外へ出した要求）は2026-09-20に入った記録なので、それが空の回は数に入れない。
     """
     seen = [r for r in data if r.get("out")]
     if not seen:
@@ -176,8 +176,8 @@ def services(data: list[dict]) -> dict | None:
 def img_index_max() -> int:
     """`backend/main.py` の `IMAGE_INDEX_MAX` の既定値。
 
-    数字を 2 か所に書かないため、コードから読む（本番が環境変数で上書きしていれば実際はそちら。
-    上書きは今のところしていない）。読めなければ 0 を返し、呼び出し側が imgcache の行を出さない。
+    数字を2か所に書かないため、コードから読む（本番が環境変数で上書きしていれば実際はそちら。
+    上書きは今のところしていない）。読めなければ0を返し、呼び出し側がimgcacheの行を出さない。
     """
     try:
         src = (ROOT / "backend" / "main.py").read_text(encoding="utf-8")
@@ -190,7 +190,7 @@ def img_index_max() -> int:
 def watch_items(latest: dict) -> list:
     """点検の数字から組み立てる「見ているもの」。**手で書かない**（書いた数字は次の点検で古くなる）。
 
-    それぞれ {t: 見出し, d: 中身, level: "ok" か "watch"}。閾値を越えたものだけ watch にして、
+    それぞれ{t: 見出し, d: 中身, level: "ok" か "watch"}。閾値を越えたものだけwatchにして、
     平常時は黙っている。閾値はここが唯一の置き場所。
     """
     out = []
@@ -202,21 +202,21 @@ def watch_items(latest: dict) -> list:
         from datetime import datetime, timedelta, timezone
         stale = mm.group(1) != datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m")
         out.append({
-            "t": f"サーバー代の棒: {mm.group(1)} の数字" + ("（月が変わった。直す）" if stale else ""),
-            "d": "月が変わったら backend/support.py の MONTH を進め、COST_JPY を money() の見込みに、"
-                 "RECEIVED_JPY と SUPPORTERS を 0 に戻してデプロイする。Bandcamp・PayPal で届いたら、そのつど額と人数を足す",
+            "t": f"サーバー代の棒: {mm.group(1)}の数字" + ("（月が変わった。直す）" if stale else ""),
+            "d": "月が変わったらbackend/support.pyのMONTHを進め、COST_JPYをmoney() の見込みに、"
+                 "RECEIVED_JPYとSUPPORTERSを0に戻してデプロイする。Bandcamp・PayPalで届いたら、そのつど額と人数を足す",
             "level": "watch" if stale else "ok",
         })
 
-    # 画像キャッシュの索引。上限を超えると索引が打ち切られ、302 に戻せなくなる
+    # 画像キャッシュの索引。上限を超えると索引が打ち切られ、302に戻せなくなる
     imax = img_index_max()
     kinds = (rows(R2_PATH)[-1].get("kinds") if rows(R2_PATH) else None) or {}
     icount = (kinds.get("imgcache/") or [0, 0])[0]
     if imax and icount:
         pct = icount / imax * 100
         out.append({
-            "t": f"imgcache の索引: {icount:,} 件（上限 {imax:,} の {pct:.0f}%）",
-            "d": "上限を超えると索引が打ち切られ、R2 にある画像へ 302 で戻せなくなる。"
+            "t": f"imgcacheの索引: {icount:,}件（上限{imax:,}の{pct:.0f}%）",
+            "d": "上限を超えると索引が打ち切られ、R2にある画像へ302で戻せなくなる。"
                  "増えたら上限を上げるより、索引の期限を絞るほうが先",
             "level": "watch" if pct >= 80 else "ok",
         })
@@ -224,13 +224,13 @@ def watch_items(latest: dict) -> list:
     # フォントが間に合わずサーバー描画へ落ちた数
     ff = (latest.get("client") or {}).get("font_fail", 0)
     out.append({
-        "t": f"font_fail: {ff} 件 / {latest.get('hours', 2)} 時間",
-        "d": "フォントを 25 秒待っても揃わず、ブラウザ描画をあきらめてサーバー描画に落ちた数。"
-             "CPU に余裕があるうちは実害が小さいが、増えるなら断片の数か待ち方を見直す",
+        "t": f"font_fail: {ff}件 / {latest.get('hours', 2)}時間",
+        "d": "フォントを25秒待っても揃わず、ブラウザ描画をあきらめてサーバー描画に落ちた数。"
+             "CPUに余裕があるうちは実害が小さいが、増えるなら断片の数か待ち方を見直す",
         "level": "watch" if ff >= 20 else "ok",
     })
 
-    # 検索結果の控え（R2）の当たり率。デプロイで cache.sqlite3 が消えたあとの効き目を見る
+    # 検索結果の控え（R2）の当たり率。デプロイでcache.sqlite3が消えたあとの効き目を見る
     for src, label in (("vocadb", "VocaDB"), ("otodb", "otoDB")):
         v = (latest.get("srch") or {}).get(src)
         if not v or len(v) < 3:
@@ -240,9 +240,9 @@ def watch_items(latest: dict) -> list:
         if not total:
             continue
         out.append({
-            "t": f"{label} の控えの当たり率: {(sq + r2c) / total * 100:.0f}%（うち R2 の控え {r2c}）",
-            "d": f"{total} 回のうち覚えていた {sq + r2c}・外へ聞いた {net}。"
-                 "cache.sqlite3 はデプロイで消えるので、R2 の控えが効いているかはここで見る",
+            "t": f"{label}の控えの当たり率: {(sq + r2c) / total * 100:.0f}%（うちR2の控え{r2c}）",
+            "d": f"{total}回のうち覚えていた{sq + r2c}・外へ聞いた{net}。"
+                 "cache.sqlite3はデプロイで消えるので、R2の控えが効いているかはここで見る",
             "level": "watch" if (sq + r2c) / total < 0.1 else "ok",
         })
 
@@ -251,10 +251,10 @@ def watch_items(latest: dict) -> list:
     if rss:
         pct = rss / mem_limit * 100
         out.append({
-            "t": f"メモリの使いみち: 最大 {rss}MB / {mem_limit}MB（{pct:.0f}%）",
-            "d": f"CPU は最大 {latest.get('cpu')}（割当 1.0）。"
+            "t": f"メモリの使いみち: 最大{rss}MB / {mem_limit}MB（{pct:.0f}%）",
+            "d": f"CPUは最大{latest.get('cpu')}（割当1.0）。"
                  + ("上限に近い。下げてはいけない" if pct >= 80 else
-                    "余っている。1 段下げるなら、下の段のメモリに最大値が収まるかを先に見る"),
+                    "余っている。1段下げるなら、下の段のメモリに最大値が収まるかを先に見る"),
             "level": "watch" if pct >= 80 else "ok",
         })
 
@@ -262,11 +262,11 @@ def watch_items(latest: dict) -> list:
 
 
 def storage_series() -> list:
-    """R2 の使用量の推移。1 日 1 点で [日付, 合計 GB, {まとめた種類: GB} または None]。
+    """R2の使用量の推移。1日1点で [日付, 合計GB, {まとめた種類: GB}またはNone]。
 
-    元が 2 つある:
-      - `metrics/r2_history.jsonl` … GraphQL から引いた**合計だけ**の履歴（過去 31 日ぶん）
-      - `metrics/r2.jsonl` … 毎日の掃除が残す**種類ごとの内訳**（2026-09-21 から）
+    元が2つある:
+      - `metrics/r2_history.jsonl` … GraphQLから引いた**合計だけ**の履歴（過去31日ぶん）
+      - `metrics/r2.jsonl` … 毎日の掃除が残す**種類ごとの内訳**（2026-09-21から）
     同じ日に両方あれば内訳のほうを採る（内訳の合計＝合計なので食い違わない）。
     """
     by_date: dict[str, tuple[float, dict | None]] = {}
@@ -292,10 +292,10 @@ def storage_series() -> list:
 
 
 def usd_jpy() -> dict | None:
-    """USD→JPY のレート。取れれば控え（metrics/fx.json）を更新し、取れなければ控えを使う。"""
+    """USD→JPYのレート。取れれば控え（metrics/fx.json）を更新し、取れなければ控えを使う。"""
     import urllib.request
     try:
-        req = urllib.request.Request(FX_URL, headers={"User-Agent": "trackmento-board/1.0"})   # UA が無いと 403
+        req = urllib.request.Request(FX_URL, headers={"User-Agent": "trackmento-board/1.0"})   # UAが無いと403
         with urllib.request.urlopen(req, timeout=10) as r:
             got = json.loads(r.read().decode())
         fx = {"rate": float(got["rates"]["JPY"]), "date": got["date"]}
@@ -308,8 +308,8 @@ def usd_jpy() -> dict | None:
 
 
 def money(series: list, r2: dict | None) -> dict | None:
-    """月の合計の見込み（USD と円）。Render のインスタンス＋帯域の超過（直近 BW_DAYS 日の 2 時間あたりの平均から）＋ R2 の保存の超過。
-    R2 の操作回数（Class A/B）は無料枠の中なので 0 とする。"""
+    """月の合計の見込み（USDと円）。Renderのインスタンス＋帯域の超過（直近BW_DAYS日の2時間あたりの平均から）＋R2の保存の超過。
+    R2の操作回数（Class A/B）は無料枠の中なので0とする。"""
     fx = usd_jpy()
     recent = [r for r in series if r[2] is not None]
     if recent:
@@ -331,10 +331,10 @@ def money(series: list, r2: dict | None) -> dict | None:
 
 
 def r2_from_prune() -> dict | None:
-    """毎日の掃除が残した `metrics/r2.jsonl` の最後の行から、R2 の使用量タイルを組む。
+    """毎日の掃除が残した `metrics/r2.jsonl` の最後の行から、R2の使用量タイルを組む。
 
-    掃除はどのみちバケット全体を一覧するので、ここに相乗りすれば数え直しに Class A を足さずに済む。
-    ファイルがまだ無いとき（初回）は None を返し、呼び出し側が `--r2-gb` で渡す。
+    掃除はどのみちバケット全体を一覧するので、ここに相乗りすれば数え直しにClass Aを足さずに済む。
+    ファイルがまだ無いとき（初回）はNoneを返し、呼び出し側が `--r2-gb` で渡す。
     """
     if not R2_PATH.exists():
         return None
@@ -345,17 +345,17 @@ def r2_from_prune() -> dict | None:
     gb = last.get("total_bytes", 0) / 1024**3
     over = max(0.0, gb - FREE_GB)
     kinds = last.get("kinds") or {}
-    shares = (kinds.get("共有（並び）") or [0])[0]       # 共有は .json を数える（画像は本体とカード用で 2 倍になる）
+    shares = (kinds.get("共有（並び）") or [0])[0]       # 共有は .jsonを数える（画像は本体とカード用で2倍になる）
     share_gb = sum((kinds.get(k) or [0, 0])[1] for k in ("共有（本体画像）", "共有（カード用）", "共有（並び）")) / 1024**3
     # 掃除で実際に消えた記録。「まだ一度も減っていない」の注記をボードが自分で出し分ける
     applied = [r for r in data if r.get("applied")]
     first_del = next((r.get("jst", "")[:10] for r in applied if r.get("deleted")), None)
     return {
         "gb": round(gb, 1),
-        "note": f"無料 {FREE_GB:.0f}GB ＋ 超過 {over:.1f}GB ＝ 月 ${over * PER_GB:.2f}",
-        "counted": f"{last.get('jst', '')} JST の掃除で数えた",
-        # 共有の総数。以前は起動時にバケットを 1 周して「本日の共有」を数えていたが、
-        # 全体の上限を使っていないとその数はどこにも使われないので 2026-09-21 にやめた（Class A 214 回／起動）
+        "note": f"無料{FREE_GB:.0f}GB＋ 超過{over:.1f}GB＝ 月${over * PER_GB:.2f}",
+        "counted": f"{last.get('jst', '')} JSTの掃除で数えた",
+        # 共有の総数。以前は起動時にバケットを1周して「本日の共有」を数えていたが、
+        # 全体の上限を使っていないとその数はどこにも使われないので2026-09-21にやめた（Class A 214回／起動）
         "shares": shares,
         "kept_days": 30,
         # 覚え書きの「データの置き場所」と「お金」の欄（以前は手で書いていて古くなった。2026-09-22）
@@ -370,8 +370,8 @@ def r2_from_prune() -> dict | None:
 
 
 def shares_series() -> list:
-    """1 日の共有数。毎日の掃除が残す `shares_by_day`（残っている共有を作られた日ごとに数えたもの）の
-    いちばん新しい行から [MM-DD, 件数] を作る。共有は 30 日残るので、1 行で 30 日ぶんが揃う（2026-09-22）。
+    """1日の共有数。毎日の掃除が残す `shares_by_day`（残っている共有を作られた日ごとに数えたもの）の
+    いちばん新しい行から [MM-DD, 件数] を作る。共有は30日残るので、1行で30日ぶんが揃う（2026-09-22）。
     最後の日はその日の途中までなので、呼び出し側（ボード）で断り書きを出す。"""
     for r in reversed(rows(R2_PATH)):
         by_day = r.get("shares_by_day")
@@ -381,7 +381,7 @@ def shares_series() -> list:
 
 
 # 「文書の置き場所」の表の推定トークン数。字数 × この比で見積もる。
-# 2026-09-20 に分けたとき CLAUDE.md が 17,980 字で 8.0k と見積もった比（日本語が主なので 1 字 ≒ 0.44 トークン）
+# 2026-09-20に分けたときCLAUDE.mdが17,980字で8.0kと見積もった比（日本語が主なので1字 ≒ 0.44トークン）
 TOKENS_PER_CHAR = 8000 / 17980
 DOC_FILES = {
     "claude": ("CLAUDE.md",),
@@ -400,7 +400,7 @@ MEMORY_INDEX = Path.home() / ".claude" / "projects" / "C--Users-amisi-musicgrid-
 
 
 def doc_sizes() -> dict:
-    """文書ごとの推定トークン数（千単位）。毎セッション読み込まれる土台＝CLAUDE.md ＋ メモリの索引。"""
+    """文書ごとの推定トークン数（千単位）。毎セッション読み込まれる土台＝CLAUDE.md＋ メモリの索引。"""
     def k(paths):
         chars = sum(len(p.read_text(encoding="utf-8")) for p in paths if p.exists())
         return round(chars * TOKENS_PER_CHAR / 1000, 1)
@@ -415,10 +415,10 @@ def load_status(today) -> tuple[dict, list[str]]:
     """人が書く欄（scripts/board/status.json）を読み、古くなっていそうなものを挙げる。
 
     点検の記録からは出せない状況（外からの返事・投稿したもの）はここにしか無い。
-    2026-09-22 に「紹介動画を公開するか」が投稿後も残っていたので、見直した日を持たせて警告する。"""
+    2026-09-22に「紹介動画を公開するか」が投稿後も残っていたので、見直した日を持たせて警告する。"""
     from datetime import date
     if not STATUS_PATH.exists():
-        return {}, [f"{STATUS_PATH.name} が無い"]
+        return {}, [f"{STATUS_PATH.name}が無い"]
     st = json.loads(STATUS_PATH.read_text(encoding="utf-8"))
     warn = []
     def age(d):
@@ -428,22 +428,22 @@ def load_status(today) -> tuple[dict, list[str]]:
             return 999
     for t in st.get("todos", []):
         if age(t.get("reviewed")) > STALE_DAYS:
-            warn.append(f"やること「{t['t']}」: {age(t.get('reviewed'))} 日見直していない")
+            warn.append(f"やること「{t['t']}」: {age(t.get('reviewed'))}日見直していない")
         w = t.get("when") or ""
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", w) and age(w) >= 0:
-            warn.append(f"やること「{t['t']}」: 期限 {w} を過ぎた（今日を含む）")
+            warn.append(f"やること「{t['t']}」: 期限{w}を過ぎた（今日を含む）")
     svc = st.get("services", {})
     if age(svc.get("reviewed")) > STALE_DAYS:
-        warn.append(f"外部サービスの状態: {age(svc.get('reviewed'))} 日見直していない")
+        warn.append(f"外部サービスの状態: {age(svc.get('reviewed'))}日見直していない")
     return {"todos": st.get("todos", []), "services": {k: v for k, v in svc.items() if not k.startswith("_")}}, warn
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, help="書き出し先。省略すると標準出力")
-    ap.add_argument("--limit", type=int, default=0, help="推移に載せる点検の数（0 で全部）")
-    ap.add_argument("--r2-gb", type=float, help="R2 の使用量（GB）。渡したときだけタイルに出る")
-    ap.add_argument("--r2-note", default="", help="R2 タイルの補足（料金など）")
+    ap.add_argument("--limit", type=int, default=0, help="推移に載せる点検の数（0で全部）")
+    ap.add_argument("--r2-gb", type=float, help="R2の使用量（GB）。渡したときだけタイルに出る")
+    ap.add_argument("--r2-note", default="", help="R2タイルの補足（料金など）")
     ap.add_argument("--r2-counted", default="", help="いつ数えたか（脚注に出る）")
     args = ap.parse_args()
 
@@ -473,16 +473,16 @@ def main() -> None:
     if status:
         doc["status"] = status
 
-    # 人が書く欄は自動では新しくならない。毎回ここで見直す合図を出す（stderr なので --out なしでも JSON を汚さない）
+    # 人が書く欄は自動では新しくならない。毎回ここで見直す合図を出す（stderrなので --outなしでもJSONを汚さない）
     import sys
-    print(f"[人が書く欄] {STATUS_PATH.relative_to(ROOT)} をメモリの進捗（project-status-tasks-done）と突き合わせる", file=sys.stderr)
+    print(f"[人が書く欄] {STATUS_PATH.relative_to(ROOT)}をメモリの進捗（project-status-tasks-done）と突き合わせる", file=sys.stderr)
     for w in warn:
         print(f"  ! {w}", file=sys.stderr)
 
     text = json.dumps(doc, ensure_ascii=False, indent=2)
     if args.out:
         args.out.write_text(text, encoding="utf-8")
-        print(f"{args.out} に書いた（点検 {len(doc['series'])} 回ぶん、最新 {doc['latest']['jst']}）")
+        print(f"{args.out}に書いた（点検{len(doc['series'])}回ぶん、最新{doc['latest']['jst']}）")
     else:
         print(text)
 

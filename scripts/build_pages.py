@@ -1,10 +1,10 @@
-"""GitHub Pages 用の静的ファイルを組み立てる。
+"""GitHub Pages用の静的ファイルを組み立てる。
 
   python scripts/build_pages.py --api https://your-backend.example.com [--out dist]
 
-- frontend/index.html をコピーし、<meta name="trackmento-api"> にバックエンドの URL を埋め込む
-- fonts/ を同梱（フロントは fonts/ を相対パスで読む）
-- .nojekyll を置く（_ で始まるファイル対策）
+- frontend/index.htmlをコピーし、<meta name="trackmento-api"> にバックエンドのURLを埋め込む
+- fonts/ を同梱（フロントはfonts/ を相対パスで読む）
+- .nojekyllを置く（_ で始まるファイル対策）
 """
 from __future__ import annotations
 
@@ -18,13 +18,13 @@ ROOT = Path(__file__).resolve().parent.parent
 def build(api: str, out: Path) -> None:
     api = api.strip().rstrip("/")
     if api and not api.startswith(("http://", "https://")):
-        raise SystemExit(f"--api は http(s):// から始まる URL にしてください: {api}")
+        raise SystemExit(f"--apiはhttp(s):// から始まるURLにしてください: {api}")
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     marker = '<meta name="viewport" content="width=device-width, initial-scale=1">'
     if marker not in html:
-        raise SystemExit("frontend/index.html に viewport meta が見つかりません")
+        raise SystemExit("frontend/index.htmlにviewport metaが見つかりません")
     html = html.replace(marker, marker + f'\n<meta name="trackmento-api" content="{api}">', 1)
-    html = html.replace("__BASE__", api)   # OG 画像はバックエンドが配る /og.png を指す
+    html = html.replace("__BASE__", api)   # OG画像はバックエンドが配る /og.pngを指す
     html = html.replace("<!--__VERIFY__-->", "")
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(html, encoding="utf-8")
@@ -41,7 +41,7 @@ def build(api: str, out: Path) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--api", default="", help="バックエンドの URL（例: https://trackmento.com）。空なら同一オリジン")
+    ap.add_argument("--api", default="", help="バックエンドのURL（例: https://trackmento.com）。空なら同一オリジン")
     ap.add_argument("--out", default="dist", help="出力先ディレクトリ")
     a = ap.parse_args()
     build(a.api, Path(a.out))

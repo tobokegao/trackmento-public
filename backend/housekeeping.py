@@ -1,4 +1,4 @@
-"""公開モード用のディスク掃除。shares/ と uploads/ は新しい順に一定数だけ残し、grids/ は古いものを消す。"""
+"""公開モード用のディスク掃除。shares/ とuploads/ は新しい順に一定数だけ残し、grids/ は古いものを消す。"""
 from __future__ import annotations
 
 import time
@@ -9,10 +9,10 @@ SHARES = ROOT / "shares"
 UPLOADS = ROOT / "uploads"
 GRIDS = ROOT / "grids"
 
-KEEP_SHARES = 2000      # PNG + カード JPEG + JSON の組数
+KEEP_SHARES = 2000      # PNG + カードJPEG + JSONの組数
 KEEP_UPLOADS = 2000
 GRID_MAX_AGE_DAYS = 90
-KEEP_GRIDS = 5000       # ブラウザごとのグリッド JSON の上限件数（古い順に消す）
+KEEP_GRIDS = 5000       # ブラウザごとのグリッドJSONの上限件数（古い順に消す）
 
 
 def _prune_newest(dir_: Path, patterns: tuple[str, ...], keep: int) -> int:
@@ -30,7 +30,7 @@ def _prune_newest(dir_: Path, patterns: tuple[str, ...], keep: int) -> int:
 
 
 def prune_shares(keep: int = KEEP_SHARES) -> int:
-    # PNG・カード JPEG・JSON は 1 組なので合計は keep*3
+    # PNG・カードJPEG・JSONは1組なので合計はkeep*3
     return _prune_newest(SHARES, ("*.png", "*.jpg", "*.json"), keep * 3)
 
 
@@ -39,12 +39,12 @@ def prune_uploads(keep: int = KEEP_UPLOADS) -> int:
 
 
 def prune_grids_count(keep: int = KEEP_GRIDS) -> int:
-    """u-… のグリッドを新しい順に keep 件だけ残す（default は数えない）"""
+    """u-… のグリッドを新しい順にkeep件だけ残す（defaultは数えない）"""
     return _prune_newest(GRIDS, ("u-*.json",), keep)
 
 
 def prune_grids(max_age_days: int = GRID_MAX_AGE_DAYS) -> int:
-    """ブラウザごとのグリッド（u-… で始まるもの）で、長く更新されていないものを消す。default は消さない。"""
+    """ブラウザごとのグリッド（u-… で始まるもの）で、長く更新されていないものを消す。defaultは消さない。"""
     if not GRIDS.exists():
         return 0
     limit = time.time() - max_age_days * 86400

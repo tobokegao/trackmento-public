@@ -6,7 +6,7 @@
 
 結果は `outputs/layout-audit/` に置く（`index.html` を開いて見る）。
 
-**画像は 2400px で組んでから縮める**。割り付けの判断は「出力で何 px になるか」で行うので、
+**画像は2400pxで組んでから縮める**。割り付けの判断は「出力で何pxになるか」で行うので、
 小さく組むと別の結果になる。ジャケットは本物を数枚だけ読み込んで使い回す（取得を待たない）。
 """
 from __future__ import annotations
@@ -50,7 +50,7 @@ def load_tracks() -> list[dict]:
 
 
 def stub_covers(tracks: list[dict]) -> None:
-    """ジャケットの取得を 1 回だけにして使い回す（2,950 回ぶん取りに行くと終わらない）。"""
+    """ジャケットの取得を1回だけにして使い回す（2,950回ぶん取りに行くと終わらない）。"""
     cache: dict[int, Image.Image] = {}
     real = R.load_cover
     first = [GridDoc(**{"app": "trackmento", "version": 1, "name": "t", "cols": 1, "rows": 1,
@@ -78,7 +78,7 @@ def make_doc(tracks: list[dict], cols: int, rows: int, ratio: str) -> GridDoc:
 
 
 def measure(doc: GridDoc) -> dict:
-    """1 つの組み合わせの割り付けを数値にする。"""
+    """1つの組み合わせの割り付けを数値にする。"""
     L = R.layout(doc)
     S = L.scale
     out = {
@@ -88,16 +88,16 @@ def measure(doc: GridDoc) -> dict:
         "cell": round(R.CELL_PX * S),
         "font": round(L.font_s * S, 1),
         "title": round(L.title_size * S, 1),
-        "mode": ("マスごと" if L.wrap_rows else "回り込み") if L.wrap else ("流し込み" if L.sb_flow else "1 曲 1 行"),
+        "mode": ("マスごと" if L.wrap_rows else "回り込み") if L.wrap else ("流し込み" if L.sb_flow else "1曲1行"),
         "side": L.side,
     }
     out["title_ratio"] = round(out["title"] / out["font"], 2) if out["font"] else 0
-    # **「マスごと」は埋まりを測らない**。1 曲 1 行と同じで、曲の数ぶんの行しか無いのが正しい姿で、
+    # **「マスごと」は埋まりを測らない**。1曲1行と同じで、曲の数ぶんの行しか無いのが正しい姿で、
     # まわりに空きがあるのは欠陥ではない（流し込みのように余白を埋めにいく組み方ではない）
     if L.wrap and not L.wrap_rows:
         rows_used = R._flow_rows(doc, L.font_s, 0.0, [float(sg[2]) for sg in L.wrap_segs])
         # **埋まり＝描いたものが枠をどれだけ覆うか**（マスの塊 ＋ 実際に置いた文字の面積）。
-        # 「行数 ÷ 段の数」では測れない（余った段は割り付けの時点で捨てているので必ず 1.0 になる）
+        # 「行数 ÷ 段の数」では測れない（余った段は割り付けの時点で捨てているので必ず1.0になる）
         area = (L.W - L.wrap_pad * 2) * (L.H - L.wrap_top - L.wrap_pad)
         ink = L.gw * L.gh + sum(fr.width * L.line_h for fr in rows_used)
         out["fill"] = round(ink / area, 2) if area else 0
@@ -118,11 +118,11 @@ def measure(doc: GridDoc) -> dict:
     if out["cell"] < MIN_CELL:
         bad.append(f"マスが小さい（{out['cell']}px）")
     if out["fill"] is not None and out["fill"] < MIN_FILL:
-        bad.append(f"余白が目立つ（埋まり {int(out['fill'] * 100)}%）")
+        bad.append(f"余白が目立つ（埋まり{int(out['fill'] * 100)}%）")
     if out["title_ratio"] < MIN_TITLE_RATIO:
-        bad.append(f"タイトルが目立たない（本文の {out['title_ratio']} 倍）")
+        bad.append(f"タイトルが目立たない（本文の{out['title_ratio']}倍）")
     if out["seg_chars"] is not None and out["seg_chars"] < 14:
-        bad.append(f"段が狭い（{out['seg_chars']} 字）")
+        bad.append(f"段が狭い（{out['seg_chars']}字）")
     out["bad"] = bad
     return out
 
@@ -206,10 +206,10 @@ def write_html(ms: list[dict], rendered: set[str], args) -> None:
 <dl><dt>組み方</dt><dd>{html.escape(m['mode'])}{'・コの字' if m['kotoji'] else ''}</dd>
 <dt>出力</dt><dd>{m['W']}×{m['H']}</dd>
 <dt>曲名</dt><dd>{m['font']}px</dd>
-<dt>タイトル</dt><dd>{m['title']}px（本文の {m['title_ratio']} 倍）</dd>
+<dt>タイトル</dt><dd>{m['title']}px（本文の{m['title_ratio']}倍）</dd>
 <dt>マス</dt><dd>{m['cell']}px</dd>
 <dt>埋まり</dt><dd>{'—' if m['fill'] is None else m['fill']}</dd>
-<dt>最小の段</dt><dd>{'—' if m['seg_min'] is None else f"{m['seg_min']}px（{m['seg_chars']} 字）"}</dd></dl>
+<dt>最小の段</dt><dd>{'—' if m['seg_min'] is None else f"{m['seg_min']}px（{m['seg_chars']}字）"}</dd></dl>
 <div class="tags">{tags}</div></div>"""
 
     def row(m: dict) -> str:
@@ -221,9 +221,9 @@ def write_html(ms: list[dict], rendered: set[str], args) -> None:
                 f'<td>{"" if m["seg_chars"] is None else m["seg_chars"]}</td>'
                 f'<td class="l">{html.escape("、".join(m["bad"]))}</td></tr>')
 
-    reasons = "".join(f"<li>{html.escape(k)}: {v} 件</li>" for k, v in sorted(by_reason.items(), key=lambda kv: -kv[1]))
+    reasons = "".join(f"<li>{html.escape(k)}: {v}件</li>" for k, v in sorted(by_reason.items(), key=lambda kv: -kv[1]))
 
-    # **理由ごとにまとめ、ひどい順に並べる**。1,000 件を一度に並べても読めない
+    # **理由ごとにまとめ、ひどい順に並べる**。1,000件を一度に並べても読めない
     GROUPS = [
         ("タイトルが目立たない", "タイトルが曲名リストより小さい／近い",
          lambda m: m["title_ratio"],
@@ -246,21 +246,21 @@ def write_html(ms: list[dict], rendered: set[str], args) -> None:
         g = sorted([m for m in bad if any(b.startswith(key) for b in m["bad"])], key=order)
         if not g:
             continue
-        more = f"<p class=lead>ほか {len(g) - LIMIT} 件（下の表で「{html.escape(key)}」を探す）</p>" if len(g) > LIMIT else ""
-        groups_html.append(f"<h2>{html.escape(heading)}（{len(g)} 件）</h2>"
+        more = f"<p class=lead>ほか{len(g) - LIMIT}件（下の表で「{html.escape(key)}」を探す）</p>" if len(g) > LIMIT else ""
+        groups_html.append(f"<h2>{html.escape(heading)}（{len(g)}件）</h2>"
                            + (f"<p class=lead>{why}</p>" if why else "")
                            + f'<div class="cards">{"".join(card(m) for m in g[:LIMIT])}</div>{more}')
     doc = f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>割り付けの総点検 — TRACKMENTO</title>
 <style>{CSS}</style></head><body>
 <h1>割り付けの総点検</h1>
-<p class="lead">並び（横×縦、総数 {MAX_CELLS} マスまで・1 辺 {MAX_SIDE_CELLS} まで）と比率のすべての組み合わせ
-{len(ms)} 件。曲名リストあり・タイトルあり・番号ありで、出力の最大辺 {max_side()} px。</p>
+<p class="lead">並び（横×縦、総数{MAX_CELLS}マスまで・1辺{MAX_SIDE_CELLS}まで）と比率のすべての組み合わせ
+{len(ms)}件。曲名リストあり・タイトルあり・番号ありで、出力の最大辺{max_side()} px。</p>
 <div class="note">
-<b>要確認 {len(bad)} 件</b>（全体の {round(len(bad)/len(ms)*100)}%）。内訳:
+<b>要確認{len(bad)}件</b>（全体の{round(len(bad)/len(ms)*100)}%）。内訳:
 <ul>{reasons}</ul>
-判定のしきい値: 曲名 &lt; {MIN_FONT}px ／ マス &lt; {MIN_CELL}px ／ 埋まり &lt; {MIN_FILL} ／
-タイトルが本文の {MIN_TITLE_RATIO} 倍未満 ／ 段が 14 字未満。
+判定のしきい値: 曲名 &lt; {MIN_FONT}px／ マス &lt; {MIN_CELL}px／ 埋まり &lt; {MIN_FILL}／
+タイトルが本文の{MIN_TITLE_RATIO}倍未満 ／ 段が14字未満。
 </div>
 
 {"".join(groups_html)}
@@ -278,16 +278,16 @@ def write_html(ms: list[dict], rendered: set[str], args) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--render", action="store_true", help="画像も書き出す（要確認のものだけ）")
-    ap.add_argument("--all", action="store_true", help="--render と併せて、全部の画像を書き出す（重い）")
-    ap.add_argument("--only", help="比率を絞る（例 1:1,9:16）")
-    ap.add_argument("--from-json", action="store_true", help="前回の audit.json から HTML だけ作り直す")
+    ap.add_argument("--all", action="store_true", help="--renderと併せて、全部の画像を書き出す（重い）")
+    ap.add_argument("--only", help="比率を絞る（例1:1,9:16）")
+    ap.add_argument("--from-json", action="store_true", help="前回のaudit.jsonからHTMLだけ作り直す")
     a = ap.parse_args()
 
     OUT.mkdir(parents=True, exist_ok=True)
     if a.from_json:
         ms = json.loads((OUT / "audit.json").read_text(encoding="utf-8"))
         write_html(ms, {p.name for p in (OUT / "img").glob("*.jpg")}, a)
-        print(f"{len(ms)} 件 → {OUT / 'index.html'}")
+        print(f"{len(ms)}件 → {OUT / 'index.html'}")
         return 0
     (OUT / "img").mkdir(exist_ok=True)
     tracks = load_tracks()
@@ -311,7 +311,7 @@ def main() -> int:
     rendered: set[str] = set()
     if a.render:
         want = ms if a.all else [m for m in ms if m["bad"]]
-        print(f"画像を書き出す: {len(want)} 件")
+        print(f"画像を書き出す: {len(want)}件")
         for i, m in enumerate(want, 1):
             doc = make_doc(tracks, m["cols"], m["rows"], m["ratio"])
             name = thumb_name(m)
@@ -324,7 +324,7 @@ def main() -> int:
 
     write_html(ms, rendered, a)
     bad = sum(1 for m in ms if m["bad"])
-    print(f"{len(ms)} 件中 要確認 {bad} 件 → {OUT / 'index.html'}")
+    print(f"{len(ms)}件中 要確認{bad}件 → {OUT / 'index.html'}")
     return 0
 
 

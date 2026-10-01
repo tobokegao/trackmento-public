@@ -1,11 +1,11 @@
 """iTunes Search API。キー不要。
 
 https://itunes.apple.com/search?term=...&entity=song&country=JP&limit=25
-artworkUrl100 の "100x100" を "1000x1000" に置き換えると高解像度が取れる。
+artworkUrl100の "100x100" を "1000x1000" に置き換えると高解像度が取れる。
 
-Apple は共有ホスティング（Render など）の IP を 403/429 で遮断することがある。その場合は
-ITUNES_PROXY_URL（Cloudflare Workers の中継。scripts/cloudflare/itunes-proxy.js）を設定すると、
-Cloudflare の IP から Apple を呼ぶ。ITUNES_PROXY_TOKEN は中継側の TOKEN と同じ値（他人に使われないため）。
+Appleは共有ホスティング（Renderなど）のIPを403/429で遮断することがある。その場合は
+ITUNES_PROXY_URL（Cloudflare Workersの中継。scripts/cloudflare/itunes-proxy.js）を設定すると、
+CloudflareのIPからAppleを呼ぶ。ITUNES_PROXY_TOKENは中継側のTOKENと同じ値（他人に使われないため）。
 """
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ from backend.merge import _n
 from backend.models import Track
 
 ENDPOINT = "https://itunes.apple.com/search"
-BLOCK_SECONDS = 600   # 403/429 を受けたあと iTunes を叩かない秒数
+BLOCK_SECONDS = 600   # 403/429を受けたあとiTunesを叩かない秒数
 _blocked_until = 0.0
 
 
 def proxy_url() -> str:
-    """中継（Cloudflare Workers）の URL。無ければ空文字（Apple を直接呼ぶ）。"""
+    """中継（Cloudflare Workers）のURL。無ければ空文字（Appleを直接呼ぶ）。"""
     return os.getenv("ITUNES_PROXY_URL", "").strip().rstrip("/")
 
 
@@ -41,24 +41,24 @@ def is_blocked() -> bool:
 
 
 class SourceBlocked(Exception):
-    """Apple にこのサーバーの IP が拒否（403）または制限（429）されている。しばらく呼ばない。"""
+    """AppleにこのサーバーのIPが拒否（403）または制限（429）されている。しばらく呼ばない。"""
 _SIZE_RE = re.compile(r"/\d+x\d+(bb)?\.(jpg|png)$")
 _SIZE_CAP_RE = re.compile(r"/(\d+)x(\d+)(bb)?\.(jpg|png)$")
 
-# 書き出しのマスは render.py / index.html とも 600px（CELL_PX）。それ以上の解像度を取っても
-# 縮小されて捨てられるだけで、転送量（Render の課金対象）が増える。1000x1000 は約 171KB、600x600 は約 70KB。
+# 書き出しのマスはrender.py / index.htmlとも600px（CELL_PX）。それ以上の解像度を取っても
+# 縮小されて捨てられるだけで、転送量（Renderの課金対象）が増える。1000x1000は約171KB、600x600は約70KB。
 COVER_PX = 600
 
 
 def hires(url: str, size: int = COVER_PX) -> str:
-    """artworkUrl100 → マスの大きさ（既定 600x600）版 URL。"""
+    """artworkUrl100 → マスの大きさ（既定600x600）版URL。"""
     return _SIZE_RE.sub(lambda m: f"/{size}x{size}{m.group(1) or ''}.{m.group(2)}", url)
 
 
 def clamp_size(url: str, limit: int = COVER_PX) -> str:
-    """mzstatic の画像 URL の指定サイズを limit 以下に落とす。limit 以下ならそのまま返す。
+    """mzstaticの画像URLの指定サイズをlimit以下に落とす。limit以下ならそのまま返す。
 
-    既に保存済みのグリッド（1000x1000 で保存されている）にも効かせるため、/image-proxy から呼ぶ。
+    既に保存済みのグリッド（1000x1000で保存されている）にも効かせるため、/image-proxyから呼ぶ。
     """
     if "mzstatic.com" not in url:
         return url
@@ -90,20 +90,20 @@ _TRACK_ID_RE = re.compile(r"[?&]i=(\d+)")
 
 
 def track_id(url: str | None) -> str | None:
-    """trackViewUrl（`https://music.apple.com/jp/album/…/1538265733?i=1538265741`）から曲の ID を取る。"""
+    """trackViewUrl（`https://music.apple.com/jp/album/…/1538265733?i=1538265741`）から曲のIDを取る。"""
     m = _TRACK_ID_RE.search(url or "")
     return m.group(1) if m else None
 
 
 async def to_english(tracks: list[Track], *, client: httpx.AsyncClient | None = None) -> list[Track]:
-    """**英語の画面向けに、iTunes の曲名・アーティスト名・アルバム名を米国のストアの表記に差し替える**（2026-09-17）。
+    """**英語の画面向けに、iTunesの曲名・アーティスト名・アルバム名を米国のストアの表記に差し替える**（2026-09-17）。
 
     検索そのものは日本のストアのまま（米国のストアには無い曲があり、「ずっと真夜中でいいのに 秒針を噛む」は
-    カラオケ版が先頭に来る。絞り込みも日本語の入力と英語表記が合わず候補から消える）。見つかった曲の ID を
-    まとめて米国のストアに 1 回だけ問い合わせ、表記があるものだけ差し替える（「マリーゴールド / あいみょん」→
+    カラオケ版が先頭に来る。絞り込みも日本語の入力と英語表記が合わず候補から消える）。見つかった曲のIDを
+    まとめて米国のストアに1回だけ問い合わせ、表記があるものだけ差し替える（「マリーゴールド / あいみょん」→
     「Marigold / Aimyon」）。米国のストアに無い曲・問い合わせに失敗したときは日本語表記のまま返す。
-    ID は trackViewUrl の `i=` から取るので、キャッシュ済みの結果にもそのまま効く。
-    frontend の `itunesEnglish` と同じ規則。
+    IDはtrackViewUrlの `i=` から取るので、キャッシュ済みの結果にもそのまま効く。
+    frontendの `itunesEnglish` と同じ規則。
     """
     ids = list(dict.fromkeys(i for t in tracks if t.source == "itunes" and (i := track_id(t.external_url))))
     if not ids or is_blocked() or proxy_url():
@@ -144,23 +144,23 @@ async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "J
     params = {"term": term, "entity": "song", "country": country, "limit": limit}
     global _blocked_until
     if time.monotonic() < _blocked_until:
-        raise SourceBlocked("iTunes がこのサーバーからのアクセスを制限しています（しばらく待ってから再検索）")
+        raise SourceBlocked("iTunesがこのサーバーからのアクセスを制限しています（しばらく待ってから再検索）")
     own = client is None
     client = client or httpx.AsyncClient(timeout=10)
     endpoint, headers = _endpoint()
     try:
         r = await client.get(endpoint, params=params, headers=headers)
         if r.status_code in (403, 429):
-            # 共有 IP（Render など）が Apple に拒否されている。叩き続けると悪化するので一定時間止める
+            # 共有IP（Renderなど）がAppleに拒否されている。叩き続けると悪化するので一定時間止める
             _blocked_until = time.monotonic() + BLOCK_SECONDS
-            print(f"[itunes] {r.status_code}{'（中継経由）' if proxy_url() else ''} → {BLOCK_SECONDS}s 停止")
-            raise SourceBlocked(f"iTunes がこのサーバーからのアクセスを制限しています（{r.status_code}）")
+            print(f"[itunes] {r.status_code}{'（中継経由）' if proxy_url() else ''} → {BLOCK_SECONDS}s停止")
+            raise SourceBlocked(f"iTunesがこのサーバーからのアクセスを制限しています（{r.status_code}）")
         r.raise_for_status()
         data = r.json()
     finally:
         if own:
             await client.aclose()
-    # iTunes の検索はあいまい（アルバム名や作曲者にも当たり、関係ない曲まで返る）ので、
+    # iTunesの検索はあいまい（アルバム名や作曲者にも当たり、関係ない曲まで返る）ので、
     # 正規化した曲名にクエリを含み、かつアーティスト名にクエリのアーティストを含むものだけに絞る
     # （空白・記号・大小・全角半角は無視）。完全一致を先頭に、それ以外はそのあとに並べる
     want_title, want_artist = _n(q), _n(artist)
@@ -180,6 +180,6 @@ async def search(q: str, artist: str = "", *, limit: int = 25, country: str = "J
             loose.append(t)   # アーティスト名だけ合わない。表記違い（英語で入れて登録が日本語など）の可能性
             continue
         (exact if (not want_title or nt == want_title) and (not want_artist or na == want_artist) else partial).append(t)
-    # アーティスト名で 1 件も残らなかったときは、曲名だけ合うものを出す。
-    # 「Kenshi Yonezu」で探しても登録が「米津玄師」だと 0 件になり、何も出ないより候補を見せたほうがよい
+    # アーティスト名で1件も残らなかったときは、曲名だけ合うものを出す。
+    # 「Kenshi Yonezu」で探しても登録が「米津玄師」だと0件になり、何も出ないより候補を見せたほうがよい
     return exact + partial if (exact or partial) else loose

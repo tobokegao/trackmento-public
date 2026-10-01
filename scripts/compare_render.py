@@ -1,6 +1,6 @@
-"""サーバー描画（backend/render.py）とブラウザ描画（frontend の renderShareCanvas）を突き合わせる。
+"""サーバー描画（backend/render.py）とブラウザ描画（frontendのrenderShareCanvas）を突き合わせる。
 
-レイアウト・色・文字の省略規則は 2 か所に同じものを書いてあり、**片方だけ直すとずれる**。
+レイアウト・色・文字の省略規則は2か所に同じものを書いてあり、**片方だけ直すとずれる**。
 定数が揃っていても計算の途中で食い違うことがあるので、実際に同じ並びを両方で描いて比べる。
 
 使い方（サーバーは公開モードで、共有の上限を外して立てる）:
@@ -10,20 +10,20 @@
 
     # 1) 比べたい並びでサーバー描画の共有を作る
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 16 16 1:1
-    #    曲名リストの流し込みを比べるときは fill を足して全マス埋める
+    #    曲名リストの流し込みを比べるときはfillを足して全マス埋める
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 16 16 16:9 fill
-    #    「ぼかして埋める」を比べるときは blur（マスは正方形のまま）、横長のマスなら wide も足す
+    #    「ぼかして埋める」を比べるときはblur（マスは正方形のまま）、横長のマスならwideも足す
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 3 3 1:1 blur
-    # 2) 出た URL をブラウザで開き「トラックを共有」を押す（ブラウザ描画の共有ができる）
-    # 3) 2 つの共有 ID を比べる
+    # 2) 出たURLをブラウザで開き「トラックを共有」を押す（ブラウザ描画の共有ができる）
+    # 3) 2つの共有IDを比べる
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py diff <サーバーのID> <ブラウザのID>
-    # 4) 作ったテスト共有を R2 から消す（残すと本番の保存容量を食う）
+    # 4) 作ったテスト共有をR2から消す（残すと本番の保存容量を食う）
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py clean <ID> <ID> ...
 
-見方: 差は**輪郭だけ**なら正常（文字のラスタライズと JPEG の違い）。マスや文字の位置がずれていれば
-面として差が出るので、ぼかしたあとにも差が残る。**3px のぼかしで 1% 未満、または 6px で 0.3% 未満**なら正常。
-マスが少ないと文字が大きくなり、3px では輪郭が消えきらない（2026-09-14 の実測で 4x4 が 1.65%。
-6px まで掛けると 0.07% になり、行の位置は完全に一致していた）。
+見方: 差は**輪郭だけ**なら正常（文字のラスタライズとJPEGの違い）。マスや文字の位置がずれていれば
+面として差が出るので、ぼかしたあとにも差が残る。**3pxのぼかしで1% 未満、または6pxで0.3% 未満**なら正常。
+マスが少ないと文字が大きくなり、3pxでは輪郭が消えきらない（2026-09-14の実測で4x4が1.65%。
+6pxまで掛けると0.07% になり、行の位置は完全に一致していた）。
 """
 from __future__ import annotations
 
@@ -42,9 +42,9 @@ NO_COVER_CELL = {"source": "manual", "title": "ジャケット無しの曲", "ar
 
 
 def make(cols: int, rows: int, ratio: str, fill: bool = False, blur: bool = False, wide: bool = False) -> None:
-    """grids/default.json の曲を使って比較用の並びを作り、サーバー描画の共有を 1 件作る。
+    """grids/default.jsonの曲を使って比較用の並びを作り、サーバー描画の共有を1件作る。
 
-    fill=True なら曲を繰り返して全部のマスを埋める。曲名リストの流し込み（曲が多いときだけ
+    fill=Trueなら曲を繰り返して全部のマスを埋める。曲名リストの流し込み（曲が多いときだけ
     切り替わる）を比べるには、マスが埋まっていないと再現しない。
     """
     src = json.loads((ROOT / "grids" / "default.json").read_text(encoding="utf-8"))
@@ -66,7 +66,7 @@ def make(cols: int, rows: int, ratio: str, fill: bool = False, blur: bool = Fals
         c.put(f"{BASE}/grids/{name}", json=doc).raise_for_status()
         d = c.post(f"{BASE}/share", json={"grid": name}).json()
     print(f"サーバー描画: {d['id']}  {d.get('width')}x{d.get('height')}")
-    print(f"次: ブラウザで {BASE}/?share={d['id']} を開き「トラックを共有」を押す")
+    print(f"次: ブラウザで{BASE}/?share={d['id']}を開き「トラックを共有」を押す")
 
 
 def _load(sid: str) -> Image.Image:
@@ -77,22 +77,22 @@ def _load(sid: str) -> Image.Image:
 
 def diff(srv: str, web: str) -> int:
     a, b = _load(srv), _load(web)
-    print(f"サーバー描画 {a.size} / ブラウザ描画 {b.size}")
+    print(f"サーバー描画{a.size} / ブラウザ描画{b.size}")
     if a.size != b.size:
         print("  大きさが違う（端末ごとの上限の差）。合わせてから比べる")
         b = b.resize(a.size, Image.LANCZOS)
     n = a.size[0] * a.size[1]
     raw = ImageChops.difference(a, b).convert("L")
     soft = ImageChops.difference(a.filter(ImageFilter.GaussianBlur(3)), b.filter(ImageFilter.GaussianBlur(3))).convert("L")
-    # マスが少ないと文字が大きくなり、3px のぼかしでは輪郭の差が消えきらない（4x4 で 1.3% 出る）。
-    # 6px まで掛けても残るならレイアウトのずれ
+    # マスが少ないと文字が大きくなり、3pxのぼかしでは輪郭の差が消えきらない（4x4で1.3% 出る）。
+    # 6pxまで掛けても残るならレイアウトのずれ
     soft6 = ImageChops.difference(a.filter(ImageFilter.GaussianBlur(6)), b.filter(ImageFilter.GaussianBlur(6))).convert("L")
     rh, sh, sh6 = raw.histogram(), soft.histogram(), soft6.histogram()
     over = lambda h, t: sum(h[t + 1 :]) / n * 100   # noqa: E731
     print(f"そのまま: 差>8 {over(rh, 8):.2f}%  差>32 {over(rh, 32):.2f}%  差>128 {over(rh, 128):.2f}%")
     print(f"ぼかし後: 差>32 {over(sh, 32):.2f}%（3px） / {over(sh6, 32):.2f}%（6px）")
-    print("  ← 3px が 1% 未満、または 6px が 0.3% 未満なら正常（文字が大きいと 3px では輪郭が残る）")
-    # **グリッド側と曲名リスト側を分けて出す**。マスが少ないとジャケットの縮小の仕方（PIL と Canvas）の
+    print("  ← 3pxが1% 未満、または6pxが0.3% 未満なら正常（文字が大きいと3pxでは輪郭が残る）")
+    # **グリッド側と曲名リスト側を分けて出す**。マスが少ないとジャケットの縮小の仕方（PILとCanvas）の
     # 違いが大きく出て、レイアウトのずれと見分けがつかないため。見たいのはリスト側
     cut = int(a.size[0] * 0.52)
     for label, box in (("  グリッド側", (0, 0, cut, a.size[1])), ("  曲名リスト側", (cut, 0, a.size[0], a.size[1]))):
@@ -110,12 +110,12 @@ def diff(srv: str, web: str) -> int:
     canvas.paste(b.resize(sz, Image.LANCZOS), (0, sz[1] + 10))
     canvas.paste(raw.point(lambda v: min(255, v * 6)).convert("RGB").resize(sz, Image.LANCZOS), (0, sz[1] * 2 + 20))
     canvas.save(out, "JPEG", quality=88)
-    print(f"比較画像: {out}（上=サーバー 中=ブラウザ 下=差分を 6 倍に強調）")
+    print(f"比較画像: {out}（上=サーバー 中=ブラウザ 下=差分を6倍に強調）")
     return 0 if (over(sh, 32) < 1.0 or over(sh6, 32) < 0.3) else 1
 
 
 def clean(ids: list[str]) -> None:
-    """作ったテスト共有を R2 から消す。ID を明示するので一括削除にはならない。"""
+    """作ったテスト共有をR2から消す。IDを明示するので一括削除にはならない。"""
     import os
     for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
         if "=" in line and not line.strip().startswith("#"):

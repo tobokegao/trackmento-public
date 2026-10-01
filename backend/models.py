@@ -9,7 +9,7 @@ Source = Literal["itunes", "musicbrainz", "discogs", "bandcamp", "soundcloud", "
 MAX_TEXT = 300
 MAX_URL = 2048
 # 曲ごとのメモ（選んだ理由など）。**共有ページの曲名リストにだけ出す**（書き出し画像には描かない）。
-# 200 字・3 行まで（frontend の `NOTE_MAX` / `NOTE_LINES` と同じ）
+# 200字・3行まで（frontendの `NOTE_MAX` / `NOTE_LINES` と同じ）
 MAX_NOTE = 200
 MAX_NOTE_LINES = 3
 
@@ -18,8 +18,8 @@ def _is_http(v: str) -> bool:
     return v.lower().startswith(("http://", "https://")) and len(v) <= MAX_URL
 
 
-# ジャケットが無い曲に使う、うちの画像（scripts/build_icons.py が作る）。
-# 絶対 URL にすると手元と公開とで別の URL になり、共有した並びが他の人の環境で壊れるので相対で持つ
+# ジャケットが無い曲に使う、うちの画像（scripts/build_icons.pyが作る）。
+# 絶対URLにすると手元と公開とで別のURLになり、共有した並びが他の人の環境で壊れるので相対で持つ
 NO_COVER = "/no-cover.png"
 
 
@@ -28,7 +28,7 @@ def _safe_ref(v: str) -> bool:
 
 
 class Origin(BaseModel):
-    """この動画の**元になった動画**（転載元）。YouTube の概要欄に「転載」「本家」などと
+    """この動画の**元になった動画**（転載元）。YouTubeの概要欄に「転載」「本家」などと
     書かれていたときだけ入る（`backend/sources/video.py`）。アーティスト名の候補として使う"""
     kind: Literal["nicovideo", "youtube"]
     id: str
@@ -53,9 +53,9 @@ class Track(BaseModel):
     image: str
     thumb: Optional[str] = None
     external_url: Optional[str] = None
-    # 正方形でないマスに、この絵をどう入れるか。None なら並び全体の設定（`GridOptions.cellFit`）に従う。
+    # 正方形でないマスに、この絵をどう入れるか。Noneなら並び全体の設定（`GridOptions.cellFit`）に従う。
     # "crop" は中央で切る、"blur" は切らずに左右をぼかした下地で埋める。**マスに置いたあとの見た目の話**なので
-    # 検索結果には出ない（`backend/render.py` と frontend の `paintCover` が読む）
+    # 検索結果には出ない（`backend/render.py` とfrontendの `paintCover` が読む）
     fit: Optional[str] = None
     # 転載元の動画（分かったときだけ）。アーティスト名の候補に使う
     origin: Optional[Origin] = None
@@ -70,7 +70,7 @@ class Track(BaseModel):
     @field_validator("note", mode="before")
     @classmethod
     def _note(cls, v):
-        # 行ごとに空白を詰め、空行を落として 3 行・200 字まで。何も残らなければ None
+        # 行ごとに空白を詰め、空行を落として3行・200字まで。何も残らなければNone
         if not isinstance(v, str):
             return None
         lines = [" ".join(x.split()) for x in v.splitlines()]
@@ -80,21 +80,21 @@ class Track(BaseModel):
     @field_validator("title", "artist", "album", mode="before")
     @classmethod
     def _one_line(cls, v):
-        # 改行・タブは空白 1 つに（Pillow は改行を含む文字列の幅計測で ValueError を投げる）。長さも抑える
+        # 改行・タブは空白1つに（Pillowは改行を含む文字列の幅計測でValueErrorを投げる）。長さも抑える
         return " ".join(str(v).split())[:MAX_TEXT] if isinstance(v, str) else v
 
     @field_validator("image", mode="before")
     @classmethod
     def _image_url(cls, v):
-        # 画像は https?:// の URL か、アップロード（/uploads/<name>）だけ。それ以外は不正としてマスごと落とす
+        # 画像はhttps?:// のURLか、アップロード（/uploads/<name>）だけ。それ以外は不正としてマスごと落とす
         if not isinstance(v, str) or not _safe_ref(v.strip()):
-            raise ValueError("image は https?:// の URL か /uploads/ の参照だけ受け付けます")
+            raise ValueError("imageはhttps?:// のURLか /uploads/ の参照だけ受け付けます")
         return v.strip()[:MAX_URL]
 
     @field_validator("thumb", "external_url", mode="before")
     @classmethod
     def _opt_url(cls, v):
-        # リンク先は https?:// だけ。javascript: や data: は捨てる（共有を読み込んだ他人のブラウザで開かれるため）
+        # リンク先はhttps?:// だけ。javascript: やdata: は捨てる（共有を読み込んだ他人のブラウザで開かれるため）
         if v is None:
             return None
         v = str(v).strip()

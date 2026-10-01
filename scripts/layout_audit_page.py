@@ -1,10 +1,10 @@
-"""割り付けの総点検（layout_audit.py）の結果を、外から見られる 1 枚の HTML にまとめる。
+"""割り付けの総点検（layout_audit.py）の結果を、外から見られる1枚のHTMLにまとめる。
 
     PYTHONUTF8=1 .venv/Scripts/python scripts/layout_audit_page.py <出力先ディレクトリ>
 
-画像は全部で 1,100 枚あって公開には多すぎるので、**問題の種類ごとにひどい順 30 件**だけ選ぶ。
-数値は全 2,950 件ぶんを表に入れる（ページ内で並べ替え・絞り込みできる）。
-選んだ画像は出力先の `img/` に複製する（Artifact の supporting files として上げるため）。
+画像は全部で1,100枚あって公開には多すぎるので、**問題の種類ごとにひどい順30件**だけ選ぶ。
+数値は全2,950件ぶんを表に入れる（ページ内で並べ替え・絞り込みできる）。
+選んだ画像は出力先の `img/` に複製する（Artifactのsupporting filesとして上げるため）。
 """
 from __future__ import annotations
 
@@ -20,9 +20,9 @@ PER_GROUP = 30
 GROUPS = [
     ("title", "タイトルが曲名リストより小さい", "タイトルが目立たない",
      lambda m: m["title_ratio"],
-     "曲名リストの大きさは「入る量」から決まるのに、タイトルは今までどおりマスの幅の 4.5%（上限 96）から"
+     "曲名リストの大きさは「入る量」から決まるのに、タイトルは今までどおりマスの幅の4.5%（上限96）から"
      "決めている。曲が少ないと曲名が大きくなり、タイトルのほうが小さくなる。"
-     "回り込みでは先に直したが、流し込みと 1 曲 1 行が残っている。"),
+     "回り込みでは先に直したが、流し込みと1曲1行が残っている。"),
     ("font", "曲名リストが読めない大きさ", "文字が小さい",
      lambda m: m["font"],
      "すべて「比率なし」。横に長い並びだと右の曲名リストに幅が残らず、下限まで落ちる。"
@@ -88,11 +88,11 @@ def main() -> int:
     html = html.replace("__COUNTS__", json.dumps(counts, ensure_ascii=False))
     html = html.replace("__SHOTS__", str(len(copied)))
     (out / "audit.html").write_text(html, encoding="utf-8")
-    print(f"{out / 'audit.html'}  画像 {len(copied)} 枚")
+    print(f"{out / 'audit.html'}  画像{len(copied)}枚")
     return 0
 
 
-PAGE = r"""<title>割り付け総点検 2026-09-15</title>
+PAGE = r"""<title>割り付け総点検2026-09-15</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;600;700&family=Silkscreen:wght@400;700&display=swap">
@@ -175,11 +175,11 @@ footer{margin-top:44px;border-top:2px solid var(--line);padding-top:14px;color:v
 </style>
 
 <div class="wrap">
-<p class="eyebrow">TRACKMENTO ／ 書き出し画像の割り付け</p>
+<p class="eyebrow">TRACKMENTO／ 書き出し画像の割り付け</p>
 <h1>並び × 比率 の総点検</h1>
-<p class="sub">横×縦（1 辺 32 マス・総数 256 マスまで）と比率 5 種の<b>全 __TOTAL__ 通り</b>を実際に組み、
+<p class="sub">横×縦（1辺32マス・総数256マスまで）と比率5種の<b>全 __TOTAL__ 通り</b>を実際に組み、
 出力での曲名・タイトル・マスの大きさ、文字の埋まり具合、段の狭さを測った結果。
-曲名リストあり・タイトルあり・番号あり、出力の最大辺 2400px。</p>
+曲名リストあり・タイトルあり・番号あり、出力の最大辺2400px。</p>
 
 <div class="tally">
   <div class="tile"><b>__TOTAL__</b><span>組み合わせ</span></div>
@@ -187,16 +187,16 @@ footer{margin-top:44px;border-top:2px solid var(--line);padding-top:14px;color:v
   <div class="tile"><b>__SHOTS__</b><span>この頁に載せた実物</span></div>
   <div class="tile"><b id="t-worst">—</b><span>いちばん小さい曲名（px）</span></div>
 </div>
-<p class="sub">判定のしきい値は、曲名 12px 未満／マス 40px 未満／文字の埋まり 0.60 未満／
-タイトルが曲名の 1.2 倍未満／回り込みの段が 14 字未満。
-実物は<b>ひどい順に各 30 件</b>まで。残りは下の表で全件見られる。</p>
+<p class="sub">判定のしきい値は、曲名12px未満／マス40px未満／文字の埋まり0.60未満／
+タイトルが曲名の1.2倍未満／回り込みの段が14字未満。
+実物は<b>ひどい順に各30件</b>まで。残りは下の表で全件見られる。</p>
 
 <div id="sections"></div>
 
 <section>
   <div class="bar"><h2>全 __TOTAL__ 通りの数値</h2><div class="stripe"></div></div>
   <div class="tools">
-    <input type="search" id="q" placeholder="12x8 や 9:16 で絞る" aria-label="絞り込み">
+    <input type="search" id="q" placeholder="12x8や9:16で絞る" aria-label="絞り込み">
     <label><input type="checkbox" id="onlybad"> 気になるものだけ</label>
     <span class="count" id="count"></span>
   </div>
@@ -207,22 +207,22 @@ footer{margin-top:44px;border-top:2px solid var(--line);padding-top:14px;color:v
   </tr></thead><tbody></tbody></table></div>
 </section>
 
-<footer>2026-09-16 に <code>scripts/layout_audit.py --render</code> で測定。
-「柱・帯」（塊を枠の辺にぴったり付ける）と「マスごと」（1〜3 列の並びで曲名をマスの横に、
-マスと同じ並び順で置く）に加えて、<b>1 段だけの並び（N×1）は曲名を縦一列に積む</b>ようにし、
-タイトルの大きさに枠の短い辺の 6% という天井（ただし本文より小さくはしない）を入れた回。
-さらに<b>曲名は「段の幅に 14 字が入る大きさ」まで下げる</b>ようにした（曲が少ないと 1 曲にマス 1 つぶんの
+<footer>2026-09-16に <code>scripts/layout_audit.py --render</code> で測定。
+「柱・帯」（塊を枠の辺にぴったり付ける）と「マスごと」（1〜3列の並びで曲名をマスの横に、
+マスと同じ並び順で置く）に加えて、<b>1段だけの並び（N×1）は曲名を縦一列に積む</b>ようにし、
+タイトルの大きさに枠の短い辺の6% という天井（ただし本文より小さくはしない）を入れた回。
+さらに<b>曲名は「段の幅に14字が入る大きさ」まで下げる</b>ようにした（曲が少ないと1曲にマス1つぶんの
 高さが割り当たり、文字が育って曲名が数文字で切れていた）。
-<b>要確認は 192 → 32 件</b>。「タイトルが目立たない」「余白が目立つ」「段が狭い」「文字が小さい」は 0 件。
-残る 32 件はすべて 31〜32 マス幅の並びで、出力の最大辺 2400px に 32 マスを並べる以上
-マスが 38〜39px になるもの。<b>これは許容と決めた</b>。
+<b>要確認は192 → 32件</b>。「タイトルが目立たない」「余白が目立つ」「段が狭い」「文字が小さい」は0件。
+残る32件はすべて31〜32マス幅の並びで、出力の最大辺2400pxに32マスを並べる以上
+マスが38〜39pxになるもの。<b>これは許容と決めた</b>。
 画像はジャケットを数枚だけ使い回して組んだもので、割り付けを見るためのもの。</footer>
 </div>
 
 <script>
 const DATA = __DATA__, COUNTS = __COUNTS__;
 const GROUPS = [
-  ["title","タイトルが曲名リストより小さい","曲名リストの大きさは「入る量」から決まるのに、タイトルはマスの幅から決めている。曲が少ないと曲名が大きくなり、タイトルのほうが小さくなる。回り込みでは先に直したが、流し込みと 1 曲 1 行が残っている。"],
+  ["title","タイトルが曲名リストより小さい","曲名リストの大きさは「入る量」から決まるのに、タイトルはマスの幅から決めている。曲が少ないと曲名が大きくなり、タイトルのほうが小さくなる。回り込みでは先に直したが、流し込みと1曲1行が残っている。"],
   ["font","曲名リストが読めない大きさ","すべて「比率なし」。横に長い並びだと右の曲名リストに幅が残らず、文字が下限まで落ちる。回り込みは比率が決まっているときだけなので、ここには効かない。"],
   ["cell","ジャケットが判別できない大きさ","曲が多いうえに、並びの形と枠の比率が食い違うもの。曲名を読める大きさにすると、そのぶんマスが潰れる。「選べないようにする」候補はここ。"],
   ["fill","使われない余白が目立つ",""],
@@ -235,14 +235,14 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",
 document.getElementById("t-worst").textContent = Math.min(...DATA.rows.map((r) => r[5])).toFixed(1);
 
 const card = (m, ok) => `<div class="card${ok ? " ok" : ""}">
-  <figure><img src="img/${esc(m.t)}" alt="${esc(m.c)}×${esc(m.r)} ${esc(m.q)} の書き出し例" loading="lazy"></figure>
-  <div><div class="name">${m.c}×${m.r} ${esc(m.q)}</div><div class="mode">${esc(m.mode)}・${m.n} 曲</div></div>
+  <figure><img src="img/${esc(m.t)}" alt="${esc(m.c)}×${esc(m.r)} ${esc(m.q)}の書き出し例" loading="lazy"></figure>
+  <div><div class="name">${m.c}×${m.r} ${esc(m.q)}</div><div class="mode">${esc(m.mode)}・${m.n}曲</div></div>
   <dl class="kv">
     <dt>曲名</dt><dd>${m.font} px</dd>
-    <dt>タイトル</dt><dd>本文の ${m.tr} 倍</dd>
+    <dt>タイトル</dt><dd>本文の${m.tr}倍</dd>
     <dt>マス</dt><dd>${m.cell} px</dd>
     ${m.fill === null ? "" : `<dt>埋まり</dt><dd>${m.fill}</dd>`}
-    ${m.seg === null ? "" : `<dt>最小の段</dt><dd>${m.seg} 字</dd>`}
+    ${m.seg === null ? "" : `<dt>最小の段</dt><dd>${m.seg}字</dd>`}
   </dl>
   ${m.bad.length ? `<div class="flags">${m.bad.map((b) => `<span class="flag">${esc(b)}</span>`).join("")}</div>` : ""}
 </div>`;
@@ -252,7 +252,7 @@ document.getElementById("sections").innerHTML = GROUPS.map(([key, title, why]) =
   if (!cards.length) return "";
   const total = key === "fine" ? cards.length : (COUNTS[TAG[key]] || cards.length);
   const more = (key !== "fine" && total > cards.length)
-    ? `<p class="count">ひどい順に ${cards.length} 件。ほか ${total - cards.length} 件は下の表に。</p>` : "";
+    ? `<p class="count">ひどい順に${cards.length}件。ほか${total - cards.length}件は下の表に。</p>` : "";
   return `<section>
     <div class="bar"><h2>${esc(title)}</h2><div class="stripe"></div><span class="n">${total}</span></div>
     ${why ? `<p class="why sub">${esc(why)}</p>` : ""}
@@ -267,7 +267,7 @@ function draw() {
   const term = q.value.trim().toLowerCase(), bad = onlybad.checked;
   const rows = view.filter((r) => (!bad || r[10]) &&
     (!term || (`${r[0]}x${r[1]} ${r[2]} ${r[4]} ${r[10]}`).toLowerCase().includes(term)));
-  count.textContent = `${rows.length} 件`;
+  count.textContent = `${rows.length}件`;
   tb.innerHTML = rows.map((r) => `<tr class="${r[10] ? "bad" : ""}">
     <td class="l">${r[0]}×${r[1]}</td><td class="l">${esc(r[2])}</td><td class="l">${esc(r[4])}</td>
     <td>${r[3]}</td><td>${r[5]}</td><td>${r[6]}</td><td>${r[7]}</td>

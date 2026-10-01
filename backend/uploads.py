@@ -1,7 +1,7 @@
-"""手入力用のローカル画像。uploads/ に保存し、/uploads/<name> という相対 URL で Track.image に入れる。
+"""手入力用のローカル画像。uploads/ に保存し、/uploads/<name> という相対URLでTrack.imageに入れる。
 
-相対 URL にしておくのは、PUBLIC_BASE_URL（LAN IP や Tailscale）が変わっても壊れないようにするため。
-/image-proxy・render.py・CLI はこの接頭辞を見てローカルファイルを直接読む。
+相対URLにしておくのは、PUBLIC_BASE_URL（LAN IPやTailscale）が変わっても壊れないようにするため。
+/image-proxy・render.py・CLIはこの接頭辞を見てローカルファイルを直接読む。
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from PIL import Image
 
 from backend import storage
 
-Image.MAX_IMAGE_PIXELS = 24_000_000   # 展開爆弾対策（render.py と同じ値）
+Image.MAX_IMAGE_PIXELS = 24_000_000   # 展開爆弾対策（render.pyと同じ値）
 
 ROOT = Path(__file__).resolve().parent.parent
 UPLOADS = ROOT / "uploads"
@@ -30,7 +30,7 @@ def is_upload_url(url: str) -> bool:
 
 
 def local_path(url: str) -> Path | None:
-    """/uploads/<name> → 実ファイル。名前が不正か無ければ None。"""
+    """/uploads/<name> → 実ファイル。名前が不正か無ければNone。"""
     if not is_upload_url(url):
         return None
     name = url[len(PREFIX):]
@@ -45,7 +45,7 @@ def content_type(path: Path | str) -> str:
 
 
 def read_bytes(url: str) -> tuple[bytes, str] | None:
-    """/uploads/<name> の中身と content-type。R2 を使っているときはそちらから、無ければローカルから。"""
+    """/uploads/<name> の中身とcontent-type。R2を使っているときはそちらから、無ければローカルから。"""
     if not is_upload_url(url):
         return None
     name = url[len(PREFIX):]
@@ -56,7 +56,7 @@ def read_bytes(url: str) -> tuple[bytes, str] | None:
         data = st.get(f"uploads/{name}")
         if data is not None:
             return (data, content_type(name))
-        # R2 に無ければローカルも見る。手元で R2 を設定する前に保存した画像が読めなくなるため
+        # R2に無ければローカルも見る。手元でR2を設定する前に保存した画像が読めなくなるため
         # （公開サーバーのディスクは再デプロイで空になるので、ここに来ても普通は見つからない）
     p = UPLOADS / name
     return (p.read_bytes(), content_type(p)) if p.is_file() else None
@@ -64,21 +64,21 @@ def read_bytes(url: str) -> tuple[bytes, str] | None:
 
 def _reencode(data: bytes) -> tuple[bytes, str]:
     """画素だけを取り出して保存し直す。EXIF（撮影日時・位置情報・機種）や埋め込みプロファイル、コメントは残さない。
-    写真（JPEG）は JPEG、それ以外は PNG（透明を保つ）。GIF は最初のコマだけ。長辺は MAX_SIDE まで縮める。"""
+    写真（JPEG）はJPEG、それ以外はPNG（透明を保つ）。GIFは最初のコマだけ。長辺はMAX_SIDEまで縮める。"""
     try:
         im = Image.open(io.BytesIO(data))
         fmt = im.format or ""
         if fmt == "JPEG":
-            im.draft("RGB", (MAX_SIDE, MAX_SIDE))   # 縮小デコード（原寸を展開しない）。MAX_SIDE 以上の最小スケールになる
+            im.draft("RGB", (MAX_SIDE, MAX_SIDE))   # 縮小デコード（原寸を展開しない）。MAX_SIDE以上の最小スケールになる
         im.load()
     except Exception as e:
-        raise ValueError("画像として読めませんでした（JPEG / PNG / WebP / GIF に対応）") from e
+        raise ValueError("画像として読めませんでした（JPEG / PNG / WebP / GIFに対応）") from e
     try:
         if fmt == "JPEG":
             from PIL import ImageOps
-            im = ImageOps.exif_transpose(im)   # 向きだけは反映してから EXIF を捨てる
+            im = ImageOps.exif_transpose(im)   # 向きだけは反映してからEXIFを捨てる
         im.thumbnail((MAX_SIDE, MAX_SIDE))
-        im = Image.frombytes(im.mode, im.size, im.tobytes())   # 画素だけを新しい画像に写す（info のコメント・ICC・EXIF を持ち越さない）
+        im = Image.frombytes(im.mode, im.size, im.tobytes())   # 画素だけを新しい画像に写す（infoのコメント・ICC・EXIFを持ち越さない）
         buf = io.BytesIO()
         if fmt == "JPEG":
             im.convert("RGB").save(buf, "JPEG", quality=90, optimize=True)
@@ -94,12 +94,12 @@ def _reencode(data: bytes) -> tuple[bytes, str]:
 def save_image_bytes(data: bytes) -> str:
     """画像として開けることを確認し、メタデータを落として保存し、/uploads/<name> を返す。名前はランダム。"""
     if len(data) > MAX_BYTES:
-        raise ValueError("画像が大きすぎます（15MB まで）")
+        raise ValueError("画像が大きすぎます（15MBまで）")
     data, ext = _reencode(data)
     name = f"{secrets.token_hex(8)}.{ext}"
     st = storage.get_storage()
     if st.is_remote:
-        # 公開サーバーのディスクは再デプロイで消えるので、R2 に置く（バケットのライフサイクルで期限管理）
+        # 公開サーバーのディスクは再デプロイで消えるので、R2に置く（バケットのライフサイクルで期限管理）
         st.put(f"uploads/{name}", data, content_type(name))
         return PREFIX + name
     UPLOADS.mkdir(exist_ok=True)
@@ -113,7 +113,7 @@ def save_image_bytes(data: bytes) -> str:
 
 
 def import_file(path: str | Path) -> str:
-    """CLI 用。PC 上の画像ファイルを uploads/ に取り込み /uploads/<name> を返す。"""
+    """CLI用。PC上の画像ファイルをuploads/ に取り込み /uploads/<name> を返す。"""
     p = Path(path).expanduser()
     if not p.is_file():
         raise ValueError(f"ファイルがありません: {p}")

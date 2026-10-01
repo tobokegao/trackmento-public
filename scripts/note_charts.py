@@ -1,17 +1,17 @@
-"""note の記事に貼るグラフを `outputs/note/series.json`（点検の要約から拾った数値）から描く。
+"""noteの記事に貼るグラフを `outputs/note/series.json`（点検の要約から拾った数値）から描く。
 
     PYTHONUTF8=1 .venv/Scripts/python scripts/note_charts.py
 
-出力: `outputs/note/chart-shares.png`（日ごとの共有数）、`chart-requests.png`（2 時間ごとの要求数）、
-`chart-bandwidth.png`（2 時間ごとの帯域）。見た目はサイトと同じ（クリームの地・黒い縁取り・右下に影）。
+出力: `outputs/note/chart-shares.png`（日ごとの共有数）、`chart-requests.png`（2時間ごとの要求数）、
+`chart-bandwidth.png`（2時間ごとの帯域）。見た目はサイトと同じ（クリームの地・黒い縁取り・右下に影）。
 
-series.json の 1 件は点検 1 回ぶん（`jst`、`gb`、`req_total` など）。
+series.jsonの1件は点検1回ぶん（`jst`、`gb`、`req_total` など）。
 点検のログから足すのは、要約の行を正規表現で拾うだけ（このスクリプトの `extend()`）。
 
 **作られた画像の枚数は点検のログから取らない**（2026-09-17）。ログの「本日の共有数」は、以前は
-画像キャッシュ（`imgcache/`）まで数えていて 10 倍以上多かった（9/16 は共有 2,806 件に対して 42,410 件）。
-`--r2` を付けると R2 の直下の本体画像を **UTC の日ごと**（09:00 JST で区切る）に数えて
-`shares-daily.json` に書き、それを描く。R2 から消えた日（保持期間を過ぎた日）は数えられない。
+画像キャッシュ（`imgcache/`）まで数えていて10倍以上多かった（9/16は共有2,806件に対して42,410件）。
+`--r2` を付けるとR2の直下の本体画像を **UTCの日ごと**（09:00 JSTで区切る）に数えて
+`shares-daily.json` に書き、それを描く。R2から消えた日（保持期間を過ぎた日）は数えられない。
 
     PYTHONUTF8=1 .venv/Scripts/python scripts/note_charts.py --r2 [点検のログ…]
 """
@@ -32,9 +32,9 @@ from matplotlib import font_manager  # noqa: E402
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "outputs" / "note"
 SERIES = OUT / "series.json"
-SHARES_DAILY = OUT / "shares-daily.json"   # UTC の日 → その日に作られた共有の数（`--r2` で数え直す）
+SHARES_DAILY = OUT / "shares-daily.json"   # UTCの日 → その日に作られた共有の数（`--r2` で数え直す）
 
-# サイトの色（frontend の CSS 変数と同じ値）
+# サイトの色（frontendのCSS変数と同じ値）
 PAPER, INK, MUTED = "#f6f5f3", "#121717", "#6b6f73"
 MUSTARD, VERMILION, CERULEAN, GRID = "#e5b52e", "#e5462c", "#0a8fd1", "#b9c0c8"
 
@@ -45,7 +45,7 @@ plt.rcParams["axes.unicode_minus"] = False
 
 
 def extend(log_paths: list[pathlib.Path]) -> None:
-    """点検のログ（GitHub Actions の生ログでも要約でもよい）から series.json に足す。"""
+    """点検のログ（GitHub Actionsの生ログでも要約でもよい）からseries.jsonに足す。"""
     series = json.loads(SERIES.read_text(encoding="utf-8"))
     have = {e["jst"] for e in series}
     num = lambda s: int(s.replace(",", ""))  # noqa: E731
@@ -60,7 +60,7 @@ def extend(log_paths: list[pathlib.Path]) -> None:
         g = re.search(r"\[stats\] (\d+) 行", t); e["stats"] = int(g.group(1)) if g else None
         g = re.search(r"メモリ（メトリクス）: 最大 (\d+) MB", t); e["mem"] = int(g.group(1)) if g else None
         g = re.search(r"CPU: 最大 ([\d.]+)", t); e["cpu"] = float(g.group(1)) if g else None
-        g = re.search(r"5xx 合計 (\d+)", t); e["fivexx"] = int(g.group(1)) if g else None
+        g = re.search(r"5xx合計 (\d+)", t); e["fivexx"] = int(g.group(1)) if g else None
         g = re.search(r"本日の共有数（最後の復元値）: ([\d,]+) 件", t); e["shares_today"] = num(g.group(1)) if g else None
         ua = re.search(r"User-Agent: (.+)", t)
         if ua:
@@ -82,14 +82,14 @@ def load() -> list[dict]:
 
 
 def sane(series: list[dict]) -> list[dict]:
-    """折れ線に使える点だけ（API の単位が取れず 40GB になった回、帯域 0 の空振り、2 時間以外の窓を捨てる）。
+    """折れ線に使える点だけ（APIの単位が取れず40GBになった回、帯域0の空振り、2時間以外の窓を捨てる）。
     **共有数の集計には使わない**。帯域が欠けた点にも共有数は入っていて、捨てるとその日の最大値を取り逃す"""
     return [e for e in series if e.get("hours") == 2 and e.get("gb") and 0 < e["gb"] < 10]
 
 
 def count_r2() -> None:
-    """R2 の直下にある共有の本体画像（.jpg / .png、カード用 -og.jpg を除く）を UTC の日ごとに数える。
-    **終わっていない今日の分は入れない**（09:00 JST で切り替わる）"""
+    """R2の直下にある共有の本体画像（.jpg / .png、カード用 -og.jpgを除く）をUTCの日ごとに数える。
+    **終わっていない今日の分は入れない**（09:00 JSTで切り替わる）"""
     sys.path.insert(0, str(ROOT))
     from dotenv import load_dotenv
     load_dotenv(ROOT / ".env")
@@ -103,7 +103,7 @@ def count_r2() -> None:
         if d < today:
             days[d.isoformat()] = days.get(d.isoformat(), 0) + 1
     SHARES_DAILY.write_text(json.dumps(dict(sorted(days.items())), indent=1), encoding="utf-8")
-    print("R2 の共有数:", days)
+    print("R2の共有数:", days)
 
 
 def frame(title: str, sub: str, unit: str):
@@ -127,7 +127,7 @@ def chart_shares(series: list[dict], stamp: str) -> None:
     keys = sorted(days)
     stamp = ""   # 終わった日だけを描くので「何時時点」は付けない
     fig, ax = frame("作られた画像の枚数",
-                    "その日に作られた共有画像の枚数（日本時間の朝 9 時で区切る）。9/11 朝 9:30 より前の分は、容量を空けるために削除し計測不能",
+                    "その日に作られた共有画像の枚数（日本時間の朝9時で区切る）。9/11朝9:30より前の分は、容量を空けるために削除し計測不能",
                     "枚 / 日")
     xs = range(len(keys))
     for i, d in enumerate(keys):
@@ -174,11 +174,11 @@ def main() -> int:
     series = load()
     stamp = series[-1]["t"].strftime("%H:%M")
     chart_shares(series, stamp)
-    _line(sane(series), "req_total", CERULEAN, "#bfe3f4", "回 / 2h", "どれくらい見られたか", "2 時間ごと・サイトが受け取ったアクセスの数",
-          "chart-requests.png", lambda v, _: f"{int(v):,}", lambda v: f"最大 {v:,} 回", [])
+    _line(sane(series), "req_total", CERULEAN, "#bfe3f4", "回 / 2h", "どれくらい見られたか", "2時間ごと・サイトが受け取ったアクセスの数",
+          "chart-requests.png", lambda v, _: f"{int(v):,}", lambda v: f"最大{v:,}回", [])
     _line(sane(series), "gb", MUSTARD, "#f4e8bf", "GB / 2h", "サーバーから送り出したデータの量",
-          "2 時間ごと・GB。無料で使えるのは月 100GB までなので、山が続くと足が出る",
-          "chart-bandwidth.png", lambda v, _: f"{v:.1f}", lambda v: f"最大 {v:.2f} GB",
+          "2時間ごと・GB。無料で使えるのは月100GBまでなので、山が続くと足が出る",
+          "chart-bandwidth.png", lambda v, _: f"{v:.1f}", lambda v: f"最大{v:.2f} GB",
           [(dt.datetime(2026, 9, 13, 11, 0), "画像と文字を別の置き場所へ", VERMILION),
            (dt.datetime(2026, 9, 16, 0, 30), "画面を圧縮して送る", CERULEAN)])
     print("書き出し:", OUT / "chart-*.png", "点検", len(series), "件、最後", series[-1]["jst"])

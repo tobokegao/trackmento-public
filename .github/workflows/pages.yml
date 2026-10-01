@@ -1,10 +1,10 @@
-# GitHub Pages にフロントを公開する。
-# 事前に: リポジトリの Settings → Pages → Source を "GitHub Actions" に、
-#          Settings → Secrets and variables → Actions → Variables に TRACKMENTO_API（バックエンドの URL）を登録する。
+# GitHub Pagesにフロントを公開する。
+# 事前に: リポジトリのSettings → Pages → Sourceを "GitHub Actions" に、
+#          Settings → Secrets and variables → Actions → VariablesにTRACKMENTO_API（バックエンドのURL）を登録する。
 name: Deploy frontend to GitHub Pages
 
-# 既定では手動実行のみ（Render 単体の構成では使わない）。Pages を使うときは Actions タブから Run workflow、
-# または下の push トリガーのコメントを外す。
+# 既定では手動実行のみ（Render単体の構成では使わない）。Pagesを使うときはActionsタブからRun workflow、
+# または下のpushトリガーのコメントを外す。
 on:
   workflow_dispatch:
   # push:

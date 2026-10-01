@@ -1,21 +1,21 @@
-"""TRACKMENTO CLI。Claude Code（Remote Control でスマホから）が Bash で叩く想定。
+"""TRACKMENTO CLI。Claude Code（Remote Controlでスマホから）がBashで叩く想定。
 
   python cli.py add    --artist A --title T [--grid NAME] [--source itunes|mb|discogs|otodb] [--first]
-  python cli.py add    --url URL [--grid NAME]                            # Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music の URL
+  python cli.py add    --url URL [--grid NAME]                            # Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple MusicのURL
   python cli.py add    --image URL --artist A --title T [--link URL] [--grid NAME]   # 手入力
   python cli.py pick   --index N [--grid NAME]                            # 直前の候補から選択
   python cli.py search --artist A --title T [--source ...]               # 候補を見るだけ
   python cli.py list   [--grid NAME]                                      # 現在の並びを表示
   python cli.py move   --from N --to M [--grid NAME]                      # 入れ替え
   python cli.py remove --index N [--grid NAME]
-  python cli.py share  [--grid NAME] [--size 3x3] [--ratio 16:9] [--sidebar] [--title "..."] ...   # PNG + 共有ページ URL
-  python cli.py render [--grid NAME] ...                                  # PNG だけ
+  python cli.py share  [--grid NAME] [--size 3x3] [--ratio 16:9] [--sidebar] [--title "..."] ...   # PNG + 共有ページURL
+  python cli.py render [--grid NAME] ...                                  # PNGだけ
   python cli.py clear  [--grid NAME]
   python cli.py grids                                                     # グリッド一覧
 
-- 番号 N は画面の番号バッジと同じ 1 始まり
-- 既定グリッド名は default。状態は grids/<NAME>.json に保存され Web と共有される
-- share / render の最後の行は必ず `URL: http://...`（Claude Code がそのまま転記する）
+- 番号Nは画面の番号バッジと同じ1始まり
+- 既定グリッド名はdefault。状態はgrids/<NAME>.jsonに保存されWebと共有される
+- share / renderの最後の行は必ず `URL: http://...`（Claude Codeがそのまま転記する）
 """
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ class CliError(Exception):
 
 # ---------- 表示 ----------
 def fmt_track(t: Track, trim: bool = False) -> str:
-    """1 曲ぶんの表示。`trim` は画面と同じ刈り込み（backend/names.py）を通すかどうか"""
+    """1曲ぶんの表示。`trim` は画面と同じ刈り込み（backend/names.py）を通すかどうか"""
     title, artist = names.trim(t.title, t.artist) if trim else (t.title, t.artist)
     s = f"{title} / {artist}"
     if t.album and norm_key(t.album, "") != norm_key(title, ""):
@@ -60,17 +60,17 @@ def fmt_track(t: Track, trim: bool = False) -> str:
 
 def print_list(doc: GridDoc) -> None:
     placed = doc.placed()
-    print(f"グリッド {doc.name}: {doc.cols}×{doc.rows}（{len(placed)}/{doc.size} 曲）" + (f" タイトル「{doc.title}」" if doc.title else ""))
+    print(f"グリッド{doc.name}: {doc.cols}×{doc.rows}（{len(placed)}/{doc.size}曲）" + (f" タイトル「{doc.title}」" if doc.title else ""))
     trim = doc.options.trimNames        # 画面と同じ題を見せる（`--no-trim` で保存した並びは元のまま）
     for i, t in enumerate(doc.cells):
         print(f"  {i + 1:02d}  {fmt_track(t, trim) if t else '（空）'}")
     if doc.stash:
-        print(f"  退避中: {len(doc.stash)} 曲（グリッドを広げると戻ります）")
+        print(f"  退避中: {len(doc.stash)}曲（グリッドを広げると戻ります）")
 
 
 # ---------- 検索 ----------
 async def _search(q: str, artist: str, sources: list[str]) -> tuple[list[Track], str | None]:
-    """sources の順に検索し、最初に候補が出たソースの結果を返す。"""
+    """sourcesの順に検索し、最初に候補が出たソースの結果を返す。"""
     import httpx
 
     from backend.sources import discogs, itunes, musicbrainz, otodb
@@ -87,7 +87,7 @@ async def _search(q: str, artist: str, sources: list[str]) -> tuple[list[Track],
                 try:
                     res = await fns[name](q, artist, client=client)
                 except Exception as e:  # 1ソースの失敗は次へ
-                    print(f"  ({SOURCE_LABEL[name]} で失敗: {e})", file=sys.stderr)
+                    print(f"  ({SOURCE_LABEL[name]}で失敗: {e})", file=sys.stderr)
                     continue
                 if res:
                     cache.set_search(name, q, artist, [t.model_dump() for t in res])
@@ -121,13 +121,13 @@ def save_pending(name: str, tracks: list[Track]) -> None:
 
 def load_pending() -> tuple[str, list[Track]]:
     if not PENDING.exists():
-        raise CliError("選択待ちの候補がありません。先に add か search を実行してください")
+        raise CliError("選択待ちの候補がありません。先にaddかsearchを実行してください")
     d = json.loads(PENDING.read_text(encoding="utf-8"))
     return d.get("grid", "default"), [Track.model_validate(t) for t in d.get("candidates", [])]
 
 
 def print_candidates(tracks: list[Track], name: str) -> None:
-    print(f"候補が {len(tracks)} 件あります。番号で選んでください: python cli.py pick --index N" + (f" --grid {name}" if name != "default" else ""))
+    print(f"候補が{len(tracks)}件あります。番号で選んでください: python cli.py pick --index N" + (f" --grid {name}" if name != "default" else ""))
     for i, t in enumerate(tracks, 1):
         print(f"  {i}. {fmt_track(t)}")
 
@@ -136,7 +136,7 @@ def print_candidates(tracks: list[Track], name: str) -> None:
 def place(doc: GridDoc, t: Track) -> int:
     i = doc.first_empty()
     if i is None:
-        raise CliError(f"空きマスがありません（{doc.cols}×{doc.rows} が全部埋まっています）。remove で外すか render --size で広げてください")
+        raise CliError(f"空きマスがありません（{doc.cols}×{doc.rows}が全部埋まっています）。removeで外すかrender --sizeで広げてください")
     doc.cells[i] = t
     doc.touch()
     grids.save(doc)
@@ -152,24 +152,24 @@ def cmd_add(a: argparse.Namespace) -> int:
         t = asyncio.run(fromurl.fetch(url))
     elif a.image:
         if not (a.title and a.artist is not None):
-            raise CliError("--image には --title と --artist が必要です")
+            raise CliError("--imageには --titleと --artistが必要です")
         image = a.image
         if not image.lower().startswith(("http://", "https://", "/uploads/")):
-            # PC 上のファイルパスなら uploads/ に取り込む
+            # PC上のファイルパスならuploads/ に取り込む
             from backend import uploads
 
             image = uploads.import_file(image)
             print(f"画像を取り込みました: {image}")
         # リンク先（--link）は曲のページ。共有ページの曲名リストからそこへ飛べる。
-        # http(s) だけ通すのは Track の検証（backend/models.py の _opt_url）に任せる
+        # http(s) だけ通すのはTrackの検証（backend/models.pyの _opt_url）に任せる
         t = Track(source="manual", title=a.title, artist=a.artist or "", image=image, thumb=image,
                   external_url=(a.link or None))
     else:
         if not (a.title or a.artist):
-            raise CliError("--title か --artist を指定してください")
+            raise CliError("--titleか --artistを指定してください")
         cands = search_candidates(a.title or "", a.artist or "", a.source)
         if not cands:
-            raise CliError("見つかりませんでした。表記を変える、--source mb を試す、Bandcamp なら --bandcamp URL、それでも無ければ --image URL で手入力してください")
+            raise CliError("見つかりませんでした。表記を変える、--source mbを試す、Bandcampなら --bandcamp URL、それでも無ければ --image URLで手入力してください")
         if a.first or len(cands) == 1 or exact(cands[0], a.title or "", a.artist or ""):
             t = cands[0]
             others = cands[1:]
@@ -180,9 +180,9 @@ def cmd_add(a: argparse.Namespace) -> int:
         if others:
             save_pending(a.grid, cands)
     i = place(doc, t)
-    print(f"{i + 1:02d} 番に追加: {fmt_track(t)}")
+    print(f"{i + 1:02d}番に追加: {fmt_track(t)}")
     if not (url or a.image) and len(cands) > 1:
-        print(f"（他に {len(cands) - 1} 件の候補あり。違う盤にしたい場合: python cli.py remove --index {i + 1} のあと pick --index N）")
+        print(f"（他に{len(cands) - 1}件の候補あり。違う盤にしたい場合: python cli.py remove --index {i + 1}のあとpick --index N）")
         for j, c in enumerate(cands, 1):
             if c is not t:
                 print(f"  {j}. {fmt_track(c)}")
@@ -195,19 +195,19 @@ def cmd_pick(a: argparse.Namespace) -> int:
     if a.grid != "default":
         name = a.grid
     if not 1 <= a.index <= len(cands):
-        raise CliError(f"--index は 1〜{len(cands)} で指定してください")
+        raise CliError(f"--indexは1〜{len(cands)}で指定してください")
     doc = grids.load(name)
     t = cands[a.index - 1]
     i = place(doc, t)
     PENDING.unlink(missing_ok=True)
-    print(f"{i + 1:02d} 番に追加: {fmt_track(t)}")
+    print(f"{i + 1:02d}番に追加: {fmt_track(t)}")
     print_list(doc)
     return 0
 
 
 def cmd_search(a: argparse.Namespace) -> int:
     if not (a.title or a.artist):
-        raise CliError("--title か --artist を指定してください")
+        raise CliError("--titleか --artistを指定してください")
     cands = search_candidates(a.title or "", a.artist or "", a.source)
     if not cands:
         print("見つかりませんでした")
@@ -224,7 +224,7 @@ def cmd_list(a: argparse.Namespace) -> int:
 
 def _check_index(doc: GridDoc, n: int, label: str) -> int:
     if not 1 <= n <= doc.size:
-        raise CliError(f"{label} は 1〜{doc.size} で指定してください")
+        raise CliError(f"{label}は1〜{doc.size}で指定してください")
     return n - 1
 
 
@@ -234,7 +234,7 @@ def cmd_move(a: argparse.Namespace) -> int:
     doc.cells[i], doc.cells[j] = doc.cells[j], doc.cells[i]
     doc.touch()
     grids.save(doc)
-    print(f"{a.src:02d} 番と {a.dst:02d} 番を入れ替えました")
+    print(f"{a.src:02d}番と{a.dst:02d}番を入れ替えました")
     print_list(doc)
     return 0
 
@@ -244,11 +244,11 @@ def cmd_remove(a: argparse.Namespace) -> int:
     i = _check_index(doc, a.index, "--index")
     t = doc.cells[i]
     if not t:
-        raise CliError(f"{a.index:02d} 番は空です")
+        raise CliError(f"{a.index:02d}番は空です")
     doc.cells[i] = None
     doc.touch()
     grids.save(doc)
-    print(f"{a.index:02d} 番の {fmt_track(t)} を外しました")
+    print(f"{a.index:02d}番の{fmt_track(t)}を外しました")
     print_list(doc)
     return 0
 
@@ -261,7 +261,7 @@ def cmd_clear(a: argparse.Namespace) -> int:
     doc.touch()
     grids.save(doc)
     PENDING.unlink(missing_ok=True)
-    print(f"グリッド {doc.name} を空にしました（{n} 曲を外しました）")
+    print(f"グリッド{doc.name}を空にしました（{n}曲を外しました）")
     return 0
 
 
@@ -272,7 +272,7 @@ def cmd_grids(a: argparse.Namespace) -> int:
         return 0
     for n in names:
         d = grids.load(n)
-        print(f"  {n}: {d.cols}×{d.rows} {len(d.placed())}/{d.size} 曲" + (f" 「{d.title}」" if d.title else "") + (f"  {d.savedAt}" if d.savedAt else ""))
+        print(f"  {n}: {d.cols}×{d.rows} {len(d.placed())}/{d.size}曲" + (f" 「{d.title}」" if d.title else "") + (f"  {d.savedAt}" if d.savedAt else ""))
     return 0
 
 
@@ -282,15 +282,15 @@ def cmd_render(a: argparse.Namespace) -> int:
 
     doc = grids.load(a.grid)
     if not doc.placed():
-        raise CliError(f"グリッド {doc.name} に曲がありません。先に add してください")
+        raise CliError(f"グリッド{doc.name}に曲がありません。先にaddしてください")
     changed = False
     if a.size:
         try:
             c, r = (int(v) for v in a.size.lower().split("x"))
         except ValueError as e:
-            raise CliError("--size は 3x3 のように指定してください") from e
+            raise CliError("--sizeは3x3のように指定してください") from e
         if not (1 <= c <= grids.MAX_COLS and 1 <= r <= grids.MAX_ROWS):
-            raise CliError(f"--size は 1〜{grids.MAX_COLS} の範囲で")
+            raise CliError(f"--sizeは1〜{grids.MAX_COLS}の範囲で")
         if (c, r) != (doc.cols, doc.rows):
             doc.resize(c, r)
             changed = True
@@ -320,16 +320,16 @@ def cmd_render(a: argparse.Namespace) -> int:
     o = doc.options
     base = public_base_url()
     if not _server_alive(base):
-        print("注意: サーバーが応答しません。URL を開くには uvicorn を起動してください（uvicorn backend.main:app --host 0.0.0.0 --port 8000）", file=sys.stderr)
+        print("注意: サーバーが応答しません。URLを開くにはuvicornを起動してください（uvicorn backend.main:app --host 0.0.0.0 --port 8000）", file=sys.stderr)
     if a.cmd == "share":
         info = share.create(doc)
-        print(f"共有: {info['id']}  {info['width']}×{info['height']}px  比率 {o.ratio}  サイドバー {'あり' if o.sidebar else 'なし'}  背景 {o.bg}")
+        print(f"共有: {info['id']}  {info['width']}×{info['height']}px  比率{o.ratio}  サイドバー{'あり' if o.sidebar else 'なし'}  背景{o.bg}")
         img = info["image"]
         print(f"画像: {img if img.startswith('http') else base + img}")
         print(f"URL: {base}/s/{info['id']}")
         return 0
     path, im = render.render_to_file(doc)
-    print(f"出力: {path.name}  {im.width}×{im.height}px  比率 {o.ratio}  サイドバー {'あり' if o.sidebar else 'なし'}  背景 {o.bg}")
+    print(f"出力: {path.name}  {im.width}×{im.height}px  比率{o.ratio}  サイドバー{'あり' if o.sidebar else 'なし'}  背景{o.bg}")
     print(f"URL: {base}/outputs/{path.name}")
     return 0
 
@@ -345,7 +345,7 @@ def _server_alive(base: str) -> bool:
 
 # ---------- 引数 ----------
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="cli.py", description="TRACKMENTO CLI（曲を探してグリッドに置き、PNG を作る）")
+    p = argparse.ArgumentParser(prog="cli.py", description="TRACKMENTO CLI（曲を探してグリッドに置き、PNGを作る）")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def grid_arg(sp: argparse.ArgumentParser) -> None:
@@ -355,12 +355,12 @@ def build_parser() -> argparse.ArgumentParser:
     grid_arg(sp)
     sp.add_argument("--title", "-t", help="曲名")
     sp.add_argument("--artist", "-a", help="アーティスト名")
-    sp.add_argument("--source", "-s", help="itunes | mb | discogs | otodb。カンマ区切りで複数可（省略時は iTunes → MusicBrainz → Discogs の順。otodb は音MAD 用で明示指定のみ）")
+    sp.add_argument("--source", "-s", help="itunes | mb | discogs | otodb。カンマ区切りで複数可（省略時はiTunes → MusicBrainz → Discogsの順。otodbは音MAD用で明示指定のみ）")
     sp.add_argument("--first", action="store_true", help="候補が複数でも先頭を採用する")
-    sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple Music のページ URL")
+    sp.add_argument("--url", "-u", metavar="URL", help="Bandcamp / SoundCloud / YouTube / ニコニコ動画 / Spotify / Apple MusicのページURL")
     sp.add_argument("--bandcamp", metavar="URL", help=argparse.SUPPRESS)  # 旧名
-    sp.add_argument("--image", metavar="URL|PATH", help="手入力: ジャケット画像の URL か PC 上のファイルパス（--title --artist と併用）")
-    sp.add_argument("--link", metavar="URL", help="手入力: 曲のページの URL（省略可。共有ページの曲名からここへ飛べる）")
+    sp.add_argument("--image", metavar="URL|PATH", help="手入力: ジャケット画像のURLかPC上のファイルパス（--title --artistと併用）")
+    sp.add_argument("--link", metavar="URL", help="手入力: 曲のページのURL（省略可。共有ページの曲名からここへ飛べる）")
     sp.set_defaults(fn=cmd_add)
 
     sp = sub.add_parser("pick", help="直前の候補から番号で選んで置く")
@@ -368,7 +368,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--index", "-i", type=int, required=True)
     sp.set_defaults(fn=cmd_pick)
 
-    sp = sub.add_parser("search", help="候補を表示するだけ（pick で選べる）")
+    sp = sub.add_parser("search", help="候補を表示するだけ（pickで選べる）")
     grid_arg(sp)
     sp.add_argument("--title", "-t")
     sp.add_argument("--artist", "-a")
@@ -379,7 +379,7 @@ def build_parser() -> argparse.ArgumentParser:
     grid_arg(sp)
     sp.set_defaults(fn=cmd_list)
 
-    sp = sub.add_parser("move", help="2 つのマスを入れ替える")
+    sp = sub.add_parser("move", help="2つのマスを入れ替える")
     grid_arg(sp)
     sp.add_argument("--from", dest="src", type=int, required=True)
     sp.add_argument("--to", dest="dst", type=int, required=True)
@@ -390,12 +390,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--index", "-i", type=int, required=True)
     sp.set_defaults(fn=cmd_remove)
 
-    sp = sub.add_parser("share", help="トラックを共有: PNG と並びのスナップショットを保存し、共有ページの URL を表示（render と同じオプション）")
+    sp = sub.add_parser("share", help="トラックを共有: PNGと並びのスナップショットを保存し、共有ページのURLを表示（renderと同じオプション）")
     grid_arg(sp)
     _render_opts(sp)
     sp.set_defaults(fn=cmd_render)
 
-    sp = sub.add_parser("render", help="PNG だけを作って outputs/ に保存し URL を表示")
+    sp = sub.add_parser("render", help="PNGだけを作ってoutputs/ に保存しURLを表示")
     grid_arg(sp)
     _render_opts(sp)
     sp.set_defaults(fn=cmd_render)
@@ -410,7 +410,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _render_opts(sp: argparse.ArgumentParser) -> None:
-    sp.add_argument("--size", help="3x3 / 4x6 / 3x8 / 5x5 / 任意 WxH")
+    sp.add_argument("--size", help="3x3 / 4x6 / 3x8 / 5x5 / 任意WxH")
     sp.add_argument("--ratio", choices=["1:1", "4:5", "16:9", "9:16", "free"])
     sp.add_argument("--sidebar", dest="sidebar", action="store_true", default=None, help="曲名リストを付ける")
     sp.add_argument("--no-sidebar", dest="sidebar", action="store_false")
@@ -429,10 +429,10 @@ def _render_opts(sp: argparse.ArgumentParser) -> None:
                              "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
                              "night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta"], help="背景色")
     sp.add_argument("--bg-custom", metavar="#RRGGBB", help="背景色を直接指定")
-    sp.add_argument("--margin", type=int, help="余白 px（0〜160）")
+    sp.add_argument("--margin", type=int, help="余白px（0〜160）")
     sp.add_argument("--pad", choices=["normal", "wide", "xwide"],
-                    help="余白の段（ふつう＝内容の短い辺の 3.5%%・ひろめ＝7%%・たっぷり＝12%%。既定 normal）")
-    sp.add_argument("--gap", type=int, help="マスとマスの間隔 px（0〜96、既定 16）")
+                    help="余白の段（ふつう＝内容の短い辺の3.5%%・ひろめ＝7%%・たっぷり＝12%%。既定normal）")
+    sp.add_argument("--gap", type=int, help="マスとマスの間隔px（0〜96、既定16）")
 
 
 def main(argv: list[str]) -> int:

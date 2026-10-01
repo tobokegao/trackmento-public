@@ -1,10 +1,10 @@
 """サイトの文章のページ（使い方・使い方の動画・コラム・プライバシーポリシー・利用規約・運営者・更新情報）。
 
-2026-09-18 に AdSense の審査に通らなかった（理由は示されない）ため足した。道具の画面だけでは
+2026-09-18にAdSenseの審査に通らなかった（理由は示されない）ため足した。道具の画面だけでは
 「完全な文章や段落」と言える文章がほとんど無く、プライバシーポリシーも同じドメインに無かった。
 
-- 見た目と言語の決め方は共有ページと同じ（`share._page_css`、`?lang=` と Accept-Language）
-- **JavaScript を使わない**。文章だけのページなので、検索エンジンにもそのまま読める（noindex は付けない）。
+- 見た目と言語の決め方は共有ページと同じ（`share._page_css`、`?lang=` とAccept-Language）
+- **JavaScriptを使わない**。文章だけのページなので、検索エンジンにもそのまま読める（noindexは付けない）。
   例外は使い方の動画（/howto）の数行だけ: 題を開いたら動画を流し、閉じたら止める。無くても再生ボタンで見られる
 - 保持日数などの数字は設定から差し込む（`config.share_retention_days()`）。文章に焼き付けない
 """
@@ -27,9 +27,9 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年9月28日", "en": "Last updated: September 28, 2026"}
+UPDATED = {"ja": "最終更新: 2026年10月1日", "en": "Last updated: October 1, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
-CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Google フォーム。2026-09-19）
+CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Googleフォーム。2026-09-19）
 
 
 def _guide(lang: str, days: int) -> str:
@@ -163,7 +163,7 @@ and share the music they love. When sharing, please follow the terms of use and 
 <dt>無料で使えますか？ 登録は必要ですか？</dt>
 <dd>すべて無料で、アカウント登録も不要です。なお、サーバーの運用費をまかなうために広告を表示する場合があります。</dd>
 <dt>共有したグリッドを後から手直ししたいです。</dt>
-<dd>共有ページにある「TRACKMENTO で開く」を押すと、その配置が編集画面に読み込まれます。修正したうえで、再度共有してください。</dd>
+<dd>共有ページにある「TRACKMENTOで開く」を押すと、その配置が編集画面に読み込まれます。修正したうえで、再度共有してください。</dd>
 <dt>サムネイルが表示されません。</dt>
 <dd>配信元で画像が削除・非公開になっている可能性があります。その場合は、画像URLを指定するか、「端末から画像を選択」で画像を選んでください。</dd>
 <dt>サムネイル（ジャケット写真など）の権利関係はどうなっていますか？</dt>
@@ -226,13 +226,13 @@ The latest version is always published on this page.</p>
 <h2>1. 当サイトが保存する情報</h2>
 <ul>
 <li><b>グリッドの編集データ：</b>マスに配置したトラック、タイトル、表示・出力設定は、お使いのブラウザの保存領域（ローカルストレージ）に保存されます。また、セッションを復元できるようにするため、ブラウザごとに発行されるランダムなIDと紐づけてサーバーにも一時バックアップを保持します。氏名、メールアドレス等の個人を特定する情報は一切含みません。</li>
-<li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データ（トラックごとに書いたメモを含みます）をCloudflare R2に保存します。メモは共有ページで、URL を知っている人が見られます。これらのデータは生成から{days}日後に自動で削除されます。共有した端末・ブラウザからは、期限の前に自分で消したり、みんなのグリッドから外したりもできます（そのための鍵をブラウザのローカルストレージに保存します）。</li>
+<li><b>共有画像および共有ページ：</b>共有を実行した際、画像データおよび配置データ（トラックごとに書いたメモを含みます）をCloudflare R2に保存します。メモは共有ページで、URLを知っている人が見られます。これらのデータは生成から{days}日後に自動で削除されます。共有した端末・ブラウザからは、期限の前に自分で消したり、みんなのグリッドから外したりもできます（そのための鍵をブラウザのローカルストレージに保存します）。</li>
 <li><b>端末からアップロードされた画像：</b>適切なサイズへのリサイズを行い、位置情報などのメタデータ（Exif）を削除したうえで保存します。保存から90日で削除します。</li>
 <li><b>みんなのグリッド：</b>共有時に「みんなのグリッドに載せる」にチェックを入れたデータに限り、当サイト内の検索対象として公開・保存されます。</li>
 </ul>
 
 <h2>2. アクセスログの収集について</h2>
-<p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（トラック名・検索語・URL などの内容は含みません）。不正アクセスの対策や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは元に戻せない形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザの識別情報（User-Agent）そのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
+<p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（トラック名・検索語・URLなどの内容は含みません）。不正アクセスの対策や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは元に戻せない形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザの識別情報（User-Agent）そのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
 
 <h2>3. 外部サービスとの通信</h2>
 <p>トラックやサムネイルの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、Apple Music、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
@@ -252,9 +252,9 @@ The latest version is always published on this page.</p>
 
 
 def _terms(lang: str, days: int) -> str:
-    """利用規約（2026-09-27）。AdSense の 2 度目の不承認のあと、文章のページで欠けていたので足した。
-    下書きを Gemini が添削し、利用者が確かめたもの。共有の保持日数は設定から差し込む。
-    ソースは公開リポジトリなので「リバースエンジニアリングの禁止」は入れない。作った画像は SNS に載せるのが
+    """利用規約（2026-09-27）。AdSenseの2度目の不承認のあと、文章のページで欠けていたので足した。
+    下書きをGeminiが添削し、利用者が確かめたもの。共有の保持日数は設定から差し込む。
+    ソースは公開リポジトリなので「リバースエンジニアリングの禁止」は入れない。作った画像はSNSに載せるのが
     本来の使い方なので「私的利用の範囲内で」とは書かない"""
     if lang == "en":
         return f"""
@@ -449,7 +449,7 @@ would be a great encouragement.</p>
 otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated with these services or their operators.</p>
 """
     return f"""
-<p>TRACKMENTO は <b>Tobokegao（とぼけがお）</b>が開発・運営しています。2014年よりゲームボーイを用いた作曲活動を行っているチップチューンアーティストで、自主レーベル「TBKgao」の主宰や、Nintendo Switch用ソフト『YARS RISING』への楽曲提供（「Nouveau Monde」）などを手がけています。</p>
+<p>TRACKMENTOは <b>Tobokegao（とぼけがお）</b>が開発・運営しています。2014年よりゲームボーイを用いた作曲活動を行っているチップチューンアーティストで、自主レーベル「TBKgao」の主宰や、Nintendo Switch用ソフト『YARS RISING』への楽曲提供（「Nouveau Monde」）などを手がけています。</p>
 <p>ボカロのトラックや音MAD、同人音楽など、サブスクリプションサービスでは配信されていない作品も含めて「私を構成する曲」の画像を作りたい、という自分用のツール開発からスタートし、Webサービスとして一般公開しました。</p>
 <p>どんなテーマで並べても大丈夫です。作った本人が思いつかなかったような使い方を見かけるのが、いちばんの楽しみです。</p>
 
@@ -457,40 +457,42 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 <p>ご質問、不具合のご報告、ご要望、共有データの削除依頼などは、<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>よりお願いいたします。共有データに関するお問い合わせの際は、対象の共有URLを忘れずに添えてご連絡ください。<a href="{ja_url}" rel="noopener">公式サイト</a>に記載の連絡先からもご連絡いただけます。</p>
 
 <h2>開発・運営のサポートについて</h2>
-<p>TRACKMENTO はどなたでも無料でご利用いただけます。サーバー代や開発の継続をご支援いただける方は、<a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" rel="noopener noreferrer">Bandcamp</a>にてトラックをご購入・ご試聴いただけますと大きな励みになります。</p>
+<p>TRACKMENTOはどなたでも無料でご利用いただけます。サーバー代や開発の継続をご支援いただける方は、<a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" rel="noopener noreferrer">Bandcamp</a>にてトラックをご購入・ご試聴いただけますと大きな励みになります。</p>
 
 <h2>データの出典・権利表記</h2>
-<p>本サービスで表示されるトラック情報は、iTunes Search API、MusicBrainz、Cover Art Archive、VocaDB（CC BY 3.0）、otoDB、ならびに入力されたリンク先の各配信サイトから取得しています。TRACKMENTO は、これらのサービスおよび運営元と提携関係にあるものではありません。</p>
+<p>本サービスで表示されるトラック情報は、iTunes Search API、MusicBrainz、Cover Art Archive、VocaDB（CC BY 3.0）、otoDB、ならびに入力されたリンク先の各配信サイトから取得しています。TRACKMENTOは、これらのサービスおよび運営元と提携関係にあるものではありません。</p>
 """
 
 
 # ---- 更新情報（2026-09-19）----
-# **利用者に見える変化だけ**を、日付と 1〜2 行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
+# **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-28", "TikTok のアプリの中で開いたときも、ブラウザで開き直す案内と「URL をコピー」を出すようにしました。",
+    ("2026-10-01", "日本語の画面と案内の文で、英字や数字と日本語のあいだの空白を詰めました（「9 トラック」→「9トラック」）。",
+     "In the Japanese text of the app and its pages, the spaces between Latin letters or numbers and Japanese characters have been removed."),
+    ("2026-09-28", "TikTokのアプリの中で開いたときも、ブラウザで開き直す案内と「URLをコピー」を出すようにしました。",
      "When opened inside the TikTok app, TRACKMENTO now also suggests reopening it in your browser and shows “Copy URL”."),
-    ("2026-09-27", "書き出す画像の番号バッジを、これまでの約 2 倍の大きさにしました。",
+    ("2026-09-27", "書き出す画像の番号バッジを、これまでの約2倍の大きさにしました。",
      "The number badges in the exported image are now about twice as large."),
-    ("2026-09-27", "幅の狭いスマホで、画面のいちばん上の帯（ロゴ・「?」・言語の切り替え）が 2 行に折り返していたのを、1 行に収めました。",
+    ("2026-09-27", "幅の狭いスマホで、画面のいちばん上の帯（ロゴ・「?」・言語の切り替え）が2行に折り返していたのを、1行に収めました。",
      "On narrow phones, the top bar (logo, “?” and language switch) no longer wraps onto two lines."),
     ("2026-09-27", "コラムに「「私を構成する9曲」をきれいに見せる」を足しました。",
      "Added the article “Making your ‘9 tracks that made me’ look its best” (in Japanese) to Articles."),
-    ("2026-09-27", "コラムに、作者が「TRACKMENTO を作った理由」を書きました。",
+    ("2026-09-27", "コラムに、作者が「TRACKMENTOを作った理由」を書きました。",
      "Added “Why I made TRACKMENTO”, a note from the maker (in Japanese), to Articles."),
     ("2026-09-27", "コラムに「どこで探す？ ソースごとの得意なもの」を足しました。",
      "Added the article “Where to search? What each source is good at” (in Japanese) to Articles."),
-    ("2026-09-27", "ニコニコ動画で投稿者名が空になっている動画（投稿者の退会など）は、otoDB に登録があれば作者名が入るようにしました（otoDB に無ければ、これまでどおり VocaDB で探します）。URL から入れたときも、マイリストをまとめて入れたときも同じです。",
+    ("2026-09-27", "ニコニコ動画で投稿者名が空になっている動画（投稿者の退会など）は、otoDBに登録があれば作者名が入るようにしました（otoDBに無ければ、これまでどおりVocaDBで探します）。URLから入れたときも、マイリストをまとめて入れたときも同じです。",
      "For Niconico videos with no uploader name (for example, when the uploader has left), the creator's name is now filled in from otoDB when the video is registered there (otherwise VocaDB is checked as before). This works both for single URLs and for whole mylists."),
     ("2026-09-27", "コラムに「プレイリストを丸ごとグリッドにする」を足しました。",
      "Added the article “Turning a whole playlist into a grid” (in Japanese) to Articles."),
-    ("2026-09-27", "「コラム」のページを足しました。1 本目は、消えたニコニコ動画のサムネイルを otoDB から取り戻す方法です。編集画面と各ページのいちばん下のリンクから開けます。",
+    ("2026-09-27", "「コラム」のページを足しました。1本目は、消えたニコニコ動画のサムネイルをotoDBから取り戻す方法です。編集画面と各ページのいちばん下のリンクから開けます。",
      "Added an “Articles” page (in Japanese). The first article explains how to bring back the thumbnails of deleted Niconico videos from otoDB. Open it from the links at the bottom of the editor and of each page."),
     ("2026-09-27", "「利用規約」のページを足しました。編集画面と各ページのいちばん下のリンクから開けます。",
      "Added a “Terms of use” page. You can open it from the links at the bottom of the editor and of each page."),
-    ("2026-09-27", "「サーバー代のおねがい」の欄の PayPal へのリンクを、昔の広告のような動くバナーに替えました。",
+    ("2026-09-27", "「サーバー代のおねがい」の欄のPayPalへのリンクを、昔の広告のような動くバナーに替えました。",
      "In the “A word about server bills” box, the PayPal link is now an animated banner in the style of old web ads."),
-    ("2026-09-27", "右上の「?」で、部品の説明を吹き出しで出せるようにしました。PC はマウスを重ねると、スマホは触れると説明が出ます。「使い方の動画で見る」から、その操作の動画へ移れます。",
+    ("2026-09-27", "右上の「?」で、部品の説明を吹き出しで出せるようにしました。PCはマウスを重ねると、スマホは触れると説明が出ます。「使い方の動画で見る」から、その操作の動画へ移れます。",
      "Added help balloons: press “?” at the top right, then point at a part (or touch it on a phone) to see what it does. “Watch the how-to video” takes you to a video of that feature."),
     ("2026-09-27", "編集画面のいちばん下のリンクに「使い方の動画」を足しました。",
      "Added “How-to videos” to the links at the bottom of the editor."),
@@ -498,27 +500,27 @@ CHANGES: list[tuple[str, str, str]] = [
      "Added a “How-to videos” page. Press a question to play a few-second video of that feature (a video loads only when you open it)."),
     ("2026-09-26", "「サーバー代のおねがい」の欄で、ボタンと同じ行き先のアルバムの文字のリンクを外しました。",
      "Removed the album text link from the “A word about server bills” box, since the button next to it goes to the same place."),
-    ("2026-09-26", "同じトラックを入れたときの「N 番にも同じトラックがあります」を、改行して太字にし、小さな吹き出しの絵を添えて目立つようにしました。",
+    ("2026-09-26", "同じトラックを入れたときの「N番にも同じトラックがあります」を、改行して太字にし、小さな吹き出しの絵を添えて目立つようにしました。",
      "“Cell N has the same track” now appears on its own line in bold with a small speech-bubble icon, so it stands out."),
     ("2026-09-26", "選んだマスで、黄色い枠がトラック名の帯や番号に重なって見づらかったのを直しました。",
      "Fixed the yellow frame of a selected tile overlapping its track-name strip and number."),
-    ("2026-09-26", "幅の狭いスマホで、3 列のマスに × や番号が出なかったのを直しました。× と番号はもう少し小さいマスまで出し、トラック名の帯は高さに余裕があるマスにだけ出します。",
+    ("2026-09-26", "幅の狭いスマホで、3列のマスに × や番号が出なかったのを直しました。× と番号はもう少し小さいマスまで出し、トラック名の帯は高さに余裕があるマスにだけ出します。",
      "On narrow phones, three-column grids now show the × and number again. Those show on smaller tiles than before, and the track-name strip appears only when a tile is tall enough."),
     ("2026-09-26", "「ぼかし背景」にしたマスで、サムネイルが真ん中でなく下に寄って見えていたのを直しました（書き出しの画像は前から正しく出ていました）。",
      "Fixed thumbnails in “Blurred backdrop” tiles sitting low instead of centered on screen (exported images were already correct)."),
-    ("2026-09-26", "共有したあとのボタンに小さなアイコンを添え、「URL をコピー」「SNS に共有」「共有ページを開く」と「画像を保存」を線で区切って分けました。",
+    ("2026-09-26", "共有したあとのボタンに小さなアイコンを添え、「URLをコピー」「SNSに共有」「共有ページを開く」と「画像を保存」を線で区切って分けました。",
      "The buttons after sharing now have small icons, and “Copy URL”, “Share on social” and “Open share page” are separated from “Save image” by a line."),
-    ("2026-09-26", "スマホで、共有したあとの「URL をコピー」「SNS に共有」「共有ページを開く」「画像を保存」を 2 列にそろえて並べるようにしました。",
+    ("2026-09-26", "スマホで、共有したあとの「URLをコピー」「SNSに共有」「共有ページを開く」「画像を保存」を2列にそろえて並べるようにしました。",
      "On phones, “Copy URL”, “Share on social”, “Open share page” and “Save image” after sharing are now lined up in two even columns."),
     ("2026-09-26", "書き出しの画像で、下や右の端の空いた段を詰めて組むようにしました（曲の入っていない段のぶん下が空いたり、トラックリストの行の間が広がりすぎたりしていました）。背景の「画像」の既定の模様も薄くしました。",
      "Exported images now leave out empty rows and columns at the bottom and right edges (they used to leave a gap below and spread the track list too far apart). The default background image pattern is also fainter."),
     ("2026-09-26", "みんなのグリッドの検索欄に枠が付かず、消えたように見えることがあったのを直しました。",
      "Fixed the search box on everyone’s grids having no border and seeming to disappear."),
-    ("2026-09-26", "Android でホーム画面に追加していると、ブラウザで「みんなのグリッド」や「共有ページを開く」を押したときにアプリへ移ってしまうことがあったので、同じタブで開くようにしました。",
+    ("2026-09-26", "Androidでホーム画面に追加していると、ブラウザで「みんなのグリッド」や「共有ページを開く」を押したときにアプリへ移ってしまうことがあったので、同じタブで開くようにしました。",
      "On Android with TRACKMENTO added to the home screen, tapping “everyone’s grids” or “Open share page” in the browser could jump into the app. These now open in the same tab."),
     ("2026-09-26", "「サーバー代のおねがい」の欄と共有したあとの欄を、作者からのひとことにしました。アルバムは値段を自由に決めて買えます。",
      "The “A word about server bills” box and the box shown after you share are now a short note from me, the maker. You can choose your own price for the album."),
-    ("2026-09-26", "音楽を買わなくてもサーバー代を支援できるように、「サーバー代のおねがい」の欄と共有したあとの欄に PayPal へのリンクを置きました。",
+    ("2026-09-26", "音楽を買わなくてもサーバー代を支援できるように、「サーバー代のおねがい」の欄と共有したあとの欄にPayPalへのリンクを置きました。",
      "You can now support the server bills without buying music: a PayPal link is in the “A word about server bills” box and in the box shown after you share."),
     ("2026-09-26", "「サーバー代のおねがい」の欄と、トラックを共有したあとの欄に、その月のサーバー代のうち、支援でまかなえた分を棒で出すようにしました。",
      "The “A word about server bills” box and the box shown after you share tracks now show a bar of how much of this month's server bills is covered by support."),
@@ -530,21 +532,21 @@ CHANGES: list[tuple[str, str, str]] = [
      "Made the “Gap” and color slider thumbs easier to grab on phones; a finger slightly off the thumb now grabs it."),
     ("2026-09-25", "トラックリストを横に並べているとき、「マスの間隔」などを動かしたあとに画面が止まる時間を短くしました。スマホで曲の多い並びだと、数秒かかることがありました。",
      "Shortened the pause after moving “Gap” and similar options when the track list is beside the grid. On phones with a large grid it could take a few seconds."),
-    ("2026-09-25", "スマホで、曲の多い並びのトラックリストが段落のようにつながってしまうことがあったので、表の形に収まるなら画像を少し大きく作るようにしました。PC で作った画像と同じ組み方になりやすくなります。",
+    ("2026-09-25", "スマホで、曲の多い並びのトラックリストが段落のようにつながってしまうことがあったので、表の形に収まるなら画像を少し大きく作るようにしました。PCで作った画像と同じ組み方になりやすくなります。",
      "On phones, the track list of a large grid sometimes ran together like a paragraph. The image is now made a little larger when that keeps the list in neat columns, so it looks more like one made on a PC."),
     ("2026-09-25", "スマホで並びを切り替えたとき、グリッドのスクロールバーが出たり消えたりを繰り返すことがあったのを止めました。",
      "Fixed the grid scroll bar on phones flickering on and off after switching layouts."),
     ("2026-09-25", "英語表示の言葉を見直しました（日本語の表示は変わりません）。",
      "Reviewed the English text: “song” is now “track” throughout, several option names are clearer (“Image fit,” “Background type,” “Freeform,” “Black text”), and spelling now follows US English."),
-    ("2026-09-25", "使い方のページの頭に、TRACKMENTO のひと言を載せました。",
+    ("2026-09-25", "使い方のページの頭に、TRACKMENTOのひと言を載せました。",
      "Added a short word from TRACKMENTO at the top of the How to use page."),
     ("2026-09-25", "画面の言葉を見直しました。「ジャケット」は「サムネイル」（見出しや選択肢では「サムネ」）に、トラックリストは「横並び」「重ね表示」「非表示」、背景の「背景を透過」は「透過」、画像の敷き方は「全体表示」「タイル」などに変えています。",
      "Reworded the screen. “Cover” is now “thumbnail,” the track list options are “Beside the grid,” “Over the cells” and “Hidden,” and the background and image options have shorter names."),
-    ("2026-09-25", "出力オプションの呼び名をそろえました。「比率」は「全体枠」、「マスの形」は「マス枠」、「サムネの入れ方」は「サムネ余白」（「トリミング」「ぼかし背景」）、「背景色」は「背景」（「色の選択」「ジャケットの近似色」「ジャケットの補色」）です。比率は「横長 16:9」の形で書きます。",
+    ("2026-09-25", "出力オプションの呼び名をそろえました。「比率」は「全体枠」、「マスの形」は「マス枠」、「サムネの入れ方」は「サムネ余白」（「トリミング」「ぼかし背景」）、「背景色」は「背景」（「色の選択」「ジャケットの近似色」「ジャケットの補色」）です。比率は「横長16:9」の形で書きます。",
      "Renamed the output options to match each other: “Ratio” is now “Image frame,” “Cell shape” is “Cell frame,” “How thumbnails fit” is “Thumbnail fill” (“Crop,” “Blurred backdrop”), and “Background color” is “Background” (“Choose a color,” “Match the covers,” “Complement the covers”). Ratios are written like “Wide 16:9.”"),
     ("2026-09-25", "出力オプションの「全体枠」「マス枠」「サムネ余白」を「枠とサムネ」の三角で畳めるようにしました（畳んでいても今の設定が下に出ます）。スマホで「大きく見る」を閉じたあと、マスを選ぶと編集欄がずっと下に出ていたのを直しました。サイズを戻してトラックが復帰したら、そう知らせるようにしました。",
      "“Image frame,” “Cell frame” and “Thumbnail fill” in the output options can now be folded under the “Frames and thumbnails” triangle (the current settings still show below it). Fixed the cell editor appearing far down the page on phones after closing “Enlarge.” When you restore the size and tracks come back, you're now told so."),
-    ("2026-09-25", "出力オプションの設定を「マス」「文字」「背景と余白」の 3 つの枠に分け、背景色の細かい設定も枠で囲みました。",
+    ("2026-09-25", "出力オプションの設定を「マス」「文字」「背景と余白」の3つの枠に分け、背景色の細かい設定も枠で囲みました。",
      "The output options are now grouped into three boxes, “Cells,” “Text,” and “Background and spacing,” and the detailed background color settings have a box of their own."),
     ("2026-09-25", "「画像」の「収める」は、画像の比率を変えずに端まで大きくし、余りを画像のふちの色で埋めるようにしました（書き出す画像の比率に合わせます）。",
      "“Fit” under “Image” now enlarges the image to the edges without changing its proportions, and fills the rest with the color of the image's edges (matching the shape of the exported image)."),
@@ -552,21 +554,21 @@ CHANGES: list[tuple[str, str, str]] = [
      "Under “Image”, you can now choose “Fit” or “Tile” (S, M, L), with a preview of the chosen image. “Transparent” now lets you pick “Black text” or “White text” (the preview turns dark for white text)."),
     ("2026-09-25", "同じトラックなら、並べ替えても書き出す画像の曲名リストの組み方（表か詰めた並びか・画像の大きさ・字の大きさ）が変わらないようにしました。「色で並べ替え」をすると組み方ががらりと変わることがありました。",
      "With the same tracks, reordering no longer changes how the track list in the exported image is laid out (table or packed text, image size, text size). Using “Sort by color” could change it completely before."),
-    ("2026-09-25", "「ジャケットに近い色」「ジャケットと反対の色」で、ジャケットから取った色の候補を四角で並べ、押して選べるようにしました。「画像」を選ぶと、まず TRACKMENTO のマークの模様が敷かれます（「画像を選ぶ…」で好きな画像に替えられます）。",
+    ("2026-09-25", "「ジャケットに近い色」「ジャケットと反対の色」で、ジャケットから取った色の候補を四角で並べ、押して選べるようにしました。「画像」を選ぶと、まずTRACKMENTOのマークの模様が敷かれます（「画像を選ぶ…」で好きな画像に替えられます）。",
      "“Match the covers” and “Contrast the covers” now show the colors taken from your covers as squares you can pick from. Choosing “Image” first lays a pattern of the TRACKMENTO mark (switch to any image with “Choose an image…”)."),
-    ("2026-09-25", "共有の URL から並びを開いたとき、開いていた並びに上書きされることがあったのを直しました。いつも新しい並びとして開きます（並びが上限のときは、開かずにお知らせします）。お題の一覧で、今のタイトルに印が付くようにしました。グラデーションの切り替えも軽くしました。",
+    ("2026-09-25", "共有のURLから並びを開いたとき、開いていた並びに上書きされることがあったのを直しました。いつも新しい並びとして開きます（並びが上限のときは、開かずにお知らせします）。お題の一覧で、今のタイトルに印が付くようにしました。グラデーションの切り替えも軽くしました。",
      "Fixed opening a grid from a share URL sometimes overwriting the grid you had open. It now always opens as a new layout (if you're at the layout limit, it tells you instead). The theme list now marks your current title, and switching gradient options is lighter."),
     ("2026-09-25", "「並び」「お題」のプルダウンを押したときの一覧を、サイトの見た目に合わせた窓で出すようにしました（スマホでは画面の真ん中に出ます）。",
      "The lists for “Layout” and “Theme” now open in a window that matches the site (in the middle of the screen on phones)."),
-    ("2026-09-25", "「背景色」に「グラデーション」を足しました。色はジャケットから取るか、自分で 2〜4 色選べます。「ほかの模様」を押すと、色はそのままで模様だけ変わります。",
+    ("2026-09-25", "「背景色」に「グラデーション」を足しました。色はジャケットから取るか、自分で2〜4色選べます。「ほかの模様」を押すと、色はそのままで模様だけ変わります。",
      "Added “Gradient” under “Background color”. Take the colors from your covers, or pick 2 to 4 yourself. “Another pattern” changes only the pattern and keeps the colors."),
-    ("2026-09-25", "パソコン（とスマホの「PC 版の表示」）では、窓の題名バーを掴んで好きな位置に動かせるようにしました。位置はその画面で覚えておき、上のバーの「窓を元に戻す」で元に戻せます。",
+    ("2026-09-25", "パソコン（とスマホの「PC版の表示」）では、窓の題名バーを掴んで好きな位置に動かせるようにしました。位置はその画面で覚えておき、上のバーの「窓を元に戻す」で元に戻せます。",
      "On computers (and in “Desktop view” on phones), you can now drag a window by its title bar to move it anywhere. The position is remembered on that screen, and “Reset windows” in the top bar puts them back."),
     ("2026-09-25", "「できあがり」の窓をいつも出すようにしました。「更新」で書き出す画像の見本を作り、同じ窓から「トラックを共有」「トラック名をコピー」ができます。並びと設定が変わっていなければ作り直さないので、すぐに出ます。グリッドの下のボタンは「トラックを探す」と「できあがりを見る」になりました。",
      "The result window is now always shown. “Refresh” makes a preview of the exported image, and you can use “Share these tracks” and “Copy track names” from the same window. If nothing changed, the preview appears right away without being made again. The buttons below the grid are now “Find a track” and “Preview”."),
     ("2026-09-25", "端末から上げた画像（手入力のマスや背景の画像）の保存期間を、30日間から90日間に延ばしました。共有の保存期間（30日間）は変わりません。",
      "Images uploaded from your device (for manual entries and backgrounds) are now kept for 90 days instead of 30. Shares are still kept for 30 days."),
-    ("2026-09-25", "「マスの間隔」などの設定を変えたときに、画面が一瞬固まっていたのを軽くしました（49 マスで約 1 秒 → 0.1 秒ほど）。開いたときに一瞬 3×3 が出ることがあったのも、あわせて直しました。",
+    ("2026-09-25", "「マスの間隔」などの設定を変えたときに、画面が一瞬固まっていたのを軽くしました（49マスで約1秒 → 0.1秒ほど）。開いたときに一瞬3×3が出ることがあったのも、あわせて直しました。",
      "Changing settings such as “Gap” no longer freezes the screen for a moment (about 1 second → 0.1 seconds with 49 cells). Also fixed a 3×3 grid that could still flash briefly on opening."),
     ("2026-09-25", "グリッドの下に「できあがりを見る」を付けました。共有する前に、書き出す画像（曲名リストや背景も含めて）をその端末で作って確かめられます。見るだけなので、共有はされません。",
      "Added “Preview” below the grid. Before sharing, you can make the exported image on your device (including the track list and background) and check it. It only shows the image; nothing is shared."),
@@ -574,19 +576,19 @@ CHANGES: list[tuple[str, str, str]] = [
      "Background images are now laid more faintly the busier they are, and the color underneath leans away from the text color so track names stay readable. The grid preview in the editor now shows the background image too."),
     ("2026-09-25", "出力オプションのラジオボタンは、幅に収まるだけ横に並べ、折り返すときは段ごとの数をそろえるようにしました。パレットの窓のボタンを小さくし、「カラーコードから作る」「ファイルを選ぶ…」に名前を変えました。",
      "Radio buttons in the output options now sit side by side as far as the width allows, and wrap into rows of even length. Buttons in the palette window are smaller, renamed to “Make from color codes” and “Choose a file…”."),
-    ("2026-09-25", "開いたときに、一瞬 3×3 のグリッドが出てから保存した並びに切り替わっていたのを直しました。スマホで「マスの間隔」のつまみの近くを触ってスクロールしようとすると、動かないことがあったのも直しました。",
+    ("2026-09-25", "開いたときに、一瞬3×3のグリッドが出てから保存した並びに切り替わっていたのを直しました。スマホで「マスの間隔」のつまみの近くを触ってスクロールしようとすると、動かないことがあったのも直しました。",
      "Fixed a 3×3 grid flashing briefly before your saved grid appeared on opening. On phones, scrolling with a finger near the “Gap” slider no longer gets stuck."),
     ("2026-09-25", "「背景色」に「画像」を足しました。「画像を選ぶ…」で端末の好きな画像を選ぶと、書き出す画像の背景に敷きます。曲名が読みやすいように、画像は半分の濃さにします。",
      "Added “Image” under “Background color”. Choose any image on your device with “Choose an image…” and it becomes the background of the exported image, laid at half strength so the track names stay readable."),
     ("2026-09-25", "スマホでマスを選んだとき、下に出る「選択中のマス」の欄が画面の外に隠れていたら、欄の頭が見えるところまで画面を送るようにしました。",
      "On phones, when you select a cell and the “Selected cell” panel below the grid is off screen, the page now scrolls just enough to show the top of the panel."),
-    ("2026-09-25", "書き出す画像・共有ページ・「トラック名をコピー」の番号を、曲の入ったマスだけで 1 から振り直すようにしました。画像の曲名リストに、空きマスの番号だけの行は出ません。",
+    ("2026-09-25", "書き出す画像・共有ページ・「トラック名をコピー」の番号を、曲の入ったマスだけで1から振り直すようにしました。画像の曲名リストに、空きマスの番号だけの行は出ません。",
      "Numbers in the exported image, on the share page and in “Copy track names” now count only cells with a track, starting from 1. The track list in the image no longer has rows that are just the number of an empty cell."),
     ("2026-09-25", "「トラックを探す」「トラックを共有」以外のボタン（「並びを保存」「色で並べ替え」「端末から画像を選択…」など）を小さくし、「トラックを全て外す」は線で区切って離しました。",
      "Buttons other than “Find a track” and “Share these tracks” (such as “Save layout”, “Sort by color” and “Choose an image from this device…”) are now smaller, and “Remove all tracks” sits apart below a divider."),
-    ("2026-09-25", "グリッドの下に小さな「元に戻す」「やり直す」のボタンを付けました。キーボードが無いスマホでも、30 回まで戻したり、戻したものをやり直したりできます。",
+    ("2026-09-25", "グリッドの下に小さな「元に戻す」「やり直す」のボタンを付けました。キーボードが無いスマホでも、30回まで戻したり、戻したものをやり直したりできます。",
      "Added small “Undo” and “Redo” buttons below the grid. Even on phones without a keyboard, you can go back up to 30 steps and redo what you undid."),
-    ("2026-09-25", "「背景色」で、背景の決め方を「色を選ぶ」「ジャケットに近い色」「ジャケットと反対の色」「背景を透過」から選べるようにしました。ジャケットの色は並びを変えると取り直し、「ほかの候補」で別の色にできます。「背景を透過」では、共有の画像は白い地になり、「画像を保存」では背景が透明な PNG になります。",
+    ("2026-09-25", "「背景色」で、背景の決め方を「色を選ぶ」「ジャケットに近い色」「ジャケットと反対の色」「背景を透過」から選べるようにしました。ジャケットの色は並びを変えると取り直し、「ほかの候補」で別の色にできます。「背景を透過」では、共有の画像は白い地になり、「画像を保存」では背景が透明なPNGになります。",
      "Under “Background color” you can now choose how the background is set: “Choose a color”, “Match the covers”, “Contrast the covers” or “Transparent”. Cover colors are taken again when the grid changes, and “Another color” switches to a different one. With “Transparent”, the shared image gets a white background and “Save image” gives you a PNG with a transparent background."),
     ("2026-09-25", "共有する画像で、曲の入っていないマスを灰色で塗らず、背景の色のままにしました。",
      "In shared images, empty cells are no longer filled with gray; they show the background color."),
@@ -596,41 +598,41 @@ CHANGES: list[tuple[str, str, str]] = [
      "On computers, buttons, headings and other controls now use a slightly larger pixel font. Nothing changes on phones."),
     ("2026-09-24", "パソコンの画面で、「候補」の窓が右の設定の列に合わせて下まで伸びていたのを、グリッドの下端でそろえるようにしました。",
      "On computers, the “Candidates” window no longer stretches down to match the settings column; it now ends where the grid ends."),
-    ("2026-09-24", "スマホでは、ページの右下に「PC 版の表示」を足しました。ホーム画面に追加したアプリの表示でも、パソコンと同じ画面に切り替えられます。「スマホ版の表示」で戻せます。",
+    ("2026-09-24", "スマホでは、ページの右下に「PC版の表示」を足しました。ホーム画面に追加したアプリの表示でも、パソコンと同じ画面に切り替えられます。「スマホ版の表示」で戻せます。",
      "On phones, a “Desktop view” link now sits at the bottom right of the page, so you can switch to the computer layout even when using TRACKMENTO from your home screen. “Mobile view” switches back."),
     ("2026-09-24", "共有画像の曲名リストで、「トラック名の余計な部分を省く」で短くなったトラックがあると、文字が必要以上に小さく組まれることがあったのを直しました。あわせて、フォントに無い字（一部の記号や、タイ文字・ハングルなど）は、どの端末でも画像に描かないようにそろえました。",
      "In the track list on shared images, text could come out smaller than needed when some track names had been shortened by “Trim needless title text”. This is fixed. Characters the font doesn’t have (some symbols, Thai, Hangul and so on) are now left out of the image on every device."),
     ("2026-09-24", "ボタンや見出しなど操作部品の字を、別のドット字（M+ 12）に替えました。英字の上端がそろって見えます。パソコンでは、これまでより一回り小さくなります。",
      "Buttons, headings and other controls now use a different pixel font (M+ 12), so Latin letters line up evenly at the top. On computers they are a size smaller than before."),
-    ("2026-09-24", "Android でホーム画面に追加すると、ほかのアプリの「共有」から TRACKMENTO に URL を送れるようになりました（iPhone では使えません）。前からアプリとして入れていた場合は、一度アンインストールして入れ直すと送り先に出ます。",
+    ("2026-09-24", "Androidでホーム画面に追加すると、ほかのアプリの「共有」からTRACKMENTOにURLを送れるようになりました（iPhoneでは使えません）。前からアプリとして入れていた場合は、一度アンインストールして入れ直すと送り先に出ます。",
      "On Android, after adding TRACKMENTO to your home screen, you can send it URLs from other apps’ “Share” menu (not available on iPhone). If you had already installed it as an app, uninstall and reinstall it to see it in the list."),
     ("2026-09-24", "「色で並べ替え」を足しました。ジャケットの主な色で、赤から紫の順に並べ替えます。あとから「元に戻す」で戻せます。",
      "Added “Sort by color”, which orders the covers by their main color, from red to purple. You can undo it."),
-    ("2026-09-24", "タイトルの下に「お題」を足しました。見本を選ぶとタイトルが入ります（「私を構成する9曲」は横 × 縦も 3 × 3 になります）。同じトラックをもう一度入れたときは、そのことをお知らせするようにしました。",
+    ("2026-09-24", "タイトルの下に「お題」を足しました。見本を選ぶとタイトルが入ります（「私を構成する9曲」は横 × 縦も3 × 3になります）。同じトラックをもう一度入れたときは、そのことをお知らせするようにしました。",
      "Added “Theme” below the title. Picking an example fills in the title (“9 tracks that made me” also sets the grid to 3 × 3). Adding a track that is already in the grid now tells you so."),
-    ("2026-09-24", "「みんなのグリッドを探す」の最初の画面に「いろんな切り口」を足しました。「私を構成する〜」以外のテーマで作られたグリッドを、新しいものから 8 つ並べます。言い回しだけが違う似たテーマは、1 つにまとめます。",
+    ("2026-09-24", "「みんなのグリッドを探す」の最初の画面に「いろんな切り口」を足しました。「私を構成する〜」以外のテーマで作られたグリッドを、新しいものから8つ並べます。言い回しだけが違う似たテーマは、1つにまとめます。",
      "The first screen of “Find shared grids” now has a “Different themes” list: the eight newest grids built around something other than “songs that make me”. Themes that differ only in wording are shown once."),
     ("2026-09-24", "bilibiliのURLを、また貼れるようにしました。otoDB（音MADなど）かVocaDB（ボカロなど）に登録のある動画だけ、トラック名とサムネイルを取り込めます。bilibiliには問い合わせないため、登録のない動画と短縮URL（b23.tv）は使えません。",
      "You can paste bilibili URLs again. Only videos listed on otoDB (otomad and the like) or VocaDB (Vocaloid and the like) come in, with their titles and thumbnails. Since we never contact bilibili itself, unlisted videos and short URLs (b23.tv) do not work."),
-    ("2026-09-24", "「余白」をスライダーから「ふつう」「ひろめ」「たっぷり」の 3 つから選ぶ形にしました。スライダーは動かしても画像が変わらないことが多かったためです。これまでの見た目は「ふつう」と同じです。",
+    ("2026-09-24", "「余白」をスライダーから「ふつう」「ひろめ」「たっぷり」の3つから選ぶ形にしました。スライダーは動かしても画像が変わらないことが多かったためです。これまでの見た目は「ふつう」と同じです。",
      "“Margin” is now a choice of “Normal”, “Wide” or “Extra wide” instead of a slider, because moving the slider often left the image unchanged. The previous look is the same as “Normal”."),
-    ("2026-09-24", "ボタン以外の操作部品（見出し・チェックボックス・ラジオボタンなど）の文字も、ドット字にそろえました。「比率」の選択肢は「16:9 横長」「9:16 縦長」に名前を短くし、2 列に並べています。",
+    ("2026-09-24", "ボタン以外の操作部品（見出し・チェックボックス・ラジオボタンなど）の文字も、ドット字にそろえました。「比率」の選択肢は「16:9横長」「9:16縦長」に名前を短くし、2列に並べています。",
      "The pixel font used on the buttons now also covers the other controls (headings, checkboxes, radio buttons and so on). In “Ratio”, the options are now called “16:9 wide” and “9:16 tall” and sit in two columns."),
     ("2026-09-24", "SpotifyのURLを貼ったとき、アーティスト名をiTunesで同じトラック名のものから補うようになりました。同じトラック名のアーティストが何人かいるときは、ボタンで選べます。見つからないときは、これまでどおり手で入れてください。",
      "When you paste a Spotify URL, the artist name is now filled in from an iTunes track with the same title. If more than one artist has that title, you can pick one with a button. If none is found, add it yourself as before."),
     ("2026-09-23", "「タイトル」の欄の入力例が、開くたびに変わるようになりました（「雨の日に聴く曲」「文化祭のセトリ」など）。使い方のページにも「こんな使い方も」を足しています。テーマは自由です。好きな切り口で並べてみてください。",
      "The example in the “Title” field now changes each time you open the page (“Songs for rainy days”, “Our school festival setlist” and more). The How to use page also has a new “Other ways to use it” section. Any theme is fine, so arrange tracks from whatever angle you like."),
-    ("2026-09-23", "並びを 10 個まで持てるようになりました。グリッドの上の「並び」のメニューで切り替え、「新しい並び」で増やせます。共有 URL を開いたときは、今の並びにトラックが入っていれば、上書きせずに新しい並びとして開きます。",
+    ("2026-09-23", "並びを10個まで持てるようになりました。グリッドの上の「並び」のメニューで切り替え、「新しい並び」で増やせます。共有URLを開いたときは、今の並びにトラックが入っていれば、上書きせずに新しい並びとして開きます。",
      "You can now keep up to 10 layouts. Switch between them with the “Layout” menu above the grid, and add one with “New layout”. When you open a share URL and your current layout already has tracks, it opens as a new layout instead of replacing it."),
-    ("2026-09-23", "アーティスト名とトラック名の表から、まとめて入れられるようになりました（検索の「トラック名の一覧から」、一度に 20 行まで）。Excel などの表も貼れます。逆に「トラック名をコピー」で、並びを「1. アーティスト - トラック名」の文章にしてコピーできます。",
+    ("2026-09-23", "アーティスト名とトラック名の表から、まとめて入れられるようになりました（検索の「トラック名の一覧から」、一度に20行まで）。Excelなどの表も貼れます。逆に「トラック名をコピー」で、並びを「1. アーティスト - トラック名」の文章にしてコピーできます。",
      "You can now add tracks all at once from a table of artist and track names (“From a list of track names” under Search, up to 20 rows at a time). You can also paste from a spreadsheet such as Excel. In the other direction, “Copy track names” copies the layout as text in the form “1. Artist - Track”."),
-    ("2026-09-23", "キーボードでも並べ替えられるようになりました。Tab キーでグリッドに入り、矢印キーでマスを移ります。Return キーかスペースキーでマスを選び、Option（Alt）＋矢印キーで隣のマスと入れ替えます。",
+    ("2026-09-23", "キーボードでも並べ替えられるようになりました。Tabキーでグリッドに入り、矢印キーでマスを移ります。Returnキーかスペースキーでマスを選び、Option（Alt）＋矢印キーで隣のマスと入れ替えます。",
      "You can now rearrange with the keyboard. Press Tab to reach the grid and move between cells with the arrow keys. Return or Space selects a cell, and Option (Alt) + an arrow key swaps the track with the neighboring cell."),
-    ("2026-09-23", "共有ページの画像に、題名と先頭 10 トラックの曲名を代替テキストとして付けました。読み上げを使っているときや、画像が表示されないときも、何の並びか分かります。",
+    ("2026-09-23", "共有ページの画像に、題名と先頭10トラックの曲名を代替テキストとして付けました。読み上げを使っているときや、画像が表示されないときも、何の並びか分かります。",
      "The image on a share page now has alt text with its title and the first 10 track names, so screen reader users, or anyone whose image fails to load, can tell what the grid contains."),
-    ("2026-09-23", "トラックを外す・入れ替える・動かすなどの操作を、Ctrl+Z（Mac は ⌘Z）で 1 つずつ戻せるようになりました（30 回まで）。Ctrl+Shift+Z でやり直せます。スマホでは、操作のあとに出る「元に戻す」を押すと戻ります。",
+    ("2026-09-23", "トラックを外す・入れ替える・動かすなどの操作を、Ctrl+Z（Macは ⌘Z）で1つずつ戻せるようになりました（30回まで）。Ctrl+Shift+Zでやり直せます。スマホでは、操作のあとに出る「元に戻す」を押すと戻ります。",
      "You can now undo removing, swapping and moving tracks one step at a time with Ctrl+Z (⌘Z on a Mac), up to 30 steps. Ctrl+Shift+Z redoes. On a phone, press “Undo” in the message that appears after each change."),
-    ("2026-09-23", "確認の窓とパレットの窓が Esc で閉じるようになりました。確認の窓では「やめる」が太い枠で囲まれ、Return キーで押せます。「横 × 縦」の欄には上下の小さな矢印を付け、押し続けると続けて増減します。",
+    ("2026-09-23", "確認の窓とパレットの窓がEscで閉じるようになりました。確認の窓では「やめる」が太い枠で囲まれ、Returnキーで押せます。「横 × 縦」の欄には上下の小さな矢印を付け、押し続けると続けて増減します。",
      "The confirmation and palette windows now close with Esc. In the confirmation window, “Cancel” has a thick outline and can be pressed with Return. The “columns × rows” fields now have small up and down arrows; hold one down to keep counting."),
     ("2026-09-23", "画面の言葉を見直しました。「曲」は「トラック」にそろえ（「トラックリスト」「トラックを探す」など）、「マスを全部外す」は「トラックを全て外す」、比率の「設定なし」は「自由」になりました。ファイルを選ぶ窓が開くボタンには「…」を付けています。",
      "We reviewed the wording on screen. In Japanese, “曲” is now “トラック” everywhere, “Clear all cells” is now “Remove all tracks”, and buttons that open a file picker now end with “…”."),
@@ -638,39 +640,39 @@ CHANGES: list[tuple[str, str, str]] = [
      "Tapping “TRACKMENTO” at the top left of a share page now takes you back to the editor."),
     ("2026-09-22", "スライダーとスクロールバーのつまみを描き直し、スマホで枠線がずれたり縞の太さがそろわなかったりしたのを直しました。縦と横のスクロールバーが交わる角は、斜め線をやめて無地にしています。",
      "Slider and scrollbar thumbs are redrawn, so on phones their outlines no longer shift and their grip lines keep an even thickness. The corner where the two scrollbars meet is now plain, without diagonal lines."),
-    ("2026-09-22", "共有ページの下に「問題のある内容を報告する」を置きました。メモや画像に問題があるときは、共有 ID を添えてお知らせください。",
+    ("2026-09-22", "共有ページの下に「問題のある内容を報告する」を置きました。メモや画像に問題があるときは、共有IDを添えてお知らせください。",
      "Share pages now have a “Report inappropriate content” link at the bottom. If a note or image is a problem, let us know with the share ID."),
-    ("2026-09-22", "マスを選ぶと、その曲に「メモ」を書けるようになりました（選んだ理由など。200 字・3 行まで）。メモは共有ページの曲名リストに出ます。書き出す画像には入りません。",
+    ("2026-09-22", "マスを選ぶと、その曲に「メモ」を書けるようになりました（選んだ理由など。200字・3行まで）。メモは共有ページの曲名リストに出ます。書き出す画像には入りません。",
      "When you select a cell, you can now write a “Note” for that track (why you picked it, for example; up to 200 characters and 3 lines). Notes appear in the track list on the share page, not in the exported image."),
-    ("2026-09-22", "マスが縦 1 列の並びで、曲名が 2 行に折れると次の曲の名前に重なることがあったのを直しました。曲と曲のあいだも少し広げています。",
+    ("2026-09-22", "マスが縦1列の並びで、曲名が2行に折れると次の曲の名前に重なることがあったのを直しました。曲と曲のあいだも少し広げています。",
      "In a single-column grid, a track title that wrapped onto two lines could overlap the next track. Fixed, and there is a little more space between tracks."),
-    ("2026-09-22", "検索のソース・比率・マスの形・サムネの入れ方・曲名リストを、1 つだけ選ぶラジオボタンにしました。ソースは同時に 1 つだけ選ぶ形になります。",
+    ("2026-09-22", "検索のソース・比率・マスの形・サムネの入れ方・曲名リストを、1つだけ選ぶラジオボタンにしました。ソースは同時に1つだけ選ぶ形になります。",
      "Search source, ratio, cell shape, thumbnail fit and track list are now radio buttons where you pick one. You now search one source at a time."),
-    ("2026-09-22", "検索の候補や URL から曲を入れたとき、「〇番に…を入れました」と出るのにマスが空のままになることがあったのを直しました。",
+    ("2026-09-22", "検索の候補やURLから曲を入れたとき、「〇番に…を入れました」と出るのにマスが空のままになることがあったのを直しました。",
      "Fixed a cell sometimes staying empty after adding a track from search results or a URL, even though the message said the track was added."),
-    ("2026-09-22", "一部の端末で「トラックを共有」したとき、otoDB から入れた曲のサムネイルが画像に出ないことがあったのを直しました。",
+    ("2026-09-22", "一部の端末で「トラックを共有」したとき、otoDBから入れた曲のサムネイルが画像に出ないことがあったのを直しました。",
      "Fixed otoDB thumbnails sometimes missing from the image when using “Share track” on some devices."),
     ("2026-09-21", "正方形のマスでも「ぼかして埋める」を選べるようにしました。動画のサムネイルを、左右を切らずに入れられます。マスごとの設定は「このマスのサムネの入れ方」に名前を変えました。",
      "“Blur to fill” now works with square cells too, so video thumbnails go in without their sides cut off. The per-cell setting is now called “How this thumbnail fits”."),
-    ("2026-09-21", "「元の投稿を探す」で otoDB も引くようにしました。動画が otoDB に登録された作品なら、転載でも作品の作者がアーティスト名の候補に出ます。",
+    ("2026-09-21", "「元の投稿を探す」でotoDBも引くようにしました。動画がotoDBに登録された作品なら、転載でも作品の作者がアーティスト名の候補に出ます。",
      "“Find the original post” now also checks otoDB. If the video belongs to a work registered on otoDB, the work’s creator appears as an artist name suggestion, even for reuploads."),
-    ("2026-09-21", "YouTube の転載動画を入れたとき、概要欄に元の動画が書かれていれば、元の投稿者をアーティスト名の候補に出すようにしました。マスを選ぶと出ます。「元の投稿を探す」でニコニコ動画の同じ題の古い投稿も探せます。",
+    ("2026-09-21", "YouTubeの転載動画を入れたとき、概要欄に元の動画が書かれていれば、元の投稿者をアーティスト名の候補に出すようにしました。マスを選ぶと出ます。「元の投稿を探す」でニコニコ動画の同じ題の古い投稿も探せます。",
      "When you add a reposted YouTube video whose description names the original, the original uploader now appears as an artist name suggestion when you select the cell. “Find the original post” also looks for older posts with the same title on niconico."),
     ("2026-09-21", "「マスを全部外す」を説明文の下に移しました。ほかのボタンと離れ、続けて押したときに当たりにくくなります。",
      "Moved “Clear all cells” below the notes, away from the other buttons, so it is harder to hit by accident."),
-    ("2026-09-21", "マスの形に「横長 16:9」を選べるようにしました。YouTube やニコニコ動画のサムネイルが、左右を切られずに並びます。正方形のジャケットが混ざるときは「サムネの入れ方」で選べます（マスごとにも変えられます）。",
+    ("2026-09-21", "マスの形に「横長16:9」を選べるようにしました。YouTubeやニコニコ動画のサムネイルが、左右を切られずに並びます。正方形のジャケットが混ざるときは「サムネの入れ方」で選べます（マスごとにも変えられます）。",
      "You can now set the cell shape to “Wide 16:9”, so YouTube and niconico thumbnails are no longer cut off at the sides. When square covers are mixed in, “How thumbnails fit” lets you choose, and you can also change it for a single cell."),
     ("2026-09-21", "曲名から「【東方Vocal】」「- Topic」のような、曲名ではない部分を外して出すようにしました。曲が多い並びでジャケットが大きく出ます。書き出しオプションの「蛇足な曲名を除外する」で切れます。「全曲名を短縮する」を押すと、曲名そのものを短くできます。",
      "Titles now leave out parts that are not the song name, such as “【東方Vocal】” or “- Topic”. Covers come out larger in grids with many tracks. You can turn it off with “Trim needless title text” in the output options, and “Shorten all titles” rewrites the stored titles."),
     ("2026-09-21", "「出力サイズ」に、実際にできる画像の大きさを出すようにしました。これまでは大きめの数字が出ていて、保存した画像と食い違っていました。",
      "“Output size” now shows the size of the image you actually get. It used to show a larger number that did not match the saved image."),
-    ("2026-09-21", "曲が多いときの曲名リストが、文章のようにつながって見えることがあったのを直しました。曲が 1 つずつ行に分かれて並びます。",
+    ("2026-09-21", "曲が多いときの曲名リストが、文章のようにつながって見えることがあったのを直しました。曲が1つずつ行に分かれて並びます。",
      "Fixed the track list running together like a paragraph when there were many tracks. Each track now sits on its own line."),
-    ("2026-09-21", "VocaDB で見つけた曲を覚えておく期間を 2 週間に伸ばしました。一度誰かが調べた曲は、次からすぐ出ます。",
+    ("2026-09-21", "VocaDBで見つけた曲を覚えておく期間を2週間に伸ばしました。一度誰かが調べた曲は、次からすぐ出ます。",
      "Tracks found on VocaDB are now remembered for two weeks. Once someone has looked a track up, it appears right away next time."),
-    ("2026-09-21", "otoDB が一時的に応答しないときに、一度だけ自動で引き直すようにしました。検索結果から音MAD が抜け落ちにくくなります。",
+    ("2026-09-21", "otoDBが一時的に応答しないときに、一度だけ自動で引き直すようにしました。検索結果から音MADが抜け落ちにくくなります。",
      "When otoDB is temporarily unavailable, we now retry once automatically, so otoDB results are less likely to be missing."),
-    ("2026-09-20", "ページの読み込みを軽くしました。初めて開くときにダウンロードする量が、これまでの 4 分の 1 ほどになります。",
+    ("2026-09-20", "ページの読み込みを軽くしました。初めて開くときにダウンロードする量が、これまでの4分の1ほどになります。",
      "The page is now lighter to load. Opening it for the first time downloads about a quarter of what it used to."),
     ("2026-09-20", "共有画像に使う文字を、曲を並べている間に先に読み込むようにしました。回線が遅いところで「トラックを共有」を押してからの待ち時間が短くなり、画像の作成に失敗しにくくなります。",
      "The fonts used in the shared image are now fetched while you arrange your tracks. On a slow connection, there is less waiting after you press “Share tracks”, and the image is less likely to fail."),
@@ -682,17 +684,17 @@ CHANGES: list[tuple[str, str, str]] = [
      "We reviewed which URLs we support so that we follow each service's terms. bilibili is no longer supported, and SoundCloud sets and Spotify playlists can no longer be loaded all at once (a URL for a single track still works). Spotify now gives only the title and the cover, so please add the artist name yourself."),
     ("2026-09-20", "画面のいちばん下の「ソース」の名前から、それぞれの取得元（iTunes・MusicBrainz・otoDB・VocaDB）のサイトへ飛べるようにしました。",
      "The source names at the bottom of the page now link to each source's site (iTunes, MusicBrainz, otoDB, VocaDB)."),
-    ("2026-09-20", "「URL から」の欄が、貼った URL の本数に合わせて縦に伸びるようにしました（8 行ぶんまで）。まとめて貼ったときに全部入ったか見えます。",
+    ("2026-09-20", "「URLから」の欄が、貼ったURLの本数に合わせて縦に伸びるようにしました（8行ぶんまで）。まとめて貼ったときに全部入ったか見えます。",
      "The “From a URL” box now grows with the URLs you paste (up to eight lines), so you can see them all."),
-    ("2026-09-20", "曲名リストを文章のように流し込むとき、名前の最後の 1〜2 字だけが次の行へこぼれないようにしました（「アイリッシ／ュ」のような折れ方）。",
+    ("2026-09-20", "曲名リストを文章のように流し込むとき、名前の最後の1〜2字だけが次の行へこぼれないようにしました（「アイリッシ／ュ」のような折れ方）。",
      "When the track list flows like a paragraph, the last one or two letters of a name no longer spill onto the next line."),
-    ("2026-09-20", "横一列の並び（32×1 など）で、曲名リストを並びの下に 1 曲 1 行の表で並べるようにしました。",
+    ("2026-09-20", "横一列の並び（32×1など）で、曲名リストを並びの下に1曲1行の表で並べるようにしました。",
      "For single-row grids (like 32×1), the track list now appears below the row as a one-line-per-track table."),
-    ("2026-09-20", "「大きく見る」で、2 本指（パソコンは Ctrl＋ホイール）でマスの大きさを変えられるようにしました。並びの形ごとに大きさを覚えます。",
+    ("2026-09-20", "「大きく見る」で、2本指（パソコンはCtrl＋ホイール）でマスの大きさを変えられるようにしました。並びの形ごとに大きさを覚えます。",
      "In “Enlarge”, you can now pinch (or Ctrl + scroll on a computer) to resize the cells. The size is remembered for each grid shape."),
-    ("2026-09-20", "1 列の並び（1×32 など）で、曲名をジャケットの真横に 1 曲ずつ並べ、アーティスト名を右端にそろえるようにしました。16:9 のように横長の比率では、曲名リストを 1 曲 1 行の表にします。",
+    ("2026-09-20", "1列の並び（1×32など）で、曲名をジャケットの真横に1曲ずつ並べ、アーティスト名を右端にそろえるようにしました。16:9のように横長の比率では、曲名リストを1曲1行の表にします。",
      "For single-column grids (like 1×32), track names now sit beside each cover, one per line, with artists aligned to the right. In wide ratios such as 16:9, the list becomes a one-line-per-track table."),
-    ("2026-09-20", "「大きく見る」の表示を直しました。並びの右側に余白が出ることと、縦に長い並び（1×32 など）でマスが大きくなりすぎることがありました。",
+    ("2026-09-20", "「大きく見る」の表示を直しました。並びの右側に余白が出ることと、縦に長い並び（1×32など）でマスが大きくなりすぎることがありました。",
      "Fixed two things in “Enlarge”: a gap that appeared to the right of the grid, and cells growing too large in tall grids such as 1×32."),
     ("2026-09-20", "マスの数や余白などを変えたときに画面がもたつくのを直しました。",
      "Changing the grid size, margins and similar settings no longer makes the page stutter."),
@@ -782,7 +784,7 @@ CHANGES: list[tuple[str, str, str]] = [
      "You can now load a whole playlist from its URL (Niconico mylists, SoundCloud, bilibili, Spotify, Bandcamp and YouTube; up to 500 tracks)."),
     ("2026-09-13", "プレイリスト内の削除済み動画について、otoDB（音MADデータベース）の情報をもとに正式なタイトル・サムネイルを自動復元・補完するようにしました。",
      "Deleted videos in a playlist now get their proper title and thumbnail restored automatically from otoDB, the otomad database."),
-    ("2026-09-13", "「URL を貼る」に、改行区切りで複数のURLをまとめて貼り付けて一括登録できるようにしました。",
+    ("2026-09-13", "「URLを貼る」に、改行区切りで複数のURLをまとめて貼り付けて一括登録できるようにしました。",
      "“Paste a page URL” now accepts several URLs at once, one per line."),
     ("2026-09-13", "Apple MusicのURL（楽曲・アルバム・プレイリスト）に対応しました。",
      "Added support for Apple Music URLs (songs, albums and playlists)."),
@@ -844,7 +846,7 @@ def _updates(lang: str, days: int) -> str:
 </ul>
 """
     return f"""
-<p>TRACKMENTO の機能追加・改善などの変更点や、現在確認されている不具合をまとめています。修正やアップデートを実施した際に随時更新します。</p>
+<p>TRACKMENTOの機能追加・改善などの変更点や、現在確認されている不具合をまとめています。修正やアップデートを実施した際に随時更新します。</p>
 <h2>最近の変更</h2>
 {changes}
 <h2>確認されている不具合</h2>
@@ -865,7 +867,7 @@ def _updates(lang: str, days: int) -> str:
 
 def _howto(lang: str, days: int) -> str:
     """使い方の動画。題（summary）を押したときだけ動画を読む（preload="none"。開くと下の数行が流す）。
-    まだ R2 に上げていない動画の問いは出さない（backend/howto.py）"""
+    まだR2に上げていない動画の問いは出さない（backend/howto.py）"""
     keys = howto.videos()
     try:
         st = storage.get_storage()
@@ -900,9 +902,9 @@ def _articles(lang: str, days: int) -> str:
     """コラムの一覧（backend/articles.py）。記事は日本語だけなので、英語の画面ではそう断る"""
     en = lang == "en"
     out = ["<p>Articles that dig deeper into ways to use TRACKMENTO. They are currently available in Japanese only.</p>" if en else
-           "<p>TRACKMENTO の使い方を、もう一歩踏み込んで紹介するコラムです。</p>"]
+           "<p>TRACKMENTOの使い方を、もう一歩踏み込んで紹介するコラムです。</p>"]
     items = [f'<dt><a href="/articles/{a["slug"]}">{html.escape(a["title"])}</a></dt>'
-             f'<dd>{_date_label(a["date"], lang)} ・ {html.escape(a["description"])}</dd>' for a in articles.ARTICLES]
+             f'<dd>{_date_label(a["date"], lang)}・{html.escape(a["description"])}</dd>' for a in articles.ARTICLES]
     out.append('<dl class="articles" lang="ja">' + "\n".join(items) + "</dl>")
     return "\n".join(out)
 
@@ -932,28 +934,28 @@ def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja"
     q = "?lang=en" if lang == "en" else ""
     head = (f'<link rel="canonical" href="{b}/{kind}{q}">\n'
             f'<link rel="alternate" hreflang="ja" href="{b}/{kind}"><link rel="alternate" hreflang="en" href="{b}/{kind}?lang=en">')
-    meta = (f"{_updated_of(lang) if kind == 'updates' else UPDATED[lang]} ・ "
+    meta = (f"{_updated_of(lang) if kind == 'updates' else UPDATED[lang]}・ "
             f"<a href=\"/{kind}{'?lang=' + other if other == 'en' else ''}\">{'English' if other == 'en' else '日本語'}</a>")
     js = _HOWTO_JS.format(nonce=nonce) if kind == "howto" else ""
     return _frame(lang, title, f"{html.escape(title)} — TRACKMENTO", head, body_of(kind, lang), meta, base, app_url, js)
 
 
 def article_html(slug: str, base: str, app_url: str | None = None, lang: str = "ja") -> str | None:
-    """コラム 1 本（/articles/<slug>）。無い名前なら None。本文は日本語だけなので、ページは常に日本語で組む。
+    """コラム1本（/articles/<slug>）。無い名前ならNone。本文は日本語だけなので、ページは常に日本語で組む。
     下の案内のリンクだけ、英語の画面から来た人には英語のまま出す"""
     a = articles.BY_SLUG.get(slug)
     if a is None:
         return None
     lang = lang if lang in ("ja", "en") else "ja"
     head = f'<link rel="canonical" href="{base.rstrip("/")}/articles/{slug}">'
-    meta = f'{_date_label(a["date"], "ja")} ・ Tobokegao ・ <a href="/articles{"?lang=en" if lang == "en" else ""}">{html.escape(NAV[lang][3])}</a>'
+    meta = f'{_date_label(a["date"], "ja")}・Tobokegao・ <a href="/articles{"?lang=en" if lang == "en" else ""}">{html.escape(NAV[lang][3])}</a>'
     body = _JA_BREAK.sub("", a["body"])
     return _frame("ja", a["title"], a["description"], head, body, meta, base, app_url, "", nav_lang=lang)
 
 
 def _frame(lang: str, title: str, description: str, head: str, body: str, meta: str, base: str,
            app_url: str | None, js: str, nav_lang: str | None = None) -> str:
-    """文章のページの枠（見出し・本文・日付の行・下の案内）。nav_lang は下の案内の言語（既定はページと同じ）"""
+    """文章のページの枠（見出し・本文・日付の行・下の案内）。nav_langは下の案内の言語（既定はページと同じ）"""
     app_url = (app_url or base).rstrip("/")
     nav_lang = nav_lang or lang
     q = "?lang=en" if nav_lang == "en" else ""
@@ -970,7 +972,7 @@ h3 {{ font-size: .95rem; margin: 12px 0 4px; }}
 h2 {{ font-size: 1.05rem; margin: 20px 0 4px; padding-bottom: 2px; border-bottom: 2px solid #12171b; }}
 p, dd {{ margin: 0; }}
 main a {{ color: #12171b; }}
-/* 外へ出るリンクに印を付ける（2026-09-21）。本文のリンクは下線だけで色を変えていない（OS 9 風の
+/* 外へ出るリンクに印を付ける（2026-09-21）。本文のリンクは下線だけで色を変えていない（OS 9風の
    見た目に青が浮くため）ので、そのままだとサイト内の移動と区別が付かない。`target="_blank"` を
    付けているのは外部リンクだけなので、それを目印にする。文字は離さない（行末で折れて印だけ次の行に
    残るのを防ぐ）*/
@@ -985,8 +987,8 @@ dt {{ font-weight: 700; }}
 .catch-main {{ font-size: 1.15rem; font-weight: 700; line-height: 1.6; }}
 .catch-sub {{ font-size: .95rem; }}
 /* キャッチコピーは語のまとまり（.ph）の途中で折らない（2026-09-27、利用者の指摘「いま心を突き動かすこの曲も。が途中で改行される」）。
-   inline-block なので、まとまりが 1 行より長い狭い画面では、その中で折れる（はみ出さない）。
-   「この曲も。」だけが次の行に残ると中途半端に見えたので、「いま心を突き動かすこの曲も。」は 1 つのまとまりにした */
+   inline-blockなので、まとまりが1行より長い狭い画面では、その中で折れる（はみ出さない）。
+   「この曲も。」だけが次の行に残ると中途半端に見えたので、「いま心を突き動かすこの曲も。」は1つのまとまりにした */
 .catch .ph {{ display: inline-block; }}
 nav.pages {{ display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .9rem; }}
 nav.pages a {{ color: #12171b; }}
@@ -1010,7 +1012,7 @@ dl.articles dt {{ font-size: 1rem; }}
 </body></html>"""
 
 
-# 題を開いたら流し、閉じたら止める（音は無い。muted なのでスマホでも自動で流せる）
+# 題を開いたら流し、閉じたら止める（音は無い。mutedなのでスマホでも自動で流せる）
 _HOWTO_JS = """<script nonce="{nonce}">
 document.querySelectorAll("details.clip").forEach(function (d) {{
   d.addEventListener("toggle", function () {{
@@ -1019,7 +1021,7 @@ document.querySelectorAll("details.clip").forEach(function (d) {{
     if (d.open) {{ v.preload = "auto"; var p = v.play(); if (p) p.catch(function () {{}}); }} else v.pause();
   }});
 }});
-// /howto#<id> で来たら、その問いを開いておく（編集画面の吹き出しの「使い方の動画で見る」、SNS での返事のリンク。2026-09-27）
+// /howto#<id> で来たら、その問いを開いておく（編集画面の吹き出しの「使い方の動画で見る」、SNSでの返事のリンク。2026-09-27）
 var d0 = location.hash.length > 1 && document.getElementById(decodeURIComponent(location.hash.slice(1)));
 if (d0 && d0.tagName === "DETAILS") d0.open = true;
 </script>"""

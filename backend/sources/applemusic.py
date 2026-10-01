@@ -1,12 +1,12 @@
-"""Apple Music（music.apple.com）の URL から曲を取る。キー不要。
+"""Apple Music（music.apple.com）のURLから曲を取る。キー不要。
 
-- 単曲 / アルバム … 公式の iTunes Lookup API（https://itunes.apple.com/lookup）。
-  URL の ?i=<trackId> があれば単曲、無ければアルバムの収録曲をまとめて返す。
-  既にある iTunes ソースと同じ形の応答なので、画像も同じ扱い（artworkUrl100 → 600x600）ができる。
-- プレイリスト … Lookup API の対象外。ページに埋まっている serialized-server-data を読む。
-  artwork.dictionary.url は "…/{w}x{h}bb.{f}" というテンプレートなので、実寸を埋めて使う。
+- 単曲 / アルバム … 公式のiTunes Lookup API（https://itunes.apple.com/lookup）。
+  URLの ?i=<trackId> があれば単曲、無ければアルバムの収録曲をまとめて返す。
+  既にあるiTunesソースと同じ形の応答なので、画像も同じ扱い（artworkUrl100 → 600x600）ができる。
+- プレイリスト … Lookup APIの対象外。ページに埋まっているserialized-server-dataを読む。
+  artwork.dictionary.urlは "…/{w}x{h}bb.{f}" というテンプレートなので、実寸を埋めて使う。
 
-storefront（/jp/ の部分）は URL から取る。country が違うと Lookup が 0 件になることがある。
+storefront（/jp/ の部分）はURLから取る。countryが違うとLookupが0件になることがある。
 """
 from __future__ import annotations
 
@@ -19,19 +19,19 @@ import httpx
 from backend.models import Track
 from backend.sources.itunes import COVER_PX
 
-# **名乗りは正直にする**（2026-09-20）。以前は素の Chrome の User-Agent を送っていたが、
+# **名乗りは正直にする**（2026-09-20）。以前は素のChromeのUser-Agentを送っていたが、
 # ブラウザのふりをすると相手から「誰が来ているか」が分からず、多すぎれば連絡も遮断もできない。
-# 形は Bandcamp 向けと同じ「Mozilla/5.0 (compatible; …)」。古い形を見て中身を出すサイトがあるため、
+# 形はBandcamp向けと同じ「Mozilla/5.0 (compatible; …)」。古い形を見て中身を出すサイトがあるため、
 # 互換の殻だけ残して名前と連絡先を入れる
 UA = "Mozilla/5.0 (compatible; trackmento/0.1; +https://trackmento.com)"
 LOOKUP = "https://itunes.apple.com/lookup"
-MAX_ITEMS = 500   # backend/sources/playlist.py と同じ
+MAX_ITEMS = 500   # backend/sources/playlist.pyと同じ
 
 _ALBUM_RE = re.compile(r"/(?:[a-z]{2}/)?album/[^/]*/(\d+)")
 _PLAYLIST_RE = re.compile(r"/(?:[a-z]{2}/)?playlist/[^/]*/(pl\.[A-Za-z0-9_-]+)")
 _SONG_RE = re.compile(r"/(?:[a-z]{2}/)?song/[^/]*/(\d+)")
 _STOREFRONT_RE = re.compile(r"^/([a-z]{2})/")
-# artwork のテンプレート "…/{w}x{h}bb.{f}" に実寸を埋める
+# artworkのテンプレート "…/{w}x{h}bb.{f}" に実寸を埋める
 _TPL_RE = re.compile(r"\{w\}x\{h\}(\w*)\.\{f\}")
 
 
@@ -58,13 +58,13 @@ def kind(url: str) -> str:
     if _SONG_RE.search(p.path):
         return "song"
     if _ALBUM_RE.search(p.path):
-        # ?i=<trackId> が付いていればアルバムの中の 1 曲を指している
+        # ?i=<trackId> が付いていればアルバムの中の1曲を指している
         return "song" if (parse_qs(p.query or "").get("i") or [""])[0].isdigit() else "album"
     return ""
 
 
 def _from_lookup(item: dict) -> Track | None:
-    """Lookup API の 1 件 → Track。iTunes ソースと同じ形なので画像の扱いも揃う。"""
+    """Lookup APIの1件 → Track。iTunesソースと同じ形なので画像の扱いも揃う。"""
     art = item.get("artworkUrl100") or item.get("artworkUrl60")
     title = (item.get("trackName") or "").strip()
     if not (art and title):
@@ -82,7 +82,7 @@ async def _lookup(client: httpx.AsyncClient, params: dict) -> list[dict]:
 
 
 def _walk_tracks(node, out: list) -> None:
-    """serialized-server-data を辿って曲の項目を集める（決まった場所に無いので全体を歩く）。"""
+    """serialized-server-dataを辿って曲の項目を集める（決まった場所に無いので全体を歩く）。"""
     if isinstance(node, dict):
         if node.get("title") and node.get("artwork") and (node.get("subtitleLinks") or node.get("artistName")):
             out.append(node)
@@ -101,7 +101,7 @@ def _from_page_item(x: dict) -> Track | None:
         return None
     links = x.get("subtitleLinks") or []
     artist = (x.get("artistName") or (links[0].get("title") if links else "") or "").strip()
-    # id は "track-lockup - pl.xxx - <trackId>" の形。曲でない項目（プレイリスト自体の見出しなど）は
+    # idは "track-lockup - pl.xxx - <trackId>" の形。曲でない項目（プレイリスト自体の見出しなど）は
     # 末尾が数字にならないので、ここで落とす
     m = re.search(r"(\d{6,})\s*$", str(x.get("id") or ""))
     if not m:
@@ -114,7 +114,7 @@ def _from_page_item(x: dict) -> Track | None:
 
 
 async def _fix_by_lookup(client: httpx.AsyncClient, tracks: list[Track], country: str) -> list[Track]:
-    """ページから読んだ曲を、Lookup API の正しい曲名・アーティストで上書きする。
+    """ページから読んだ曲を、Lookup APIの正しい曲名・アーティストで上書きする。
 
     ページの曲名は表示用に切られていることがある（末尾が「…」になる）。画像はページ側のものが
     そのまま使えるので、文字だけ直す。引けなかったものはページの値のまま残す。
@@ -145,10 +145,10 @@ async def _fix_by_lookup(client: httpx.AsyncClient, tracks: list[Track], country
 
 
 async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> list[Track]:
-    """Apple Music の URL から Track の一覧（単曲なら 1 件）。"""
+    """Apple MusicのURLからTrackの一覧（単曲なら1件）。"""
     k = kind(url)
     if not k:
-        raise ValueError("Apple Music の曲・アルバム・プレイリストの URL を貼ってください")
+        raise ValueError("Apple Musicの曲・アルバム・プレイリストのURLを貼ってください")
     own = client is None
     client = client or httpx.AsyncClient(timeout=30, follow_redirects=True)
     country = _storefront(url)
@@ -160,7 +160,7 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> list[Tr
                 m = _SONG_RE.search(p.path)
                 tid = m.group(1) if m else ""
             if not tid.isdigit():
-                raise ValueError("曲の ID を読めませんでした")
+                raise ValueError("曲のIDを読めませんでした")
             out = [t for t in (_from_lookup(x) for x in await _lookup(client, {"id": tid, "country": country})) if t]
         elif k == "album":
             m = _ALBUM_RE.search(urlparse(url).path)
@@ -171,18 +171,18 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> list[Tr
             r.raise_for_status()
             sm = re.search(r'<script[^>]*id="serialized-server-data"[^>]*>(.*?)</script>', r.text, re.S)
             if not sm:
-                raise ValueError("Apple Music のページから曲の一覧を読めませんでした")
+                raise ValueError("Apple Musicのページから曲の一覧を読めませんでした")
             try:
                 data = json.loads(sm.group(1))
             except json.JSONDecodeError as e:
-                raise ValueError("Apple Music のページの形式が変わったようです") from e
+                raise ValueError("Apple Musicのページの形式が変わったようです") from e
             items: list = []
             _walk_tracks(data, items)
             out = [t for t in (_from_page_item(x) for x in items) if t]
             # ページに載っている曲名は**表示用に切られている**ことがある
             # （長いものが「… (feat. 〜」のように末尾を落とされ、アーティストも省かれる）。
-            # 曲の ID は取れているので、Lookup API で正しい曲名・アーティストに直す。
-            # Lookup は id をカンマ区切りでまとめて渡せるので、100 件ずつで足りる
+            # 曲のIDは取れているので、Lookup APIで正しい曲名・アーティストに直す。
+            # Lookupはidをカンマ区切りでまとめて渡せるので、100件ずつで足りる
             out = await _fix_by_lookup(client, out, country)
     finally:
         if own:

@@ -1,11 +1,11 @@
-"""外部 URL を取りに行くときの SSRF 対策。
+"""外部URLを取りに行くときのSSRF対策。
 
-- 私設アドレス・ループバック・リンクローカル・予約アドレス宛てを拒否する（DNS 解決後の IP で判定）
-- 検査した IP にそのまま接続する（DNS ピンニング）。名前解決を検査時と接続時で 2 回行うと、その間に答えを
-  変えられる（DNS rebinding）ので、URL のホストを IP に置き換え、Host ヘッダと TLS の SNI に元のホスト名を渡す。
-  証明書の検証も元のホスト名で行う（httpx の sni_hostname 拡張）
-- リダイレクトは自動追従せず、1 ホップごとに宛先を再検査・再ピンする（許可ホストから内部へ飛ばされないように）
-画像プロキシ、サーバー側描画の画像取得、Bandcamp などページ取得の入口で使う。
+- 私設アドレス・ループバック・リンクローカル・予約アドレス宛てを拒否する（DNS解決後のIPで判定）
+- 検査したIPにそのまま接続する（DNSピンニング）。名前解決を検査時と接続時で2回行うと、その間に答えを
+  変えられる（DNS rebinding）ので、URLのホストをIPに置き換え、HostヘッダとTLSのSNIに元のホスト名を渡す。
+  証明書の検証も元のホスト名で行う（httpxのsni_hostname拡張）
+- リダイレクトは自動追従せず、1ホップごとに宛先を再検査・再ピンする（許可ホストから内部へ飛ばされないように）
+画像プロキシ、サーバー側描画の画像取得、Bandcampなどページ取得の入口で使う。
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ MAX_REDIRECTS = 5
 
 def _ip_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     if isinstance(ip, ipaddress.IPv6Address):
-        # ::ffff:a.b.c.d（IPv4 射影）や 64:ff9b::a.b.c.d（NAT64）は中の IPv4 で判定する
+        # ::ffff:a.b.c.d（IPv4射影）や64:ff9b::a.b.c.d（NAT64）は中のIPv4で判定する
         inner = ip.ipv4_mapped
         if inner is None and ip in ipaddress.ip_network("64:ff9b::/96"):
             inner = ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
@@ -30,17 +30,17 @@ def _ip_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
             return _ip_public(inner)
     if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
         return False
-    return ip.is_global   # 100.64/10（CGNAT）や 192.0.0/24 なども外す
+    return ip.is_global   # 100.64/10（CGNAT）や192.0.0/24なども外す
 
 
-_RESOLVE_TTL = 60.0        # 名前解決の結果を覚える秒数（サムネイル 1 枚ごとに DNS を引かない）
+_RESOLVE_TTL = 60.0        # 名前解決の結果を覚える秒数（サムネイル1枚ごとにDNSを引かない）
 _RESOLVE_FAIL_TTL = 10.0   # 解決できなかった／非公開だったホストを覚える秒数
 _resolve_cache: dict[str, tuple[float, str | None]] = {}
 
 
 def resolve_public(host: str) -> str | None:
-    """名前解決し、全アドレスが公開アドレスなら接続に使う 1 つ（IPv4 優先）を返す。1 つでも駄目なら None。
-    同期呼び出し（getaddrinfo は数秒かかることがある）。async から呼ぶときは safe_get のようにスレッドへ逃がす。"""
+    """名前解決し、全アドレスが公開アドレスなら接続に使う1つ（IPv4優先）を返す。1つでも駄目ならNone。
+    同期呼び出し（getaddrinfoは数秒かかることがある）。asyncから呼ぶときはsafe_getのようにスレッドへ逃がす。"""
     now = time.monotonic()
     hit = _resolve_cache.get(host)
     if hit and hit[0] > now:
@@ -70,12 +70,12 @@ def _resolve_public_uncached(host: str) -> str | None:
 
 
 def is_public_host(host: str) -> bool:
-    """名前解決した全アドレスが公開アドレスなら True。解決できなければ False。"""
+    """名前解決した全アドレスが公開アドレスならTrue。解決できなければFalse。"""
     return resolve_public(host) is not None
 
 
 def url_ok(url: str, allowlist: tuple[str, ...] = ()) -> bool:
-    """http(s) で、許可ホスト（末尾一致）か公開アドレスの URL だけ許す。"""
+    """http(s) で、許可ホスト（末尾一致）か公開アドレスのURLだけ許す。"""
     try:
         p = urlparse(url)
     except ValueError:
@@ -93,14 +93,14 @@ class BlockedURL(ValueError):
 
 
 def _plan(url: str, allowlist: tuple[str, ...]) -> tuple[str, dict, dict]:
-    """1 ホップ分の接続計画。(接続に使う URL, 追加ヘッダ, httpx の extensions)。
-    許可ホストはそのまま。それ以外は公開 IP に解決して IP へ接続し、Host と SNI に元のホスト名を使う。"""
+    """1ホップ分の接続計画。(接続に使うURL, 追加ヘッダ, httpxのextensions)。
+    許可ホストはそのまま。それ以外は公開IPに解決してIPへ接続し、HostとSNIに元のホスト名を使う。"""
     try:
         p = urlparse(url)
     except ValueError as e:
-        raise BlockedURL("URL が不正です") from e
+        raise BlockedURL("URLが不正です") from e
     if p.scheme not in ("http", "https") or not p.hostname:
-        raise BlockedURL("http(s) の URL だけ取得できます")
+        raise BlockedURL("http(s) のURLだけ取得できます")
     host = p.hostname.lower()
     if any(host == d or host.endswith("." + d) for d in allowlist):
         return url, {}, {}
@@ -122,12 +122,12 @@ def _next(url: str, r: httpx.Response) -> str | None:
 
 
 async def safe_get(client: httpx.AsyncClient, url: str, *, allowlist: tuple[str, ...] = (), **kw) -> httpx.Response:
-    """検査した IP に接続しながら GET し、リダイレクトは 1 ホップずつ再検査して追う。
-    返す Response の final_url に、最後に取得した論理 URL（IP ではなく元のホスト名のもの）を入れる。"""
+    """検査したIPに接続しながらGETし、リダイレクトは1ホップずつ再検査して追う。
+    返すResponseのfinal_urlに、最後に取得した論理URL（IPではなく元のホスト名のもの）を入れる。"""
     kw.pop("follow_redirects", None)
     headers = dict(kw.pop("headers", None) or {})
     for _ in range(MAX_REDIRECTS + 1):
-        # _plan の名前解決は同期（getaddrinfo）。イベントループを止めないようスレッドで行う
+        # _planの名前解決は同期（getaddrinfo）。イベントループを止めないようスレッドで行う
         pinned, extra, ext = await asyncio.to_thread(_plan, url, allowlist)
         r = await client.get(pinned, follow_redirects=False, headers={**headers, **extra}, extensions=ext or None, **kw)
         nxt = _next(url, r)
@@ -139,7 +139,7 @@ async def safe_get(client: httpx.AsyncClient, url: str, *, allowlist: tuple[str,
 
 
 def safe_get_sync(url: str, *, allowlist: tuple[str, ...] = (), timeout: float = 20, headers: dict | None = None) -> httpx.Response:
-    """同期版（サーバー側描画・CLI 用）。"""
+    """同期版（サーバー側描画・CLI用）。"""
     headers = dict(headers or {})
     with httpx.Client(timeout=timeout, follow_redirects=False) as c:
         for _ in range(MAX_REDIRECTS + 1):

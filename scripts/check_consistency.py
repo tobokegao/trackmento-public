@@ -1,4 +1,4 @@
-"""文書・画面の記述が、コードの実態とずれていないかを機械的に見る（2026-09-20 に作った）。
+"""文書・画面の記述が、コードの実態とずれていないかを機械的に見る（2026-09-20に作った）。
 
 コミットやプッシュの前に回す。**機械で確実に言えることだけ**を見る道具で、
 「書いてあることが今も正しいか」の判断は人（と `/consistency-check` スキル）の側に残す。
@@ -9,15 +9,15 @@
 見るもの:
 
 1. **参照されているファイルが実在するか** … 文書の中のバッククォートに囲まれたパス
-   （`backend/render.py` など）。2026-09-20 に `docs/` を分けたとき、切れた参照が 3 本出た
-2. **マスの上限が 4 か所でそろっているか** … ずれると並びが黙って潰れる（CLAUDE.md の覚え書き）
-3. **同じ数字が文書とコードで一致するか** … プレイリストの上限・JPEG の品質・画像の画素数。
-   画面の案内が「最大 256 曲」のままだった（実際は 500）のを拾えなかったので入れた
+   （`backend/render.py` など）。2026-09-20に `docs/` を分けたとき、切れた参照が3本出た
+2. **マスの上限が4か所でそろっているか** … ずれると並びが黙って潰れる（CLAUDE.mdの覚え書き）
+3. **同じ数字が文書とコードで一致するか** … プレイリストの上限・JPEGの品質・画像の画素数。
+   画面の案内が「最大256曲」のままだった（実際は500）のを拾えなかったので入れた
 4. **サイト内ページの「最終更新」が、更新情報のいちばん新しい日付より古くないか**
-5. **移転前の URL が現役の説明として残っていないか**（`trackmento.onrender.com`）
+5. **移転前のURLが現役の説明として残っていないか**（`trackmento.onrender.com`）
 6. **どこからも参照されていないスクリプト** … 使い捨ての調査スクリプトを置かない方針の確認
 
-NG があれば終了コード 1。
+NGがあれば終了コード1。
 """
 from __future__ import annotations
 
@@ -32,11 +32,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # 文書（人が書き、古くなりうるもの）
-DOCS = ["README.md", "CLAUDE.md", "video-notes.md",   # trackmento-spec.md は初期仕様の記録なので見ない
+DOCS = ["README.md", "CLAUDE.md", "video-notes.md",   # trackmento-spec.mdは初期仕様の記録なので見ない
         *sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in (ROOT / "docs").glob("*.md")),
         *sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in (ROOT / ".claude" / "skills").rglob("SKILL.md"))]
 
-# 移転前の URL を現役の説明として書いてよいファイル（引っ越しの記録・受け皿の実装）
+# 移転前のURLを現役の説明として書いてよいファイル（引っ越しの記録・受け皿の実装）
 OLD_URL_OK = {"docs/ops.md", "docs/history.md", "backend/config.py", "backend/main.py", "render.yaml",
               "backend/pages.py", "frontend/index.html", "scripts/check_consistency.py"}
 
@@ -67,7 +67,7 @@ def tracked() -> list[str]:
 
 
 def _ignored(ref: str) -> bool:
-    """.gitignore の対象（grids/・outputs/ など手元にだけあるもの）。CI の clone には無いので数えない（2026-09-27）"""
+    """.gitignoreの対象（grids/・outputs/ など手元にだけあるもの）。CIのcloneには無いので数えない（2026-09-27）"""
     return subprocess.run(["git", "check-ignore", "-q", "--no-index", ref], cwd=ROOT).returncode == 0
 
 
@@ -89,11 +89,11 @@ def check_paths() -> list[str]:
             if (ROOT / ref).exists() or _somewhere(ref) or _ignored(ref):
                 continue
             line = body[:m.start()].count("\n") + 1
-            ng.append(f"{doc}:{line} 参照先が無い: {ref}")
+            ng.append(f"{doc}:{line}参照先が無い: {ref}")
     return ng
 
 
-# ---- 2. マスの上限（4 か所） ----
+# ---- 2. マスの上限（4か所） ----
 def check_cells() -> list[str]:
     fe = read("frontend/index.html")
     grids = read("backend/grids.py")
@@ -107,17 +107,17 @@ def check_cells() -> list[str]:
         return int(m.group(1))
 
     ng: list[str] = []
-    side_fe = one(r"MAX_SIDE_CELLS\s*=\s*(\d+)", fe, "index.html の MAX_SIDE_CELLS")
-    total_fe = one(r"MAX_CELLS\s*=\s*(\d+)", fe, "index.html の MAX_CELLS")
-    cols = one(r"MAX_COLS\s*=\s*(?:MAX_ROWS\s*=\s*)?(\d+)", grids, "grids.py の MAX_COLS")
-    rows = one(r"MAX_ROWS\s*=\s*(?:MAX_COLS\s*=\s*)?(\d+)", grids, "grids.py の MAX_ROWS")
+    side_fe = one(r"MAX_SIDE_CELLS\s*=\s*(\d+)", fe, "index.htmlのMAX_SIDE_CELLS")
+    total_fe = one(r"MAX_CELLS\s*=\s*(\d+)", fe, "index.htmlのMAX_CELLS")
+    cols = one(r"MAX_COLS\s*=\s*(?:MAX_ROWS\s*=\s*)?(\d+)", grids, "grids.pyのMAX_COLS")
+    rows = one(r"MAX_ROWS\s*=\s*(?:MAX_COLS\s*=\s*)?(\d+)", grids, "grids.pyのMAX_ROWS")
     m = re.search(r'def max_cells.*?os\.getenv\("MAX_CELLS",\s*"(\d+)"', config, re.S)
     total_cfg = int(m.group(1)) if m else None
     if total_cfg is None:
-        ng.append("上限の定義が見つからない: config.py の max_cells()")
+        ng.append("上限の定義が見つからない: config.pyのmax_cells()")
 
     if None not in (side_fe, cols, rows) and not (side_fe == cols == rows):
-        ng.append(f"1 辺の上限がずれている: index.html {side_fe} / grids.py {cols}x{rows}")
+        ng.append(f"1辺の上限がずれている: index.html {side_fe} / grids.py {cols}x{rows}")
     if None not in (total_fe, total_cfg) and total_fe != total_cfg:
         ng.append(f"総数の上限がずれている: index.html {total_fe} / config.py {total_cfg}")
     return ng
@@ -135,18 +135,18 @@ def check_numbers() -> list[str]:
 
     max_items = _int_of("backend/sources/playlist.py", r"^MAX_ITEMS\s*=\s*(\d+)")
     if max_items:
-        items.append((r"最大\s*([\d,]+)\s*曲", max_items, "プレイリストの上限（playlist.py の MAX_ITEMS）"))
+        items.append((r"最大\s*([\d,]+)\s*曲", max_items, "プレイリストの上限（playlist.pyのMAX_ITEMS）"))
 
     jpeg = _int_of("backend/share.py", r"^JPEG_QUALITY\s*=\s*(\d+)")
     if jpeg:
-        items.append((r"JPEG\s*品質\s*([\d,]+)", jpeg, "JPEG の品質（share.py の JPEG_QUALITY）"))
+        items.append((r"JPEG\s*品質\s*([\d,]+)", jpeg, "JPEGの品質（share.pyのJPEG_QUALITY）"))
 
     px = _int_of("backend/render.py", r"MAX_IMAGE_PIXELS\s*=\s*([\d_]+)".replace("_", "_"))
     if px is None:
         m = re.search(r"MAX_IMAGE_PIXELS\s*=\s*([\d_]+)", read("backend/render.py"))
         px = int(m.group(1).replace("_", "")) if m else None
     if px:
-        items.append((r"([\d,]+)\s*万ピクセル", px // 10000, "画像の画素数の上限（render.py の MAX_IMAGE_PIXELS）"))
+        items.append((r"([\d,]+)\s*万ピクセル", px // 10000, "画像の画素数の上限（render.pyのMAX_IMAGE_PIXELS）"))
 
     # 画面（利用者に見えるもの）も対象に入れる
     for doc in DOCS + ["frontend/index.html", "backend/pages.py"]:
@@ -157,7 +157,7 @@ def check_numbers() -> list[str]:
                 if got == want:
                     continue
                 line = body[:m.start()].count("\n") + 1
-                ng.append(f"{doc}:{line} {what} は {want} なのに「{m.group(0)}」と書いてある")
+                ng.append(f"{doc}:{line} {what}は{want}なのに「{m.group(0)}」と書いてある")
     return ng
 
 
@@ -167,16 +167,16 @@ def check_updated() -> list[str]:
     m = re.search(r'UPDATED\s*=\s*\{"ja":\s*"最終更新:\s*(\d+)年(\d+)月(\d+)日', body)
     c = re.search(r'CHANGES[^=]*=\s*\[\s*\(\s*"(\d{4})-(\d{2})-(\d{2})"', body)
     if not (m and c):
-        return ["backend/pages.py の UPDATED か CHANGES の形が変わった（この検査を直す）"]
+        return ["backend/pages.pyのUPDATEDかCHANGESの形が変わった（この検査を直す）"]
     upd = tuple(int(x) for x in m.groups())
     new = tuple(int(x) for x in c.groups())
     if upd < new:
-        return [f"backend/pages.py の「最終更新」({upd[0]}-{upd[1]:02d}-{upd[2]:02d}) が、"
+        return [f"backend/pages.pyの「最終更新」({upd[0]}-{upd[1]:02d}-{upd[2]:02d}) が、"
                 f"更新情報のいちばん新しい日付 ({new[0]}-{new[1]:02d}-{new[2]:02d}) より古い"]
     return []
 
 
-# ---- 5. 移転前の URL ----
+# ---- 5. 移転前のURL ----
 def check_old_url() -> list[str]:
     ng = []
     for path in tracked():
@@ -185,7 +185,7 @@ def check_old_url() -> list[str]:
         body = read(path)
         for i, line in enumerate(body.split("\n"), 1):
             if "trackmento.onrender.com" in line and not any(w in line for w in ("移転", "引っ越し", "受け皿", "旧")):
-                ng.append(f"{path}:{i} 移転前の URL が残っている（本番は trackmento.com）")
+                ng.append(f"{path}:{i}移転前のURLが残っている（本番はtrackmento.com）")
     return ng
 
 
@@ -202,23 +202,23 @@ def check_unreferenced() -> list[str]:
         name = path.split("/")[-1]
         if any(name in b for p, b in bodies.items() if p != path):
             continue
-        ng.append(f"{path} はどこからも参照されていない（使い捨てなら消す。残すなら文書から名指しする）")
+        ng.append(f"{path}はどこからも参照されていない（使い捨てなら消す。残すなら文書から名指しする）")
     return ng
 
 
 CHECKS = [
     ("参照先の実在", check_paths),
-    ("マスの上限（4 か所）", check_cells),
+    ("マスの上限（4か所）", check_cells),
     ("文書とコードの数字", check_numbers),
     ("サイト内ページの最終更新", check_updated),
-    ("移転前の URL", check_old_url),
+    ("移転前のURL", check_old_url),
     ("参照の無いスクリプト", check_unreferenced),
 ]
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="文書とコードの食い違いを見る")
-    ap.add_argument("--json", action="store_true", help="結果を JSON で出す")
+    ap.add_argument("--json", action="store_true", help="結果をJSONで出す")
     args = ap.parse_args()
 
     result, total = {}, 0
@@ -233,11 +233,11 @@ def main() -> int:
 
     for name, ng in result.items():
         mark = "NG" if ng else "OK"
-        print(f"[{mark}] {name}" + (f"（{len(ng)} 件）" if ng else ""))
+        print(f"[{mark}] {name}" + (f"（{len(ng)}件）" if ng else ""))
         for line in ng:
             print(f"     - {line}")
     print()
-    print(f"食い違い {total} 件" if total else "食い違いなし")
+    print(f"食い違い{total}件" if total else "食い違いなし")
     return 1 if total else 0
 
 

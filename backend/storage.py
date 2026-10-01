@@ -1,13 +1,13 @@
-"""共有ファイル（PNG と並びの JSON）の置き場所。
+"""共有ファイル（PNGと並びのJSON）の置き場所。
 
 - ローカル: shares/ ディレクトリ（既定）
-- Cloudflare R2: S3 互換 API（boto3）。無料枠はストレージ 10GB、書き込み 100 万回／月、読み出し 1,000 万回／月、転送量は無料。
+- Cloudflare R2: S3互換API（boto3）。無料枠はストレージ10GB、書き込み100万回／月、読み出し1,000万回／月、転送量は無料。
   環境変数:
-    R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET   … これらが揃うと R2 を使う
-    R2_PUBLIC_URL … バケットの公開 URL（例 https://pub-xxxx.r2.dev や独自ドメイン）。あれば PNG をそこから直接配信して
-                    サーバーの転送量を節約する。無ければバックエンドが R2 から読んで中継する
-    R2_ENDPOINT   … 省略時は https://<account_id>.r2.cloudflarestorage.com
-  有効期限はバケットの「オブジェクトライフサイクルルール」で設定する（README 参照。既定は 30 日を推奨）
+    R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET   … これらが揃うとR2を使う
+    R2_PUBLIC_URL … バケットの公開URL（例https://pub-xxxx.r2.devや独自ドメイン）。あればPNGをそこから直接配信して
+                    サーバーの転送量を節約する。無ければバックエンドがR2から読んで中継する
+    R2_ENDPOINT   … 省略時はhttps://<account_id>.r2.cloudflarestorage.com
+  有効期限はバケットの「オブジェクトライフサイクルルール」で設定する（README参照。既定は30日を推奨）
 """
 from __future__ import annotations
 
@@ -49,12 +49,12 @@ class LocalStorage:
         return sum(p.stat().st_size for p in SHARES.glob("*") if p.is_file()) if SHARES.exists() else 0
 
     def list_objects(self, prefix: str = ""):
-        """(キー, バイト数, 最終更新 UTC) を順に返す。prefix を渡すとその接頭辞のものだけ。"""
+        """(キー, バイト数, 最終更新UTC) を順に返す。prefixを渡すとその接頭辞のものだけ。"""
         from datetime import datetime, timezone
         if not SHARES.exists():
             return
         # **下の階層まで見る**（`listed/…` のようにキーに `/` を含むものがあるため）。
-        # キーは R2 と同じ「`/` 区切りの相対パス」で返す
+        # キーはR2と同じ「`/` 区切りの相対パス」で返す
         for p in SHARES.rglob("*"):
             if not p.is_file():
                 continue
@@ -85,11 +85,11 @@ class R2Storage:
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
             region_name="auto",
-            # connect_timeout は短くする。R2 への TCP 接続が 1 秒を超えることはまずないので、
-            # ここが長いとつながらなかった 1 回のために利用者を待たせてしまう。
-            # 実測で共有ページ（/s/*）に最大 14.3 秒の応答があり、10 秒の接続待ち＋リトライの
-            # バックオフ（boto3 は指数）でちょうどその値になる。3 秒なら再試行まで含めて 4 秒台で収まる。
-            # read_timeout は共有画像（1 枚 0.35MB 程度）の put も通るので 30 秒のままにする
+            # connect_timeoutは短くする。R2へのTCP接続が1秒を超えることはまずないので、
+            # ここが長いとつながらなかった1回のために利用者を待たせてしまう。
+            # 実測で共有ページ（/s/*）に最大14.3秒の応答があり、10秒の接続待ち＋リトライの
+            # バックオフ（boto3は指数）でちょうどその値になる。3秒なら再試行まで含めて4秒台で収まる。
+            # read_timeoutは共有画像（1枚0.35MB程度）のputも通るので30秒のままにする
             config=Config(signature_version="s3v4", retries={"max_attempts": 3}, connect_timeout=3, read_timeout=30),
         )
 
@@ -101,7 +101,7 @@ class R2Storage:
             r = self._client.get_object(Bucket=self.bucket, Key=key)
         except self._client.exceptions.NoSuchKey:
             return None
-        except Exception as e:  # botocore の 404 は ClientError
+        except Exception as e:  # botocoreの404はClientError
             if getattr(e, "response", {}).get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
                 return None
             raise
@@ -123,12 +123,12 @@ class R2Storage:
         return f"{self._public}/{key}" if self._public else None
 
     def usage_bytes(self) -> int:
-        """バケット内の合計バイト数。一覧（ListObjectsV2）は Class A 操作だが 1000 件ごとに 1 回なので安い"""
+        """バケット内の合計バイト数。一覧（ListObjectsV2）はClass A操作だが1000件ごとに1回なので安い"""
         return sum(size for _, size, _ in self.list_objects())
 
     def list_objects(self, prefix: str = ""):
-        """(キー, バイト数, 最終更新 UTC) を順に返す。1000 件ごとに 1 回の一覧呼び出し（7,000 件で 8 回・数秒）。
-        prefix を渡すと R2 側で絞るので、一部だけ要るときは呼び出し回数が減る。"""
+        """(キー, バイト数, 最終更新UTC) を順に返す。1000件ごとに1回の一覧呼び出し（7,000件で8回・数秒）。
+        prefixを渡すとR2側で絞るので、一部だけ要るときは呼び出し回数が減る。"""
         token = None
         while True:
             kw = {"Bucket": self.bucket, "MaxKeys": 1000}
@@ -144,7 +144,7 @@ class R2Storage:
             token = r.get("NextContinuationToken")
 
     def delete_many(self, keys: list[str]) -> int:
-        """まとめて削除（1 回 1000 件まで）。削除できた件数を返す。"""
+        """まとめて削除（1回1000件まで）。削除できた件数を返す。"""
         done = 0
         for i in range(0, len(keys), 1000):
             chunk = keys[i:i + 1000]
@@ -153,16 +153,16 @@ class R2Storage:
         return done
 
 
-# ---- 使用量の集計（3 時間キャッシュ） ----
+# ---- 使用量の集計（3時間キャッシュ） ----
 #
-# **全件の一覧は高い**。バケットは 211,301 件・30.41 GB あり、1 周に 132 秒・Class A で 212 回かかる
-# （2026-09-20 の実測）。10 分ごとに回していたころは、この 1 つだけで月 91.6 万回と
-# R2 の無料枠 100 万回のほとんどを使い切っていた（2026-09-20 に 600 秒から延ばした）。
-# 使い道は共有の容量上限（share.py の _check_budget）だけで、上限は暴走の歯止めなので
-# 数時間の遅れは問題にならない。本番は上限 120 GB に対し使用 30 GB。
+# **全件の一覧は高い**。バケットは211,301件・30.41 GBあり、1周に132秒・Class Aで212回かかる
+# （2026-09-20の実測）。10分ごとに回していたころは、この1つだけで月91.6万回と
+# R2の無料枠100万回のほとんどを使い切っていた（2026-09-20に600秒から延ばした）。
+# 使い道は共有の容量上限（share.pyの _check_budget）だけで、上限は暴走の歯止めなので
+# 数時間の遅れは問題にならない。本番は上限120 GBに対し使用30 GB。
 _usage_lock = threading.Lock()
 _usage: tuple[float, int] | None = None   # (取得時刻, バイト数)
-# 使用量を数え直す間隔。**全件の一覧（Class A 214 回・132 秒）が走る**ので短くしない（2026-09-21 に 3 → 12 時間）。
+# 使用量を数え直す間隔。**全件の一覧（Class A 214回・132秒）が走る**ので短くしない（2026-09-21に3 → 12時間）。
 # 増えたぶんは `add_usage()` が共有の保存ごとに足しているので、数え直しは「掃除で減ったぶん」の補正でしかない。
 # つまり間隔を延ばすと**実際より多めに見える**側にずれる（歯止めが早めに効く）ので、安全な向き。
 # 使用率が上限（SHARE_BUDGET_GB）に近づいたら短く戻す
@@ -173,7 +173,7 @@ _listing = False   # 一覧取得中（重複して回さない）
 
 
 def usage_bytes(refresh: bool = False) -> int:
-    """合計バイト数。R2 の一覧は数秒かかるのでロックの外で行う（握ったままだと共有の保存が全部その後ろに並び、
+    """合計バイト数。R2の一覧は数秒かかるのでロックの外で行う（握ったままだと共有の保存が全部その後ろに並び、
     上限到達時に共有のたび一覧が走ってサーバーが詰まる）。取得中に別スレッドが来たら手元の値で代用する。"""
     global _usage, _listing
     with _usage_lock:
@@ -193,9 +193,9 @@ def usage_bytes(refresh: bool = False) -> int:
 def set_usage(n: int) -> None:
     """外で数えた合計バイト数を覚える（起動時の一覧と相乗りするため。2026-09-20）。
 
-    起動直後は `main.py` の `_seed_r2_index()` が imgcache の索引を作るために全件を 1 周する。
-    その 1 周でバイト数も足せるので、ここに渡してもらえば同じ一覧を 2 回回さずに済む
-    （起動あたり Class A 344 回 → 212 回）。
+    起動直後は `main.py` の `_seed_r2_index()` がimgcacheの索引を作るために全件を1周する。
+    その1周でバイト数も足せるので、ここに渡してもらえば同じ一覧を2回回さずに済む
+    （起動あたりClass A 344回 → 212回）。
     """
     global _usage
     with _usage_lock:
@@ -203,10 +203,10 @@ def set_usage(n: int) -> None:
 
 
 def usage_cached() -> int | None:
-    """覚えている使用量（一覧は回さない）。まだ一度も数えていなければ None。
-    **共有の保存の途中では、こちらだけを使う**（2026-09-19）。バケットが 20 万件・30GB になり、全件の一覧に
-    134 秒かかるようになった。保存の途中で数え直すと、10 分に 1 回とデプロイ直後の最初の共有がその 134 秒を
-    まるごと待たされていた（点検で「検査と保存」が最大 179 秒）。数え直しは `main.py` の監視ループが裏で行う"""
+    """覚えている使用量（一覧は回さない）。まだ一度も数えていなければNone。
+    **共有の保存の途中では、こちらだけを使う**（2026-09-19）。バケットが20万件・30GBになり、全件の一覧に
+    134秒かかるようになった。保存の途中で数え直すと、10分に1回とデプロイ直後の最初の共有がその134秒を
+    まるごと待たされていた（点検で「検査と保存」が最大179秒）。数え直しは `main.py` の監視ループが裏で行う"""
     with _usage_lock:
         return _usage[1] if _usage else None
 

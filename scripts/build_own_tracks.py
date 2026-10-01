@@ -1,19 +1,19 @@
-"""送信中の窓に出す「作者の曲」の一覧を Bandcamp から作り直す。
+"""送信中の窓に出す「作者の曲」の一覧をBandcampから作り直す。
 
     PYTHONUTF8=1 .venv/Scripts/python scripts/build_own_tracks.py [--dry]
 
-`https://tbkgao.bandcamp.com/music` を読んで **Tobokegao 名義の作品**を拾い、
-さらに 1 作品ずつページを開いて**曲単位**にばらし、`frontend/index.html` の
+`https://tbkgao.bandcamp.com/music` を読んで **Tobokegao名義の作品**を拾い、
+さらに1作品ずつページを開いて**曲単位**にばらし、`frontend/index.html` の
 `OWN_TRACKS` を書き換える。あのアカウントには別名義（MLTEK・Giant Chess Men・
-Various Artists など）の作品も置いてあるので、名義で絞る。
+Various Artistsなど）の作品も置いてあるので、名義で絞る。
 
 **題は日本語で出す**:
 
-- Bandcamp の題が「ピクニック (Picnic)」のように併記なら、**日本語のほうだけ**にする
+- Bandcampの題が「ピクニック (Picnic)」のように併記なら、**日本語のほうだけ**にする
 - ローマ字だけの題（Okane Ga Tarinai Toki No Uta）は自動では戻せないので、下の `JA` に
   読み替えを書く。**ここに無いものはローマ字のまま出る**ので、増えたら足す
 
-**実行時に取りに行かない**のは、画面の CSP が Bandcamp への接続を許していないのと、
+**実行時に取りに行かない**のは、画面のCSPがBandcampへの接続を許していないのと、
 送信中に外部へ問い合わせて待たせたくないため。ここで一覧を焼き込んでおく。
 
 新しい作品を出したら、これを回して `scripts/build_fonts.py` →
@@ -37,9 +37,9 @@ BASE = "https://tbkgao.bandcamp.com"
 KEEP = "tobokegao"
 BEGIN = "  const OWN_TRACKS = ["
 END = "  ];"
-WAIT = 0.6   # Bandcamp へ続けて投げない（作品の数だけ開くので）
+WAIT = 0.6   # Bandcampへ続けて投げない（作品の数だけ開くので）
 
-# ローマ字だけの題の読み替え。**左は Bandcamp の題そのまま**
+# ローマ字だけの題の読み替え。**左はBandcampの題そのまま**
 JA = {
     "Okane Ga Tarinai Toki No Uta": "おかねがたりないときのうた",
     "Okane Ga Tarinai Toki No Uta (Tsukuyomi Ai Version)": "おかねがたりないときのうた（つくよみちゃん版）",
@@ -47,7 +47,7 @@ JA = {
     "Yomi De Ashibumi": "黄泉で足踏み",
     "Yomi De Ashibumi (Vocal Version)": "黄泉で足踏み（歌入り版）",
     "Yomi De Ashibumi(Vocal Version)": "黄泉で足踏み（歌入り版）",
-    "Yomi De Ashibumi(GB Single Version)": "黄泉で足踏み（GB シングル版）",
+    "Yomi De Ashibumi(GB Single Version)": "黄泉で足踏み（GBシングル版）",
     "Yomi De Ashibumi(raphaelgoulart MD Remix)": "黄泉で足踏み（raphaelgoulart MD Remix）",
     # 併記の後ろにさらに括弧が付く題。読み替え表は**生の題**で引くので、これも書いておく
     "黄泉で足踏み(Yomi De Ashibumi)(Album Version)": "黄泉で足踏み（アルバム版）",
@@ -78,7 +78,7 @@ def _title(raw: str) -> str:
 
 
 def _releases(text: str) -> list[dict]:
-    """/music の一覧（最初のぶんは HTML、続きは data-client-items の JSON）をまとめて返す。"""
+    """/musicの一覧（最初のぶんはHTML、続きはdata-client-itemsのJSON）をまとめて返す。"""
     out: list[dict] = []
     m = re.search(r'data-client-items="(.*?)"', text, re.S)
     if m:
@@ -98,7 +98,7 @@ def _releases(text: str) -> list[dict]:
 
 
 def _tracks(client: httpx.Client, url: str) -> list[tuple[str, str]]:
-    """作品のページから (題, 曲の URL) を並び順に返す。"""
+    """作品のページから (題, 曲のURL) を並び順に返す。"""
     r = client.get(BASE + url, timeout=30, follow_redirects=True)
     r.raise_for_status()
     m = re.search(r'data-tralbum="(.*?)"', r.text, re.S)
@@ -124,9 +124,9 @@ def main() -> int:
         r.raise_for_status()
         rel = [x for x in _releases(r.text)
                if x["url"].startswith("/") and x["artist"].lower().startswith(KEEP)]
-        # 同じ作品が一覧に 2 度出ることがある（静的なぶんと data-client-items）
+        # 同じ作品が一覧に2度出ることがある（静的なぶんとdata-client-items）
         rel = list({x["url"]: x for x in rel}.values())
-        print(f"作品 {len(rel)} 件")
+        print(f"作品{len(rel)}件")
         for i, x in enumerate(rel, 1):
             try:
                 got = _tracks(c, x["url"])
@@ -135,20 +135,20 @@ def main() -> int:
                 continue
             new = 0
             for title, url in got:
-                # **同じ題は 1 つだけ**（アルバム版と Deluxe 版など。窓に出すのは題だけなので 2 つ要らない）
+                # **同じ題は1つだけ**（アルバム版とDeluxe版など。窓に出すのは題だけなので2つ要らない）
                 if not title or url in seen or title.casefold() in seen:
                     continue
                 seen.add(url); seen.add(title.casefold())
                 rows.append((title, url))
                 new += 1
-            print(f"  {i:2d}/{len(rel)} {x['url']}  {len(got)} 曲（新しく {new}）")
+            print(f"  {i:2d}/{len(rel)} {x['url']}  {len(got)}曲（新しく{new}）")
             time.sleep(WAIT)
     if not rows:
-        print("1 曲も取れませんでした（ページの作りが変わった可能性）")
+        print("1曲も取れませんでした（ページの作りが変わった可能性）")
         return 1
     rows.sort(key=lambda x: x[0])
     left = [t for t, _ in rows if not _has_ja(t) and t not in JA.values()]
-    print(f"\n合計 {len(rows)} 曲。日本語でないもの {len(left)} 件（読み替えを足すならこれ）:")
+    print(f"\n合計{len(rows)}曲。日本語でないもの{len(left)}件（読み替えを足すならこれ）:")
     for t in left:
         print(f"  {t}")
     if dry:
@@ -161,7 +161,7 @@ def main() -> int:
     b = s.index(END.replace("\n", nl), a)
     s = s[:a] + BEGIN + nl + body.replace("\n", nl) + nl + END + s[b + len(END):]
     p.write_text(s, encoding="utf-8", newline="")
-    print("frontend/index.html を書き換えました（フォントの作り直しを忘れずに）")
+    print("frontend/index.htmlを書き換えました（フォントの作り直しを忘れずに）")
     return 0
 
 

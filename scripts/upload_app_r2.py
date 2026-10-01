@@ -1,17 +1,17 @@
-"""切り出した CSS と JS（frontend/dist/app.<hash>.{css,js}）を R2 に上げる。
+"""切り出したCSSとJS（frontend/dist/app.<hash>.{css,js}）をR2に上げる。
 
 使い方:
   .venv/Scripts/python scripts/build_app.py
   .venv/Scripts/python scripts/upload_app_r2.py [--force]
 
-index.html は 424,697 バイトあり、その 93% が CSS と JS。初回訪問とデプロイ直後は
-br 圧縮後 130KB がまるごと Render から出ていく。Render の帯域は Hobby プランの込みが月 5GB だけで
-（2026-09-20 時点で 143.33GB・$20.85）、出費の最大項だった。R2 は転送量が無料なので、
-どの訪問者にも同じ CSS と JS だけをそちらから配る。
+index.htmlは424,697バイトあり、その93% がCSSとJS。初回訪問とデプロイ直後は
+br圧縮後130KBがまるごとRenderから出ていく。Renderの帯域はHobbyプランの込みが月5GBだけで
+（2026-09-20時点で143.33GB・$20.85）、出費の最大項だった。R2は転送量が無料なので、
+どの訪問者にも同じCSSとJSだけをそちらから配る。
 
-R2 のキーは app/<ファイル名>。ファイル名に内容のハッシュが入っているので、内容が変われば別のキーになる。
+R2のキーはapp/<ファイル名>。ファイル名に内容のハッシュが入っているので、内容が変われば別のキーになる。
 **古いものは消さない**（配布済みの殻がまだ古い名前を指しているため）。fonts/ と同じく
-r2_prune.py の KEEP_PREFIXES に入れて、共有の掃除に巻き込まれないようにしてある。
+r2_prune.pyのKEEP_PREFIXESに入れて、共有の掃除に巻き込まれないようにしてある。
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ from backend import storage  # noqa: E402
 PREFIX = "app/"
 DIST = ROOT / "frontend" / "dist"
 CTYPE = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".gif": "image/gif", ".png": "image/png"}
-BANNERS = ROOT / "frontend" / "banners"   # 画面に貼る絵。キーは app/banners/<名前>（名前に中身のハッシュが入っている）
+BANNERS = ROOT / "frontend" / "banners"   # 画面に貼る絵。キーはapp/banners/<名前>（名前に中身のハッシュが入っている）
 
 
 def main() -> int:
@@ -45,21 +45,21 @@ def main() -> int:
 
     st = storage.get_storage()
     if not st.is_remote:
-        print("R2 が設定されていません（.env の R2_* を確認）", file=sys.stderr)
+        print("R2が設定されていません（.envのR2_* を確認）", file=sys.stderr)
         return 1
     if not st.public_url(""):
-        print("R2_PUBLIC_URL がありません。公開 URL が無いと R2 から配れません", file=sys.stderr)
+        print("R2_PUBLIC_URLがありません。公開URLが無いとR2から配れません", file=sys.stderr)
         return 1
 
     files = sorted(DIST.glob("app.*.css")) + sorted(DIST.glob("app.*.js"))
     banners = sorted(BANNERS.glob("*.gif")) + sorted(BANNERS.glob("*.png"))
     if not files:
-        print("frontend/dist/app.*.{css,js} がありません（python scripts/build_app.py で生成）", file=sys.stderr)
+        print("frontend/dist/app.*.{css,js}がありません（python scripts/build_app.pyで生成）", file=sys.stderr)
         return 1
 
     have: set[str] = set()
     if not args.force:
-        # **app/ だけ一覧する**（バケット全体は 21 万件あり、一覧に 2 分かかる）
+        # **app/ だけ一覧する**（バケット全体は21万件あり、一覧に2分かかる）
         have = {k for k, _, _ in st.list_objects(PREFIX)}
 
     up = skip = 0
@@ -74,9 +74,9 @@ def main() -> int:
         up += 1
 
     base = st.public_url(PREFIX).rstrip("/")
-    print(f"上げた {up} 件 / そのまま {skip} 件  →  {base}/")
-    print("**デプロイより先にこれを終わらせること**。殻が指すファイルが R2 に無いと、"
-          "サーバーは殻を使わず 1 枚の index.html を配る（壊れはしないが、効果が出ない）")
+    print(f"上げた{up}件 / そのまま{skip}件  →  {base}/")
+    print("**デプロイより先にこれを終わらせること**。殻が指すファイルがR2に無いと、"
+          "サーバーは殻を使わず1枚のindex.htmlを配る（壊れはしないが、効果が出ない）")
     return 0
 
 

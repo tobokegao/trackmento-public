@@ -2,35 +2,35 @@
 
 （`CLAUDE.md` から分けたもの。2026-09-25。毎回は要らないので核から外した。中身は当時のまま）
 
-何も無い状態から手元で動かす手順。**Windows 前提**（パスは `.venv/Scripts/`。macOS / Linux なら `.venv/bin/`）。
+何も無い状態から手元で動かす手順。**Windows前提**（パスは `.venv/Scripts/`。macOS / Linuxなら `.venv/bin/`）。
 
-1. **Python 3.14**（本番の Docker が `python:3.14-slim`。3.11 以上なら動くが、本番と揃えるほうが安全）
+1. **Python 3.14**（本番のDockerが `python:3.14-slim`。3.11以上なら動くが、本番と揃えるほうが安全）
 
    ```bash
    python -m venv .venv
    .venv/Scripts/python -m pip install -r requirements.txt
    ```
 
-2. **`.env` を作る**。無くても動く（検索は iTunes と MusicBrainz、保存はローカルの `shares/`）。
+2. **`.env` を作る**。無くても動く（検索はiTunesとMusicBrainz、保存はローカルの `shares/`）。
    入れると増えるものは `docs/env.md` の表。最低限の形:
 
    ```
-   MB_USER_AGENT=trackmento/0.1 (https://github.com/あなた/…)    # MusicBrainz は連絡先入りの UA を要求する
+   MB_USER_AGENT=trackmento/0.1 (https://github.com/あなた/…)    # MusicBrainzは連絡先入りのUAを要求する
    PUBLIC_BASE_URL=auto
    ```
 
-3. **コミットの見張りを入れる**（クローンごとに 1 回）
+3. **コミットの見張りを入れる**（クローンごとに1回）
 
    ```bash
    git config core.hooksPath .githooks
    ```
 
    `.githooks/pre-commit` が、鍵を含みそうなもの（`.env` とその控え・`*.pem`・値の入った
-   `SECRET=` の形）をコミットの瞬間に止める。**2026-09-14 に `.env` の控えを公開リポジトリへ
-   入れてしまった**ため（`docs/gotchas.md`）。GitHub の push protection は発行元の分かる形しか
-   止められず、R2 の鍵のような「ただの英数字」はすり抜ける。
+   `SECRET=` の形）をコミットの瞬間に止める。**2026-09-14に `.env` の控えを公開リポジトリへ
+   入れてしまった**ため（`docs/gotchas.md`）。GitHubのpush protectionは発行元の分かる形しか
+   止められず、R2の鍵のような「ただの英数字」はすり抜ける。
 
-   同じ `pre-commit` が続けて `scripts/check.py` を回し、`pre-push` が `scripts/check.py --r2` を回す（2026-09-27）。フォントや CSS / JS の作り直し・上げ忘れで本番が 404 になるのを、コミットと push の手前で止める。R2 の点検は `.env` の鍵で一覧を取る（鍵が無いときは公開 URL で先頭の断片だけ確かめる）。
+   同じ `pre-commit` が続けて `scripts/check.py` を回し、`pre-push` が `scripts/check.py --r2` を回す（2026-09-27）。フォントやCSS / JSの作り直し・上げ忘れで本番が404になるのを、コミットとpushの手前で止める。R2の点検は `.env` の鍵で一覧を取る（鍵が無いときは公開URLで先頭の断片だけ確かめる）。
 
 4. **起動**
 
@@ -38,18 +38,18 @@
    APP_FROM_R2=0 PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
    ```
 
-   `PYTHONUTF8=1` は必須に近い。付けないと Windows の既定が cp932 で、日本語のタイトルを扱うときに落ちる。
+   `PYTHONUTF8=1` は必須に近い。付けないとWindowsの既定がcp932で、日本語のタイトルを扱うときに落ちる。
 
 5. **確認**。http://localhost:8000/ を開き、適当なアーティストで検索 → マスに入る →「トラックを共有」で
-   画像ができれば一通り動いている。起動ログの `[public] PNG の URL は …` が、返ってくる URL のベース。
+   画像ができれば一通り動いている。起動ログの `[public] PNGのURLは …` が、返ってくるURLのベース。
 
-- **Claude Code に `.env` を読ませない**（2026-09-30）。`.claude/settings.json` の `permissions.deny` が
-  Read ツールでの読み取りを、`.claude/hooks/block_env.py`（PreToolUse）が Bash / PowerShell / Grep で
-  `.env` を名指しする操作を止める。指示（CLAUDE.md など）は約束にすぎず、読み取りそのものは防げないため。
+- **Claude Codeに `.env` を読ませない**（2026-09-30）。`.claude/settings.json` の `permissions.deny` が
+  Readツールでの読み取りを、`.claude/hooks/block_env.py`（PreToolUse）がBash / PowerShell / Grepで
+  `.env` を名指しする操作を止める。指示（CLAUDE.mdなど）は約束にすぎず、読み取りそのものは防げないため。
   スクリプトが自分で `.env` を読むのは止めない。`git log` / `ls-files` / `check-ignore` / `status` は
   中身を出さないので通す（`-p` や命令のつなぎがあれば止める）。`.env` を名指ししない広い検索
-  （`grep -r` でリポジトリ全体など）までは止められない。フックは PATH の `python` で動く
-- **動画（`promo/`）を触るときだけ** Node と `npm install` が要る。Remotion（React で動画を書く）と
+  （`grep -r` でリポジトリ全体など）までは止められない。フックはPATHの `python` で動く
+- **動画（`promo/`）を触るときだけ** Nodeと `npm install` が要る。Remotion（Reactで動画を書く）と
   Playwright（画面を録る）を使う。素材の作り方は `video-notes.md`
-- **`scripts/` を動かすとき**も同じ venv を使う。`python` を直に叩くと `.env` が読まれず、
-  R2 を見ているつもりでローカルの `shares/` を見ていることがある（`CLAUDE.md` の「覚え書き（核）」）
+- **`scripts/` を動かすとき**も同じvenvを使う。`python` を直に叩くと `.env` が読まれず、
+  R2を見ているつもりでローカルの `shares/` を見ていることがある（`CLAUDE.md` の「覚え書き（核）」）

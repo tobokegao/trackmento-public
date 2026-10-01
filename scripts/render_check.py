@@ -1,19 +1,19 @@
-"""Render のログ・イベント・メトリクスを API で取り、直近の状態を要約する（定期点検用）。
+"""Renderのログ・イベント・メトリクスをAPIで取り、直近の状態を要約する（定期点検用）。
 
 使い方:
   .venv/Scripts/python scripts/render_check.py [--hours 2] [--until "2026-09-28 16:40"] [--strict] [--out summary.md] [--json]
 
-  --until は窓の終わり（既定は今）。タイムゾーンが無ければ JST。点検が飛んだ時間を後から埋めるときに使う。
-  --append と一緒なら、記録は終わりの時刻の位置に差し込む（図は時刻の順に並んでいる前提なので）。
+  --untilは窓の終わり（既定は今）。タイムゾーンが無ければJST。点検が飛んだ時間を後から埋めるときに使う。
+  --appendと一緒なら、記録は終わりの時刻の位置に差し込む（図は時刻の順に並んでいる前提なので）。
 
-  RENDER_API_KEY（必須）を環境変数か .env から読む。サービスは RENDER_SERVICE_NAME（既定 trackmento）で探す。
-  --strict は異常があれば終了コード 2（GitHub Actions で失敗扱いにして通知を出す）。
+  RENDER_API_KEY（必須）を環境変数か .envから読む。サービスはRENDER_SERVICE_NAME（既定trackmento）で探す。
+  --strictは異常があれば終了コード2（GitHub Actionsで失敗扱いにして通知を出す）。
 
 見るもの:
   - イベント: デプロイ、再起動（server_failed / server_restarted）、停止（service_suspended）
-  - ログ: [stats]（経路ごとの件数・5xx）、[ua]（経路ごとの UA 種別）、[src]（`?src=` の内訳）、[health] rss、[error]／Traceback、[loop] lag、[share] budget／quota、共有数の復元
-  - メトリクス: 帯域（1 時間ごと）、メモリ・CPU の最大
-判定の閾値は環境変数で変えられる（CHECK_BW_GB_PER_HOUR など。下の THRESHOLDS 参照）。
+  - ログ: [stats]（経路ごとの件数・5xx）、[ua]（経路ごとのUA種別）、[src]（`?src=` の内訳）、[health] rss、[error]／Traceback、[loop] lag、[share] budget／quota、共有数の復元
+  - メトリクス: 帯域（1時間ごと）、メモリ・CPUの最大
+判定の閾値は環境変数で変えられる（CHECK_BW_GB_PER_HOURなど。下のTHRESHOLDS参照）。
 """
 from __future__ import annotations
 
@@ -35,19 +35,19 @@ API = "https://api.render.com/v1"
 ROOT = Path(__file__).resolve().parent.parent
 JST = timezone(timedelta(hours=9))
 
-# インスタンスの種類 → (vCPU, メモリ MB)。メモリの閾値はここから出すので、種類を変えたら点検も自動で追随する。
-# API が返すのは "1c_2g"（1 vCPU / 2GB）のような形式で、これは _PLAN_RE で解く。下は名前で返る分。
+# インスタンスの種類 → (vCPU, メモリMB)。メモリの閾値はここから出すので、種類を変えたら点検も自動で追随する。
+# APIが返すのは "1c_2g"（1 vCPU / 2GB）のような形式で、これは _PLAN_REで解く。下は名前で返る分。
 PLAN_SPECS = {
     "free": (0.1, 512), "starter": (0.5, 512), "standard": (1.0, 2048),
     "pro": (2.0, 4096), "pro_plus": (4.0, 8192), "pro_max": (4.0, 16384), "pro_ultra": (8.0, 32768),
 }
-# "1c_2g" / "0_5c_512m" のような形式。c の前が vCPU、その後ろが g(GB) か m(MB)
+# "1c_2g" / "0_5c_512m" のような形式。cの前がvCPU、その後ろがg(GB) かm(MB)
 _PLAN_RE = re.compile(r"^(\d+)(?:_(\d+))?c_(\d+)([gm])$")
 _FALLBACK_MEM_MB = 512   # 種類が取れなかったときに使う（いちばん小さい構成に合わせて、見逃すより誤検知する側に倒す）
 
 
 def spec_of(plan: str) -> tuple[float | None, int]:
-    """インスタンスの種類 → (vCPU, メモリ MB)。読めなければ (None, 512)。"""
+    """インスタンスの種類 → (vCPU, メモリMB)。読めなければ (None, 512)。"""
     if plan in PLAN_SPECS:
         return PLAN_SPECS[plan]
     m = _PLAN_RE.match(plan)
@@ -58,18 +58,18 @@ def spec_of(plan: str) -> tuple[float | None, int]:
     return cpu, mem
 
 THRESHOLDS = {
-    "bw_gb_per_hour": float(os.getenv("CHECK_BW_GB_PER_HOUR", "1.0")),   # 1 時間の転送量がこれを超えたら異常
-    "rss_mb": float(os.getenv("CHECK_RSS_MB", "0")) or 0.0,               # [health] rss の最大。0 なら種類から出す
-    "memory_gb": float(os.getenv("CHECK_MEMORY_GB", "0")) or 0.0,         # メトリクスのメモリ最大。0 なら種類から出す
-    "5xx_total": int(os.getenv("CHECK_5XX_TOTAL", "20")),                 # 期間内の 5xx 合計
-    "5xx_share": int(os.getenv("CHECK_5XX_SHARE", "5")),                  # /share と /share/upload の 5xx 合計
-    # /image-proxy の 5xx は**配信元都合**（消えた画像の 404）が大半で、こちらでは直せない。
+    "bw_gb_per_hour": float(os.getenv("CHECK_BW_GB_PER_HOUR", "1.0")),   # 1時間の転送量がこれを超えたら異常
+    "rss_mb": float(os.getenv("CHECK_RSS_MB", "0")) or 0.0,               # [health] rssの最大。0なら種類から出す
+    "memory_gb": float(os.getenv("CHECK_MEMORY_GB", "0")) or 0.0,         # メトリクスのメモリ最大。0なら種類から出す
+    "5xx_total": int(os.getenv("CHECK_5XX_TOTAL", "20")),                 # 期間内の5xx合計
+    "5xx_share": int(os.getenv("CHECK_5XX_SHARE", "5")),                  # /shareと /share/uploadの5xx合計
+    # /image-proxyの5xxは**配信元都合**（消えた画像の404）が大半で、こちらでは直せない。
     # 合計に混ぜると「異常あり」のメールがそればかりになって、直すべきものが埋もれる。
-    # 別枠にして、要求のうち何割かで見る（うちのバグで全部 404 になるような壊れ方は拾える）
+    # 別枠にして、要求のうち何割かで見る（うちのバグで全部404になるような壊れ方は拾える）
     "5xx_proxy_ratio": float(os.getenv("CHECK_5XX_PROXY_RATIO", "0.10")),
     "5xx_proxy_min": int(os.getenv("CHECK_5XX_PROXY_MIN", "50")),
-    "errors": int(os.getenv("CHECK_ERRORS", "10")),                       # [error]／Traceback の行数
-    "lag_lines": int(os.getenv("CHECK_LAG_LINES", "5")),                  # 2 秒以上の [loop] lag の行数（1 秒前後は描画の待ちで普段から出る）
+    "errors": int(os.getenv("CHECK_ERRORS", "10")),                       # [error]／Tracebackの行数
+    "lag_lines": int(os.getenv("CHECK_LAG_LINES", "5")),                  # 2秒以上の [loop] lagの行数（1秒前後は描画の待ちで普段から出る）
 }
 
 
@@ -87,16 +87,16 @@ def _load_dotenv() -> None:
             os.environ[k] = v
 
 
-# Render の API は経路ごとにレート制限がある（`/logs` は 30 回/分。応答の Ratelimit-* に出る）。
+# RenderのAPIは経路ごとにレート制限がある（`/logs` は30回/分。応答のRatelimit-* に出る）。
 # **こちらから間隔を空けて出す**（2026-09-20）。長い窓（`--hours 12`）だとページ数が増えて上限に当たり、
-# 点検そのものが「異常あり」で落ちていた。上限に当たってから待つだけでは足りない（下の 429 の扱いも直した）
+# 点検そのものが「異常あり」で落ちていた。上限に当たってから待つだけでは足りない（下の429の扱いも直した）
 _RATE_WINDOW = 60.0
-_RATE_MAX = 28          # 30 のうち 2 件は余裕として残す
+_RATE_MAX = 28          # 30のうち2件は余裕として残す
 _calls: dict[str, list[float]] = {}
 
 
 def _pace(path: str) -> None:
-    """同じ経路への要求が 1 分に `_RATE_MAX` を超えないように、必要なら待つ"""
+    """同じ経路への要求が1分に `_RATE_MAX` を超えないように、必要なら待つ"""
     now = time.time()
     hist = [t for t in _calls.get(path, []) if now - t < _RATE_WINDOW]
     if len(hist) >= _RATE_MAX:
@@ -120,9 +120,9 @@ def _get(path: str, params: dict | None = None, key: str = "") -> object:
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 7:
-                # /logs は 30 回/分。**Ratelimit-Reset は「あと何秒か」で返る**（UTC の時刻ではない。
-                # 時刻として読んでいたため `float(reset) - time.time()` が大きな負になり、毎回 1 秒しか
-                # 待たずに 6 回とも 429 で落ちていた。2026-09-19 21:14 の点検がこれで「異常あり」になった）。
+                # /logsは30回/分。**Ratelimit-Resetは「あと何秒か」で返る**（UTCの時刻ではない。
+                # 時刻として読んでいたため `float(reset) - time.time()` が大きな負になり、毎回1秒しか
+                # 待たずに6回とも429で落ちていた。2026-09-19 21:14の点検がこれで「異常あり」になった）。
                 # 大きい値なら時刻として解釈する（仕様が変わっても壊れないように）
                 reset = e.headers.get("Ratelimit-Reset") or e.headers.get("RateLimit-Reset")
                 if reset and reset.isdigit():
@@ -131,19 +131,19 @@ def _get(path: str, params: dict | None = None, key: str = "") -> object:
                 else:
                     wait = float(e.headers.get("Retry-After") or 5 * (attempt + 1))
                 wait = min(max(wait, 1.0), 90.0)
-                print(f"[warn] 429 {path}: limit={e.headers.get('Ratelimit-Limit')} remaining={e.headers.get('Ratelimit-Remaining')} → {wait:.0f} 秒待つ", file=sys.stderr)
+                print(f"[warn] 429 {path}: limit={e.headers.get('Ratelimit-Limit')} remaining={e.headers.get('Ratelimit-Remaining')} → {wait:.0f}秒待つ", file=sys.stderr)
                 time.sleep(wait)
                 continue
             body = e.read().decode("utf-8", "replace")[:300]
             raise RuntimeError(f"Render API {e.code} {path}: {body}") from e
-    raise RuntimeError(f"Render API 429 が続く: {path}")
+    raise RuntimeError(f"Render API 429が続く: {path}")
 
 
 def _iso(t: datetime) -> str:
     return t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-RESTART_WINDOW_S = 300   # この秒数内に続く uptime の戻りは、同じ入れ替え（新旧の並走）とみなす
+RESTART_WINDOW_S = 300   # この秒数内に続くuptimeの戻りは、同じ入れ替え（新旧の並走）とみなす
 
 
 def _dt(s: str) -> datetime | None:
@@ -170,15 +170,15 @@ def plan_of(svc: dict) -> str:
 
 
 def thresholds_for(plan: str) -> tuple[dict, float | None, int]:
-    """インスタンスの種類に合わせた閾値と (vCPU, メモリ MB) を返す。
+    """インスタンスの種類に合わせた閾値と (vCPU, メモリMB) を返す。
 
-    メモリ系の閾値は種類から出す（環境変数で指定があればそちら）。Free と Standard では
-    上限が 512MB と 2GB で 4 倍違うので、固定値のままだと種類を変えた後に誤検知が続く。
+    メモリ系の閾値は種類から出す（環境変数で指定があればそちら）。FreeとStandardでは
+    上限が512MBと2GBで4倍違うので、固定値のままだと種類を変えた後に誤検知が続く。
     """
     cpu_alloc, mem_mb = spec_of(plan)
     T = dict(THRESHOLDS)
-    T["memory_gb"] = T["memory_gb"] or mem_mb * 0.90 / 1024   # 上限の 90%
-    T["rss_mb"] = T["rss_mb"] or mem_mb * 0.78                # 上限の 78%（残りは描画中の一時的な山に充てる）
+    T["memory_gb"] = T["memory_gb"] or mem_mb * 0.90 / 1024   # 上限の90%
+    T["rss_mb"] = T["rss_mb"] or mem_mb * 0.78                # 上限の78%（残りは描画中の一時的な山に充てる）
     return T, cpu_alloc, mem_mb
 
 
@@ -186,7 +186,7 @@ def find_service(key: str, name: str) -> dict:
     items = _get("/services", {"name": name, "limit": 20}, key)
     svcs = [it["service"] for it in items if it.get("service", {}).get("name") == name]
     if not svcs:
-        raise RuntimeError(f"サービス '{name}' が見つかりません（RENDER_SERVICE_NAME を確認）")
+        raise RuntimeError(f"サービス '{name}' が見つかりません（RENDER_SERVICE_NAMEを確認）")
     web = [s for s in svcs if s.get("type") == "web_service"]
     return (web or svcs)[0]
 
@@ -199,17 +199,17 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
 LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[out]*", "[vocadb]*", "[client]*", "[img]*", "[upload]*", "Traceback*", "ERROR:*"]
 
 
-# 1 時間あたりに読むページ数の見込み（1 ページ 100 行）。印付きの行は実測で 1 時間 600〜800 行ほど
-# （[stats] と [ua] が経路ごとに 60 秒おき、[health] も 60 秒おき）。多めに見積もり、読み切れなければ要約に出す
+# 1時間あたりに読むページ数の見込み（1ページ100行）。印付きの行は実測で1時間600〜800行ほど
+# （[stats] と [ua] が経路ごとに60秒おき、[health] も60秒おき）。多めに見積もり、読み切れなければ要約に出す
 PAGES_PER_HOUR = 12
-MAX_PAGES = 600          # 50 時間ぶん。/logs は 30 回/分なので、これで 20 分ほど
+MAX_PAGES = 600          # 50時間ぶん。/logsは30回/分なので、これで20分ほど
 
 
 def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime,
                max_pages: int | None = None) -> tuple[list[dict], str | None]:
-    """古い順に読む（100 行ずつ。hasMore の間 nextStartTime/nextEndTime で続きを取る）。
-    /logs は 30 回/分の制限があるので、要約に使う印付きの行だけ text で絞る（トレースバックの本文は取らない）。
-    **ページ数の上限は窓の長さから決める**（2026-09-19）。以前は 25 ページ（2,500 行）固定で、10 時間の点検だと
+    """古い順に読む（100行ずつ。hasMoreの間nextStartTime/nextEndTimeで続きを取る）。
+    /logsは30回/分の制限があるので、要約に使う印付きの行だけtextで絞る（トレースバックの本文は取らない）。
+    **ページ数の上限は窓の長さから決める**（2026-09-19）。以前は25ページ（2,500行）固定で、10時間の点検だと
     窓の前半しか集計していなかった。それでも読み切れなければ、どこまで読んだか（最後の行の時刻）を返す"""
     if max_pages is None:
         hours = (end - start).total_seconds() / 3600
@@ -226,9 +226,9 @@ def fetch_logs(key: str, owner: str, sid: str, start: datetime, end: datetime,
 
 
 def fetch_tracebacks(key: str, owner: str, sid: str, at: list[str], most: int = 3) -> list[tuple[str, list[str]]]:
-    """Traceback の本文を取り直す。ふだんは印付きの行だけ text で絞って読むので、本文（`File …` の行や
-    例外の名前）が取れず、「Traceback が 5 件」としか分からなかった（2026-09-19）。
-    時刻の近いものは 1 つにまとめ、最初の `most` 件だけ、その時刻から 3 秒ぶんを絞らずに読む"""
+    """Tracebackの本文を取り直す。ふだんは印付きの行だけtextで絞って読むので、本文（`File …` の行や
+    例外の名前）が取れず、「Tracebackが5件」としか分からなかった（2026-09-19）。
+    時刻の近いものは1つにまとめ、最初の `most` 件だけ、その時刻から3秒ぶんを絞らずに読む"""
     out: list[tuple[str, list[str]]] = []
     last = None
     for ts in at:
@@ -252,7 +252,7 @@ def fetch_tracebacks(key: str, owner: str, sid: str, at: list[str], most: int = 
 
 
 def fetch_metric(key: str, kind: str, sid: str, start: datetime, end: datetime, resolution: int, method: str | None = None) -> tuple[str, list[tuple[str, float]]]:
-    """(unit, [(timestamp, value), …])。unit は API が返すもの（bytes / MB / GB など。空なら不明）。"""
+    """(unit, [(timestamp, value), …])。unitはAPIが返すもの（bytes / MB / GBなど。空なら不明）。"""
     params = {"resource": sid, "startTime": _iso(start), "endTime": _iso(end), "resolutionSeconds": resolution}
     if method:
         params["aggregationMethod"] = method
@@ -272,7 +272,7 @@ def fetch_metric(key: str, kind: str, sid: str, start: datetime, end: datetime, 
 
 
 def _to_gb(value: float, unit: str) -> float:
-    """API の unit を見て GB に直す（bytes / KB / MB / GB / bytes per second など）。不明なら bytes とみなす。"""
+    """APIのunitを見てGBに直す（bytes / KB / MB / GB / bytes per secondなど）。不明ならbytesとみなす。"""
     u = (unit or "").lower()
     if u.startswith("gb") or u.startswith("gib"):
         return value
@@ -286,10 +286,10 @@ def _to_gb(value: float, unit: str) -> float:
 # ---- ログの読み取り ----
 
 STATS_RE = re.compile(r"(\S+?):(\d+)件/([\d.]+)s/max([\d.]+)s(?:/5xx(\d+))?(?:/h([\d.]+))?")
-# 待ち時間の区切り（秒）。backend/main.py の LAT_BUCKETS と同じ。[stats] と [srch] の `/h` は区切りごとの件数
+# 待ち時間の区切り（秒）。backend/main.pyのLAT_BUCKETSと同じ。[stats] と [srch] の `/h` は区切りごとの件数
 LAT_BUCKETS = (0.25, 0.5, 1, 2, 5, 10, 20)
 ALWAYS_PATHS = ("/share/upload", "/share", "/from-url", "/from-playlist", "/hiccup")
-# [srch] vocadb:db3/r2/net5/fail1/max8.0s/h… の 1 ソースぶん（ソースごとの検索。backend/main.py の _srch_stats）
+# [srch] vocadb:db3/r2/net5/fail1/max8.0s/h… の1ソースぶん（ソースごとの検索。backend/main.pyの _srch_stats）
 SRCH_RE = re.compile(r"(\S+?):db(\d+)/r2(\d+)/net(\d+)/fail(\d+)/max([\d.]+)s/h([\d.]+)")
 
 
@@ -299,7 +299,7 @@ def _add_hist(acc: list[int], h: str) -> None:
 
 
 def _pct(hist: list[int], q: float) -> str:
-    """区切りごとの件数から「q の割合がこれ以内」を出す（区切りの上端で答える。「≤ 2 秒」の形）"""
+    """区切りごとの件数から「qの割合がこれ以内」を出す（区切りの上端で答える。「≤ 2秒」の形）"""
     total = sum(hist)
     if not total:
         return "—"
@@ -307,15 +307,15 @@ def _pct(hist: list[int], q: float) -> str:
     for i, n in enumerate(hist):
         run += n
         if run >= total * q:
-            return f"≤ {LAT_BUCKETS[i]:g} 秒" if i < len(LAT_BUCKETS) else f"> {LAT_BUCKETS[-1]:g} 秒"
+            return f"≤ {LAT_BUCKETS[i]:g}秒" if i < len(LAT_BUCKETS) else f"> {LAT_BUCKETS[-1]:g}秒"
     return "—"
-# [ua] /s/*:人=60,プレビュー=80 /image-proxy:人=300 … の 1 経路ぶん
+# [ua] /s/*:人=60,プレビュー=80 /image-proxy:人=300 … の1経路ぶん
 UA_RE = re.compile(r"(\S+?):((?:[^\s=,]+=\d+)(?:,[^\s=,]+=\d+)*)")
 HEALTH_RE = re.compile(r"\[health\] rss=(\d+)MB uptime=(\d+)s")
 LAG_RE = re.compile(r"\[loop\] lag=([\d.]+)s")
-RESTORE_RE = re.compile(r"本日の共有数を復元: (\d+) 件")
-# [5xx] <件数> <status> <パス種別> <理由>。HTTPException で返した 5xx の内訳。
-# backend/main.py の _log_5xx が理由ごとに数え、_load_monitor が [stats] と同じ 60 秒窓で出す
+RESTORE_RE = re.compile(r"本日の共有数を復元: (\d+) ?件")
+# [5xx] <件数> <status> <パス種別> <理由>。HTTPExceptionで返した5xxの内訳。
+# backend/main.pyの _log_5xxが理由ごとに数え、_load_monitorが [stats] と同じ60秒窓で出す
 FIVEXX_RE = re.compile(r"^\[5xx\] (\d+) (\d{3}) (\S+) (.*)$")
 
 
@@ -325,19 +325,19 @@ def analyze_logs(logs: list[dict]) -> dict:
     per_src: dict[str, dict] = defaultdict(lambda: {"db": 0, "r2": 0, "net": 0, "fail": 0, "max_s": 0.0,
                                                     "hist": [0] * (len(LAT_BUCKETS) + 1)})
     client: Counter[str] = Counter()   # [client] ブラウザ側で起きた失敗の種類 → 件数
-    img: Counter[str] = Counter()      # [img] imgcache の当たり外れ（hit/miss/put/stale）
-    vocadb: Counter[str] = Counter()   # [vocadb] VocaDB へ聞いた回数と、覚えていて聞かずに済んだ回数
+    img: Counter[str] = Counter()      # [img] imgcacheの当たり外れ（hit/miss/put/stale）
+    vocadb: Counter[str] = Counter()   # [vocadb] VocaDBへ聞いた回数と、覚えていて聞かずに済んだ回数
     out: Counter[str] = Counter()      # [out] 外へ出した要求のホスト → 件数
     upload = {"n": 0, "recv_max": 0.0, "save_max": 0.0, "cut": 0, "busy": 0, "kb": [],
               "recv_h": [0] * (len(LAT_BUCKETS) + 1)}   # [upload] 共有の送信の内訳
     ua_by_path: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     rss: list[tuple[str, int]] = []
     errors: list[str] = []
-    fivexx: dict[str, int] = defaultdict(int)   # "status パス種別 理由" → 件数（省略分を含む）
+    fivexx: dict[str, int] = defaultdict(int)   # "statusパス種別 理由" → 件数（省略分を含む）
     lags: list[float] = []
     budget_lines: list[str] = []
     search_fail = 0
-    tb_at: list[str] = []    # Traceback の時刻（本文を取り直すため）
+    tb_at: list[str] = []    # Tracebackの時刻（本文を取り直すため）
     search_fail_by: dict[str, int] = defaultdict(int)   # "ソース 理由" → 件数（省略分を含む）
     restored: list[tuple[str, int]] = []
     uptime_resets = 0        # 入れ替え単位にまとめた回数（判定に使う）
@@ -346,7 +346,7 @@ def analyze_logs(logs: list[dict]) -> dict:
     last_reset_at = None
     last_uptime = None
     src_counts: Counter[str] = Counter()
-    ref_counts: Counter[str] = Counter()   # Referer のホスト名
+    ref_counts: Counter[str] = Counter()   # Refererのホスト名
     for lg in logs:
         m, ts = lg.get("message", ""), lg.get("timestamp", "")
         if m.startswith("[stats]"):
@@ -417,7 +417,7 @@ def analyze_logs(logs: list[dict]) -> dict:
             rss.append((ts, r))
             if last_uptime is not None and up < last_uptime:
                 # 入れ替え中は新旧のプロセスが並走し、両方の [health] が交互に出るので
-                # 1 回の入れ替えが 2〜3 行の「戻り」として現れる。近い時刻のものは 1 回にまとめる
+                # 1回の入れ替えが2〜3行の「戻り」として現れる。近い時刻のものは1回にまとめる
                 t = _dt(ts)
                 if last_reset_at is None or t is None or (t - last_reset_at).total_seconds() > RESTART_WINDOW_S:
                     uptime_resets += 1
@@ -437,8 +437,8 @@ def analyze_logs(logs: list[dict]) -> dict:
         elif "[share] budget" in m or "[share] quota" in m:
             budget_lines.append(f"{_jst(ts)} {m[:160]}")
         elif "[search]" in m and "failed" in m:
-            # 「[search] vocadb failed: TimeoutError（ほか 3 件を省略）」。どのソースが何で落ちたかを数える
-            sm = re.search(r"\[search\] (\S+) failed: (.*?)(?:（ほか (\d+) 件を省略）)?$", m)
+            # 「[search] vocadb failed: TimeoutError（ほか3件を省略）」。どのソースが何で落ちたかを数える
+            sm = re.search(r"\[search\] (\S+) failed: (.*?)(?:（ほか ?(\d+) ?件を省略）)?$", m)
             n = 1 + int(sm.group(3) or 0) if sm else 1
             search_fail += n
             if sm:
@@ -482,12 +482,12 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     lines: list[str] = []
     if until:
         s_jst = (until - timedelta(hours=hours)).astimezone(JST).strftime("%Y-%m-%d %H:%M")
-        lines.append(f"## Render 点検: {svc.get('name')}（{s_jst}〜{until.astimezone(JST):%H:%M} JST の {hours:g} 時間、後から埋めた分）")
+        lines.append(f"## Render点検: {svc.get('name')}（{s_jst}〜{until.astimezone(JST):%H:%M} JSTの{hours:g}時間、後から埋めた分）")
     else:
         now_jst = datetime.now(JST).strftime("%Y-%m-%d %H:%M JST")
-        lines.append(f"## Render 点検: {svc.get('name')}（直近 {hours:g} 時間、{now_jst}）")
+        lines.append(f"## Render点検: {svc.get('name')}（直近{hours:g}時間、{now_jst}）")
     lines.append(f"- インスタンス: {plan or '不明'}"
-                 + (f"（{cpu_alloc:g} vCPU / {mem_mb} MB）" if cpu_alloc else f"（種類が読めないので {mem_mb} MB として判定）"))
+                 + (f"（{cpu_alloc:g} vCPU / {mem_mb} MB）" if cpu_alloc else f"（種類が読めないので{mem_mb} MBとして判定）"))
 
     # イベント
     ev_counts: dict[str, int] = defaultdict(int)
@@ -495,26 +495,26 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         ev_counts[ev.get("type", "?")] += 1
     bad_ev = {k: v for k, v in ev_counts.items() if k in ("server_failed", "server_restarted", "server_hardware_failure", "service_suspended")}
     deploys = ev_counts.get("deploy_ended", 0)
-    lines.append(f"- イベント: デプロイ {deploys} 回（窓の 20 分前から数える）" + (f"、**再起動・障害 {sum(bad_ev.values())} 回**（{', '.join(f'{k} {v}' for k, v in bad_ev.items())}）" if bad_ev else "、再起動・障害なし"))
+    lines.append(f"- イベント: デプロイ{deploys}回（窓の20分前から数える）" + (f"、**再起動・障害{sum(bad_ev.values())}回**（{', '.join(f'{k} {v}' for k, v in bad_ev.items())}）" if bad_ev else "、再起動・障害なし"))
     if bad_ev:
-        problems.append(f"再起動・障害イベント {sum(bad_ev.values())} 回: {', '.join(f'{k} {v}' for k, v in bad_ev.items())}")
+        problems.append(f"再起動・障害イベント{sum(bad_ev.values())}回: {', '.join(f'{k} {v}' for k, v in bad_ev.items())}")
     if la["uptime_resets"]:
         detail = "、".join(la["uptime_reset_at"]) + ("…" if la["uptime_resets"] > len(la["uptime_reset_at"]) else "")
-        lines.append(f"- [health] uptime のリセット: {la['uptime_resets']} 回"
-                     + (f"（戻りの行は {la['uptime_reset_lines']}。入れ替え中の新旧並走を 1 回にまとめた）" if la["uptime_reset_lines"] > la["uptime_resets"] else "")
+        lines.append(f"- [health] uptimeのリセット: {la['uptime_resets']}回"
+                     + (f"（戻りの行は{la['uptime_reset_lines']}。入れ替え中の新旧並走を1回にまとめた）" if la["uptime_reset_lines"] > la["uptime_resets"] else "")
                      + f": {detail}")
     if la["uptime_resets"] > max(deploys, 0):
-        problems.append(f"uptime のリセットがデプロイ回数より多い（{la['uptime_resets']} 回 > デプロイ {deploys} 回）→ 想定外の再起動")
+        problems.append(f"uptimeのリセットがデプロイ回数より多い（{la['uptime_resets']}回 > デプロイ{deploys}回）→ 想定外の再起動")
 
-    # 帯域（1 時間刻み。値の単位は API の unit に従って GB/時 に換算）
+    # 帯域（1時間刻み。値の単位はAPIのunitに従ってGB/時 に換算）
     bw_unit, bw_vals = bw
     if bw_vals:
         per_hour = [(ts, _to_gb(v, bw_unit)) for ts, v in bw_vals]
         mx = max(per_hour, key=lambda x: x[1])
         total = sum(v for _, v in per_hour)
-        lines.append(f"- 帯域: 合計 {total:.2f} GB、最大 {mx[1]:.2f} GB/時（{_jst(mx[0])}、API の単位: {bw_unit or '不明'}）")
+        lines.append(f"- 帯域: 合計{total:.2f} GB、最大{mx[1]:.2f} GB/時（{_jst(mx[0])}、APIの単位: {bw_unit or '不明'}）")
         if mx[1] > T["bw_gb_per_hour"]:
-            problems.append(f"帯域 {mx[1]:.2f} GB/時 が閾値 {T['bw_gb_per_hour']} GB/時 を超過（{_jst(mx[0])}）")
+            problems.append(f"帯域{mx[1]:.2f} GB/時 が閾値{T['bw_gb_per_hour']} GB/時 を超過（{_jst(mx[0])}）")
     else:
         lines.append("- 帯域: 取得できず")
 
@@ -522,57 +522,57 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
     mem_unit, mem_vals = mem
     if mem_vals:
         mmax = _to_gb(max(v for _, v in mem_vals), mem_unit)
-        lines.append(f"- メモリ（メトリクス）: 最大 {mmax * 1024:.0f} MB（API の単位: {mem_unit or '不明'}）")
+        lines.append(f"- メモリ（メトリクス）: 最大{mmax * 1024:.0f} MB（APIの単位: {mem_unit or '不明'}）")
         if mmax > T["memory_gb"]:
-            problems.append(f"メモリ最大 {mmax * 1024:.0f} MB が閾値 {T['memory_gb'] * 1024:.0f} MB を超過")
+            problems.append(f"メモリ最大{mmax * 1024:.0f} MBが閾値{T['memory_gb'] * 1024:.0f} MBを超過")
     cpu_unit, cpu_vals = cpu
     if cpu_vals:
-        alloc = f"割当は {cpu_alloc} vCPU" if cpu_alloc else "割当は不明"
-        lines.append(f"- CPU: 最大 {max(v for _, v in cpu_vals):.3f}（単位: {cpu_unit or '不明'}。{alloc}）")
+        alloc = f"割当は{cpu_alloc} vCPU" if cpu_alloc else "割当は不明"
+        lines.append(f"- CPU: 最大{max(v for _, v in cpu_vals):.3f}（単位: {cpu_unit or '不明'}。{alloc}）")
     if la["rss"]:
         rs = [r for _, r in la["rss"]]
-        lines.append(f"- [health] rss: 最小 {min(rs)} / 最大 {max(rs)} / 最新 {rs[-1]} MB（{len(rs)} 点）")
+        lines.append(f"- [health] rss: 最小{min(rs)} / 最大{max(rs)} / 最新{rs[-1]} MB（{len(rs)}点）")
         if max(rs) > T["rss_mb"]:
-            problems.append(f"[health] rss 最大 {max(rs)} MB が閾値 {T['rss_mb']:.0f} MB を超過")
+            problems.append(f"[health] rss最大{max(rs)} MBが閾値{T['rss_mb']:.0f} MBを超過")
 
     # 経路
     pp = la["per_path"]
-    # **`/image-proxy` は合計から外す**（配信元都合の 404 が大半。下で別に見る）
+    # **`/image-proxy` は合計から外す**（配信元都合の404が大半。下で別に見る）
     total_5xx = sum(p["5xx"] for k, p in pp.items() if k != "/image-proxy")
     share_5xx = sum(p["5xx"] for k, p in pp.items() if k in ("/share", "/share/upload"))
     proxy = pp.get("/image-proxy") or {"count": 0, "5xx": 0}
     top = sorted(pp.items(), key=lambda kv: kv[1]["count"], reverse=True)[:8]
-    # 件数が少なくても必ず出す経路（共有と URL からの取得。件数順の上位 8 に入らず見落としていた。2026-09-19）
+    # 件数が少なくても必ず出す経路（共有とURLからの取得。件数順の上位8に入らず見落としていた。2026-09-19）
     for k in ALWAYS_PATHS:
         if k in pp and all(k != t for t, _ in top):
             top.append((k, pp[k]))
     if la.get("cut_at"):
-        # 読み切れなかったことを黙らない（件数・最大値・5xx はここまでの分しか入っていない）
-        lines.append(f"- **ログを読み切れなかった**: {_jst(la['cut_at'])} までの {la['lines']} 行で集計"
-                     f"（上限 {MAX_PAGES} ページ。窓を短くするか PAGES_PER_HOUR を見直す）")
-    lines.append(f"- 要求（ログ {la['lines']} 行から集計）: 5xx 合計 {total_5xx}"
-                 f"（`/image-proxy` を除く）、共有の 5xx {share_5xx}"
-                 + (f"、`/image-proxy` の 5xx {proxy['5xx']}／{proxy['count']} 件"
+        # 読み切れなかったことを黙らない（件数・最大値・5xxはここまでの分しか入っていない）
+        lines.append(f"- **ログを読み切れなかった**: {_jst(la['cut_at'])}までの{la['lines']}行で集計"
+                     f"（上限{MAX_PAGES}ページ。窓を短くするかPAGES_PER_HOURを見直す）")
+    lines.append(f"- 要求（ログ{la['lines']}行から集計）: 5xx合計{total_5xx}"
+                 f"（`/image-proxy` を除く）、共有の5xx {share_5xx}"
+                 + (f"、`/image-proxy` の5xx {proxy['5xx']}／{proxy['count']}件"
                     f"（{proxy['5xx'] / proxy['count'] * 100:.1f}%）" if proxy["count"] else ""))
     for k, p in top:
-        # p50 / p95 は区切りごとの件数から出す（入れる前のログには無いので、その窓では「—」）
-        lat = f"、半分が {_pct(p['hist'], 0.5)}・95% が {_pct(p['hist'], 0.95)}" if sum(p["hist"]) else ""
-        lines.append(f"  - `{k}` {p['count']} 件、最大 {p['max_s']:.1f} 秒{lat}、ピーク {p['peak_per_min']} 件/分" + (f"、5xx {p['5xx']}" if p["5xx"] else ""))
+        # p50 / p95は区切りごとの件数から出す（入れる前のログには無いので、その窓では「—」）
+        lat = f"、半分が{_pct(p['hist'], 0.5)}・95% が{_pct(p['hist'], 0.95)}" if sum(p["hist"]) else ""
+        lines.append(f"  - `{k}` {p['count']}件、最大{p['max_s']:.1f}秒{lat}、ピーク{p['peak_per_min']}件/分" + (f"、5xx {p['5xx']}" if p["5xx"] else ""))
     fx = la.get("fivexx") or {}
     if fx:
-        lines.append("  - 5xx の内訳（[5xx] 行。HTTPException で返したもの）:")
+        lines.append("  - 5xxの内訳（[5xx] 行。HTTPExceptionで返したもの）:")
         for k, n in sorted(fx.items(), key=lambda kv: -kv[1])[:6]:
-            lines.append(f"    - {n} 件 `{k}`")
+            lines.append(f"    - {n}件 `{k}`")
     if proxy["count"] and proxy["5xx"] >= T["5xx_proxy_min"] and proxy["5xx"] / proxy["count"] > T["5xx_proxy_ratio"]:
-        problems.append(f"`/image-proxy` の 5xx が {proxy['5xx']} 件（要求の "
+        problems.append(f"`/image-proxy` の5xxが{proxy['5xx']}件（要求の "
                         f"{proxy['5xx'] / proxy['count'] * 100:.1f}%）。配信元都合ではなく、"
                         f"こちらの組み立てが壊れている可能性がある")
     if total_5xx > T["5xx_total"]:
-        problems.append(f"5xx 合計 {total_5xx} が閾値 {T['5xx_total']} を超過")
+        problems.append(f"5xx合計{total_5xx}が閾値{T['5xx_total']}を超過")
     if share_5xx > T["5xx_share"]:
-        problems.append(f"共有の 5xx {share_5xx} が閾値 {T['5xx_share']} を超過")
+        problems.append(f"共有の5xx {share_5xx}が閾値{T['5xx_share']}を超過")
 
-    # User-Agent の内訳（robots.txt で減らせるぶんと、減らしてはいけないぶんを分けて見る）
+    # User-Agentの内訳（robots.txtで減らせるぶんと、減らしてはいけないぶんを分けて見る）
     ua = la.get("ua_by_path") or {}
     if ua:
         total: dict[str, int] = {}
@@ -581,88 +581,88 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
                 total[k] = total.get(k, 0) + n
         grand = sum(total.values()) or 1
         lines.append("- User-Agent: " + "、".join(
-            f"{k} {n} 件（{n * 100 // grand}%）" for k, n in sorted(total.items(), key=lambda kv: -kv[1])))
+            f"{k} {n}件（{n * 100 // grand}%）" for k, n in sorted(total.items(), key=lambda kv: -kv[1])))
         for path, kinds in sorted(ua.items(), key=lambda kv: -sum(kv[1].values()))[:5]:
             sub = sum(kinds.values()) or 1
             human = kinds.get("人", 0) + kinds.get("不明", 0)
             lines.append(f"  - `{path}` " + "、".join(
                 f"{k} {n}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
-                + f"（人以外 {(sub - human) * 100 // sub}%）")
+                + f"（人以外{(sub - human) * 100 // sub}%）")
 
     # どこから来たか（`?src=…`）。投稿に貼ったリンクの印を数えるだけで、人は特定しない
     ref = la.get("ref_counts") or {}
     if ref:
-        lines.append("- どこから来たか（Referer のホスト）: " + "、".join(
-            f"{k} {n} 件" for k, n in sorted(ref.items(), key=lambda kv: -kv[1])[:10]))
+        lines.append("- どこから来たか（Refererのホスト）: " + "、".join(
+            f"{k} {n}件" for k, n in sorted(ref.items(), key=lambda kv: -kv[1])[:10]))
     src = la.get("src_counts") or {}
     if src:
         lines.append("- 流入の印（`?src=`）: " + "、".join(
-            f"{k} {n} 件" for k, n in sorted(src.items(), key=lambda kv: -kv[1])))
+            f"{k} {n}件" for k, n in sorted(src.items(), key=lambda kv: -kv[1])))
 
     # エラー・lag・予算
-    lines.append(f"- エラー行: {len(la['errors'])}、[loop] lag: {len(la['lags'])} 行（最大 {max(la['lags']) if la['lags'] else 0:.1f} 秒）、検索失敗: {la['search_fail']}")
+    lines.append(f"- エラー行: {len(la['errors'])}、[loop] lag: {len(la['lags'])}行（最大{max(la['lags']) if la['lags'] else 0:.1f}秒）、検索失敗: {la['search_fail']}")
     for e in la["errors"][:5]:
         lines.append(f"  - {e}")
     for k, n in sorted((la.get("search_fail_by") or {}).items(), key=lambda kv: -kv[1])[:8]:
-        lines.append(f"  - 検索失敗 {n} 件 `{k}`")
+        lines.append(f"  - 検索失敗{n}件 `{k}`")
     # ソースごとの検索（覚えていた / 外へ聞いた / 失敗 と、外へ聞いた時間）
     for src, p in sorted((la.get("per_src") or {}).items(), key=lambda kv: -(kv[1]["db"] + kv[1]["r2"] + kv[1]["net"] + kv[1]["fail"])):
         n = p["db"] + p["r2"] + p["net"] + p["fail"]
         hit = (p["db"] + p["r2"]) / n * 100 if n else 0
-        lines.append(f"  - 検索 `{src}` {n} 回: 覚えていた {p['db'] + p['r2']}（うち R2 の控え {p['r2']}、{hit:.0f}%）、"
-                     f"外へ {p['net']}、失敗 {p['fail']}。外へ聞いた時間は半分が {_pct(p['hist'], 0.5)}・"
-                     f"95% が {_pct(p['hist'], 0.95)}・最大 {p['max_s']:.1f} 秒")
+        lines.append(f"  - 検索 `{src}` {n}回: 覚えていた{p['db'] + p['r2']}（うちR2の控え{p['r2']}、{hit:.0f}%）、"
+                     f"外へ{p['net']}、失敗{p['fail']}。外へ聞いた時間は半分が{_pct(p['hist'], 0.5)}・"
+                     f"95% が{_pct(p['hist'], 0.95)}・最大{p['max_s']:.1f}秒")
     up = la.get("upload") or {}
     if up.get("n") or up.get("cut") or up.get("busy"):
         kb = sorted(up["kb"])[len(up["kb"]) // 2] if up["kb"] else 0
-        lines.append(f"- 共有の送信の内訳: {up['n']} 件。本文の受け取りは半分が {_pct(up['recv_h'], 0.5)}・95% が "
-                     f"{_pct(up['recv_h'], 0.95)}・最大 {up['recv_max']:.1f} 秒、検査と保存は最大 {up['save_max']:.1f} 秒、"
-                     f"大きさはおよそ {kb:.0f}KB、途中で切れた {up['cut']}、混雑で断った {up['busy']}")
+        lines.append(f"- 共有の送信の内訳: {up['n']}件。本文の受け取りは半分が{_pct(up['recv_h'], 0.5)}・95% が "
+                     f"{_pct(up['recv_h'], 0.95)}・最大{up['recv_max']:.1f}秒、検査と保存は最大{up['save_max']:.1f}秒、"
+                     f"大きさはおよそ{kb:.0f}KB、途中で切れた{up['cut']}、混雑で断った{up['busy']}")
     ob = la.get("out") or {}
     if ob:
-        # 外へ出した要求（ホストごと）。各サービスの規約の上限（1 分・1 日）と見比べるための数字
+        # 外へ出した要求（ホストごと）。各サービスの規約の上限（1分・1日）と見比べるための数字
         rows = sorted(ob.items(), key=lambda kv: -kv[1])
-        lines.append(f"- 外へ出した要求: 合計 {sum(ob.values())} 件（1 日に直すと約 {sum(ob.values()) / max(hours, 0.01) * 24:,.0f}）")
+        lines.append(f"- 外へ出した要求: 合計{sum(ob.values())}件（1日に直すと約 {sum(ob.values()) / max(hours, 0.01) * 24:,.0f}）")
         for h, n in rows[:12]:
-            lines.append(f"  - `{h}` {n} 件（1 日約 {n / max(hours, 0.01) * 24:,.0f}、1 分あたり平均 {n / max(hours * 60, 0.01):.1f}）")
+            lines.append(f"  - `{h}` {n}件（1日約{n / max(hours, 0.01) * 24:,.0f}、1分あたり平均{n / max(hours * 60, 0.01):.1f}）")
     vd = la.get("vocadb") or {}
     if vd:
-        # VocaDB へ聞いた回数（種類ごと）。「1 日数千件には事前の許可が要る」とされているので、窓の長さから 1 日に直して出す
+        # VocaDBへ聞いた回数（種類ごと）。「1日数千件には事前の許可が要る」とされているので、窓の長さから1日に直して出す
         net = sum(n for k, n in vd.items() if k in ("search", "pv", "title"))
         kept = sum(n for k, n in vd.items() if k.endswith(("_mem", "_r2")))
         per_day = net / max(hours, 0.01) * 24
-        lines.append(f"- VocaDB へ聞いた回数: {net}（1 日に直すと約 {per_day:.0f}）。覚えていて聞かずに済んだ {kept}。"
+        lines.append(f"- VocaDBへ聞いた回数: {net}（1日に直すと約{per_day:.0f}）。覚えていて聞かずに済んだ{kept}。"
                      + "内訳 " + "、".join(f"`{k}` {n}" for k, n in sorted(vd.items(), key=lambda kv: -kv[1])))
     im = la.get("img") or {}
     if im:
         hit, miss, put, stale = (im.get(k, 0) for k in ("hit", "miss", "put", "stale"))
         rate = 100 * hit / (hit + miss) if (hit + miss) else 0.0
-        # 42% が損益分岐。キャッシュが無いと 37KB の画像 1 枚で「取り直す」＋「返す」の 2 回ぶん（$0.0000106）を
-        # 食い、PutObject 1 回は $0.0000045。下回り続けるなら R2 に置かないほうが安い
+        # 42% が損益分岐。キャッシュが無いと37KBの画像1枚で「取り直す」＋「返す」の2回ぶん（$0.0000106）を
+        # 食い、PutObject 1回は $0.0000045。下回り続けるならR2に置かないほうが安い
         note = "置き続けてよい" if rate >= 42 else "**42% を下回っている（置かないほうが安いかもしれない）**"
-        lines.append(f"- 画像キャッシュ: 当たり {hit}／外れ {miss}（当たり {rate:.0f}%、分岐点 42% → {note}）、"
-                     f"R2 に置いた {put}" + (f"（うち期限切れの取り直し {stale}）" if stale else ""))
+        lines.append(f"- 画像キャッシュ: 当たり{hit}／外れ{miss}（当たり{rate:.0f}%、分岐点42% → {note}）、"
+                     f"R2に置いた{put}" + (f"（うち期限切れの取り直し{stale}）" if stale else ""))
     cl = la.get("client") or {}
     if cl:
-        # ブラウザ側で起きた失敗（画面が /hiccup に送る種類と回数）。サーバーのログには他に何も残らない
+        # ブラウザ側で起きた失敗（画面が /hiccupに送る種類と回数）。サーバーのログには他に何も残らない
         lines.append("- ブラウザ側の失敗: " + "、".join(f"`{k}` {n}" for k, n in sorted(cl.items(), key=lambda kv: -kv[1])))
     for at, body in (la.get("tb_body") or [])[:3]:
-        lines.append(f"  - Traceback の本文（{_jst(at)}）:")
+        lines.append(f"  - Tracebackの本文（{_jst(at)}）:")
         lines.append("    ```")
         lines.extend(f"    {b}" for b in body)
         lines.append("    ```")
     if len(la["errors"]) > T["errors"]:
-        problems.append(f"エラー行 {len(la['errors'])} が閾値 {T['errors']} を超過")
+        problems.append(f"エラー行{len(la['errors'])}が閾値{T['errors']}を超過")
     slow = [l for l in la["lags"] if l >= 2.0]
     if len(slow) > T["lag_lines"]:
-        problems.append(f"[loop] lag 2 秒以上が {len(slow)} 行（閾値 {T['lag_lines']}、最大 {max(slow):.1f} 秒）→ イベントループの停止（ヘルスチェック落ちの前兆）")
+        problems.append(f"[loop] lag 2秒以上が{len(slow)}行（閾値{T['lag_lines']}、最大{max(slow):.1f}秒）→ イベントループの停止（ヘルスチェック落ちの前兆）")
     if la["budget_lines"]:
-        problems.append(f"[share] budget／quota が {len(la['budget_lines'])} 行（容量上限か回数上限に到達）")
+        problems.append(f"[share] budget／quotaが{len(la['budget_lines'])}行（容量上限か回数上限に到達）")
         for b in la["budget_lines"][:3]:
             lines.append(f"  - {b}")
     if la["restored"]:
         ts, n = la["restored"][-1]
-        lines.append(f"- 本日の共有数（最後の復元値）: {n} 件（{_jst(ts)}）")
+        lines.append(f"- 本日の共有数（最後の復元値）: {n}件（{_jst(ts)}）")
 
     lines.append("")
     lines.append("### 判定: " + ("**異常あり**" if problems else "正常"))
@@ -672,14 +672,14 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
 
 
 # ---- 推移の記録（2026-09-20）----
-# 点検の数字はログからしか取れず、Render のログは日が経つと消える。**点検のたびに 1 行残す**ようにして、
-# あとから推移の図を描けるようにする（`outputs/note/series.json` は手で作っていたので 09-17 で止まっていた）。
-# 1 行 1 回分の JSON Lines。**語や URL は入れない**（ホスト名と件数だけ。`[out]` と同じ方針）
+# 点検の数字はログからしか取れず、Renderのログは日が経つと消える。**点検のたびに1行残す**ようにして、
+# あとから推移の図を描けるようにする（`outputs/note/series.json` は手で作っていたので09-17で止まっていた）。
+# 1行1回分のJSON Lines。**語やURLは入れない**（ホスト名と件数だけ。`[out]` と同じ方針）
 
 def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: list[str], end: datetime) -> None:
-    """点検 1 回分を JSON Lines で書き足す。読みやすさより機械で読める形を優先する。
+    """点検1回分をJSON Linesで書き足す。読みやすさより機械で読める形を優先する。
     `jst` は窓の終わり。`--until` で過去を埋めた回は、時刻の順になる位置に差し込む（2026-09-30）"""
-    gb = sum(_to_gb(v, bw[0]) for _, v in (bw[1] or []))   # API の単位は mb のことがある（生の値を足さない）
+    gb = sum(_to_gb(v, bw[0]) for _, v in (bw[1] or []))   # APIの単位はmbのことがある（生の値を足さない）
     rss = [v for _, v in (la.get("rss") or [])]   # (時刻, MB) の並び
     rec = {
         "jst": end.astimezone(JST).strftime("%Y-%m-%d %H:%M"),
@@ -702,21 +702,21 @@ def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: li
     p.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(rec, ensure_ascii=False) + chr(10)
     old = p.read_text(encoding="utf-8").splitlines(keepends=True) if p.exists() else []
-    # 末尾より前の時刻なら差し込む。jst は "YYYY-MM-DD HH:MM" なので文字列の比較で順が決まる
+    # 末尾より前の時刻なら差し込む。jstは "YYYY-MM-DD HH:MM" なので文字列の比較で順が決まる
     at = len(old)
     while at and json.loads(old[at - 1])["jst"] > rec["jst"]:
         at -= 1
     if at == len(old):
         with p.open("a", encoding="utf-8") as f:
             f.write(line)
-        print(f"[append] {p} に 1 行足した（{rec['jst']} JST）")
+        print(f"[append] {p}に1行足した（{rec['jst']} JST）")
     else:
         p.write_text("".join(old[:at] + [line] + old[at:]), encoding="utf-8")
-        print(f"[append] {p} の {at + 1} 行目に差し込んだ（{rec['jst']} JST）")
+        print(f"[append] {p}の{at + 1}行目に差し込んだ（{rec['jst']} JST）")
 
 
 def _to_mb(metric) -> float:
-    """メモリの系列から最大値を MB で返す。単位の解釈は帯域と同じ `_to_gb` に任せる"""
+    """メモリの系列から最大値をMBで返す。単位の解釈は帯域と同じ `_to_gb` に任せる"""
     unit, series = metric
     top = max((v for _, v in (series or [])), default=0.0)
     return _to_gb(top, unit) * 1024
@@ -724,18 +724,18 @@ def _to_mb(metric) -> float:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--hours", type=float, default=2.0, help="さかのぼる時間（既定 2）")
-    ap.add_argument("--until", help="窓の終わり（既定は今）。例 \"2026-09-28 16:40\"。タイムゾーンが無ければ JST")
-    ap.add_argument("--strict", action="store_true", help="異常があれば終了コード 2")
+    ap.add_argument("--hours", type=float, default=2.0, help="さかのぼる時間（既定2）")
+    ap.add_argument("--until", help="窓の終わり（既定は今）。例 \"2026-09-28 16:40\"。タイムゾーンが無ければJST")
+    ap.add_argument("--strict", action="store_true", help="異常があれば終了コード2")
     ap.add_argument("--out", help="要約（Markdown）を書き出すファイル")
-    ap.add_argument("--json", action="store_true", help="集計結果を JSON でも標準出力に出す")
-    ap.add_argument("--append", metavar="PATH", help="1 行 1 回分の記録（JSON Lines）を書き足す。推移の図はこれを元に描く")
+    ap.add_argument("--json", action="store_true", help="集計結果をJSONでも標準出力に出す")
+    ap.add_argument("--append", metavar="PATH", help="1行1回分の記録（JSON Lines）を書き足す。推移の図はこれを元に描く")
     args = ap.parse_args()
 
     _load_dotenv()
     key = os.getenv("RENDER_API_KEY", "").strip()
     if not key:
-        print("RENDER_API_KEY がありません（.env か環境変数に設定）", file=sys.stderr)
+        print("RENDER_API_KEYがありません（.envか環境変数に設定）", file=sys.stderr)
         return 1
     name = os.getenv("RENDER_SERVICE_NAME", "trackmento").strip()
 
@@ -744,22 +744,22 @@ def main() -> int:
         try:
             until = datetime.fromisoformat(args.until.strip().replace("Z", "+00:00"))
         except ValueError:
-            print(f"--until が読めません: {args.until}（例 \"2026-09-28 16:40\"）", file=sys.stderr)
+            print(f"--untilが読めません: {args.until}（例 \"2026-09-28 16:40\"）", file=sys.stderr)
             return 1
         if until.tzinfo is None:
             until = until.replace(tzinfo=JST)
         until = until.astimezone(timezone.utc)
         if until > datetime.now(timezone.utc):
-            print(f"--until が未来です: {args.until}", file=sys.stderr)
+            print(f"--untilが未来です: {args.until}", file=sys.stderr)
             return 1
     end = until or datetime.now(timezone.utc)
     start = end - timedelta(hours=args.hours)
     try:
         svc = find_service(key, name)
         sid, owner = svc["id"], svc["ownerId"]
-        # **イベントは窓の 20 分前から取る**。デプロイの直後にプロセスが入れ替わるので、
-        # 窓の開始直前に終わったデプロイだと「uptime のリセットはあるのにデプロイが無い」ことになり、
-        # 想定外の再起動として誤検知する（2026-09-14 23:30 の点検で実際に出た）
+        # **イベントは窓の20分前から取る**。デプロイの直後にプロセスが入れ替わるので、
+        # 窓の開始直前に終わったデプロイだと「uptimeのリセットはあるのにデプロイが無い」ことになり、
+        # 想定外の再起動として誤検知する（2026-09-14 23:30の点検で実際に出た）
         events = fetch_events(key, sid, start - timedelta(minutes=20), end)
         logs, cut_at = fetch_logs(key, owner, sid, start, end)
         la = analyze_logs(logs)
@@ -769,9 +769,9 @@ def main() -> int:
         mem = fetch_metric(key, "memory", sid, start, end, 300, "MAX")
         cpu = fetch_metric(key, "cpu", sid, start, end, 300, "MAX")
         text, problems = summarize(svc, args.hours, events, la, bw, mem, cpu, until)
-    except Exception as ex:   # API 側の失敗も「異常」として要約に残す（点検が黙って止まらないように）
+    except Exception as ex:   # API側の失敗も「異常」として要約に残す（点検が黙って止まらないように）
         problems = [f"点検自体が失敗: {type(ex).__name__}: {ex}"]
-        text = "\n".join([f"## Render 点検: {name}（直近 {args.hours:g} 時間）", "", "### 判定: **異常あり**", f"- {problems[0]}"])
+        text = "\n".join([f"## Render点検: {name}（直近{args.hours:g}時間）", "", "### 判定: **異常あり**", f"- {problems[0]}"])
         la = {"per_path": {}, "rss": []}
         events = []
         bw = mem = cpu = ("", [])

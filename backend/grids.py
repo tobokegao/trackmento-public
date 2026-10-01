@@ -1,6 +1,6 @@
-"""作業中グリッド JSON（grids/<name>.json）の読み書き。Web の localStorage、CLI、/render で同じ形式を使う。
+"""作業中グリッドJSON（grids/<name>.json）の読み書き。WebのlocalStorage、CLI、/renderで同じ形式を使う。
 
-形式は仕様書「グリッド JSON の形式」のとおり。読み込み時はフロントの applyData と同じ規則で丸める。
+形式は仕様書「グリッドJSONの形式」のとおり。読み込み時はフロントのapplyDataと同じ規則で丸める。
 """
 from __future__ import annotations
 
@@ -18,26 +18,26 @@ ROOT = Path(__file__).resolve().parent.parent
 GRIDS = ROOT / "grids"
 
 NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
-# 1 辺の上限。frontend/index.html の MAX_SIDE_CELLS と同じ値にすること。
-# 総数の上限（既定 256）は config.max_cells() が別に見る（main.py の _check_cells）。
-# **ここを frontend より小さくしてはいけない**。GridDoc の検証は cols/rows を黙って丸めるので、
-# 16x16 の並びを保存した瞬間に 12x12 へ潰れ、はみ出したマスが stash に移って並びが壊れる
+# 1辺の上限。frontend/index.htmlのMAX_SIDE_CELLSと同じ値にすること。
+# 総数の上限（既定256）はconfig.max_cells() が別に見る（main.pyの _check_cells）。
+# **ここをfrontendより小さくしてはいけない**。GridDocの検証はcols/rowsを黙って丸めるので、
+# 16x16の並びを保存した瞬間に12x12へ潰れ、はみ出したマスがstashに移って並びが壊れる
 MAX_COLS = 32
 MAX_ROWS = 32
-MAX_STASH = 200   # マスから溢れた曲の控え。無制限だと JSON が肥大する
+MAX_STASH = 200   # マスから溢れた曲の控え。無制限だとJSONが肥大する
 Ratio = Literal["1:1", "16:9", "4:5", "9:16", "free"]
 BG_KEYS = ("paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink",
            "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
            "night", "chalk", "amber", "azure", "flare", "violet", "jade", "magenta", "custom")
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
-_UPLOAD_RE = re.compile(r"^/uploads/[a-f0-9]{16}\.(jpg|png|webp|gif)$")   # uploads._NAME_RE と同じ形
+_UPLOAD_RE = re.compile(r"^/uploads/[a-f0-9]{16}\.(jpg|png|webp|gif)$")   # uploads._NAME_REと同じ形
 
 
 class BgGrad(BaseModel):
     """グラデーション背景（2026-09-25）。**絵はブラウザが描いて上げる**（image）。サーバーはそれを敷くだけで、色や模様からは描かない
-    （ノイズの乱数まで 2 系統でそろえるのは壊れやすいため）。src・colors・seed は画面で作り直すための控え"""
+    （ノイズの乱数まで2系統でそろえるのは壊れやすいため）。src・colors・seedは画面で作り直すための控え"""
     src: str = "covers"            # "covers"（ジャケットから）/ "custom"（自分で選ぶ）
-    colors: list[str] = []         # 自分で選んだ色（2〜4 色、#rrggbb）
+    colors: list[str] = []         # 自分で選んだ色（2〜4色、#rrggbb）
     seed: int = 1                  # 模様の番号（「ほかの模様」で変わる）
     image: Optional[str] = None    # 描いて上げた絵（/uploads/… だけ）
 
@@ -70,7 +70,7 @@ class GridOptions(BaseModel):
     showTitle: bool = True
     sidebar: bool = True
     # 曲名リストをマスの上に重ねる（ジャケットの下に帯を敷いて曲名とアーティスト名を載せる）。
-    # **重ねるときは sidebar を切って保存する**。この項目を知らない古いタブで開いても「曲名リストなし」になるだけで壊れない
+    # **重ねるときはsidebarを切って保存する**。この項目を知らない古いタブで開いても「曲名リストなし」になるだけで壊れない
     overlay: bool = False
     numbers: bool = False
     # マスの形。"1:1"（正方形）か "16:9"（横長。動画サイトのサムネイルに合う）。
@@ -85,25 +85,25 @@ class GridOptions(BaseModel):
     bg: str = "paper"
     bgCustom: Optional[str] = None
     # 背景の決め方（2026-09-25）。"pick"（色を選ぶ）/ "near"・"far"（ジャケットに近い色・反対の色）/ "none"（背景なし）/
-    # "image"（好きな画像）。色はどれも bg / bgCustom に入れて送る（ジャケットの色も背景なしの白い地も、画像の平均の色も）。
-    # サーバーの描画が見るのは "image" のときだけ（bgImage を敷く）
+    # "image"（好きな画像）。色はどれもbg / bgCustomに入れて送る（ジャケットの色も背景なしの白い地も、画像の平均の色も）。
+    # サーバーの描画が見るのは "image" のときだけ（bgImageを敷く）
     bgMode: str = "pick"
     # 背景の画像。**うちに上げた画像（/uploads/…）だけ**を受け付ける（よそのサーバーの画像を取りに行かせない）
     bgImage: Optional[str] = None
     # 背景の画像の濃さ（0.2〜0.5）。**ブラウザが画像のにぎやかさから決めて送る**（にぎやかなほど薄い）。
-    # サーバーはこの値で描くだけなので、2 系統の絵がずれない
+    # サーバーはこの値で描くだけなので、2系統の絵がずれない
     bgImageAlpha: float = 0.5
     bgGrad: Optional[BgGrad] = None   # グラデーション背景（bgMode == "gradient" のとき）
-    # 画像の敷き方（2026-09-25）。bgImageSrc は選んだ元の画像、bgImageFit は "cover"（引き伸ばす）か "tile"（並べる）、bgImageTile は並べる大きさ。
-    # **描くのは bgImage だけ**（並べるときはブラウザが並べた絵を描いて上げ、それを bgImage に入れる）。この 3 つは画面で作り直すための控え
+    # 画像の敷き方（2026-09-25）。bgImageSrcは選んだ元の画像、bgImageFitは "cover"（引き伸ばす）か "tile"（並べる）、bgImageTileは並べる大きさ。
+    # **描くのはbgImageだけ**（並べるときはブラウザが並べた絵を描いて上げ、それをbgImageに入れる）。この3つは画面で作り直すための控え
     bgImageSrc: Optional[str] = None
     bgImageFit: str = "cover"
     bgImageTile: str = "m"
     margin: int = 16
-    # 外側の余白の下限の段。"normal"（内容の短い辺の 3.5%）/ "wide"（7%）/ "xwide"（12%）。render.py の PAD_FRAC。
-    # **既定は normal**（今ある並びと共有画像の見た目を変えないため。2026-09-24 に「余白」のスライダーから替えた）
+    # 外側の余白の下限の段。"normal"（内容の短い辺の3.5%）/ "wide"（7%）/ "xwide"（12%）。render.pyのPAD_FRAC。
+    # **既定はnormal**（今ある並びと共有画像の見た目を変えないため。2026-09-24に「余白」のスライダーから替えた）
     pad: str = "normal"
-    gap: int = 16       # マスとマスの間隔（出力 px）
+    gap: int = 16       # マスとマスの間隔（出力px）
 
     @field_validator("bg")
     @classmethod
@@ -196,7 +196,7 @@ class GridDoc(BaseModel):
     cells: list[Optional[Track]] = Field(default_factory=list)
     stash: list[Track] = Field(default_factory=list)
     options: GridOptions = Field(default_factory=GridOptions)
-    # **みんなの並びから探せるようにするか**（既定オフ）。共有は本来 URL を知っている人だけのものなので、
+    # **みんなの並びから探せるようにするか**（既定オフ）。共有は本来URLを知っている人だけのものなので、
     # 索引（`backend/shareindex.py`）に載せるのは利用者が自分でチェックを入れたものだけにする
     listed: bool = False
 
@@ -216,7 +216,7 @@ class GridDoc(BaseModel):
     @field_validator("cells", "stash", mode="before")
     @classmethod
     def _tracks(cls, v):
-        # 壊れた要素は None（cells）／除外（stash）にして全体は生かす
+        # 壊れた要素はNone（cells）／除外（stash）にして全体は生かす
         if not isinstance(v, list):
             return []
         out = []
@@ -262,7 +262,7 @@ class GridDoc(BaseModel):
 
 def validate_name(name: str) -> str:
     if not NAME_RE.match(name or ""):
-        raise ValueError("グリッド名は英数字・ハイフン・アンダースコア 1〜40 文字にしてください")
+        raise ValueError("グリッド名は英数字・ハイフン・アンダースコア1〜40文字にしてください")
     return name
 
 
@@ -275,13 +275,13 @@ def exists(name: str) -> bool:
 
 
 def load(name: str = "default") -> GridDoc:
-    """無ければ空の 3×3 を返す（ファイルは作らない）。"""
+    """無ければ空の3×3を返す（ファイルは作らない）。"""
     p = path_for(name)
     if not p.exists():
         return GridDoc(name=name)
     raw = json.loads(p.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
-        raise ValueError(f"{p.name} の形式が不正です")
+        raise ValueError(f"{p.name}の形式が不正です")
     doc = GridDoc.model_validate(raw)
     doc.name = name
     return doc

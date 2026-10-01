@@ -1,12 +1,12 @@
-"""otoDB（音MAD データベース）と roxy。
+"""otoDB（音MADデータベース）とroxy。
 
 - 検索: https://otodb.net/api/work/search?query=…&limit=30 → items[].title / thumbnail / tags。
-  作者はタグのうち category=4（Creator）の名前。サムネイルは otoDB の CDN にあるので、元動画が削除済みでも残る
-- roxy: https://roxy.otodb.net/xml?q=<動画 ID か URL> → title / thumbnail / identifier。
-  otoDB 登録済みならそのデータ（identifier が otodb:<id>）、未登録なら各サイトから取ってくる。
+  作者はタグのうちcategory=4（Creator）の名前。サムネイルはotoDBのCDNにあるので、元動画が削除済みでも残る
+- roxy: https://roxy.otodb.net/xml?q=<動画IDかURL> → title / thumbnail / identifier。
+  otoDB登録済みならそのデータ（identifierがotodb:<id>）、未登録なら各サイトから取ってくる。
   直接取得に失敗したとき（削除済みなど）のフォールバックに使う。
-  **未登録からの取得が効くのはニコニコだけ**（2026-09 実測）。YouTube / bilibili / SoundCloud は
-  生きている URL でも 404 "Cannot fallback" を返す。identifier が niconico:<id> なら各サイトからの取得
+  **未登録からの取得が効くのはニコニコだけ**（2026-09実測）。YouTube / bilibili / SoundCloudは
+  生きているURLでも404 "Cannot fallback" を返す。identifierがniconico:<id> なら各サイトからの取得
 どちらもキー不要。
 """
 from __future__ import annotations
@@ -24,30 +24,30 @@ WORK = "https://otodb.net/api/work/work"
 ROXY = "https://roxy.otodb.net/xml"
 UA = "trackmento/0.1 (+https://trackmento.com)"
 CREATOR = 4  # WorkTagCategory.Creator
-PAGE = 30       # otoDB の 1 ページの上限（31 以上を渡すと 422）
-MAX_PAGES = 8   # ページングの頭打ち。240 件あればマスの上限（256）にほぼ届く
-# roxy の結果を置く擬似ソース名（backend/cache.py の search テーブルを間借りする）。
-# roxy は応答に Cache-Control を持たないので、こちらで覚えないと同じプレイリストを貼るたび叩いてしまう。
-# 見つからなかったときも空リストで覚える（消えた動画の大半は otoDB にも無く、そちらのほうが多い）
+PAGE = 30       # otoDBの1ページの上限（31以上を渡すと422）
+MAX_PAGES = 8   # ページングの頭打ち。240件あればマスの上限（256）にほぼ届く
+# roxyの結果を置く擬似ソース名（backend/cache.pyのsearchテーブルを間借りする）。
+# roxyは応答にCache-Controlを持たないので、こちらで覚えないと同じプレイリストを貼るたび叩いてしまう。
+# 見つからなかったときも空リストで覚える（消えた動画の大半はotoDBにも無く、そちらのほうが多い）
 ROXY_CACHE = "roxy"
 _ID_RE = re.compile(r"^(?:(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$")
 
-# 配信元（Cloudflare）の一時的な不調は 1 回だけ引き直す（2026-09-21）。
-# 点検の 2 時間で 64 回中 5 回が 503 / 521 で落ち、そのたび検索結果から otoDB が丸ごと抜けていた。
-# 521 は「配信元が応答しない」の意味で、数百ミリ秒で戻ることが多い。長く粘ると利用者の待ちが伸びるので 1 回だけ
+# 配信元（Cloudflare）の一時的な不調は1回だけ引き直す（2026-09-21）。
+# 点検の2時間で64回中5回が503 / 521で落ち、そのたび検索結果からotoDBが丸ごと抜けていた。
+# 521は「配信元が応答しない」の意味で、数百ミリ秒で戻ることが多い。長く粘ると利用者の待ちが伸びるので1回だけ
 RETRY_STATUS = frozenset({502, 503, 504, 521, 522, 524})
 RETRY_WAIT = 0.5
 
-# otoDB の CDN。URL に大きさを指定する仕組みが無く、常に 1280x720 / 約 245KB を返す。
-# 他の配信元のような clamp_size（URL の書き換え）ができないので、/image-proxy でサーバー側で縮める
+# otoDBのCDN。URLに大きさを指定する仕組みが無く、常に1280x720 / 約245KBを返す。
+# 他の配信元のようなclamp_size（URLの書き換え）ができないので、/image-proxyでサーバー側で縮める
 IMAGE_HOSTS = ("otodb.net",)
 
 
 async def _get(client: httpx.AsyncClient, url: str, params: dict) -> httpx.Response:
-    """otoDB の API への GET。`RETRY_STATUS` が返ったときだけ 1 回引き直す。
+    """otoDBのAPIへのGET。`RETRY_STATUS` が返ったときだけ1回引き直す。
 
-    roxy（`roxy_fetch`）はここを通さない。プレイリストの穴埋めで 24 件まとめて呼ぶので、
-    配信元が落ちているときに要求を倍にしたくないのと、全体 10 秒で打ち切る側の待ちを増やさないため。
+    roxy（`roxy_fetch`）はここを通さない。プレイリストの穴埋めで24件まとめて呼ぶので、
+    配信元が落ちているときに要求を倍にしたくないのと、全体10秒で打ち切る側の待ちを増やさないため。
     """
     kw: dict = {"params": params, "headers": {"User-Agent": UA, "Accept": "application/json"}}
     r = await client.get(url, **kw)
@@ -67,7 +67,7 @@ def is_otodb_image(url: str) -> bool:
 
 
 def is_video_id(s: str) -> bool:
-    """URL ではなく動画 ID だけが貼られたか（sm…, BV…, YouTube の 11 文字）。"""
+    """URLではなく動画IDだけが貼られたか（sm…, BV…, YouTubeの11文字）。"""
     return bool(_ID_RE.match(s.strip()))
 
 
@@ -91,12 +91,12 @@ def _to_track(item: dict) -> Track | None:
 
 
 async def search(q: str, artist: str = "", *, limit: int = PAGE, client: httpx.AsyncClient | None = None) -> list[Track]:
-    """otoDB を検索する。limit が 1 ページ（30 件）を超えるときは offset で続きを取る。
+    """otoDBを検索する。limitが1ページ（30件）を超えるときはoffsetで続きを取る。
 
-    30 件は otoDB 側の上限（settings.py の NINJA_PAGINATION_MAX_LIMIT）で、31 以上を渡すと 422 になる。
-    応答には全体の件数が count で入っているので、そこまで来たら止める。
-    otoDB は匿名の GET を 60 秒キャッシュする作りなので（middleware.py の AnonymousReadOnlyCacheMiddleware）、
-    ページングしても重くはならないが、念のため MAX_PAGES で頭を打つ。
+    30件はotoDB側の上限（settings.pyのNINJA_PAGINATION_MAX_LIMIT）で、31以上を渡すと422になる。
+    応答には全体の件数がcountで入っているので、そこまで来たら止める。
+    otoDBは匿名のGETを60秒キャッシュする作りなので（middleware.pyのAnonymousReadOnlyCacheMiddleware）、
+    ページングしても重くはならないが、念のためMAX_PAGESで頭を打つ。
     """
     query = " ".join(s for s in (q.strip(), artist.strip()) if s)
     if not query:
@@ -129,28 +129,28 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE, client: httpx.A
 
 
 async def roxy_fetch(query: str, *, client: httpx.AsyncClient | None = None, timeout: float = 45) -> Track:
-    """roxy で動画 ID／URL からタイトルとサムネイルを取る。otoDB 登録済みなら作者も付ける。
+    """roxyで動画ID／URLからタイトルとサムネイルを取る。otoDB登録済みなら作者も付ける。
 
-    timeout は既定 45 秒（roxy は各サイトへ取りに行くぶん遅いことがある）。プレイリストの
+    timeoutは既定45秒（roxyは各サイトへ取りに行くぶん遅いことがある）。プレイリストの
     穴埋めのようにまとめて呼ぶときは、全体が待たされないよう短めを渡す。
     """
-    from backend.cache import cache   # 局所 import（他のソースと同じく、取得そのものは cache を知らない作りにしてある）
+    from backend.cache import cache   # 局所import（他のソースと同じく、取得そのものはcacheを知らない作りにしてある）
 
     ref = query.strip()
     hit = await asyncio.to_thread(cache.get_search, ROXY_CACHE, ref, "")
     if hit is not None:
         if not hit:
-            raise ValueError("roxy / otoDB にも情報がありませんでした")
+            raise ValueError("roxy / otoDBにも情報がありませんでした")
         return Track(**hit[0])
     own = client is None
     client = client or httpx.AsyncClient(timeout=25, follow_redirects=True)
     try:
         r = await client.get(ROXY, params={"q": ref}, headers={"User-Agent": UA}, timeout=timeout)
         if r.status_code == 404:
-            # 「otoDB にも無い」は確定した結果なので覚える。ここを覚えないと、同じプレイリストを
-            # 貼り直すたびに全部の穴をもう一度 roxy に聞くことになる
+            # 「otoDBにも無い」は確定した結果なので覚える。ここを覚えないと、同じプレイリストを
+            # 貼り直すたびに全部の穴をもう一度roxyに聞くことになる
             await asyncio.to_thread(cache.set_search, ROXY_CACHE, ref, "", [])
-            raise ValueError("roxy / otoDB にも情報がありませんでした")
+            raise ValueError("roxy / otoDBにも情報がありませんでした")
         r.raise_for_status()
         root = ElementTree.fromstring(r.text)
         title = (root.findtext("title") or "").strip()
@@ -158,7 +158,7 @@ async def roxy_fetch(query: str, *, client: httpx.AsyncClient | None = None, tim
         ident = (root.findtext("identifier") or "").strip()
         url = (root.findtext("url") or "").strip()
         if not title or not thumb:
-            raise ValueError("roxy からタイトルかサムネイルが取れませんでした")
+            raise ValueError("roxyからタイトルかサムネイルが取れませんでした")
         artist = ""
         if ident.startswith("otodb:"):
             try:
@@ -176,19 +176,19 @@ async def roxy_fetch(query: str, *, client: httpx.AsyncClient | None = None, tim
 
 
 # ---- 転載元の候補（2026-09-21）----
-# 動画（ニコニコ / YouTube）が otoDB に登録済みの作品なら、作品の作者（Creator のタグ）と、
-# 作品に登録されたほかの投稿（サイト・投稿日）が分かる。YouTube の転載でも、otoDB に元の作品が
-# あれば作者が引ける。roxy は登録済みの作品なら YouTube の URL でも otodb:<id> を返す（実測）。
+# 動画（ニコニコ / YouTube）がotoDBに登録済みの作品なら、作品の作者（Creatorのタグ）と、
+# 作品に登録されたほかの投稿（サイト・投稿日）が分かる。YouTubeの転載でも、otoDBに元の作品が
+# あれば作者が引ける。roxyは登録済みの作品ならYouTubeのURLでもotodb:<id> を返す（実測）。
 # 利用者が「元の投稿を探す」を押したときだけ呼ぶ（自動では引かない）
 WORK_SOURCES = "https://otodb.net/api/work/sources"
 ORIGIN_CACHE = "otodb-origin"     # 結果を置く擬似ソース名（見つからなかった分も空で覚える）
-PLATFORMS = {1: "youtube", 2: "nicovideo"}   # otoDB の platform（ほか 5 = X など。ここでは名前だけ使う）
+PLATFORMS = {1: "youtube", 2: "nicovideo"}   # otoDBのplatform（ほか5 = Xなど。ここでは名前だけ使う）
 _NICO_RE = re.compile(r"(?:nicovideo\.jp/watch/|nico\.ms/)((?:sm|nm|so)\d+)")
 _YT_RE = re.compile(r"(?:youtube\.com/(?:watch\?(?:.*&)?v=|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})")
 
 
 def video_ref(url: str) -> str:
-    """マスの動画の URL から、roxy に渡す正規の URL を作る。ニコニコと YouTube 以外は空文字"""
+    """マスの動画のURLから、roxyに渡す正規のURLを作る。ニコニコとYouTube以外は空文字"""
     u = (url or "").strip()
     if m := _NICO_RE.search(u):
         return f"https://www.nicovideo.jp/watch/{m.group(1)}"
@@ -203,13 +203,13 @@ def _source_id(url: str) -> str:
 
 
 async def origin_by_video(url: str, *, client: httpx.AsyncClient | None = None) -> dict | None:
-    """動画が otoDB に登録済みなら `{work, artist, title, posts: [{id, site, at}]}`、無ければ None。
+    """動画がotoDBに登録済みなら `{work, artist, title, posts: [{id, site, at}]}`、無ければNone。
 
-    posts は作品に登録された**ほかの**投稿を投稿日の古い順に（マス自身の動画は外す）。
-    **どれが本人の投稿かは決めない**（sources の work_origin がそれらしいが意味を確かめていない）。
-    作者は作品に付いた Creator のタグなので、転載した人ではなく作った人の名前になる
+    postsは作品に登録された**ほかの**投稿を投稿日の古い順に（マス自身の動画は外す）。
+    **どれが本人の投稿かは決めない**（sourcesのwork_originがそれらしいが意味を確かめていない）。
+    作者は作品に付いたCreatorのタグなので、転載した人ではなく作った人の名前になる
     """
-    from backend.cache import cache   # roxy_fetch と同じく局所 import
+    from backend.cache import cache   # roxy_fetchと同じく局所import
 
     ref = video_ref(url)
     if not ref:
@@ -227,7 +227,7 @@ async def origin_by_video(url: str, *, client: httpx.AsyncClient | None = None) 
         r.raise_for_status()
         ident = (ElementTree.fromstring(r.text).findtext("identifier") or "").strip()
         if not ident.startswith("otodb:"):
-            # 未登録（roxy がニコニコから直接取ってきたもの）。作者は分からない
+            # 未登録（roxyがニコニコから直接取ってきたもの）。作者は分からない
             await asyncio.to_thread(cache.set_search, ORIGIN_CACHE, ref, "", [])
             return None
         wid = ident.split(":", 1)[1]

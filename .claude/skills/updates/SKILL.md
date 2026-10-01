@@ -1,17 +1,17 @@
 ---
 name: updates
-description: TRACKMENTO の「更新情報」ページ（/updates）に、利用者に見える変化を 1 行足す。backend/pages.py の CHANGES に日本語と英語を書き、最終更新の日付をそろえ、書いてよいものと書かないものを選り分ける。利用者に見える変化を入れたコミットと同じ回に回す。
+description: TRACKMENTOの「更新情報」ページ（/updates）に、利用者に見える変化を1行足す。backend/pages.pyのCHANGESに日本語と英語を書き、最終更新の日付をそろえ、書いてよいものと書かないものを選り分ける。利用者に見える変化を入れたコミットと同じ回に回す。
 ---
 
-# 更新情報に 1 行足す
+# 更新情報に1行足す
 
-利用者が `https://trackmento.com/updates` で読む「更新情報」に、**今回の変化を 1 行**足す作業。
+利用者が `https://trackmento.com/updates` で読む「更新情報」に、**今回の変化を1行**足す作業。
 
 **利用者に見える変化を入れたコミットと同じ回に足す。** 別のコミットに回すと、そのまま忘れる。
 
 ## 0. 前提
 
-- Python は必ず `PYTHONUTF8=1 .venv/Scripts/python`（cp932 で落ちる）
+- Pythonは必ず `PYTHONUTF8=1 .venv/Scripts/python`（cp932で落ちる）
 - 書き足すのは `backend/pages.py` の `CHANGES`（ファイルの中ほど、`_updates()` の手前）
 - `CHANGES` は `(日付, 日本語, 英語)` の組。**新しいものを先頭に**足す
 
@@ -28,13 +28,13 @@ description: TRACKMENTO の「更新情報」ページ（/updates）に、利用
 
 **「検討中」「予定」は書かない。** 一人で運営しているので、約束に見えるものを増やさない。
 
-速さの話は、**利用者の待ち時間として言えるときだけ**書く（「ダウンロードする量が 4 分の 1 ほどになります」は可、
-「Class A を減らしました」は不可）。
+速さの話は、**利用者の待ち時間として言えるときだけ**書く（「ダウンロードする量が4分の1ほどになります」は可、
+「Class Aを減らしました」は不可）。
 
 ## 2. 文を書く
 
 - **日本語と英語の両方**。英語は日本語の訳で、独自の情報を足さない
-- 「です・ます」。1〜2 行。長くなるなら、何が変わったかだけに絞る
+- 「です・ます」。1〜2行。長くなるなら、何が変わったかだけに絞る
 - **画面に出ている言葉をそのまま使う**（「トラックを共有」「横 × 縦」など）。言い換えると利用者が探せない
 - 言い切りすぎない。「〜しづらくなります」のように、こちらの都合で例外がある場合は幅を残す
 - 英語の引用符は既存の行に合わせて `“ ”` を使う
@@ -43,7 +43,7 @@ description: TRACKMENTO の「更新情報」ページ（/updates）に、利用
 
 ```python
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-09-21", "（日本語の 1〜2 行）",
+    ("2026-09-21", "（日本語の1〜2行）",
      "（English, one or two lines）"),
     # ↓ これまでの行
 ```
@@ -59,21 +59,21 @@ UPDATED = {"ja": "最終更新: 2026年9月20日", "en": "Last updated: Septembe
 これは**使い方・プライバシーポリシー・運営者**のページに出るもので、
 `/updates` のページ自体は `CHANGES` の先頭から日付を出す（`_updated_of()`）。
 
-**`UPDATED` が `CHANGES` の先頭より古いと `check_consistency.py` が NG を出す**ので、
+**`UPDATED` が `CHANGES` の先頭より古いと `check_consistency.py` がNGを出す**ので、
 足した日付に合わせて両方（`ja` と `en`）を直す。月と日はゼロ詰めしない（`2026年9月21日` / `September 21, 2026`）。
 
 ## 4. まとまった文章になったときだけ添削に回す
 
-1〜2 行なら、そのままでよい。**何本もまとめて足したときや、言い回しに迷ったとき**だけ:
+1〜2行なら、そのままでよい。**何本もまとめて足したときや、言い回しに迷ったとき**だけ:
 
 ```bash
 PYTHONUTF8=1 .venv/Scripts/python scripts/proofread.py <下書き.txt> --out <添削.txt>
 ```
 
 - モデルは `gemini-3.8-flash`（鍵は `.env` の `GEMINI_API_KEY`）
-- **使えないとき（無料枠は 1 日 20 回）は回さない。** 別のモデルで代用せず、下書きを利用者に渡す
+- **使えないとき（無料枠は1日20回）は回さない。** 別のモデルで代用せず、下書きを利用者に渡す
 - **直しをそのまま採らない。** 事実（言い切りすぎ）・画面の表記（「」の中）・書き方の好みを突き合わせて取捨し、
-  「仕上がり」と「採った直し・採らなかった直しと理由」を txt で渡す
+  「仕上がり」と「採った直し・採らなかった直しと理由」をtxtで渡す
 
 ## 5. 確かめる
 
@@ -81,7 +81,7 @@ PYTHONUTF8=1 .venv/Scripts/python scripts/proofread.py <下書き.txt> --out <�
 PYTHONUTF8=1 .venv/Scripts/python scripts/check_consistency.py
 ```
 
-`サイト内ページの最終更新` が OK になっていること。あわせて、出来上がりを目で見る:
+`サイト内ページの最終更新` がOKになっていること。あわせて、出来上がりを目で見る:
 
 ```bash
 PYTHONUTF8=1 .venv/Scripts/python -c "from backend import pages; import io; io.open('u.html','w',encoding='utf-8').write(pages.page_html('updates','https://trackmento.com'))"
@@ -101,5 +101,5 @@ PYTHONUTF8=1 .venv/Scripts/python -c "from backend import pages; import io; io.o
 
 - 「分かっている不具合」「うまくいかないとき」は `CHANGES` ではなく `_updates()` の本文にある。
   **直したらそこから消す**（消し忘れると、直っているのに「不具合」として残る）
-- お問い合わせフォームの URL は `backend/pages.py` の `CONTACT_FORM` と frontend の `CONTACT_FORM` の
-  **2 か所**にある。変えるときは両方
+- お問い合わせフォームのURLは `backend/pages.py` の `CONTACT_FORM` とfrontendの `CONTACT_FORM` の
+  **2か所**にある。変えるときは両方

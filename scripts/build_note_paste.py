@@ -1,19 +1,19 @@
-"""note に貼り付けるための HTML を作る。
+"""noteに貼り付けるためのHTMLを作る。
 
     PYTHONUTF8=1 .venv/Scripts/python scripts/build_note_paste.py
 
-`outputs/note/note-article.md` を、**note のエディタが受け取れる部品だけ**に変換して
+`outputs/note/note-article.md` を、**noteのエディタが受け取れる部品だけ**に変換して
 `outputs/note/note-paste.html` に書き出す。ブラウザでこのページを開き、全選択してコピー →
-note の本文に貼ると、見出し・太字・箇条書き・引用・区切り線がそのまま入る。
+noteの本文に貼ると、見出し・太字・箇条書き・引用・区切り線がそのまま入る。
 
-note に無いもの（と、その扱い）:
+noteに無いもの（と、その扱い）:
 
 - **表**が無い → 画像にして貼る（`scripts/shoot_tables.py` が作る `table-*.png`）
-- **小見出しは 2 段まで** → `####` は太字の段落にする
+- **小見出しは2段まで** → `####` は太字の段落にする
 - **画像は貼り付けでは入らない**（外部の画像は落ちる）→ 置き場所に「【画像】ファイル名」の
-  行を出しておき、note のエディタでその位置に上げ直してもらう
-- **文中のリンクは貼り付けで落ちる**（2026-09-17 に確認。a が文字だけになる）→ リンクのある段落の
-  すぐ下に「【リンク】「文字」に URL」の行を出し、note のエディタで付け直してもらう
+  行を出しておき、noteのエディタでその位置に上げ直してもらう
+- **文中のリンクは貼り付けで落ちる**（2026-09-17に確認。aが文字だけになる）→ リンクのある段落の
+  すぐ下に「【リンク】「文字」にURL」の行を出し、noteのエディタで付け直してもらう
 """
 from __future__ import annotations
 
@@ -24,18 +24,18 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "outputs" / "note" / "note-article.md"
 OUT = ROOT / "outputs" / "note" / "note-paste.html"
-# 表は画像にする。md の何個目の表がどの画像か
+# 表は画像にする。mdの何個目の表がどの画像か
 TABLE_IMG = ["table-services.png", "table-cost.png"]
 
 
 def inline(s: str) -> str:
-    """太字・コード・リンクだけ HTML にする（それ以外は文字として escape）。"""
+    """太字・コード・リンクだけHTMLにする（それ以外は文字としてescape）。"""
     out, i = [], 0
     pat = re.compile(r"\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)")
     for m in pat.finditer(s):
         out.append(html.escape(s[i:m.start()]))
         if m.group(1) is not None:
-            # 太字の中のリンク（**[名前](URL)**）も a にする。escape だけだと記法が文字のまま貼られる
+            # 太字の中のリンク（**[名前](URL)**）もaにする。escapeだけだと記法が文字のまま貼られる
             out.append(f"<b>{inline(m.group(1))}</b>")
         elif m.group(2) is not None:
             out.append(f"<code>{html.escape(m.group(2))}</code>")
@@ -50,26 +50,26 @@ LINK_RE = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)]+)\)")
 
 
 def link_marks(text: str) -> list[str]:
-    """文中のリンクごとに目印の行を作る。**note に貼るとリンクが落ちる**（「ここ」などが文字だけになった）ので、
-    貼ったあとに手で付け直せるよう、文字と URL を黄色い行で添える。"""
-    return [f'<p class="ph">【リンク】「{html.escape(t)}」に {html.escape(u)}</p>' for t, u in LINK_RE.findall(text)]
+    """文中のリンクごとに目印の行を作る。**noteに貼るとリンクが落ちる**（「ここ」などが文字だけになった）ので、
+    貼ったあとに手で付け直せるよう、文字とURLを黄色い行で添える。"""
+    return [f'<p class="ph">【リンク】「{html.escape(t)}」に{html.escape(u)}</p>' for t, u in LINK_RE.findall(text)]
 
 
 ARTIFACT_USAGE = (
-    '<p class="ph" style="background:#d7f0ff"><b>使い方</b>: この画面を全選択してコピー → note の本文に貼り付け。'
+    '<p class="ph" style="background:#d7f0ff"><b>使い方</b>: この画面を全選択してコピー → noteの本文に貼り付け。'
     '見出し・太字・箇条書き・区切り線はそのまま入ります。<b>黄色い行は目印</b>です。'
     '【画像】はその位置に画像を上げ、【リンク】はすぐ上の文の該当する文字にリンクを付けてから消してください'
-    '（note に貼るとリンクは落ちます）。</p>\n'
+    '（noteに貼るとリンクは落ちます）。</p>\n'
 )
 
 
 def write_artifact(html: str, out: pathlib.Path) -> None:
-    """アーティファクト（claude.ai に置く版）。head を外し、先頭に使い方の行を足す。
-    公開先が doctype と head を付けるので、こちらは <title> と <style> から始める。"""
+    """アーティファクト（claude.aiに置く版）。headを外し、先頭に使い方の行を足す。
+    公開先がdoctypeとheadを付けるので、こちらは <title> と <style> から始める。"""
     head, body = html.split("<body>", 1)
     body = body.replace("</body></html>", "").replace("</body>", "").replace("</html>", "")
     style = re.search(r"<style>.*?</style>", head, re.S).group(0)
-    out.write_text("<title>note 貼り付け用の下書き</title>\n" + style + "\n" + ARTIFACT_USAGE + body, encoding="utf-8")
+    out.write_text("<title>note貼り付け用の下書き</title>\n" + style + "\n" + ARTIFACT_USAGE + body, encoding="utf-8")
 
 
 def main() -> int:
@@ -107,7 +107,7 @@ def main() -> int:
             if not in_table:
                 in_table = True
                 name = TABLE_IMG[table] if table < len(TABLE_IMG) else f"table-{table + 1}.png"
-                body.append(f'<p class="ph">【画像】{name}（表は note に無いので画像で貼る）</p>')
+                body.append(f'<p class="ph">【画像】{name}（表はnoteに無いので画像で貼る）</p>')
                 table += 1
             continue
         in_table = False
@@ -150,7 +150,7 @@ def main() -> int:
 
     OUT.write_text(f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>note 貼り付け用</title>
+<title>note貼り付け用</title>
 <style>
  body {{ font-family: system-ui, sans-serif; line-height: 1.9; max-width: 44rem; margin: 0 auto; padding: 24px; }}
  h2 {{ font-size: 1.4rem; margin: 2em 0 .4em; }}
@@ -166,7 +166,7 @@ def main() -> int:
 """, encoding="utf-8")
     art = OUT.with_name("note-paste-artifact.html")
     write_artifact(OUT.read_text(encoding="utf-8"), art)
-    print(f"{OUT} を書きました（{len(body)} ブロック、表 {table} 個）。アーティファクト版: {art.name}")
+    print(f"{OUT}を書きました（{len(body)}ブロック、表{table}個）。アーティファクト版: {art.name}")
     return 0
 
 

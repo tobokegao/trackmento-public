@@ -1,12 +1,12 @@
-"""URL 貼付の振り分け。Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify をホスト名で判定して fetch 関数を返す。
+"""URL貼付の振り分け。Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotifyをホスト名で判定してfetch関数を返す。
 
 動画サイト（ニコニコ／YouTube／SoundCloud）で直接取れなかったとき（削除済みなど）は
-roxy（otoDB）にフォールバックする。sm12345 や BV… のような ID だけが貼られたときは、
-normalize() がそのサイトの URL に組み立ててから同じ流れに乗せる。
+roxy（otoDB）にフォールバックする。sm12345やBV… のようなIDだけが貼られたときは、
+normalize() がそのサイトのURLに組み立ててから同じ流れに乗せる。
 
-実際に拾えるのはほぼニコニコだけ（roxy が未登録から取りに行くのがニコニコのみのため）。
-それ以外を _ROXY_FALLBACK に残してあるのは、otoDB 側が広げたときにそのまま効くようにするため。
-空振りしても失敗時に 1 回余分に問い合わせるだけで、結果は元の例外を返す。
+実際に拾えるのはほぼニコニコだけ（roxyが未登録から取りに行くのがニコニコのみのため）。
+それ以外を _ROXY_FALLBACKに残してあるのは、otoDB側が広げたときにそのまま効くようにするため。
+空振りしても失敗時に1回余分に問い合わせるだけで、結果は元の例外を返す。
 """
 from __future__ import annotations
 
@@ -23,15 +23,15 @@ Fetcher = Callable[..., Awaitable[Track]]
 
 
 async def _applemusic_one(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
-    """Apple Music を 1 件で返す（アルバムやプレイリストの URL なら先頭の曲）。
-    まとめて取りたいときは playlist.fetch が使われる。"""
+    """Apple Musicを1件で返す（アルバムやプレイリストのURLなら先頭の曲）。
+    まとめて取りたいときはplaylist.fetchが使われる。"""
     return (await applemusic.fetch(url, client=client))[0]
-# bilibili は入れない。fetch_bilibili が自分で roxy（otoDB）→ VocaDB の順に引く（bilibili 本体は叩かない）
+# bilibiliは入れない。fetch_bilibiliが自分でroxy（otoDB）→ VocaDBの順に引く（bilibili本体は叩かない）
 _ROXY_FALLBACK = {"SoundCloud", "YouTube", "ニコニコ動画"}
 
-# 動画 ID だけが貼られたとき、そのサイトの URL に組み立てる。以前は ID をまるごと roxy に投げていたが、
-# roxy が扱えるのはニコニコだけなので BV… と YouTube の 11 文字は必ず失敗していた（毎回 roxy への無駄打ち）。
-# 各サイトから直接取り、消えていたときだけ _ROXY_FALLBACK 経由で roxy に回す方がどちらにも良い
+# 動画IDだけが貼られたとき、そのサイトのURLに組み立てる。以前はIDをまるごとroxyに投げていたが、
+# roxyが扱えるのはニコニコだけなのでBV… とYouTubeの11文字は必ず失敗していた（毎回roxyへの無駄打ち）。
+# 各サイトから直接取り、消えていたときだけ _ROXY_FALLBACK経由でroxyに回す方がどちらにも良い
 _ID_URL = (
     (re.compile(r"^(?:sm|nm|so)\d+$"), "https://www.nicovideo.jp/watch/{}"),
     (re.compile(r"^(?:BV[0-9A-Za-z]{10}|av\d+)$"), "https://www.bilibili.com/video/{}"),
@@ -40,7 +40,7 @@ _ID_URL = (
 
 
 def normalize(url: str) -> str:
-    """動画 ID だけならそのサイトの URL にする。URL ならそのまま。"""
+    """動画IDだけならそのサイトのURLにする。URLならそのまま。"""
     s = url.strip()
     for pat, tpl in _ID_URL:
         if pat.match(s):
@@ -49,7 +49,7 @@ def normalize(url: str) -> str:
 
 
 def resolve(url: str) -> tuple[str, Fetcher]:
-    """(表示名, fetch) を返す。どれにも当てはまらなければ Bandcamp として扱う（独自ドメインの Bandcamp があるため）。"""
+    """(表示名, fetch) を返す。どれにも当てはまらなければBandcampとして扱う（独自ドメインのBandcampがあるため）。"""
     url = normalize(url)
     if soundcloud.is_soundcloud(url):
         return "SoundCloud", soundcloud.fetch
@@ -78,6 +78,6 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         try:
             t = await otodb.roxy_fetch(url, client=client)
         except (ValueError, httpx.HTTPError) as e2:
-            print(f"[from-url] {label} 失敗（{brief(e)}）→ roxy も失敗（{brief(e2)}）")
+            print(f"[from-url] {label}失敗（{brief(e)}）→ roxyも失敗（{brief(e2)}）")
             raise e from None
         return t

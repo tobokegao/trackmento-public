@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="trackmento-public" content="__PUBLIC__">
-<!-- 引っ越し中の移転先（移転中の古いホストで開いたときだけ中身が入る）。**JS ではなくここに置く**:
-     JS は app.<hash>.js として外に出して 1 年キャッシュに乗せるので、リクエストごとに変わる値を含められない -->
+<!-- 引っ越し中の移転先（移転中の古いホストで開いたときだけ中身が入る）。**JSではなくここに置く**:
+     JSはapp.<hash>.jsとして外に出して1年キャッシュに乗せるので、リクエストごとに変わる値を含められない -->
 <meta name="trackmento-migrate" content="__MIGRATE__">
-<!-- 共有が消えるまでの日数。英語の対訳表がこの値を含むので、JS はここから読む（上と同じ理由） -->
+<!-- 共有が消えるまでの日数。英語の対訳表がこの値を含むので、JSはここから読む（上と同じ理由） -->
 <meta name="trackmento-retention" content="__RETENTION__">
 <meta name="trackmento-support" content="__SUPPORT__">
 <title>TRACKMENTO</title>
 <!--__FONT_LINK__-->
-<meta name="description" content="好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
+<meta name="description" content="好きなトラックのサムネイルを並べて1枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:type" content="website"><meta property="og:site_name" content="TRACKMENTO">
-<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="好きなトラックのサムネイルを並べて 1 枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
+<meta property="og:title" content="TRACKMENTO"><meta property="og:description" content="好きなトラックのサムネイルを並べて1枚の画像に。サブスクに無いものも、どのサイトのものも混ぜられます。">
 <meta property="og:url" content="__BASE__/"><meta property="og:image" content="__BASE__/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="__BASE__/">
@@ -24,19 +24,19 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
-/* フォントは fonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
-/* IBM Plex Sans JP と JF ドット M+ 12 は unicode-range で分割した断片（fonts/split/、scripts/build_fonts.py が生成）。
-   画面と共有画像に出る文字を含む断片だけがダウンロードされる（丸ごと配ると 1 訪問 1.6MB で転送量の主因だった）。
-   @font-face は <head> の <!--__FONT_LINK__--> にサーバーが <link> で入れる */
-/* **ここはサーバーが URL を差し替える @font-face だけを置く**（2026-09-20）。本体の CSS は
-   scripts/build_app.py が app.<hash>.css として外に出し、R2 から配る。外に出したものは
-   1 年キャッシュに乗せるので、リクエストごとに変わる URL を含められない */
+/* フォントはfonts/ に同梱（OFL）。/fonts/ で静的配信するので、オフラインでも書き出し結果が変わらない */
+/* IBM Plex Sans JPとJFドットM+ 12はunicode-rangeで分割した断片（fonts/split/、scripts/build_fonts.pyが生成）。
+   画面と共有画像に出る文字を含む断片だけがダウンロードされる（丸ごと配ると1訪問1.6MBで転送量の主因だった）。
+   @font-faceは <head> の <!--__FONT_LINK__--> にサーバーが <link> で入れる */
+/* **ここはサーバーがURLを差し替える @font-faceだけを置く**（2026-09-20）。本体のCSSは
+   scripts/build_app.pyがapp.<hash>.cssとして外に出し、R2から配る。外に出したものは
+   1年キャッシュに乗せるので、リクエストごとに変わるURLを含められない */
 @font-face { font-family: "Silkscreen"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Regular.woff2") format("woff2"), url("fonts/Silkscreen-Regular.ttf") format("truetype"); }
 @font-face { font-family: "Silkscreen"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Silkscreen-Bold.woff2") format("woff2"), url("fonts/Silkscreen-Bold.ttf") format("truetype"); }
-/* ロゴ専用（Silkscreen Bold の M だけ描き替えたもの。scripts/build_logo_font.py。URL はサーバーが差し込む） */
+/* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.fd9b9b59.css">
+<link rel="stylesheet" href="app/app.b7c1047f.css">
 </head>
 <body>
 
@@ -48,7 +48,7 @@
   <button class="lang-switch" type="button" id="lang-switch" lang="en">EN</button>
 </header>
 <aside class="inapp" id="migrate-notice" hidden>
-  <p>trackmento.com につながらなかったため、予備のアドレスで開いています。学校や職場の Wi-Fi のフィルタなどで止められている可能性があります。</p>
+  <p>trackmento.comにつながらなかったため、予備のアドレスで開いています。学校や職場のWi-Fiのフィルタなどで止められている可能性があります。</p>
   <div class="btns">
     <button class="btn" type="button" id="migrate-close" aria-label="この案内を閉じる">閉じる</button>
   </div>
@@ -56,7 +56,7 @@
 <aside class="inapp" id="inapp-notice" hidden>
   <p>アプリ内ブラウザでは共有が遅くなったり失敗したりします。右上のメニューから「ブラウザで開く」（Safari / Chrome）で開くのがおすすめです。</p>
   <div class="btns">
-    <button class="btn" type="button" id="inapp-copy">URL をコピー</button>
+    <button class="btn" type="button" id="inapp-copy">URLをコピー</button>
     <button class="btn" type="button" id="inapp-close" aria-label="この案内を閉じる">閉じる</button>
   </div>
 </aside>
@@ -115,14 +115,14 @@
       </div>
     </form>
     <div class="sub" id="sub-bandcamp">
-    <button class="sub-title" type="button" aria-expanded="true">URL から</button>
+    <button class="sub-title" type="button" aria-expanded="true">URLから</button>
     <form class="pane-body search-form" id="bandcamp-form" novalidate>
       <div class="field">
-        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple Music のページ URL（sm… などの動画 ID も可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>プレイリストの URL（ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music）なら、収録トラックをまとめて取得できます（最大 500 トラック。マスに入りきらない分は候補に残ります）。</label>
+        <label for="bc-url">Bandcamp / SoundCloud / YouTube / ニコニコ動画 / bilibili / Spotify / Apple MusicのページURL（sm… などの動画IDも可）。<br>改行で区切ると、違うサイトのものも混ぜてまとめて取得できます。<br>プレイリストのURL（ニコニコ動画のマイリスト・YouTubeの再生リスト・Bandcampのアルバムとプレイリスト・Apple Music）なら、収録トラックをまとめて取得できます（最大500トラック。マスに入りきらない分は候補に残ります）。</label>
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
-        <button class="btn btn-primary" type="submit" id="bc-btn"><span class="label">URL から取得</span></button>
+        <button class="btn btn-primary" type="submit" id="bc-btn"><span class="label">URLから取得</span></button>
         <p class="msg" id="bc-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -131,8 +131,8 @@
     <button class="sub-title" type="button" aria-expanded="true">トラック名の一覧から</button>
     <form class="pane-body search-form" id="list-form" novalidate>
       <div class="field">
-        <p class="msg" id="list-help">1 行に 1 トラック（一度に 20 行まで）。Excel などの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。<br>iTunes で 1 行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</p>
-        <!-- 表計算のような 2 列の表。行は入れるにつれて増える（renderListRows） -->
+        <p class="msg" id="list-help">1行に1トラック（一度に20行まで）。Excelなどの表や「トラック名をコピー」の一覧を貼ると、行と列に分けて入ります。<br>iTunesで1行ずつ探し、名前がぴったり合ったものは空きマスへ、合わなかったものはいちばん近いトラックを候補に置きます。</p>
+        <!-- 表計算のような2列の表。行は入れるにつれて増える（renderListRows） -->
         <div class="list-sheet" role="table" aria-describedby="list-help">
           <div class="list-row list-head" role="row"><span role="columnheader" aria-hidden="true"></span><span role="columnheader">アーティスト名</span><span role="columnheader">トラック名</span><span role="columnheader" aria-hidden="true"></span></div>
           <div id="list-rows" role="rowgroup"></div>
@@ -149,15 +149,15 @@
     </form>
     </div>
     <div class="sub" id="sub-manual">
-    <button class="sub-title" type="button" aria-expanded="true">手入力（画像 URL＋トラック名）</button>
+    <button class="sub-title" type="button" aria-expanded="true">手入力（画像URL＋トラック名）</button>
     <form class="pane-body search-form" id="manual-form" novalidate>
       <div class="field">
-        <label for="m-image">手入力: サムネイル画像の URL</label>
+        <label for="m-image">手入力: サムネイル画像のURL</label>
         <input class="input" id="m-image" name="image" type="text" inputmode="url" autocomplete="off" placeholder="https://…/cover.jpg">
         <div class="search-actions">
           <button class="btn btn-sm" type="button" id="m-file-btn"><span class="label">端末から画像を選択…</span></button>
           <input type="file" id="m-file" accept="image/*" hidden>
-          <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶと画像が取り込まれ、URL 欄に入ります。</p>
+          <p class="msg" id="m-file-msg" role="status" aria-live="polite">選ぶと画像が取り込まれ、URL欄に入ります。</p>
         </div>
       </div>
       <div class="field">
@@ -169,7 +169,7 @@
         <input class="input" id="m-artist" name="artist" type="text" autocomplete="off">
       </div>
       <div class="field">
-        <label for="m-link">リンク先の URL（省略可）</label>
+        <label for="m-link">リンク先のURL（省略可）</label>
         <input class="input" id="m-link" name="link" type="text" inputmode="url" autocomplete="off" placeholder="https://…（トラックのページ）">
         <p class="msg">共有ページのトラック名から、このページへ飛べるようになります。</p>
       </div>
@@ -193,11 +193,11 @@
   <section class="pane pane-grid" aria-labelledby="h-grid">
     <div class="pane-title"><h2 id="h-grid">グリッド <span id="grid-size-label">3×3</span></h2><span class="tail"><span class="count" id="grid-count" aria-label="配置数">0/9</span><button class="fold" type="button" aria-expanded="true" aria-label="グリッドを折りたたむ"></button></span></div>
     <div class="pane-body">
-      <!-- 並びの切り替え（2026-09-23、運用ボードの grids-multi）。数が決まらないのでタブではなくポップアップメニュー（HIG） -->
+      <!-- 並びの切り替え（2026-09-23、運用ボードのgrids-multi）。数が決まらないのでタブではなくポップアップメニュー（HIG） -->
       <div class="layouts">
         <label for="layout-sel">並び</label>
         <span class="popup"><select id="layout-sel"></select></span>
-        <button class="btn" type="button" id="layout-new" title="空の並びをもう 1 つ作る。今の並びはそのまま残る">新しい並び</button>
+        <button class="btn" type="button" id="layout-new" title="空の並びをもう1つ作る。今の並びはそのまま残る">新しい並び</button>
         <button class="btn" type="button" id="layout-del" title="いま開いている並びを消す。ほかの並びは残る">この並びを消す</button>
       </div>
       <div class="grid-head">
@@ -207,8 +207,8 @@
         </div>
         <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
-      <!-- お題の見本（2026-09-24、運用ボードの ideas-0923）。選ぶとタイトルが入る。
-           題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。value が「横x縦」なら大きさも変え、
+      <!-- お題の見本（2026-09-24、運用ボードのideas-0923）。選ぶとタイトルが入る。
+           題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。valueが「横x縦」なら大きさも変え、
            "t" なら大きさはそのまま（曲数の決まっていないお題。縮めると並べたトラックが外れるため。利用者の判断） -->
       <div class="layouts themes">
         <label for="theme-sel">お題</label>
@@ -230,15 +230,15 @@
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
         <!-- 取り消しのボタン（2026-09-25、利用者の依頼）。メッセージの「元に戻す」は次のメッセージで消えるので、
-             キーボードの無いスマホでは 2 手以上戻れず、やり直しもできなかった。戻せないときは押せない -->
+             キーボードの無いスマホでは2手以上戻れず、やり直しもできなかった。戻せないときは押せない -->
         <div class="history">
-          <button class="btn btn-sm" type="button" id="undo-btn" disabled title="直前の操作を取り消す。30 回まで戻れる（Ctrl+Z でも）">元に戻す</button>
-          <button class="btn btn-sm" type="button" id="redo-btn" disabled title="取り消した操作をやり直す（Ctrl+Y でも）">やり直す</button>
+          <button class="btn btn-sm" type="button" id="undo-btn" disabled title="直前の操作を取り消す。30回まで戻れる（Ctrl+Zでも）">元に戻す</button>
+          <button class="btn btn-sm" type="button" id="redo-btn" disabled title="取り消した操作をやり直す（Ctrl+Yでも）">やり直す</button>
         </div>
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="preview-btn" title="書き出す画像の見本を「できあがり」の窓に作って見せる（送らない）">できあがりを見る</button>
         <div class="minor">
-          <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像 URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
+          <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
           <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
           <button class="btn btn-sm" type="button" id="color-sort" title="サムネイルの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のサムネイルは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
         </div>
@@ -256,33 +256,33 @@
         <button type="button" class="out-shot" id="out-shot" hidden title="大きく見る"><img id="output-img" alt="書き出す画像の見本"></button>
         <div class="out-actions">
           <button class="btn btn-sm" type="button" id="out-refresh">更新</button>
-          <button class="btn btn-sm" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。X の本文などにそのまま貼れる">トラック名をコピー</button>
-          <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有 URL にする"><span class="label">トラックを共有</span></button>
+          <button class="btn btn-sm" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。Xの本文などにそのまま貼れる">トラック名をコピー</button>
+          <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有URLにする"><span class="label">トラックを共有</span></button>
         </div>
         <div class="listed">
             <!-- 文の中の「みんなのグリッド」がそのまま探すページへのリンク。
-                 **label で包まない**（2026-09-18、利用者の指摘）。包むと行のどこを押しても行全体が反応し、スマホでは
+                 **labelで包まない**（2026-09-18、利用者の指摘）。包むと行のどこを押しても行全体が反応し、スマホでは
                  行全体に押した色が付く。チェックは箱だけ、リンクはリンクだけ、「に載せる」は何も起きない。
-                 読み上げ向けには aria-labelledby で文と箱を結ぶ。
-                 英語は語順が変わる（Add to everyone's grids）ので、前の空の span に applyI18n が "Add to " を入れる -->
+                 読み上げ向けにはaria-labelledbyで文と箱を結ぶ。
+                 英語は語順が変わる（Add to everyone's grids）ので、前の空のspanにapplyI18nが "Add to " を入れる -->
             <div class="check check-sep"><input type="checkbox" id="opt-listed" aria-labelledby="listed-text"><span id="listed-text"><span id="listed-pre"></span><a id="find-link" href="/find" target="_blank" rel="noopener">みんなのグリッド</a>に載せる</span></div>
         </div>
-        <p class="msg msg-under">チェックを入れると、共有されたグリッドがトラック名・アーティスト名で探せるようになります。チェックを入れなければ、URL を知っている人だけが見られます。</p>
-        <p class="msg msg-under">共有 URL は __RETENTION__ 日で消えます。長く残すときは「並びを保存」でファイルにしておくと、あとで読み込めます。</p>
+        <p class="msg msg-under">チェックを入れると、共有されたグリッドがトラック名・アーティスト名で探せるようになります。チェックを入れなければ、URLを知っている人だけが見られます。</p>
+        <p class="msg msg-under">共有URLは __RETENTION__ 日で消えます。長く残すときは「並びを保存」でファイルにしておくと、あとで読み込めます。</p>
         <div id="share-done" hidden>
-        <div class="share-url"><span class="lbl">共有 URL</span><input class="input" id="share-url" type="text" readonly></div>
-        <!-- **URL を使うボタンと画像を使うボタンを分ける**（2026-09-26、利用者の選択）。Mac の HIG の「関係するものは区切り線でまとめる」と
-             「アイコンに文字を添えたほうが伝わる」に沿い、12×12 のドット絵を添えた（絵は scratchpad の p31.py の ICONS。色は字と同じ） -->
+        <div class="share-url"><span class="lbl">共有URL</span><input class="input" id="share-url" type="text" readonly></div>
+        <!-- **URLを使うボタンと画像を使うボタンを分ける**（2026-09-26、利用者の選択）。MacのHIGの「関係するものは区切り線でまとめる」と
+             「アイコンに文字を添えたほうが伝わる」に沿い、12×12のドット絵を添えた（絵はscratchpadのp31.pyのICONS。色は字と同じ） -->
         <div class="share-actions">
-          <button class="btn" type="button" id="copy-btn"><svg class="ic" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" shape-rendering="crispEdges"><path d="M1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM1 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM1 4h1v1h-1zM4 4h1v1h-1zM9 4h1v1h-1zM1 5h1v1h-1zM4 5h1v1h-1zM9 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM9 6h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM9 7h1v1h-1zM4 8h1v1h-1zM9 8h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1z"/></svg><span>URL をコピー</span></button>
-          <button class="btn" type="button" id="native-share-btn"><svg class="ic" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" shape-rendering="crispEdges"><path d="M6 0h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM6 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM2 6h1v1h-1zM6 6h1v1h-1zM10 6h1v1h-1zM2 7h1v1h-1zM10 7h1v1h-1zM2 8h1v1h-1zM10 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1z"/></svg><span>SNS に共有</span></button>
+          <button class="btn" type="button" id="copy-btn"><svg class="ic" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" shape-rendering="crispEdges"><path d="M1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM1 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM1 4h1v1h-1zM4 4h1v1h-1zM9 4h1v1h-1zM1 5h1v1h-1zM4 5h1v1h-1zM9 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM9 6h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM9 7h1v1h-1zM4 8h1v1h-1zM9 8h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1z"/></svg><span>URLをコピー</span></button>
+          <button class="btn" type="button" id="native-share-btn"><svg class="ic" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" shape-rendering="crispEdges"><path d="M6 0h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM6 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM2 6h1v1h-1zM6 6h1v1h-1zM10 6h1v1h-1zM2 7h1v1h-1zM10 7h1v1h-1zM2 8h1v1h-1zM10 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1z"/></svg><span>SNSに共有</span></button>
           <a class="btn" id="open-share" href="#" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" shape-rendering="crispEdges"><path d="M6 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM7 4h1v1h-1zM10 4h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM6 5h1v1h-1zM1 6h1v1h-1zM5 6h1v1h-1zM1 7h1v1h-1zM1 8h1v1h-1zM8 8h1v1h-1zM1 9h1v1h-1zM8 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1z"/></svg><span>共有ページを開く</span></a>
         </div>
         <div class="share-img"><span class="lbl">画像</span>
           <a class="btn dl" id="download" download="trackmento.jpg" href="#"><svg class="ic" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" shape-rendering="crispEdges"><path d="M1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM1 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM1 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM9 3h1v1h-1zM1 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM10 4h1v1h-1zM1 5h1v1h-1zM10 5h1v1h-1zM1 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM7 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM1 7h1v1h-1zM3 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM3 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1z"/></svg><span>画像を保存</span></a>
         </div>
         <!-- **自分の共有をあとから外す・消す**（2026-09-26、利用者の案）。共有したときにサーバーが返した鍵を端末に覚え、
-             それを持っている端末だけが頼める。共有ページ・探すページにも同じボタンが出る（backend/share.py の _owner_script） -->
+             それを持っている端末だけが頼める。共有ページ・探すページにも同じボタンが出る（backend/share.pyの _owner_script） -->
         <div class="share-own">
           <button class="btn btn-sm" type="button" id="unlist-btn" hidden>みんなのグリッドから外す</button>
           <button class="btn btn-sm" type="button" id="share-del-btn">共有を消す</button>
@@ -290,9 +290,9 @@
         <div class="support">
           <!-- お礼を言う瞬間に、サーバー代の棒と一緒に出す（2026-09-26、利用者の希望。以前は「バズっちゃった…😭」の文） -->
           <span>共有できました。使ってくださってありがとうございます！</span>
-          <!-- 作者の顔と一人称で頼む（2026-09-26、利用者の希望。本人が語りかける形が効くという Wikipedia の記録）。顔は「サーバー代のおねがい」の
-               ボタンの絵の左の四角を切り抜いて使う（paintFund が同じ data: URI を背景に入れる。絵を 2 回埋めない） -->
-          <div class="maker"><span class="maker-face" aria-hidden="true"></span><span>作っている Tobokegao です。サーバー代は、私の音楽を買っていただいたお金でまかなっています。値段は自由なので、100 円からでもうれしいです。</span></div>
+          <!-- 作者の顔と一人称で頼む（2026-09-26、利用者の希望。本人が語りかける形が効くというWikipediaの記録）。顔は「サーバー代のおねがい」の
+               ボタンの絵の左の四角を切り抜いて使う（paintFundが同じdata: URIを背景に入れる。絵を2回埋めない） -->
+          <div class="maker"><span class="maker-face" aria-hidden="true"></span><span>作っているTobokegaoです。サーバー代は、私の音楽を買っていただいたお金でまかなっています。値段は自由なので、100円からでもうれしいです。</span></div>
           <div class="fund" hidden><div class="fund-head"><span class="fund-lbl"></span><span class="fund-pct"></span></div><div class="up-bar fund-bar"><div class="up-fill"></div></div><span class="fund-note"></span></div>
           <span class="album">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-share" target="_blank" rel="noopener noreferrer">Tobokegao「おかねがたりないときのうた」</a></span>
           <span>音楽を買わずに支援する: <a href="https://www.paypal.com/paypalme/tbkgao" target="_blank" rel="noopener noreferrer">PayPal</a></span>
@@ -312,7 +312,7 @@
   <aside class="pane pane-options" aria-labelledby="h-options">
     <div class="pane-title"><h2 id="h-options">出力オプション</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="出力オプションを折りたたむ"></button></span></div>
     <div class="pane-body opts">
-      <!-- **1 段目のグループボックスで 3 つに分ける**（2026-09-25、利用者の依頼。Mac OS 8 の HIG の group box。
+      <!-- **1段目のグループボックスで3つに分ける**（2026-09-25、利用者の依頼。Mac OS 8のHIGのgroup box。
            ラジオボタンの組が多く並んで、どこからどこまでが一まとまりか分かりにくかった） -->
       <section class="gbox" aria-labelledby="gb-cells">
         <h3 class="gbox-title" id="gb-cells">マス</h3>
@@ -325,8 +325,8 @@
           </div>
         </fieldset>
 
-        <!-- **比率・マスの形・サムネの入れ方は三角で畳む**（2026-09-25、利用者の案。Mac OS 8 の HIG の disclosure triangle）。
-             畳んでいても今の値は右に出す（16:9 のままか分かるように）。開け閉めは端末に覚える -->
+        <!-- **比率・マスの形・サムネの入れ方は三角で畳む**（2026-09-25、利用者の案。Mac OS 8のHIGのdisclosure triangle）。
+             畳んでいても今の値は右に出す（16:9のままか分かるように）。開け閉めは端末に覚える -->
         <div class="disclose-head">
           <button class="disclose" type="button" id="cells-more-btn" aria-expanded="false" aria-controls="cells-more"><span class="tri" aria-hidden="true"></span><span>枠とサムネ</span></button>
           <p class="disclose-sum" id="cells-more-sum"></p>
@@ -335,10 +335,10 @@
         <fieldset class="field">
           <legend>全体枠</legend>
           <div class="seg radio" id="ratio-seg" role="radiogroup" aria-label="全体枠">
-            <label><input type="radio" name="ratio" value="1:1"><span>正方形 1:1</span></label>
-            <label><input type="radio" name="ratio" value="4:5"><span>インスタ 4:5</span></label>
-            <label><input type="radio" name="ratio" value="16:9" checked><span>横長 16:9</span></label>
-            <label><input type="radio" name="ratio" value="9:16"><span>縦長 9:16</span></label>
+            <label><input type="radio" name="ratio" value="1:1"><span>正方形1:1</span></label>
+            <label><input type="radio" name="ratio" value="4:5"><span>インスタ4:5</span></label>
+            <label><input type="radio" name="ratio" value="16:9" checked><span>横長16:9</span></label>
+            <label><input type="radio" name="ratio" value="9:16"><span>縦長9:16</span></label>
             <label><input type="radio" name="ratio" value="free"><span>自由</span></label>
           </div>
           <p class="msg" id="ratio-msg" hidden></p>
@@ -346,14 +346,14 @@
 
         <fieldset class="field">
           <legend>マス枠</legend>
-          <!-- 動画サイトのサムネイルは 16:9。正方形のマスに入れると左右が 28% ずつ切れる -->
+          <!-- 動画サイトのサムネイルは16:9。正方形のマスに入れると左右が28% ずつ切れる -->
           <div class="seg radio" id="cell-ratio-seg" role="radiogroup" aria-label="マス枠">
-            <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形 1:1</span></label>
-            <label><input type="radio" name="cellRatio" value="16:9"><span>横長 16:9</span></label>
+            <label><input type="radio" name="cellRatio" value="1:1" checked><span>正方形1:1</span></label>
+            <label><input type="radio" name="cellRatio" value="16:9"><span>横長16:9</span></label>
           </div>
         </fieldset>
 
-        <!-- マスの形と続けて並べると、ラジオボタンの 2 組が 1 組に見えるので見出しを分ける（2026-09-22） -->
+        <!-- マスの形と続けて並べると、ラジオボタンの2組が1組に見えるので見出しを分ける（2026-09-22） -->
         <fieldset class="field">
           <legend>サムネ余白</legend>
           <div class="seg radio" id="cell-fit-seg" role="radiogroup" aria-label="サムネ余白">
@@ -370,12 +370,12 @@
 
         <fieldset class="field">
           <legend>表示</legend>
-          <!-- label で包まない（「みんなのグリッドに載せる」と同じ）。包むと行のどこを押しても箱が切り替わり、行全体が光る -->
-          <!-- **横に流し込む**（縦に 1 つずつ積むと場所を食う）。入らないものは次の行へ回る -->
+          <!-- labelで包まない（「みんなのグリッドに載せる」と同じ）。包むと行のどこを押しても箱が切り替わり、行全体が光る -->
+          <!-- **横に流し込む**（縦に1つずつ積むと場所を食う）。入らないものは次の行へ回る -->
           <div class="check-row">
             <div class="check check-sep"><input type="checkbox" id="opt-title" checked aria-labelledby="opt-title-text"><span id="opt-title-text">タイトル</span></div>
             <div class="check check-sep"><input type="checkbox" id="opt-numbers" aria-labelledby="opt-numbers-text"><span id="opt-numbers-text">番号バッジ</span></div>
-            <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.py と frontend の trimName） -->
+            <!-- 【東方Vocal】や「- Topic」のような、曲名でない部分を外す（backend/names.pyとfrontendのtrimName） -->
             <div class="check check-sep"><input type="checkbox" id="opt-trim" checked aria-labelledby="opt-trim-text"><span id="opt-trim-text">トラック名の省略表示</span></div>
           </div>
         </fieldset>
@@ -398,7 +398,7 @@
           <legend>背景</legend>
           <!-- 背景の決め方（2026-09-25、利用者の案）。「ジャケットに近い色」「ジャケットと反対の色」は並んだジャケットから色を取り、
                並びが変わると取り直す。入る先はカスタムカラーなので、書き出しの描画はそのまま。
-               「背景を透過」は、共有の画像は白い地（JPEG は透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明な PNG -->
+               「背景を透過」は、共有の画像は白い地（JPEGは透明にできない）で、「できあがり」の枠と「画像を保存」は背景が透明なPNG -->
           <div class="seg radio" id="bg-mode-seg" role="radiogroup" aria-label="背景の決め方">
             <label><input type="radio" name="bgMode" value="pick" checked><span>色の選択</span></label>
             <label><input type="radio" name="bgMode" value="near"><span>サムネの近似色</span></label>
@@ -407,7 +407,7 @@
             <label><input type="radio" name="bgMode" value="image"><span>画像</span></label>
             <label><input type="radio" name="bgMode" value="gradient"><span>グラデーション</span></label>
           </div>
-          <!-- 決め方ごとの補足の設定は 2 段目の枠で囲む（Mac OS 8 の HIG の secondary group box。2026-09-25） -->
+          <!-- 決め方ごとの補足の設定は2段目の枠で囲む（Mac OS 8のHIGのsecondary group box。2026-09-25） -->
           <div class="gbox-sub">
             <div id="bg-pick">
             <div class="swatches" id="swatches" role="radiogroup" aria-label="背景色"></div>
@@ -423,9 +423,9 @@
               <div class="hex" id="hsv-hex">#f2efe6</div>
             </div>
             </div>
-            <!-- 好きな画像を背景に（2026-09-25、利用者の案）。端末の画像を /upload で上げ（撮影日時などは消して保存）、
+            <!-- 好きな画像を背景に（2026-09-25、利用者の案）。端末の画像を /uploadで上げ（撮影日時などは消して保存）、
                  枠いっぱいに切り抜いて半分の濃さで敷く。文字の色は画像の平均の色で決める（それを背景色に入れる） -->
-            <!-- グラデーション背景（2026-09-25）。色はジャケットから取るか、自分で 2〜4 色選ぶ。「ほかの模様」はゆらぎの形だけ変える -->
+            <!-- グラデーション背景（2026-09-25）。色はジャケットから取るか、自分で2〜4色選ぶ。「ほかの模様」はゆらぎの形だけ変える -->
             <div id="bg-grad-box" hidden>
               <div class="seg radio" id="bg-grad-src" role="radiogroup" aria-label="グラデーションの色">
                 <label><input type="radio" name="bgGradSrc" value="covers" checked><span>サムネの色</span></label>
@@ -450,7 +450,7 @@
               <div id="bg-image-row">
                 <img id="bg-image-thumb" alt="背景の画像の見本">
                 <button class="btn btn-sm" type="button" id="bg-image-btn">画像を選ぶ…</button>
-                <button class="btn btn-sm" type="button" id="bg-image-reset" hidden title="選んだ画像をやめて、TRACKMENTO のマークの模様に戻す">既定に戻す</button>
+                <button class="btn btn-sm" type="button" id="bg-image-reset" hidden title="選んだ画像をやめて、TRACKMENTOのマークの模様に戻す">既定に戻す</button>
               </div>
               <div class="seg radio" id="bg-fit-seg" role="radiogroup" aria-label="画像の敷き方">
                 <label><input type="radio" name="bgFit" value="cover" checked><span>全体表示</span></label>
@@ -463,15 +463,15 @@
               </div>
               <input type="file" id="bg-image-file" accept="image/*" hidden>
             </div>
-            <!-- サムネイルから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで 1 つずつ送る形だったのを、
+            <!-- サムネイルから取った色の候補（2026-09-25、利用者の指定）。「ほかの候補」ボタンで1つずつ送る形だったのを、
                  背景色の見本と同じ四角で全部並べ、今の色に枠を付ける -->
             <div class="swatches" id="bg-cands" role="radiogroup" aria-label="サムネイルから取った色" hidden></div>
             <p class="msg" id="bg-msg" role="status" aria-live="polite" hidden></p>
           </div>
         </fieldset>
 
-        <!-- 余白は 3 段から選ぶ（2026-09-24。前は px のスライダーで、下限の 3.5% と比率合わせの余りに隠れて動かしても変わらないことが多かった）。
-             段は内容の短い辺に対する割合（ふつう 3.5%・ひろめ 7%・たっぷり 12%。backend/render.py の PAD_FRAC） -->
+        <!-- 余白は3段から選ぶ（2026-09-24。前はpxのスライダーで、下限の3.5% と比率合わせの余りに隠れて動かしても変わらないことが多かった）。
+             段は内容の短い辺に対する割合（ふつう3.5%・ひろめ7%・たっぷり12%。backend/render.pyのPAD_FRAC） -->
         <fieldset class="field">
           <legend>余白</legend>
           <div class="seg radio" id="pad-seg" role="radiogroup" aria-label="余白">
@@ -511,8 +511,8 @@
   </div>
 </div>
 
-<!-- できあがりの見本（2026-09-25、利用者の案「トラックを共有する前に web 上でプレビューする方法」）。
-     共有と同じ renderShareCanvas で端末の中で描いて見せるだけで、サーバーには送らない（R2 にも何も残らない） -->
+<!-- できあがりの見本（2026-09-25、利用者の案「トラックを共有する前にweb上でプレビューする方法」）。
+     共有と同じrenderShareCanvasで端末の中で描いて見せるだけで、サーバーには送らない（R2にも何も残らない） -->
 <div class="modal" id="preview-modal" hidden role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
   <div class="sheet-backdrop" id="preview-modal-backdrop"></div>
   <div class="modal-panel">
@@ -536,14 +536,14 @@
     <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2><button class="btn" type="button" id="src-modal-close">閉じる</button></div>
     <div class="modal-body note">
           <p><b>iTunes</b>: トラック名に検索した言葉を含み、アーティスト名に検索したアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。</p>
-          <p><b>MusicBrainz</b>: 画像は Cover Art Archive に登録された盤だけ。1 秒 1 回の制限があり少し遅いです。</p>
-          <p><b>otoDB</b>: 音MAD データベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルは otoDB 側に保存されているので、元動画が削除済みでも表示できます。</p>
-          <p><b>VocaDB</b>: ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチ feat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
-          <p><b>選び方</b>: ソースは 1 つずつ選んで探します。選んだソースは記憶され、次に開いたときもそのままです。</p>
-          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTube の再生リスト・Bandcamp のアルバムとプレイリスト・Apple Music の URL を貼ると、中のトラックをまとめて取れます（最大 500 トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、トラックの入っていない空きマスに、番号の若い順で入ります。入りきらない分（マスは最大 256）は候補に残ります。<b>SoundCloud のセットと Spotify のプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとの URL なら取れます）。URL は改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
-          <p><b>URL から</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画の URL を貼ると、サムネイルとトラック名・アーティスト（投稿者）を取ります。Spotify はトラック名とサムネイルしか取れないので、アーティスト名は iTunes で同じトラック名のものから補います（見つからないときは手で入れてください）。動画のサムネイルは 16:9 なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画は otoDB（roxy）に登録があればそこから取ります。bilibili の動画は、otoDB（音MAD など）か VocaDB（ボカロなど）に登録があるものだけ取れます（bilibili には問い合わせません）。sm12345 や BV… のような ID だけを貼ってもかまいません。</p>
-          <p><b>トラック名の一覧から</b>: 表にアーティスト名とトラック名を 1 行ずつ入れると、iTunes で 1 行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excel などの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
-          <p><b>保存されるもの</b>: 検索語と取得したサムネイル画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URL を知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムな ID を使い、それを共有する並びのデータに載せることはありません。</p>
+          <p><b>MusicBrainz</b>: 画像はCover Art Archiveに登録された盤だけ。1秒1回の制限があり少し遅いです。</p>
+          <p><b>otoDB</b>: 音MADデータベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルはotoDB側に保存されているので、元動画が削除済みでも表示できます。</p>
+          <p><b>VocaDB</b>: ボーカロイド作品のデータベース（vocadb.net）。トラック名で探せて、アーティスト名は「ハチfeat. 初音ミク」のように作者と歌声合成ソフトがまとめて入ります。原曲が上に来るよう評価の高い順で引きます。サムネイルは元の動画のものです。</p>
+          <p><b>選び方</b>: ソースは1つずつ選んで探します。選んだソースは記憶され、次に開いたときもそのままです。</p>
+          <p><b>まとめて取る</b>: ニコニコ動画のマイリスト・YouTubeの再生リスト・Bandcampのアルバムとプレイリスト・Apple MusicのURLを貼ると、中のトラックをまとめて取れます（最大500トラック）。取れたあとで「マスに入れる」か「候補に置いて選ぶ」かを選べます。マスに入れるときは、トラックの入っていない空きマスに、番号の若い順で入ります。入りきらない分（マスは最大256）は候補に残ります。<b>SoundCloudのセットとSpotifyのプレイリストはまとめて取れません</b>（それぞれのサービスの決まりに合わせて外しました。トラックごとのURLなら取れます）。URLは改行で区切ると、ちがうサイトのものを混ぜてまとめて取れます。</p>
+          <p><b>URLから</b>: Bandcamp（トラック）、SoundCloud（トラック）、Spotify（トラック／アルバム）、Apple Music（トラック）、YouTube（動画）、ニコニコ動画のURLを貼ると、サムネイルとトラック名・アーティスト（投稿者）を取ります。Spotifyはトラック名とサムネイルしか取れないので、アーティスト名はiTunesで同じトラック名のものから補います（見つからないときは手で入れてください）。動画のサムネイルは16:9なので、正方形のマスでは中央が切り出されます。削除済み・非公開で取れなかった動画はotoDB（roxy）に登録があればそこから取ります。bilibiliの動画は、otoDB（音MADなど）かVocaDB（ボカロなど）に登録があるものだけ取れます（bilibiliには問い合わせません）。sm12345やBV… のようなIDだけを貼ってもかまいません。</p>
+          <p><b>トラック名の一覧から</b>: 表にアーティスト名とトラック名を1行ずつ入れると、iTunesで1行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excelなどの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
+          <p><b>保存されるもの</b>: 検索語と取得したサムネイル画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URLを知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムなIDを使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
   </div>
 </div>
@@ -572,16 +572,16 @@
   </div>
 </div>
 
-<!-- 「トラックを全て外す」の確認。**ブラウザ標準の confirm は使わない**（画面が止まり、撮影や自動操作でも扱えない） -->
+<!-- 「トラックを全て外す」の確認。**ブラウザ標準のconfirmは使わない**（画面が止まり、撮影や自動操作でも扱えない） -->
 <div class="modal" id="confirm-modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
   <div class="sheet-backdrop" id="confirm-backdrop"></div>
   <div class="modal-panel modal-narrow">
     <div class="sheet-head"><h2 id="confirm-title">確認</h2></div>
     <div class="modal-body note confirm-body">
-      <!-- 「注意」のアイコン（OS 9 の Caution alert にならう 32x32 のドット絵） -->
+      <!-- 「注意」のアイコン（OS 9のCaution alertにならう32x32のドット絵） -->
       <svg class="caution" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" shape-rendering="crispEdges"><path class="c-fill" d="M15 1h2v1H15zM15 2h2v1H15zM14 3h4v1H14zM14 4h4v1H14zM13 5h6v1H13zM13 6h6v1H13zM12 7h8v1H12zM12 8h8v1H12zM11 9h10v1H11zM11 10h10v1H11zM10 11h12v1H10zM10 12h12v1H10zM9 13h14v1H9zM9 14h14v1H9zM8 15h16v1H8zM8 16h16v1H8zM7 17h18v1H7zM7 18h18v1H7zM6 19h20v1H6zM6 20h20v1H6zM5 21h22v1H5zM5 22h22v1H5zM4 23h24v1H4zM4 24h24v1H4zM3 25h26v1H3zM3 26h26v1H3zM2 27h28v1H2zM2 28h28v1H2zM1 29h30v1H1zM1 30h30v1H1z"/><path class="c-edge" d="M15 1h2v1H15zM15 2h2v1H15zM14 3h1v1H14zM17 3h1v1H17zM14 4h1v1H14zM17 4h1v1H17zM13 5h1v1H13zM18 5h1v1H18zM13 6h1v1H13zM18 6h1v1H18zM12 7h1v1H12zM19 7h1v1H19zM12 8h1v1H12zM19 8h1v1H19zM11 9h1v1H11zM20 9h1v1H20zM11 10h1v1H11zM20 10h1v1H20zM10 11h1v1H10zM21 11h1v1H21zM10 12h1v1H10zM21 12h1v1H21zM9 13h1v1H9zM22 13h1v1H22zM9 14h1v1H9zM22 14h1v1H22zM8 15h1v1H8zM23 15h1v1H23zM8 16h1v1H8zM23 16h1v1H23zM7 17h1v1H7zM24 17h1v1H24zM7 18h1v1H7zM24 18h1v1H24zM6 19h1v1H6zM25 19h1v1H25zM6 20h1v1H6zM25 20h1v1H25zM5 21h1v1H5zM26 21h1v1H26zM5 22h1v1H5zM26 22h1v1H26zM4 23h1v1H4zM27 23h1v1H27zM4 24h1v1H4zM27 24h1v1H27zM3 25h1v1H3zM28 25h1v1H28zM3 26h1v1H3zM28 26h1v1H28zM2 27h1v1H2zM29 27h1v1H29zM2 28h1v1H2zM29 28h1v1H29zM1 29h1v1H1zM30 29h1v1H30zM1 30h30v1H1z"/><path class="c-mark" d="M15 10h2v1H15zM15 11h2v1H15zM15 12h2v1H15zM15 13h2v1H15zM15 14h2v1H15zM15 15h2v1H15zM15 16h2v1H15zM15 17h2v1H15zM15 18h2v1H15zM15 19h2v1H15zM15 20h2v1H15zM15 21h2v1H15zM15 24h2v1H15zM15 25h2v1H15zM15 26h2v1H15z"/></svg>
       <p id="confirm-msg">トラックを全て外します。あとから「元に戻す」で戻せます。</p>
-      <!-- **既定のボタンは「やめる」**（取り消す側。HIG の決まり）。二重の枠で示し、開いたときに焦点を置くので Return で押せる -->
+      <!-- **既定のボタンは「やめる」**（取り消す側。HIGの決まり）。二重の枠で示し、開いたときに焦点を置くのでReturnで押せる -->
       <div class="confirm-actions">
         <button class="btn btn-default" type="button" id="confirm-no">やめる</button>
         <button class="btn" type="button" id="confirm-yes">全て外す</button>
@@ -595,7 +595,7 @@
   <div class="modal-panel">
     <div class="sheet-head"><h2 id="pal-modal-title">パレット</h2><button class="btn" type="button" id="pal-modal-close">閉じる</button></div>
     <div class="modal-body note">
-      <p>背景色に並ぶ 8 色と、画面の配色をまとめて切り替えます。</p>
+      <p>背景色に並ぶ8色と、画面の配色をまとめて切り替えます。</p>
       <div class="pal-lanes" id="pal-lanes"></div>
       <div class="hsv" id="pal-hsv" hidden>
         <label for="pal-hsv-h">色相 <output id="pal-hsv-h-out">0</output></label>
@@ -612,7 +612,7 @@
       <div class="pal-io">
         <label for="pal-import">カラーコードから作る</label>
         <div class="pal-io-row">
-          <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（8 つ）" spellcheck="false" autocomplete="off">
+          <input class="input" type="text" id="pal-import" placeholder="#f2418f, #4878da, …（8つ）" spellcheck="false" autocomplete="off">
           <button class="btn" type="button" id="pal-import-btn">読み込む</button>
         </div>
         <!-- パレットをファイルで渡す（2026-09-19、利用者の要望）。各組の「保存」で書き出したファイルをここで読む -->
@@ -627,28 +627,28 @@
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="sheet-backdrop" id="sheet-backdrop"></div>
   <div class="sheet-panel">
-    <div class="sheet-head"><h2 id="sheet-title">01 番に入れるトラックを探す</h2><button class="btn" type="button" id="sheet-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="sheet-title">01番に入れるトラックを探す</h2><button class="btn" type="button" id="sheet-close">閉じる</button></div>
     <div class="sheet-body" id="sheet-body"></div>
   </div>
 </div>
 
-<!-- 広告枠。いまは作者の音楽の宣伝（見出しの札は「PR」）。AdSense の審査が通ったら、この下にもう 1 つ同じ形の aside を置き、
-     .lbl を「広告」、.promo-tag を「SPONSOR」にして、.promo-body の中身を
-     <div class="ad-frame"><div class="ad-slot">（広告のコード。固定の大きさの ins）</div></div> にする（.ad-frame は立体の枠）。
-     **見出しに使える言葉は「広告」か「スポンサーリンク」だけ**（AdSense の決まり）。
-     文言でクリックを促すと AdSense のポリシー違反（アカウント停止）になるため、
+<!-- 広告枠。いまは作者の音楽の宣伝（見出しの札は「PR」）。AdSenseの審査が通ったら、この下にもう1つ同じ形のasideを置き、
+     .lblを「広告」、.promo-tagを「SPONSOR」にして、.promo-bodyの中身を
+     <div class="ad-frame"><div class="ad-slot">（広告のコード。固定の大きさのins）</div></div> にする（.ad-frameは立体の枠）。
+     **見出しに使える言葉は「広告」か「スポンサーリンク」だけ**（AdSenseの決まり）。
+     文言でクリックを促すとAdSenseのポリシー違反（アカウント停止）になるため、
      差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。
-     88×31 のボタンの絵は作者が描いた顔（25×25）にサイトの色（ink・cerulean・paper・mustard・mint）を塗り、外側の輪郭だけ整えて枠に入れたもの。data: URI で埋めてある（R2 に置くほどの大きさではない） -->
+     88×31のボタンの絵は作者が描いた顔（25×25）にサイトの色（ink・cerulean・paper・mustard・mint）を塗り、外側の輪郭だけ整えて枠に入れたもの。data: URIで埋めてある（R2に置くほどの大きさではない） -->
 <aside class="promo" aria-label="サーバー代のおねがい">
   <div class="promo-head"><span class="lbl">サーバー代のおねがい</span><span class="promo-tag">PR</span></div>
   <div class="promo-body">
-  <p>作っている Tobokegao です。無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！私の音楽を聴いてもらえると助かります。</p>
+  <p>作っているTobokegaoです。無料で置いているツールですが、思ったより多くの方に使っていただき、サーバー代がかさんでいます！私の音楽を聴いてもらえると助かります。</p>
   <div class="fund" hidden><div class="fund-head"><span class="fund-lbl"></span><span class="fund-pct"></span></div><div class="up-bar fund-bar"><div class="up-fill"></div></div><span class="fund-note"></span></div>
   <div class="promo-row">
   <a class="promo-btn" href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento-button" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAAAfCAIAAADsqp23AAADR0lEQVR4nO1YPWjbUBB+CVkcUCjKoIAzZeok8BZs5CkloUOLQVBKIRQydXemZPDQTvXcIbSTcCEgCGQQCDwl2KSTwFOmTC4tlJoSjNTFtNQPH+d3px+HlkaJP4J5utzde/fp3vP7vKAbRTGHEEI3ir/uN969/6gbxSXZDatr63+3LXpBkK8+W/oXSzdLJZE3LP7vBdwWzIkgW2Omns/dEXBzIkxunw/qrt60lf+mkkLpkxblUUlFfeQYD9i0CROxliQizFIJah7UXYULGOtNe1B341IDLjqdzUrlotOB5HIMJUmfKIpwkdRHCFG2LMgjo/Ca8SObJC4tT4Q5YWFQdxvProW4bhyvsBVismhqwPLyMnxiC8bW9jYbhVG2LN/zsF1Gdc/PIaRsWdiSJW3KYTkYv/nG8UocC9htVoRjYEvLcT4cHRUKhQQf3/Nqto2NLcdpOY4cFwqFMAxbjjMajcDhxHVP3KkV0rR8R5hkU8jWSK0tuSkwekFAd9PTWg1bWB9N09q+j2fBUZ+6XRpiGEbq1DwRACj+Zu9cgTJx8mOyDx1kD0k4yxZpOwhyItIwvWlTOxyceQTTETrZC1Az7BrsCScrO8Gp1xa3FU8ebzFEmJN2wMBl968u1zceyk/WgW2KV3vPxW3F5y/fMt0s9abdv7oUQkDl8pGSAgzS/YIny436NCcvE9eD33+cEfyVO1+OMHVY9oJA/uGXj/HjrEqN0hMCcwr+QtULAuh8zMiD6hnmCHxyTUEm9dkf10xPCrZf7iYRvUlTgIUt/m60Q0pH9MZcwCPeEdgndY6ZVHay0M6irLOnykqEmP4WUL4pZmqELCq7bFmgGuMCQYaDc0IqqUSVVOws6USYYwqUC6W8NaT+DIFB5TC1+J5HV6mo5uFwKC1YU8al8j2vUq0qbr7nsStMIsJEd016jwY6snDRcpyfUfRybw8sspJHOztg0TRNFoADwzCMogjkudTaQogXu7tt309IdeK6mqbhVNJNMWYiAiOjGI+DorKpQMYF4JI2KxUcmEVrxxlZN8CCbhS/f+2vrq0rL5aVHiz0pk1jc/RVcuq1Dw/2p0SXmAYrwFnk8U7NdMTrN2/F/cbhwf4fIsQcQvwG381boswLtxoAAAAASUVORK5CYII=" alt="Tobokegao（Bandcamp）" width="88" height="31"></a>
   <div class="promo-text">
-  <!-- アルバムの文字のリンクは外した（2026-09-26、利用者の判断）。左のボタンとフッターに同じ行き先があり、3 つ並んでくどかった -->
-  <span class="elsewhere"><span class="point-left" aria-hidden="true"></span>値段は自由です。100 円からでもうれしいです。</span>   <!-- 小さい額を先に見せる（2026-09-26）。アルバムは最低 0 円の「name your price」 -->
+  <!-- アルバムの文字のリンクは外した（2026-09-26、利用者の判断）。左のボタンとフッターに同じ行き先があり、3つ並んでくどかった -->
+  <span class="elsewhere"><span class="point-left" aria-hidden="true"></span>値段は自由です。100円からでもうれしいです。</span>   <!-- 小さい額を先に見せる（2026-09-26）。アルバムは最低0円の「name your price」 -->
   <span class="elsewhere">ほかで聴く:
     <a href="https://soundcloud.com/tobokegao" target="_blank" rel="noopener noreferrer">SoundCloud</a> /
     <a href="https://open.spotify.com/artist/2ZW0H3Dntod1TN6dUFKY3v" target="_blank" rel="noopener noreferrer">Spotify</a> /
@@ -656,11 +656,11 @@
   </span>
   </div>
   </div>
-  <!-- PayPal の広告（2026-09-27、利用者の希望）。昔の出会いサービスの広告バナー（人が並び、呼びかけの一文が 3 コマで替わる）を真似た 468×60 の GIF。
-       人物はツインテールの作者のキャラクターを元に描いたもの。スマホも同じ 1 枚を幅に合わせて縮めて出す。
-       「視差効果を減らす」の人には動かない 1 コマ目（PNG）。絵は app/banners/ に置き、殻を配るときは CSS・JS と同じく R2 の URL に差し替わる
-       （backend/main.py の APP_R2_PREFIX）。作り方と経緯は docs/ui.md -->
-  <div class="ad-frame promo-banner"><a class="ad-slot" href="https://www.paypal.com/paypalme/tbkgao" target="_blank" rel="noopener noreferrer"><picture><source media="(prefers-reduced-motion: reduce)" srcset="app/banners/paypal-still.a68682eb.png"><img src="app/banners/paypal.36d79917.gif" alt="PayPal でサーバー代を支援する（paypal.me/tbkgao）" width="468" height="60"></picture></a></div>
+  <!-- PayPalの広告（2026-09-27、利用者の希望）。昔の出会いサービスの広告バナー（人が並び、呼びかけの一文が3コマで替わる）を真似た468×60のGIF。
+       人物はツインテールの作者のキャラクターを元に描いたもの。スマホも同じ1枚を幅に合わせて縮めて出す。
+       「視差効果を減らす」の人には動かない1コマ目（PNG）。絵はapp/banners/ に置き、殻を配るときはCSS・JSと同じくR2のURLに差し替わる
+       （backend/main.pyのAPP_R2_PREFIX）。作り方と経緯はdocs/ui.md -->
+  <div class="ad-frame promo-banner"><a class="ad-slot" href="https://www.paypal.com/paypalme/tbkgao" target="_blank" rel="noopener noreferrer"><picture><source media="(prefers-reduced-motion: reduce)" srcset="app/banners/paypal-still.a68682eb.png"><img src="app/banners/paypal.36d79917.gif" alt="PayPalでサーバー代を支援する（paypal.me/tbkgao）" width="468" height="60"></picture></a></div>
   </div>
 </aside>
 
@@ -670,19 +670,19 @@
   <span><a id="contact-link" href="https://forms.gle/2ktpQAXMjJrkFJFz8" target="_blank" rel="noopener noreferrer">お問い合わせフォーム</a></span>
   <!-- 文章のページ（使い方・プライバシーポリシー・運営者。backend/pages.py）。言語は ?lang= で合わせる（applyI18n） -->
   <span class="foot-pages"><a class="foot-page" data-page="guide" href="/guide">使い方</a> / <a class="foot-page" data-page="howto" href="/howto">使い方の動画</a> / <a class="foot-page" data-page="articles" href="/articles">コラム</a> / <a class="foot-page" data-page="privacy" href="/privacy">プライバシーポリシー</a> / <a class="foot-page" data-page="terms" href="/terms">利用規約</a> / <a class="foot-page" data-page="about" href="/about">運営者</a> / <a class="foot-page" data-page="updates" href="/updates">更新情報</a></span>
-  <!-- PC 版とスマホ版の表示の切り替え（2026-09-24）。ホーム画面に置いたアプリ表示では、ブラウザの「PC 版サイト」が使えないため。
-       画面の幅が狭い端末と、PC 版にしているときだけ出す（下の VIEW_KEY） -->
-  <span id="view-switch" hidden><a id="view-pc" href="#">PC 版の表示</a><a id="view-sp" href="#" hidden>スマホ版の表示</a></span>
+  <!-- PC版とスマホ版の表示の切り替え（2026-09-24）。ホーム画面に置いたアプリ表示では、ブラウザの「PC版サイト」が使えないため。
+       画面の幅が狭い端末と、PC版にしているときだけ出す（下のVIEW_KEY） -->
+  <span id="view-switch" hidden><a id="view-pc" href="#">PC版の表示</a><a id="view-sp" href="#" hidden>スマホ版の表示</a></span>
   <a href="/health" id="health-link">/health</a>
   <span id="foot-sources"></span>
   <span id="foot-discogs" hidden>Data provided by <a href="https://www.discogs.com/" target="_blank" rel="noopener">Discogs</a>. This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.</span>
 </footer>
 
-<!-- 吹き出しの説明（2026-09-27）。中身と出し方は JS の「吹き出しの説明」の節 -->
+<!-- 吹き出しの説明（2026-09-27）。中身と出し方はJSの「吹き出しの説明」の節 -->
 <div class="balloon-veil" id="balloon-veil" hidden></div>
 <div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
-<script id="app-js" src="app/app.9b26ede2.js"></script>
+<script id="app-js" src="app/app.cdfe08ff.js"></script>
 </body>
 </html>

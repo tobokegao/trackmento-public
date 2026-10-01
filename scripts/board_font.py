@@ -1,12 +1,12 @@
-"""運用ボード（scripts/board/index.html）に JF ドット M+ 12 を刈り込んで埋め込む。
+"""運用ボード（scripts/board/index.html）にJFドットM+ 12を刈り込んで埋め込む。
 
-2026-09-24 に DotGothic16 → マルモニカ → 東雲ゴシック16 と替えた（DotGothic16 は英字の上辺が波打ち、
-マルモニカは縦長。東雲は 16×16 の正方形で英字の上辺もそろう）。ライセンスは fonts/LICENSE-JF-Dot-Shinonome16.txt（実質パブリックドメイン）。
+2026-09-24にDotGothic16 → マルモニカ → 東雲ゴシック16と替えた（DotGothic16は英字の上辺が波打ち、
+マルモニカは縦長。東雲は16×16の正方形で英字の上辺もそろう）。ライセンスはfonts/LICENSE-JF-Dot-Shinonome16.txt（実質パブリックドメイン）。
 
-Claude のアプリの中では Google Fonts が読み込まれないので、ページの最後の
-<style id="fonts"> に data: で入れる（2026-09-24、board-retro）。
-刈り込む字は、ページ・status.json・board_data.py に出てくる字と、JIS 第 1 水準・かな・ASCII。
-db から来る文言に第 2 水準の字が増えて代わりのフォントで出るようになったら、これを回し直す。
+Claudeのアプリの中ではGoogle Fontsが読み込まれないので、ページの最後の
+<style id="fonts"> にdata: で入れる（2026-09-24、board-retro）。
+刈り込む字は、ページ・status.json・board_data.pyに出てくる字と、JIS第1水準・かな・ASCII。
+dbから来る文言に第2水準の字が増えて代わりのフォントで出るようになったら、これを回し直す。
 
     PYTHONUTF8=1 .venv/Scripts/python scripts/board_font.py
 """
@@ -20,11 +20,11 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "scripts/board/index.html"
-SRC = "fonts/JF-Dot-MPlus12.ttf"       # 9/24: 東雲 16 → 東雲 14（小さく）→ M+ 12（東雲 14 は はね・はらいが残り明朝寄りに見えた）
-PX = 12                                # この字の 1 目 = 1px になる大きさ
-LATIN_DROP_DOTS = 0                    # 半角の英数記号を下げる目の数（負なら上げる）。M+ 12 は下げも上げもしない
-                                       # （描いたときの黒い点で測ると、大文字は漢字に対して上 1〜2 目・下 1 目でもともと釣り合っていた。
-                                       #  字形の外枠〔yMin/yMax〕で測って 1 目上げたら上にずれて見えた。9/24。測るなら描いて数える）
+SRC = "fonts/JF-Dot-MPlus12.ttf"       # 9/24: 東雲16 → 東雲14（小さく）→ M+ 12（東雲14は はね・はらいが残り明朝寄りに見えた）
+PX = 12                                # この字の1目 = 1pxになる大きさ
+LATIN_DROP_DOTS = 0                    # 半角の英数記号を下げる目の数（負なら上げる）。M+ 12は下げも上げもしない
+                                       # （描いたときの黒い点で測ると、大文字は漢字に対して上1〜2目・下1目でもともと釣り合っていた。
+                                       #  字形の外枠〔yMin/yMax〕で測って1目上げたら上にずれて見えた。9/24。測るなら描いて数える）
 SOURCES = [PAGE, ROOT / "scripts/board/status.json", ROOT / "scripts/board_data.py"]
 
 
@@ -32,19 +32,19 @@ def wanted_chars() -> set[str]:
     chars: set[str] = set()
     for f in SOURCES:
         text = f.read_text(encoding="utf-8")
-        # 前回埋め込んだ base64 は字の集まりに数えない
+        # 前回埋め込んだbase64は字の集まりに数えない
         chars |= set(re.sub(r'\n<style id="fonts">.*?</style>', "", text, flags=re.S))
     chars |= {chr(c) for c in range(0x20, 0x7F)}
     chars |= {chr(c) for c in range(0x3000, 0x3100)}   # 記号・かな
     chars |= {chr(c) for c in range(0xFF01, 0xFF5F)}   # 全角の英数と記号
-    for hi in range(0xB0, 0xD0):                       # JIS 第 1 水準
+    for hi in range(0xB0, 0xD0):                       # JIS第1水準
         for lo in range(0xA1, 0xFF):
             try:
                 chars.add(bytes([hi, lo]).decode("euc_jp"))
             except UnicodeDecodeError:
                 pass
-    # ¥ は入れない。M+ 12 の ¥ は「\」の形に描かれていて、ボードの「¥5,597」が「,597」に見えた（9/24）。
-    # 入れなければ代わりのフォントの ¥ で出る。ボードの金額は「5,597 円」の形にしてある
+    # ¥ は入れない。M+ 12の ¥ は「\」の形に描かれていて、ボードの「¥5,597」が「,597」に見えた（9/24）。
+    # 入れなければ代わりのフォントの ¥ で出る。ボードの金額は「5,597円」の形にしてある
     chars.discard("¥")
     return chars
 
@@ -53,8 +53,8 @@ def main() -> None:
     font = TTFont(ROOT / SRC)
     drop = round(font["head"].unitsPerEm / PX * LATIN_DROP_DOTS)
     cmap = font.getBestCmap()
-    # 半角の英数記号を 1 目下げる。東雲の漢字は基準線より 2 目下まで伸びるが英字は基準線までなので、
-    # そのままだと英字の下に 2 目の余白ができ、日本語より浮いて見えた（9/24）。1 目下げて上下の余りを 1 目ずつにする
+    # 半角の英数記号を1目下げる。東雲の漢字は基準線より2目下まで伸びるが英字は基準線までなので、
+    # そのままだと英字の下に2目の余白ができ、日本語より浮いて見えた（9/24）。1目下げて上下の余りを1目ずつにする
     glyf = font["glyf"]
     moved = set()
     for cp in range(0x21, 0x7F):
@@ -80,7 +80,7 @@ def main() -> None:
 
     block = (
         '\n<style id="fonts">\n'
-        "/* JF ドット M+ 12（M+ FONTS LICENSE、fonts/LICENSE-JF-Dot-MPlus12.txt）を scripts/board_font.py で刈り込んだもの。"
+        "/* JFドットM+ 12（M+ FONTS LICENSE、fonts/LICENSE-JF-Dot-MPlus12.txt）をscripts/board_font.pyで刈り込んだもの。"
         "字を大きく足したら回し直す */\n"
         '@font-face { font-family: "BoardDot"; src: url("data:font/woff2;base64,'
         + b64
@@ -89,7 +89,7 @@ def main() -> None:
     page = PAGE.read_text(encoding="utf-8")
     page = re.sub(r'\n<style id="fonts">.*?</style>\n', "", page, flags=re.S)
     PAGE.write_text(page.rstrip("\n") + "\n" + block, encoding="utf-8")
-    print(f"{len(keep)} 字、woff2 {len(buf.getvalue()):,} バイト")
+    print(f"{len(keep)}字、woff2 {len(buf.getvalue()):,}バイト")
 
 
 if __name__ == "__main__":

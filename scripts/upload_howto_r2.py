@@ -1,15 +1,15 @@
-"""使い方の動画（/howto）の動画を R2 に上げ、id → キーの表（backend/howto_videos.json）を書く。
+"""使い方の動画（/howto）の動画をR2に上げ、id → キーの表（backend/howto_videos.json）を書く。
 
 使い方:
   PYTHONUTF8=1 .venv/Scripts/python scripts/upload_howto_r2.py [--dry-run]
 
-- 元は X 向けに書き出した `promo/out/x/<id>.mp4`（`cd promo && node render_x.mjs <id>`）。載せるのは
-  `backend/howto.py` の SECTIONS にある id だけ。**mp4 が無い id は表に入れない**（ページにも出ない）
-- R2 のキーは `howto/<id>.<中身のハッシュ 10 桁>.mp4`。撮り直すと別のキーになるので、古いキャッシュを踏まない。
+- 元はX向けに書き出した `promo/out/x/<id>.mp4`（`cd promo && node render_x.mjs <id>`）。載せるのは
+  `backend/howto.py` のSECTIONSにあるidだけ。**mp4が無いidは表に入れない**（ページにも出ない）
+- R2のキーは `howto/<id>.<中身のハッシュ10桁>.mp4`。撮り直すと別のキーになるので、古いキャッシュを踏まない。
   既に同じキーがあれば上げ直さない
-- `howto/` は `scripts/r2_prune.py` の KEEP_PREFIXES（古くても消さない）。撮り直して要らなくなった古いキーは
+- `howto/` は `scripts/r2_prune.py` のKEEP_PREFIXES（古くても消さない）。撮り直して要らなくなった古いキーは
   この表に無いものとして一覧に出すだけで、消すのは手で（`--prune` を付けたときだけ消す）
-- 表（backend/howto_videos.json）はコミットする。本番はこの表を読んで R2 の URL を組む
+- 表（backend/howto_videos.json）はコミットする。本番はこの表を読んでR2のURLを組む
 """
 from __future__ import annotations
 
@@ -38,12 +38,12 @@ SRC = ROOT / "promo" / "out" / "x"
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="上げずに、上げるものと表だけ見せる")
-    ap.add_argument("--prune", action="store_true", help="表に無い howto/ のキー（撮り直す前の古い動画）を消す")
+    ap.add_argument("--prune", action="store_true", help="表に無いhowto/ のキー（撮り直す前の古い動画）を消す")
     args = ap.parse_args()
 
     st = storage.get_storage()
     if not st.is_remote or not st.public_url(""):
-        print("R2 が設定されていないか、R2_PUBLIC_URL がありません（.env の R2_* を確認）", file=sys.stderr)
+        print("R2が設定されていないか、R2_PUBLIC_URLがありません（.envのR2_* を確認）", file=sys.stderr)
         return 1
 
     have = {k for k, _, _ in st.list_objects(PREFIX)}
@@ -69,17 +69,17 @@ def main() -> int:
 
     stale = sorted(have - set(table.values()))
     verb = "上げる" if args.dry_run else "上げた"
-    print(f"{verb} {up} 本（{total / 1024 / 1024:.1f} MB）、そのまま {skip} 本")
+    print(f"{verb} {up}本（{total / 1024 / 1024:.1f} MB）、そのまま{skip}本")
     if missing:
-        print(f"mp4 が無いので載せない {len(missing)} 本: {', '.join(missing)}")
+        print(f"mp4が無いので載せない{len(missing)}本: {', '.join(missing)}")
     if stale:
-        print(f"表に無い古いキー {len(stale)} 件" + ("（消した）" if args.prune and not args.dry_run else "（--prune で消す）"))
+        print(f"表に無い古いキー{len(stale)}件" + ("（消した）" if args.prune and not args.dry_run else "（--pruneで消す）"))
         if args.prune and not args.dry_run:
             for k in stale:
                 st.delete(k)
     if not args.dry_run:
         howto.MANIFEST.write_text(json.dumps(table, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-        print(f"表を書いた: {howto.MANIFEST.relative_to(ROOT)}（{len(table)} 本）")
+        print(f"表を書いた: {howto.MANIFEST.relative_to(ROOT)}（{len(table)}本）")
     return 0
 
 

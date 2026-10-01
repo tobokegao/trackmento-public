@@ -1,12 +1,12 @@
-"""frontend/index.html の日本語の文言と EN 表のずれを見つける。
+"""frontend/index.htmlの日本語の文言とEN表のずれを見つける。
 
-EN 表は「日本語の文面そのもの」を鍵にしているので、**文言を 1 文字でも直すと鍵が合わなくなり、
+EN表は「日本語の文面そのもの」を鍵にしているので、**文言を1文字でも直すと鍵が合わなくなり、
 英語表示に切り替えてもそこだけ日本語のまま残る**（例外も警告も出ないので気付きにくい）。
-画面の文字を変えたら、build_fonts.py と一緒にこれも回すこと。
+画面の文字を変えたら、build_fonts.pyと一緒にこれも回すこと。
 
     PYTHONUTF8=1 .venv/Scripts/python scripts/check_i18n.py
 
-終了コード 0 = ずれなし、1 = ずれあり。
+終了コード0 = ずれなし、1 = ずれあり。
 """
 from __future__ import annotations
 
@@ -23,14 +23,14 @@ JA = re.compile(r"[぀-ヿ一-鿿]")
 TMPL_EXPR = re.compile(r"\$\{[^{}]*\}")
 
 # ラベル表（SOURCE_LABEL / SWATCHES）の値。tr(SOURCE_LABEL[s]) のように変数で渡すため、
-# リテラルは tr で包まないし、静的にも追えない。英訳が要る側なので「使っている」扱いにする
+# リテラルはtrで包まないし、静的にも追えない。英訳が要る側なので「使っている」扱いにする
 LABELS = {"ニコニコ動画", "手入力", "クリーム", "黒", "マスタード", "セルリアン", "朱赤", "ラベンダー", "ミント", "ピンク",
-          # 作者の作品名（曲の題そのものなので訳さない。OWN_TRACKS の値）
+          # 作者の作品名（曲の題そのものなので訳さない。OWN_TRACKSの値）
           "おかねがたりないときのうた",
           "アイボリー", "チャコール",
           "ミッドナイト", "チョーク", "アンバー", "アジュール", "フレア", "バイオレット", "ジェイド", "マゼンタ", "ナイト",
           "レモン", "ウルトラマリン", "コーラル", "スカイ", "リーフ", "ローズ",
-          "リソ", "ポップ"}   # パレットの名前（表の値として tr() に渡す）
+          "リソ", "ポップ"}   # パレットの名前（表の値としてtr() に渡す）
 # 切り替えボタン自身の文字。英語表示のときに出す日本語なので、包むと逆になる
 # 文面ではないもの（区切り記号など）は包まなくてよい
 ALLOW_BARE = {"日本語", "日本語に切り替える", "・"}
@@ -41,7 +41,7 @@ _TR_TMPL = re.compile(r"tr`((?:[^`\\]|\\.)*)`", re.S)
 
 
 def _en_span(html: str) -> tuple[int, int]:
-    """EN 表の `{` から対応する `}` までの位置。閉じ括弧のインデントに頼ると表の外の `};` を
+    """EN表の `{` から対応する `}` までの位置。閉じ括弧のインデントに頼ると表の外の `};` を
     拾って切り出しに失敗するので、文字列の中を避けながら括弧を数える。"""
     i = html.index("  const EN = {") + len("  const EN = ")
     depth, k, in_str, esc = 0, i, False, False
@@ -63,7 +63,7 @@ def _en_span(html: str) -> tuple[int, int]:
             if depth == 0:
                 return i, k + 1
         k += 1
-    raise ValueError("EN 表の終わりが見つかりません")
+    raise ValueError("EN表の終わりが見つかりません")
 
 
 def _en_table(html: str) -> dict[str, str]:
@@ -92,13 +92,13 @@ def _html_strings(html: str) -> list[str]:
 
 
 def _js(html: str) -> str:
-    """EN 表とコメントを除いた JS。"""
+    """EN表とコメントを除いたJS。"""
     js = "\n".join(b for b in re.findall(r"<script[^>]*>(.*?)</script>", html, re.S) if len(b) > 2000)
     a, b = _en_span(js)
     js = js[: a - len("  const EN = ")] + js[b:]
     js = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
     # **作者の曲の一覧は文言ではなくデータ**（曲名そのもの）。`scripts/build_own_tracks.py` が
-    # Bandcamp から作るので、日本語の曲名が並ぶ。翻訳の対象ではないので見ない
+    # Bandcampから作るので、日本語の曲名が並ぶ。翻訳の対象ではないので見ない
     js = re.sub(r"const OWN_TRACKS = \[[\s\S]*?\n  \];", "", js)
     # 折る位置の表（中黒や括弧の並び）は画面の文言ではない
     js = re.sub(r'const BREAK_AFTER = "[^"]*", BREAK_BEFORE = "[^"]*";', "", js)
@@ -108,13 +108,13 @@ def _js(html: str) -> str:
 
 
 def _key(s: str) -> str:
-    """タグ付きテンプレートの鍵（raw を "{}" でつないだもの）。"""
+    """タグ付きテンプレートの鍵（rawを "{}" でつないだもの）。"""
     return TMPL_EXPR.sub("{}", s)
 
 
 def _bare(js: str, where: str = "") -> list[str]:
-    """tr で包まれていない日本語のリテラルを、出現箇所ごとに探す。
-    テンプレートの中の ${…} も中を見る（そこに直接書いた文面も包む必要があるため）。"""
+    """trで包まれていない日本語のリテラルを、出現箇所ごとに探す。
+    テンプレートの中の${…}も中を見る（そこに直接書いた文面も包む必要があるため）。"""
     out: list[str] = []
     for m in _STR.finditer(js):
         s = next(g for g in m.groups() if g is not None)
@@ -126,7 +126,7 @@ def _bare(js: str, where: str = "") -> list[str]:
             for expr in TMPL_EXPR.findall(s):
                 out += _bare(expr, where=" ←テンプレートの中")
         if JA.search(s) and not ok and s not in LABELS and s not in ALLOW_BARE:
-            out.append(f"tr で包み忘れ{where}: {s[:70]}")
+            out.append(f"trで包み忘れ{where}: {s[:70]}")
     return out
 
 
@@ -136,7 +136,7 @@ def main() -> int:
     js = _js(html)
     problems: list[str] = []
 
-    # tr で包んである文面（テンプレートの中に入れ子で書いたものも拾う）
+    # trで包んである文面（テンプレートの中に入れ子で書いたものも拾う）
     wrapped_plain = {g for m in _TR_PLAIN.finditer(js) for g in m.groups() if g}
     wrapped_tmpl = {m.group(1) for m in _TR_TMPL.finditer(js)}
     wrapped = wrapped_plain | wrapped_tmpl
@@ -148,7 +148,7 @@ def main() -> int:
 
     for s in sorted(wrapped):
         if _key(s) not in en:
-            problems.append(f"tr で包んであるが英訳が無い: {s[:70]}")
+            problems.append(f"trで包んであるが英訳が無い: {s[:70]}")
 
     # 包み忘れは**出現箇所ごと**に見る。値で見ると、同じ文面が別の行で包まれているだけで
     # 包み忘れを見逃す（実際にそれで検知できていなかった）
@@ -160,11 +160,11 @@ def main() -> int:
             problems.append(f"英訳が余っている（元の文言が消えたか変わった）: {k[:70]}")
 
     if problems:
-        print(f"ずれ {len(problems)} 件")
+        print(f"ずれ{len(problems)}件")
         for p in dict.fromkeys(problems):
             print("  -", p)
         return 1
-    print(f"ずれなし（英訳 {len(en)} 件、画面の文言 {len(html_strings)} 件と JS の tr {len(wrapped)} 件を照合）")
+    print(f"ずれなし（英訳{len(en)}件、画面の文言{len(html_strings)}件とJSのtr {len(wrapped)}件を照合）")
     return 0
 
 

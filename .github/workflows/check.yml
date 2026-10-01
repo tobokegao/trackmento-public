@@ -1,7 +1,7 @@
-# 「変更したら回すもの」の回し忘れを、push のあとにもう一度見る（scripts/check.py）。
-# 手元のフック（.githooks/pre-commit・pre-push）は --no-verify や別のクローンで抜けるので、外側でも止める。
-# Render は push で配り始めるため、ここが落ちたら「本番がもう壊れているかもしれない」の知らせとして扱う。
-# 必要な Secret: R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET（r2-prune.yml と同じ。読むだけ）
+# 「変更したら回すもの」の回し忘れを、pushのあとにもう一度見る（scripts/check.py）。
+# 手元のフック（.githooks/pre-commit・pre-push）は --no-verifyや別のクローンで抜けるので、外側でも止める。
+# Renderはpushで配り始めるため、ここが落ちたら「本番がもう壊れているかもしれない」の知らせとして扱う。
+# 必要なSecret: R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET（r2-prune.ymlと同じ。読むだけ）
 name: Check
 
 on:
@@ -19,14 +19,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"     # Dockerfile と同じ
+          python-version: "3.14"     # Dockerfileと同じ
       - name: Install
         run: pip install -r requirements.txt
       - name: 手元で回せる点検（殻・分割フォント・対訳表・刈り込み・文書の突き合わせ）
         run: python scripts/check.py --all
         env:
           PYTHONUTF8: "1"
-      - name: 配る物が R2 にあるか
+      - name: 配る物がR2にあるか
         run: python scripts/check.py --r2
         env:
           PYTHONUTF8: "1"

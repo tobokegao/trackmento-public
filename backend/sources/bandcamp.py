@@ -1,5 +1,5 @@
-"""Bandcamp。公式 API は無いので、トラック／アルバムページの URL を受け取り
-og:image と JSON-LD（MusicRecording / MusicAlbum）から曲名・アーティストを取る。
+"""Bandcamp。公式APIは無いので、トラック／アルバムページのURLを受け取り
+og:imageとJSON-LD（MusicRecording / MusicAlbum）から曲名・アーティストを取る。
 """
 from __future__ import annotations
 
@@ -18,37 +18,37 @@ UA = "Mozilla/5.0 (compatible; trackmento/0.1; +https://trackmento.com)"
 
 
 def _canonical(url: str) -> str:
-    """クエリ（?from=… などの追跡パラメータ）とフラグメントを落とす（共有 JSON に載るため）"""
+    """クエリ（?from=… などの追跡パラメータ）とフラグメントを落とす（共有JSONに載るため）"""
     from urllib.parse import urlsplit, urlunsplit
     p = urlsplit(url)
     return urlunsplit((p.scheme, p.netloc, p.path, "", ""))
 
 
-# bcbits の末尾 _NN は解像度。_0 = 原寸, _10 = 1200px, _16 = 700px, _7 = 160px。
-# 書き出しのマスは 600px（render.py / index.html の CELL_PX）なので、それを上回る最小の _16 を使う。
-# _0 は実測で 1 枚 6.5MB あり、_16 なら 87KB（-98%）。Bandcamp は /image-proxy を必ず通るため、
-# ここが大きいと Render の転送量（課金対象）を直撃する。
+# bcbitsの末尾 _NNは解像度。_0 = 原寸, _10 = 1200px, _16 = 700px, _7 = 160px。
+# 書き出しのマスは600px（render.py / index.htmlのCELL_PX）なので、それを上回る最小の _16を使う。
+# _0は実測で1枚6.5MBあり、_16なら87KB（-98%）。Bandcampは /image-proxyを必ず通るため、
+# ここが大きいとRenderの転送量（課金対象）を直撃する。
 COVER_SIZE = 16
 THUMB_SIZE = 7
 
 
 def _sized(url: str, size: int) -> str:
-    """bcbits の画像 URL を指定の解像度に差し替える。"""
+    """bcbitsの画像URLを指定の解像度に差し替える。"""
     return _IMG_SIZE_RE.sub(lambda m: f"_{size}.{m.group(2)}", url)
 
 
-# bcbits のサイズコード → 実寸（総当たりで確かめた値）。欲しい実寸を満たす最小のコードを選ぶのに使う
+# bcbitsのサイズコード → 実寸（総当たりで確かめた値）。欲しい実寸を満たす最小のコードを選ぶのに使う
 _CODE_PX = {"22": 25, "42": 50, "3": 100, "6": 100, "43": 100, "21": 120, "8": 124, "15": 135,
             "12": 138, "7": 150, "11": 172, "9": 210, "4": 300, "23": 300, "2": 350, "14": 368,
             "13": 380, "5": 700, "16": 700, "25": 700, "20": 1024, "10": 1200, "1": 3000, "0": 10000}
 # 選ぶ候補（小さい順）。実測のバイト数: _7 11KB / _9 20KB / _4 34KB / _16 88KB
-# 150px 未満には落とさない（マスが小さくてもここまで粗いと見られたものではない）
+# 150px未満には落とさない（マスが小さくてもここまで粗いと見られたものではない）
 _PICKABLE = (("7", 150), ("9", 210), ("4", 300), ("16", 700))
 
 
 def clamp_size(url: str, want_px: int = 700) -> str:
-    """bcbits の画像 URL を、欲しい実寸を満たす最小のサイズコードに落とす。
-    既にそれ以下ならそのまま返す。/image-proxy から呼び、過去のグリッドにも効かせる。"""
+    """bcbitsの画像URLを、欲しい実寸を満たす最小のサイズコードに落とす。
+    既にそれ以下ならそのまま返す。/image-proxyから呼び、過去のグリッドにも効かせる。"""
     if "bcbits.com" not in url:
         return url
     m = _IMG_SIZE_RE.search(url)
@@ -77,8 +77,8 @@ def _name(obj) -> str | None:
 def _from_tralbum(soup: BeautifulSoup) -> dict:
     """ページに埋め込まれた `data-tralbum` を読む。
 
-    JSON-LD より細かく、**曲ごとのアーティスト名**（`trackinfo[].artist`）を持っている。
-    レーベルのアカウントが上げた曲は JSON-LD の `byArtist` がレーベル名になっていることがあり、
+    JSON-LDより細かく、**曲ごとのアーティスト名**（`trackinfo[].artist`）を持っている。
+    レーベルのアカウントが上げた曲はJSON-LDの `byArtist` がレーベル名になっていることがあり、
     そのままだと**アーティスト名の代わりにレーベル名が入る**（利用者の報告）。
     """
     tag = soup.find(attrs={"data-tralbum": True})
@@ -93,8 +93,8 @@ def _from_tralbum(soup: BeautifulSoup) -> dict:
 def _artist_from(tral: dict, single: bool) -> str | None:
     """`data-tralbum` からアーティスト名を選ぶ。**曲ごとの表記があればそれを優先**。
 
-    1 曲のページ（`single`）のときだけ `trackinfo[0].artist` を見る。アルバムのページで見ると、
-    1 曲目のアーティストがアルバム全体の名前になってしまう。
+    1曲のページ（`single`）のときだけ `trackinfo[0].artist` を見る。アルバムのページで見ると、
+    1曲目のアーティストがアルバム全体の名前になってしまう。
     """
     ti = tral.get("trackinfo") or []
     if single and len(ti) == 1 and isinstance(ti[0], dict):
@@ -108,13 +108,13 @@ def _artist_from(tral: dict, single: bool) -> str | None:
 async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
     p = urlparse(url)
     if p.scheme not in ("http", "https") or not p.netloc:
-        raise ValueError("URL の形式が正しくありません")
+        raise ValueError("URLの形式が正しくありません")
     if not netguard.url_ok(url):
-        raise ValueError("この宛先のページは取得できません（公開されている http(s) の URL を貼ってください）")
+        raise ValueError("この宛先のページは取得できません（公開されているhttp(s) のURLを貼ってください）")
     own = client is None
     client = client or httpx.AsyncClient(timeout=15)
     try:
-        # 任意の URL を取りに行く入口なので、私設アドレス宛てとそこへのリダイレクトは netguard が拒否する
+        # 任意のURLを取りに行く入口なので、私設アドレス宛てとそこへのリダイレクトはnetguardが拒否する
         r = await netguard.safe_get(client, url, headers={"User-Agent": UA})
         r.raise_for_status()
     finally:
@@ -134,7 +134,7 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
     tral = _from_tralbum(soup)
     title = ld.get("name")
     single = ld.get("@type") == "MusicRecording" or len(tral.get("trackinfo") or []) == 1
-    # **`data-tralbum` のほうを先に見る**。JSON-LD の `byArtist` は、レーベルのアカウントが
+    # **`data-tralbum` のほうを先に見る**。JSON-LDの `byArtist` は、レーベルのアカウントが
     # 上げた曲だとレーベル名になっていることがある
     artist = _artist_from(tral, single) or _name(ld.get("byArtist"))
     album = None
@@ -144,7 +144,7 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         album = title
 
     if not title or not artist:
-        # og:title は "Title, by Artist" の形式
+        # og:titleは "Title, by Artist" の形式
         og_title = meta("og:title") or meta("title", "name") or ""
         m = re.match(r"^(.*?),\s*by\s+(.*)$", og_title)
         if m:

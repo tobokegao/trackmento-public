@@ -1,12 +1,12 @@
 #!/bin/sh
-# コミットの前に 2 つを止める。
-#   1. 鍵を含みそうなもの（判定は scripts/scan_secrets.sh。CI も同じものを呼ぶ）
+# コミットの前に2つを止める。
+#   1. 鍵を含みそうなもの（判定はscripts/scan_secrets.sh。CIも同じものを呼ぶ）
 #   2. 「変更したら回すもの」の回し忘れ（scripts/check.py。変えたファイルに応じて回す）
 #
-# 入れ方（クローンごとに 1 回）:
+# 入れ方（クローンごとに1回）:
 #   git config core.hooksPath .githooks
 #
-# **判定そのものはスクリプトの側にある**（2 か所に書くと必ずずれる）。ここは呼ぶだけ。
+# **判定そのものはスクリプトの側にある**（2か所に書くと必ずずれる）。ここは呼ぶだけ。
 # わざと入れたいとき（例示用の見本など）は `git commit --no-verify`。
 
 sh scripts/scan_secrets.sh staged || exit 1
