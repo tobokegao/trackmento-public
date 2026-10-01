@@ -183,7 +183,7 @@
   共有数・画像キャッシュの件数などのタイル項目が消える。2026-09-26）。
 
 - **数字の入れ替えは Claude Code のルーティンが 1 日 2 回やる**（2026-10-01）。「TRACKMENTO 運用ボードの数字の更新」
-  （https://claude.ai/code/routines/trig_011pLE1TgonurdDV39kDSZQY 、9:00 と 21:00 JST、Sonnet 5）が
+  （https://claude.ai/code/routines/trig_011pLE1TgonurdDV39kDSZQY 、9:00 と 21:00 JST、Sonnet 5.5）が
   クラウドで上の 3 手のうち pull と `board_data.py` と db への `set` を回す。点検そのものは `render-check.yml` に任せ、
   ルーティンからは起動しない。**メモリの索引はクラウドから見えないので、`docs.memory` は db にある前回の値を引き継ぐ**
   （試運転の 1 回目で消え、土台のトークン数が 6.3 から 4.8 に下がった）。メモリの索引の大きさが変わったときは手元で 1 回回すと直る。
