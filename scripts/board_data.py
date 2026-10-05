@@ -197,12 +197,21 @@ def watch_items(latest: dict) -> list:
 
     # サーバー代の棒（backend/support.py）の月。月が変わったら数字を入れ直す（2026-09-26、利用者の希望）
     sp = ROOT / "backend" / "support.py"
-    mm = re.search(r'^MONTH = "(\d{4}-\d{2})"', sp.read_text(encoding="utf-8"), re.M) if sp.exists() else None
+    stext = sp.read_text(encoding="utf-8") if sp.exists() else ""
+    mm = re.search(r'^MONTH = "(\d{4}-\d{2})"', stext, re.M)
     if mm:
         from datetime import datetime, timedelta, timezone
         stale = mm.group(1) != datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m")
+
+        def _num(name: str) -> int:
+            # 「388 + 104」のような足し算の式もあるので、コメントより前の整数を足す
+            m = re.search(rf"^{name} = ([^#\n]*)", stext, re.M)
+            return sum(int(x) for x in re.findall(r"\d+", m.group(1))) if m else 0
+
+        cost, got, ppl = _num("COST_JPY"), _num("RECEIVED_JPY"), _num("SUPPORTERS")
         out.append({
-            "t": f"サーバー代の棒: {mm.group(1)}の数字" + ("（月が変わった。直す）" if stale else ""),
+            "t": f"サーバー代の棒: {mm.group(1)}は{got:,}円・{ppl}人（見込み{cost:,}円の{got / cost * 100 if cost else 0:.0f}%）"
+                 + ("（月が変わった。直す）" if stale else ""),
             "d": "月が変わったらbackend/support.pyのMONTHを進め、COST_JPYをmoney() の見込みに、"
                  "RECEIVED_JPYとSUPPORTERSを0に戻してデプロイする。Bandcamp・PayPalで届いたら、そのつど額と人数を足す",
             "level": "watch" if stale else "ok",

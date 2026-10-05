@@ -13,8 +13,8 @@
 
 MONTH = "2026-10"
 COST_JPY = 4047                    # 2026-10-01のmoney()（$25.78 × 157.0、為替は9/30のECB、帯域は直近7日）
-RECEIVED_JPY = 0
-SUPPORTERS = 0
+RECEIVED_JPY = 118 + 303           # 2026-10のBandcampの投げ銭2件（受け取った額。払われたのは158円と390円）
+SUPPORTERS = 2
 
 
 def meta() -> str:
