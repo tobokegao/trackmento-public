@@ -196,7 +196,7 @@ def fetch_events(key: str, sid: str, start: datetime, end: datetime) -> list[dic
     return [it["event"] for it in items]
 
 
-LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[out]*", "[vocadb]*", "[client]*", "[img]*", "[upload]*", "Traceback*", "ERROR:*"]
+LOG_TEXT = ["[stats]*", "[ua]*", "[src]*", "[ref]*", "[health]*", "[error]*", "[5xx]*", "[loop]*", "[share]*", "[search]*", "[srch]*", "[out]*", "[vocadb]*", "[client]*", "[img]*", "[upload]*", "[mem]*", "Traceback*", "ERROR:*"]
 
 
 # 1時間あたりに読むページ数の見込み（1ページ100行）。印付きの行は実測で1時間600〜800行ほど
@@ -243,7 +243,7 @@ def fetch_tracebacks(key: str, owner: str, sid: str, at: list[str], most: int = 
             out.append((ts, [f"（取れなかった: {ex}）"]))
         else:
             body = [(it.get("message") or "")[:200] for it in page.get("logs", [])]
-            body = [b for b in body if not b.startswith(("[stats]", "[ua]", "[health]", "[src]", "[ref]"))]
+            body = [b for b in body if not b.startswith(("[stats]", "[ua]", "[health]", "[src]", "[ref]", "[mem]"))]
             # 頭（何の例外か）と尻（例外の名前と中身）だけ残す。間の `File …` の行はライブラリの奥が大半
             out.append((ts, body if len(body) <= 12 else body[:3] + ["…"] + body[-8:]))
         if len(out) >= most:
@@ -313,6 +313,8 @@ def _pct(hist: list[int], q: float) -> str:
 UA_RE = re.compile(r"(\S+?):((?:[^\s=,]+=\d+)(?:,[^\s=,]+=\d+)*)")
 HEALTH_RE = re.compile(r"\[health\] rss=(\d+)MB uptime=(\d+)s")
 LAG_RE = re.compile(r"\[loop\] lag=([\d.]+)s")
+# [mem] rss=337>330MB blocks=… img_index=… … [objs=… top=dict:…,list:…]。10分ごとのgc＋malloc_trimの前後（2026-10-06）
+MEM_RSS_RE = re.compile(r"rss=(\d+)>(\d+)MB")
 RESTORE_RE = re.compile(r"本日の共有数を復元: (\d+) ?件")
 # [5xx] <件数> <status> <パス種別> <理由>。HTTPExceptionで返した5xxの内訳。
 # backend/main.pyの _log_5xxが理由ごとに数え、_load_monitorが [stats] と同じ60秒窓で出す
@@ -332,6 +334,7 @@ def analyze_logs(logs: list[dict]) -> dict:
               "recv_h": [0] * (len(LAT_BUCKETS) + 1)}   # [upload] 共有の送信の内訳
     ua_by_path: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     rss: list[tuple[str, int]] = []
+    mem: list[dict] = []     # [mem] の1行ずつ（trim前後のRSSと中身の数）
     errors: list[str] = []
     fivexx: dict[str, int] = defaultdict(int)   # "statusパス種別 理由" → 件数（省略分を含む）
     lags: list[float] = []
@@ -412,6 +415,12 @@ def analyze_logs(logs: list[dict]) -> dict:
                 for pair in kinds.split(","):
                     kind, _, n = pair.partition("=")
                     ua_by_path[path][kind] += int(n)
+        elif m.startswith("[mem]"):
+            kv = dict(x.split("=", 1) for x in m[len("[mem]"):].split() if "=" in x)
+            if (mr := MEM_RSS_RE.search(m)):
+                kv["before"], kv["after"] = int(mr.group(1)), int(mr.group(2))
+            kv.pop("rss", None)
+            mem.append(kv)
         elif (h := HEALTH_RE.search(m)):
             r, up = int(h.group(1)), int(h.group(2))
             rss.append((ts, r))
@@ -458,6 +467,7 @@ def analyze_logs(logs: list[dict]) -> dict:
         "src_counts": dict(src_counts),
         "ref_counts": dict(ref_counts),
         "rss": rss,
+        "mem": mem,
         "errors": errors,
         "fivexx": dict(fivexx),
         "lags": lags,
@@ -534,6 +544,15 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         lines.append(f"- [health] rss: 最小{min(rs)} / 最大{max(rs)} / 最新{rs[-1]} MB（{len(rs)}点）")
         if max(rs) > T["rss_mb"]:
             problems.append(f"[health] rss最大{max(rs)} MBが閾値{T['rss_mb']:.0f} MBを超過")
+    if la.get("mem"):
+        ms = la["mem"]
+        drop = max((m.get("before", 0) - m.get("after", 0) for m in ms), default=0)
+        f, l = ms[0], ms[-1]
+        lines.append(f"- [mem] trim後のrss: {f.get('after')}→{l.get('after')} MB（trimで減った最大{drop} MB、{len(ms)}点）"
+                     f" / blocks {f.get('blocks')}→{l.get('blocks')} / img_index {l.get('img_index')}"
+                     f" / search_index {l.get('search_index')} / listed {l.get('listed')} / tasks {l.get('tasks')}")
+        if (d := next((m for m in reversed(ms) if m.get("top")), None)):
+            lines.append(f"- [mem] 入れ物の数: objs {d.get('objs')} / 上位{d.get('top')}")
 
     # 経路
     pp = la["per_path"]
@@ -696,6 +715,9 @@ def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: li
         "vocadb": la.get("vocadb") or {},
         "client": la.get("client") or {},
         "img": la.get("img") or {},
+        # trim後のrss・Pythonのブロック数・入れ物の数（窓の最後の [mem]）。RSSの積み上がりの原因を探すため（2026-10-06）
+        "mem": ({k: (int(v) if str(v).isdigit() else v) for k, v in la["mem"][-1].items() if k != "top"}
+                if la.get("mem") else {}),
         "ng": len(problems),
     }
     p = Path(path)

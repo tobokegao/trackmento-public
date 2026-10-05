@@ -17,7 +17,7 @@ import httpx
 from dotenv import load_dotenv
 import time
 from datetime import datetime, timezone
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 
 from fastapi import Body, FastAPI, File, HTTPException, Query, Request, UploadFile
 from starlette.datastructures import Headers, MutableHeaders, UploadFile as StarletteUploadFile
@@ -417,6 +417,31 @@ _5xx_stats: dict[str, int] = {}   # "statusパス種別 理由" → 件数（_lo
 _5XX_TOP = 6                      # 1分あたりに出す理由の数（多すぎる理由はログを膨らませるので上位だけ）
 
 
+def _release_and_report(detail: bool, tasks: int) -> str:
+    """gc＋malloc_trimを回し、`[mem]` の1行を返す（2026-10-06、RSSが再起動ごとに積み上がる原因を探すため）。
+
+    見分け方: trimでRSSが大きく下がるならglibcの抱え込み、`blocks`（Pythonが割り当て中のブロック数）や
+    索引の件数がRSSと一緒に増えるならPythonのオブジェクトが溜まっている。`top` はgcが追う入れ物
+    （dict・list・tupleなど。strやintは入らない）の種類ごとの数。数えるのに一瞬GILを握るので1時間に1回だけ。
+    **語やURLは出さない**（数だけ）。
+    """
+    import gc
+    import sys
+    before = _rss_mb()
+    render._release_memory()
+    after = _rss_mb()
+    parts = [f"rss={before or 0:.0f}>{after or 0:.0f}MB", f"blocks={sys.getallocatedblocks()}",
+             f"img_index={len(_IMG_INDEX)}", f"search_index={len(searchcache._INDEX)}", f"listed={shareindex.count()}",
+             f"inflight={len(_inflight)}", f"tasks={tasks}"]
+    if detail:
+        objs = gc.get_objects()
+        top = Counter(type(o).__name__ for o in objs).most_common(8)
+        parts.append(f"objs={len(objs)}")
+        parts.append("top=" + ",".join(f"{k}:{n}" for k, n in top))
+        del objs
+    return "[mem] " + " ".join(parts)
+
+
 async def _load_monitor():
     """1秒ごとにループの遅れを測り（0.5秒超なら記録）、60秒ごとにリクエスト集計を出す。"""
     tick = 0
@@ -428,8 +453,9 @@ async def _load_monitor():
             print(f"[loop] lag={lag:.1f}s render_queue={_render_waiting[0]}")
         tick += 1
         if tick % 600 == 0:
-            # 10分ごとにgc＋malloc_trim。画像中継やR2一覧の一時バッファをglibcが抱え込み、RSSが下がらないため
-            await asyncio.to_thread(render._release_memory)
+            # 10分ごとにgc＋malloc_trim。画像中継やR2一覧の一時バッファをglibcが抱え込み、RSSが下がらないため。
+            # その前後のRSSと中身の数を `[mem]` に出す（1時間に1回は種類ごとの数も）
+            print(await asyncio.to_thread(_release_and_report, tick % 3600 == 0, len(asyncio.all_tasks())))
         if tick % 60 == 0 and _stats:
             items = sorted(_stats.items(), key=lambda kv: -kv[1][1])
             fields = [_stats_field(k, v) for k, v in items[:_STATS_TOP]]
