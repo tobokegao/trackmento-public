@@ -76,18 +76,69 @@ def _hay(e: dict) -> str:
     return _norm(e["title"] + "".join(t + a for t, a in e["tracks"]))
 
 
-def _keys(e: dict) -> list[tuple[str, str, str]]:
-    """「よく選ばれている曲」で数える形（曲の鍵・表示する曲名・アーティスト名）。同じグリッドの重複は1つに。
-    刈り込みは正規表現が多くて重いので、載せるときに1回だけ通す（`popular` は数えるだけ）"""
+# 「よく選ばれている曲」で、客演の書き方の違いを同じ曲にそろえる（「Tell Your World (feat. 初音ミク)」と「Tell Your World」、
+# 「livetune feat. 初音ミク」と「livetune」）。数える鍵だけに使い、表示する名前はそのまま
+_FEAT_T = re.compile(r"\s*[(\[（［]\s*(?:feat\.?|ft\.?|featuring)\s[^)\]）］]*[)\]）］]", re.I)
+_FEAT_A = re.compile(r"\s+(?:feat\.?|ft\.?|featuring)\s.*$", re.I)
+_CJK = re.compile(r"[぀-ヿ㐀-鿿가-힯]")
+
+
+def _keys(e: dict) -> list[tuple[str, str, str, str]]:
+    """「よく選ばれている曲」で数える形（曲名の鍵・アーティスト名の鍵・表示する曲名・アーティスト名）。
+    同じグリッドの重複は1つに。刈り込みは正規表現が多くて重いので、載せるときに1回だけ通す（`popular` は数えるだけ）"""
     out, seen = [], set()
     for title, artist in e["tracks"]:
         t, a = trim(title, artist)
-        k = _n(t) + "|" + _n(a)
-        if not _n(t) or k in seen:
+        nt, na = _n(_FEAT_T.sub("", t)) or _n(t), _n(_FEAT_A.sub("", a)) or _n(a)
+        if not nt or (nt, na) in seen:
             continue
-        seen.add(k)
-        out.append((k, t, a))
+        seen.add((nt, na))
+        out.append((nt, na, t, a))
     return out
+
+
+def _artist_alias(items: list[dict]) -> dict[str, str]:
+    """同じ人のアーティスト名の書き方違い（「米津玄師」と「Kenshi Yonezu」）を1つにそろえる表。
+
+    出どころ（iTunesの日本と米国のストア、YouTubeなど）で名前の書き方が変わるので、載る並びの中から見つける（2026-10-11、利用者の求め）:
+    - **同じ曲名が2曲以上**、2つの名前のどちらにもある → 同じ人
+    - 曲名に**日本語（かな・漢字）**があり、一方の名前は日本語、もう一方はラテン文字だけ → 同じ人
+      （「感電」が「米津玄師」と「Kenshi Yonezu」の両方にある。英語の曲名は「Lemon」のようにほかの人と重なりやすいので、これだけでは見ない）
+    歌ってみたの歌い手が元の人とまとまることがあるが、数えるのは「同じ曲」なので害は小さいと見た
+    """
+    by_title: dict[str, set[str]] = {}
+    for e in items:
+        for nt, na, _, _ in e["_keys"]:
+            if na:
+                by_title.setdefault(nt, set()).add(na)
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        while parent.get(x, x) != x:
+            parent[x] = parent.get(parent[x], parent[x])
+            x = parent[x]
+        return x
+
+    def union(a: str, b: str) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[max(ra, rb)] = min(ra, rb)
+
+    pairs: Counter[tuple[str, str]] = Counter()
+    for nt, arts in by_title.items():
+        if len(arts) < 2 or len(arts) > 8:   # 「Lemon」のようにいろんな人が使う曲名は手がかりにしない
+            continue
+        jp_title = bool(_CJK.search(nt))
+        ss = sorted(arts)
+        for i, a in enumerate(ss):
+            for b in ss[i + 1:]:
+                pairs[(a, b)] += 1
+                if jp_title and bool(_CJK.search(a)) != bool(_CJK.search(b)):
+                    union(a, b)
+    for (a, b), c in pairs.items():
+        if c >= 2:
+            union(a, b)
+    return {a: find(a) for a in parent}
 
 
 def _push(e: dict) -> None:
@@ -272,6 +323,7 @@ def popular(limit: int = 20) -> list[dict]:
     数えるのはみんなのグリッドに載せたもの（opt-in）だけで、保持日数より古いものは数えない
     （共有と一緒に消えるので、自然に「最近30日」の集計になる）。1つのグリッドに同じ曲が2つあっても1と数える。
     曲の見分けは刈り込み（`names.trim`）をしてから `merge._n` でそろえた曲名とアーティスト名（`_keys`）。
+    客演の書き方（feat.）は落とし、アーティスト名の書き方違いはそろえる（`_artist_alias`）。
     表示する名前は、同じ曲のなかでいちばん多く使われていた書き方にする。
     全件をなめるので、`POPULAR_TTL` のあいだは前の結果を返す（2026-10-11）。
     """
@@ -283,6 +335,8 @@ def popular(limit: int = 20) -> list[dict]:
     with _lock:
         items = list(_entries)
     alive = _alive_after()
+    items = [e for e in items if not (e["createdAt"] and e["createdAt"] < alive)]
+    alias = _artist_alias(items)
     # **曲が大きく重なる並びは1つにまとめて数える**。手直ししながら同じ並びを載せ直す人がいて、
     # 1人の「私を構成する25曲」の約25回分で上位20曲が埋まった（2026-10-11、本番）。重なりが
     # `POPULAR_SAME` 曲以上かつ小さいほうの半分以上なら同じ人の並びと見て、曲はまとまりごとに1と数える
@@ -290,10 +344,10 @@ def popular(limit: int = 20) -> list[dict]:
     where: dict[str, list[int]] = {}      # 曲 → それを含むまとまり
     names: dict[str, Counter[tuple[str, str]]] = {}
     for e in items:
-        if e["createdAt"] and e["createdAt"] < alive:
-            continue
-        ks = {k for k, _, _ in e["_keys"]}
-        for k, t, a in e["_keys"]:
+        ks = set()
+        for nt, na, t, a in e["_keys"]:
+            k = nt + "|" + alias.get(na, na)
+            ks.add(k)
             names.setdefault(k, Counter())[(t, a)] += 1
         shared = Counter(g for k in ks for g in where.get(k, ()))
         gid = next((g for g, c in shared.most_common()
