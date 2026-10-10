@@ -152,6 +152,8 @@ def seed() -> int:
     for e in got:
         _push(e)
     _seeded = True
+    global _popular_memo
+    _popular_memo = None   # 読み込み前に数えた空の結果を覚えたままにしない（10-11の本番で20曲が出なかった）
     return len(got)
 
 
@@ -294,7 +296,8 @@ def popular(limit: int = 20) -> list[dict]:
             break
         t, a = names[k].most_common(1)[0][0]
         out.append({"title": t, "artist": a, "n": n})
-    _popular_memo = (now, limit, out)
+    if _seeded:   # 読み込みの途中は覚えない
+        _popular_memo = (now, limit, out)
     return out
 
 
