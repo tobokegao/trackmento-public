@@ -1738,7 +1738,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     cols, rows, n, m, g = doc.cols, doc.rows, doc.size, o.margin, o.gap
     n_tracks = max(1, sum(1 for t in doc.cells if t))   # 入っている曲の数（「消える曲」の割合を測る母数）
     title = _one_line(doc.title) if o.showTitle else ""
-    gw = cols * CELL_W + (cols - 1) * g
+    gw = _label_col(doc) + cols * CELL_W + (cols - 1) * g   # 行の見出しがあれば左にその列を足す（`_label_col`）
     gh = rows * cell_h(doc) + (rows - 1) * g
     # `_title_px` は「曲名リストより十分大きく」するための組み直し（下のTITLE_MIN_SCALEを参照）
     title_size = _title_px or rnd(min(96, max(48, gw * 0.045)))
@@ -2195,40 +2195,22 @@ def _title_width(title: str, title_size: int) -> int:
 # **マスの番号バッジの大きさ**（論理px。マスの幅CELL_W=600に対して）。frontendのBADGE_PX / BADGE_PAD / BADGE_SHADOWと同じ値にする。
 # 2026-09-27に字22・余白12・影3から大きくした（書き出しでバッジが小さすぎる、と利用者）
 BADGE_PX, BADGE_PAD, BADGE_SHADOW = 48, 20, 6
-# **行の見出しの札**（論理px。2026-10-11、お題「私の音楽遍歴」）。各行の左端のマスの左上に、番号バッジと同じ作りの札を重ねる。
-# 割り付けは変えない（札はマスの上）。番号バッジはその下にずらす。frontendのLABEL_* と同じ値にする
-LABEL_PX, LABEL_PAD_X, LABEL_PAD_Y = 40, 16, 10
+# **行の見出し**（論理px。2026-10-11、お題「私の音楽遍歴」）。グリッドの左に見出しの列を足し、各行の高さの中央に字を置く。
+# 列の幅は一番長い見出しの幅＋マスの間隔（`_label_col`）。見出しが無ければ0で、割り付けは今までと変わらない。
+# 初めはマスの左上に札を重ねていたが、番号バッジが札の下に来るのが不自然で、サムネの外に出した（同日、利用者の指摘）。
+# frontendのLABEL_COL_PX / labelCol / drawRowLabelsと対で直すこと
+LABEL_COL_PX = 64
 
 
 def _label_w(s: str, px: int) -> int:
-    """札の字の幅。**1字ずつ1pxに丸めて足す**（`_title_width` と同じ。丸ごと測るとPILとCanvasで数px違う）"""
+    """見出しの字の幅。**1字ずつ1pxに丸めて足す**（`_title_width` と同じ。丸ごと測るとPILとCanvasで数px違う）"""
     return _title_width(s, px) - 8 if s else 0
 
 
-def _fit_label(s: str, px: int, max_w: int) -> str:
-    """札がマスに収まるよう後ろを「…」にする。幅は `_label_w` で測る（frontendのfitLabelと同じ規則）"""
-    if _label_w(s, px) <= max_w:
-        return s
-    for k in range(len(s) - 1, 0, -1):
-        if _label_w(s[:k] + "…", px) <= max_w:
-            return s[:k] + "…"
-    return ""
-
-
-def _row_label(d: ImageDraw.ImageDraw, x: int, y: int, cw: int, text: str, sc, bg, ink) -> int:
-    """行の見出しの札を (x, y) に描き、札の下端から番号バッジまでずらす量（出力px）を返す。描かなければ0"""
-    px = max(8, sc(LABEL_PX))
-    padx, pady, shadow = max(2, sc(LABEL_PAD_X)), max(2, sc(LABEL_PAD_Y)), sc(BADGE_SHADOW)
-    s = _fit_label(text, px, cw - shadow - padx * 2)
-    if not s:
-        return 0
-    bw, bh = _label_w(s, px) + padx * 2, px + pady * 2
-    d.rectangle((x, y, x + bw - 1, y + bh - 1), fill=bg)
-    d.rectangle((x + bw, y, x + bw + shadow, y + bh - 1), fill=ink)
-    d.rectangle((x, y + bh, x + bw + shadow, y + bh + shadow), fill=ink)
-    # 字面の中心を札の中心に置く（タイトルの回り込みと同じ固定比BASELINE。PILとCanvasで字面の測り方が違うため）
-    d.text((x + padx, y + rnd(bh / 2) + rnd(px * BASELINE)), s, font=font("bold", px), fill=ink, anchor="ls")
-    return bh + shadow * 2
+def _label_col(doc: GridDoc) -> int:
+    """見出しの列の幅（論理px。マスとのあいだの間隔を含む）。見出しが1つも無ければ0"""
+    w = max((_label_w(_one_line(t), LABEL_COL_PX) for t in doc.rowLabels[:doc.rows] if _one_line(t)), default=0)
+    return w + doc.options.gap if w else 0
 
 
 def render(doc: GridDoc) -> Image.Image:
@@ -2292,10 +2274,19 @@ def render(doc: GridDoc) -> Image.Image:
         ov_as = max(8, rnd(cs * OVERLAY_ARTIST))
         f_ov_t, f_ov_a = font("bold", ov_ts), font("regular", ov_as)
         ov_pad = rnd(cs * OVERLAY_PAD)
+    # 行の見出し（グリッドの左の列。字は行の高さの中央。固定比BASELINEで置く。PILとCanvasで字面の測り方が違うため）
+    lab = _label_col(doc)
+    if lab:
+        lpx = max(8, sc(LABEL_COL_PX))
+        f_lab = font("bold", lpx)
+        for r, t in enumerate(doc.rowLabels[:doc.rows]):
+            if _one_line(t):
+                d.text((sc(L.ox), sc(y0 + r * (cell_h(doc) + o.gap)) + rnd(ch / 2) + rnd(lpx * BASELINE)),
+                       _one_line(t), font=f_lab, fill=ink, anchor="ls")
     k = 0                             # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。2026-09-25）
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
-        x, y = sc(L.ox + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + o.gap))
+        x, y = sc(L.ox + lab + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + o.gap))
         k += 1 if t else 0
         # **空きマスは塗らない**（背景の色が見える。2026-09-25、利用者の指摘。灰色の四角が並ぶと「読み込めなかった」ように見える）。
         # 曲の入ったマスだけ下地を塗る（ジャケットが取れなかったときに、そこに曲があると分かるように）。frontendのrenderShareCanvasと同じ
@@ -2316,11 +2307,6 @@ def render(doc: GridDoc) -> Image.Image:
                 if artist:
                     fa = _shrink_font(d, artist, f_ov_a, ov_as, max_w, kind="regular")
                     d.text((x + ov_pad, ab), _ellipsize(d, artist, fa, max_w), font=fa, fill=OVERLAY_SUB, anchor="ls")
-        # 行の見出し（各行の左端のマス。空きマスでも描く。行の意味を示すものなので）
-        dy = 0
-        if c == 0 and r < len(doc.rowLabels) and doc.rowLabels[r]:
-            dy = _row_label(d, x, y, cw, _one_line(doc.rowLabels[r]), sc, badge_bg, ink)
-        y += dy
         # **番号バッジは曲の入ったマスだけ**、曲名リストと同じ序数で（2026-09-25。前は空きマスにも位置の番号を出していた）
         if o.numbers and t:
             label = f"{k:02d}"

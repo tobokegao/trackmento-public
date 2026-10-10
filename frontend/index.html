@@ -874,14 +874,9 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .rowlab-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--space-2) var(--space-3); }
 .rowlab-list li { display: flex; align-items: center; gap: var(--space-2); }
 .rowlab-list .n { flex: none; min-width: 2ch; font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-ink-2); }
-/* マスの上の見出し（書き出しの札と同じ位置。番号はその下へ） */
-.cell .rowlab {
-  position: absolute; left: 0; top: 0; z-index: 3; max-width: calc(100% - 28px);
-  font-weight: 700; font-size: var(--text-xs); line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  padding: 0 var(--space-1); background: var(--color-paper); border-right: var(--line) solid var(--color-ink); border-bottom: var(--line) solid var(--color-ink);
-}
-.cell.has-rowlab .num { top: calc(var(--text-xs) * 1.6 + var(--line)); }
-.grid[data-dense="true"] .cell .rowlab { display: none; }
+/* 行の見出しの列（書き出しと同じく、グリッドの左。幅と字の大きさはsyncPreviewが書き出しの比率で決める） */
+.grid[data-labels="on"] { grid-template-columns: var(--labw) repeat(var(--cols, 3), minmax(0, 1fr)); }
+.grid .rowhead { align-self: center; min-width: 0; overflow: hidden; white-space: nowrap; font-weight: 700; font-size: var(--labpx); line-height: 1.2; color: var(--grid-ink, var(--color-ink)); }
 .popup { --sh: calc(2 * var(--dot)); --arrow-w: 24px; position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
 .popup select {
   -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; min-height: 40px; margin: 0;
@@ -1743,7 +1738,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <option value="t">ドライブで聴きたい曲</option>
         </select></span>
       </div>
-      <!-- 行の見出し（2026-10-11）。書き出しでは各行の左端のマスに札を重ねる。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
+      <!-- 行の見出し（2026-10-11）。書き出しではグリッドの左に見出しの列を足す。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
            枠とサムネと同じ三角で畳む（ふだんは使わないので） -->
       <div class="rowlabels">
         <div class="disclose-head">
@@ -1751,7 +1746,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <p class="disclose-sum" id="rowlab-sum"></p>
         </div>
         <div class="disclose-body" id="rowlab-body" hidden>
-          <p class="hint">各行の左端のマスに札として出ます。空にした行には出ません。</p>
+          <p class="hint">グリッドの左に、行ごとに出ます。空にした行には出ません。</p>
           <ol class="rowlab-list" id="rowlab-list"></ol>
         </div>
       </div>
@@ -2783,7 +2778,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "お題": "Theme",
         "行の見出し": "Row labels",
         "なし": "None",
-        "各行の左端のマスに札として出ます。空にした行には出ません。": "Each label appears as a tag on the first cell of its row. Rows left empty get no tag.",
+        "グリッドの左に、行ごとに出ます。空にした行には出ません。": "Labels appear to the left of the grid, one per row. Rows left empty get no label.",
         "{}行目の見出し": "Label for row {0}",
         "中学": "Junior high",
         "高校": "High school",
@@ -3064,9 +3059,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* マスの番号バッジの大きさ（論理px。backend/render.pyのBADGE_PX / BADGE_PAD / BADGE_SHADOWと同じ値にする）。
      2026-09-27に字22・余白12・影3から大きくした（書き出しでバッジが小さすぎる、と利用者） */
   const BADGE_PX = 48, BADGE_PAD = 20, BADGE_SHADOW = 6;
-  /* 行の見出しの札（論理px。backend/render.pyのLABEL_* と同じ値。2026-10-11、お題「私の音楽遍歴」）。
-     各行の左端のマスの左上に重ね、番号バッジはその下にずらす。割り付けは変えない。字数はbackend/grids.pyのMAX_ROW_LABELと同じ */
-  const LABEL_PX = 40, LABEL_PAD_X = 16, LABEL_PAD_Y = 10, MAX_ROW_LABEL = 12;
+  /* 行の見出し（論理px。backend/render.pyのLABEL_COL_PXと同じ値。2026-10-11、お題「私の音楽遍歴」）。
+     グリッドの左に見出しの列を足し、各行の高さの中央に字を置く（labelCol。描くのはrenderShareCanvas）。字数はbackend/grids.pyのMAX_ROW_LABELと同じ */
+  const LABEL_COL_PX = 64, MAX_ROW_LABEL = 12;
   const CELL_PX = CELL_W;                                       // 旧名。幅から決まる式が読む
   const cellH = () => CELL_H_BY_RATIO[state.cellRatio] || CELL_W;
   const cellShort = () => Math.min(CELL_W, cellH());             // 帯や番号を出すかの判定は**短辺**
@@ -4841,6 +4836,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     els.grid.dataset.numbers = state.numbers ? "on" : "off";
     els.gridSizeLabel.textContent = `${state.cols}×${state.rows}`;
     els.grid.innerHTML = "";
+    const labOn = labelCol(state.rows) > 0;
     // **マスに出すのは刈った題**（書き出しと同じ見た目にする）。編集パネルの入力欄は元のまま
     viewCells().forEach((t, i) => {
       const li = document.createElement("li");
@@ -4849,12 +4845,6 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       li.addEventListener("click", (e) => { if (e.target.closest(".rm")) return; kbdCell = i; onCellTap(i); });
       const num = document.createElement("span"); num.className = "num"; num.textContent = String(i + 1).padStart(2, "0");
       li.append(num);
-      // 行の見出し（左端のマスだけ。書き出しの札と同じ位置）
-      const lab = i % state.cols === 0 ? (state.rowLabels[Math.floor(i / state.cols)] || "").trim() : "";
-      if (lab) {
-        const rl = document.createElement("span"); rl.className = "rowlab"; rl.textContent = lab;
-        li.classList.add("has-rowlab"); li.append(rl);
-      }
       if (t) {
         li.draggable = true;
         li.setAttribute("aria-label", tr`${i + 1}番: ${t.title} / ${t.artist}`);
@@ -4892,6 +4882,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       li.addEventListener("dragover", (e) => { if (dragFrom === null) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; li.classList.add("is-over"); });
       li.addEventListener("dragleave", () => li.classList.remove("is-over"));
       li.addEventListener("drop", (e) => { e.preventDefault(); li.classList.remove("is-over"); const from = Number(e.dataTransfer.getData("text/plain")); if (Number.isInteger(from)) swap(from, i); });
+      // 行の見出し（書き出しと同じく、グリッドの左の列）。見出しが1つでもあれば、どの行の頭にも列の升を置く
+      if (i % state.cols === 0 && labOn) {
+        const h = document.createElement("li"); h.className = "rowhead"; h.setAttribute("aria-hidden", "true");
+        h.textContent = oneLine(state.rowLabels[Math.floor(i / state.cols)] || "");
+        els.grid.append(h);
+      }
       els.grid.append(li);
     });
     if (target !== null && state.cells[target]) target = null;
@@ -7063,7 +7059,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const n = viewCells().length;
     const nTracks = Math.max(1, viewCells().filter(Boolean).length);   // 入っている曲の数（「消える曲」の割合の母数）
     const g = state.gap;
-    const gw = cols * CELL_W + (cols - 1) * g, gh = rows * cellH() + (rows - 1) * g;
+    const gw = labelCol(rows) + cols * CELL_W + (cols - 1) * g, gh = rows * cellH() + (rows - 1) * g;   // 行の見出しがあれば左にその列を足す
     const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
     let titleH = title ? Math.round(titleSize * 1.9) : 0;   // 右に置くときは、下で行の整数倍に直す
     const ratio = RATIOS[state.ratio];
@@ -7528,7 +7524,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const ZOOM_MIN_CELL = 48;
   const ZOOM_WIDE_FILL = 0.35, ZOOM_WIDE_MAX = 200;   // 横に長い並びを大きく見るときの目安（syncPreview）   // 拡大窓でのマスの下限（CSS px。指の当たり判定の44〜48px）
   function syncPreview() {
-    const gw = state.cols * CELL_W + (state.cols - 1) * state.gap;
+    const lab = labelCol(state.rows);   // 行の見出しの列（書き出しと同じ幅。画面では空き段も含めて全部の行に出す）
+    const gw = lab + state.cols * CELL_W + (state.cols - 1) * state.gap;
     const gh = state.rows * cellH() + (state.rows - 1) * state.gap;
     const ar = (gw + state.margin * 2) / (gh + state.margin * 2);   // 中身の縦横比
     if (gridZoomed) {
@@ -7592,6 +7589,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const pad = state.margin * k, gap = state.gap * k;
     els.grid.style.padding = `${pad}px`;
     els.grid.style.gap = `${gap}px`;
+    els.grid.dataset.labels = lab ? "on" : "off";
+    els.grid.style.setProperty("--labw", `${Math.max(0, lab - state.gap) * k}px`);
+    els.grid.style.setProperty("--labpx", `${Math.max(9, LABEL_COL_PX * k)}px`);
+    els.grid.style.setProperty("--grid-ink", token(isLight(bgColor() || token("paper")) ? "ink" : "paper"));   // 見出しの字は書き出しと同じく地の明るさで黒か白
     els.grid.style.background = bgColor();
     // 背景の画像も見本に敷く（書き出しと同じ濃さ。背景色の幕をかぶせて薄くする）。見本は曲名リストの無い枠なので、切り抜きの位置は書き出しと少し違う
     if (state.bgMode === "image" && state.bgImage) {
@@ -8292,27 +8293,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     return r;
   };
-  /* 行の見出しの札（backend/render.pyの _label_w / _fit_label / _row_labelと対で直すこと）。
+  /* 行の見出し（backend/render.pyの _label_w / _label_colと対で直すこと）。
      幅は1字ずつ1pxに丸めて足す（titleWidthと同じ。丸ごと測るとPILと数px違う） */
   const labelW = (s, px) => (s ? titleWidth(s, px) - 8 : 0);
-  function fitLabel(s, px, maxW) {
-    if (labelW(s, px) <= maxW) return s;
-    const cs = [...s];
-    for (let k = cs.length - 1; k > 0; k--) { const t = cs.slice(0, k).join("") + "…"; if (labelW(t, px) <= maxW) return t; }
-    return "";
-  }
-  // 札を (x, y) に描き、番号バッジをずらす量（出力px）を返す。描かなければ0
-  function drawRowLabel(ctx, x, y, cw, text, sc, bg, ink) {
-    const px = Math.max(8, sc(LABEL_PX)), padX = Math.max(2, sc(LABEL_PAD_X)), padY = Math.max(2, sc(LABEL_PAD_Y)), shadow = sc(BADGE_SHADOW);
-    const s = fitLabel(text, px, cw - shadow - padX * 2);
-    if (!s) return 0;
-    const bw = labelW(s, px) + padX * 2, bh = px + padY * 2;
-    ctx.fillStyle = cssRgb(bg); ctx.fillRect(x, y, bw, bh);
-    ctx.fillStyle = cssRgb(ink); ctx.fillRect(x + bw, y, shadow + 1, bh); ctx.fillRect(x, y + bh, bw + shadow + 1, shadow + 1);
-    // 字面の中心を札の中心に置く（固定比BASELINE。backend/render.pyと同じ）
-    ctx.font = fontBold(px); ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
-    ctx.fillText(s, x + padX, y + Math.round(bh / 2) + Math.round(px * BASELINE));
-    return bh + shadow * 2;
+  // 見出しの列の幅（論理px。マスとのあいだの間隔を含む）。見出しが1つも無ければ0
+  function labelCol(rows = exRows()) {
+    const w = Math.max(0, ...state.rowLabels.slice(0, rows).map(t => oneLine(t || "")).filter(Boolean).map(t => labelW(t, LABEL_COL_PX)));
+    return w ? w + state.gap : 0;
   }
   function ellipsizeText(ctx, text, maxW) {
     if (ctx.measureText(text).width <= maxW) return text;
@@ -8598,10 +8585,20 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const ov = state.overlay && overlayOk(S);
     const ovSh = Math.max(1, Math.round(ch * OVERLAY_SHADE)), ovTs = Math.max(8, Math.round(cs * OVERLAY_TITLE));
     const ovAs = Math.max(8, Math.round(cs * OVERLAY_ARTIST)), ovPad = Math.round(cs * OVERLAY_PAD);
+    // 行の見出し（グリッドの左の列。字は行の高さの中央。固定比BASELINEで置く。backend/render.pyと同じ）
+    const lab = labelCol(EX.rows);
+    if (lab) {
+      const lpx = Math.max(8, sc(LABEL_COL_PX));
+      ctx.font = fontBold(lpx); ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
+      state.rowLabels.slice(0, EX.rows).forEach((t, r) => {
+        const s = oneLine(t || "");
+        if (s) ctx.fillText(s, sc(L.ox), sc(y0 + r * (cellH() + state.gap)) + Math.round(ch / 2) + Math.round(lpx * BASELINE));
+      });
+    }
     let k = 0;   // 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。backend/render.pyと同じ。2026-09-25）
     for (let i = 0; i < n; i++) {
       const t = VC[i], c = i % EX.cols, r = Math.floor(i / EX.cols);
-      const x = sc(L.ox + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + state.gap)), y0px = y;
+      const x = sc(L.ox + lab + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + state.gap));
       if (t) k++;
       // **空きマスは塗らない**（背景の色が見える。backend/render.pyと同じ。2026-09-25）
       if (t) { ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch); }
@@ -8631,12 +8628,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         onProgress(i + 1, n);
         await yieldToUI();
       }
-      // 行の見出し（各行の左端のマス。空きマスでも描く。backend/render.pyと同じ）
-      const lab = c === 0 ? oneLine(state.rowLabels[r] || "") : "";
-      const dy = lab ? drawRowLabel(ctx, x, y, cw, lab, sc, badgeBg, ink) : 0;
       // **番号バッジは曲の入ったマスだけ**、曲名リストと同じ序数で（backend/render.pyと同じ。2026-09-25）
       if (state.numbers && t) {
-        const y = y0px + dy;
         const label = String(k).padStart(2, "0");
         // **枠は字面（インク）に四辺の余白を足して作る**（backend/render.pyと同じ規則）。
         // ピクセルフォントはemボックスの中で字面が上に寄るので、emの高さで枠を作ると数字が下に寄る

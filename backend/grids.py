@@ -201,7 +201,7 @@ class GridDoc(BaseModel):
     # 索引（`backend/shareindex.py`）に載せるのは利用者が自分でチェックを入れたものだけにする
     listed: bool = False
     # **行の見出し**（2026-10-11、お題「私の音楽遍歴」のため。利用者が書き換えられる）。上の行から順に、書き出しでは
-    # 各行の左端のマスに札として描く（render.pyの `_row_label` とfrontendの `rowLabelBox`）。空の行は描かない
+    # グリッドの左に見出しの列を足して描く（render.pyの `_label_col` とfrontendの `labelCol`）。空の行は描かない
     rowLabels: list[str] = Field(default_factory=list)
 
     @field_validator("rowLabels", mode="before")

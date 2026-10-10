@@ -36,7 +36,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.c31430e3.css">
+<link rel="stylesheet" href="app/app.787a9154.css">
 </head>
 <body>
 
@@ -228,7 +228,7 @@
           <option value="t">ドライブで聴きたい曲</option>
         </select></span>
       </div>
-      <!-- 行の見出し（2026-10-11）。書き出しでは各行の左端のマスに札を重ねる。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
+      <!-- 行の見出し（2026-10-11）。書き出しではグリッドの左に見出しの列を足す。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
            枠とサムネと同じ三角で畳む（ふだんは使わないので） -->
       <div class="rowlabels">
         <div class="disclose-head">
@@ -236,7 +236,7 @@
           <p class="disclose-sum" id="rowlab-sum"></p>
         </div>
         <div class="disclose-body" id="rowlab-body" hidden>
-          <p class="hint">各行の左端のマスに札として出ます。空にした行には出ません。</p>
+          <p class="hint">グリッドの左に、行ごとに出ます。空にした行には出ません。</p>
           <ol class="rowlab-list" id="rowlab-list"></ol>
         </div>
       </div>
@@ -697,6 +697,6 @@
 <div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
-<script id="app-js" src="app/app.92e5aca5.js"></script>
+<script id="app-js" src="app/app.257fd037.js"></script>
 </body>
 </html>
