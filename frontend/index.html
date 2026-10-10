@@ -3415,7 +3415,23 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      **書き出しの番号はこの並びの序数**（空きマスの番号は飛ばして詰める。2026-09-25、利用者の決定）。
      マスの位置と結びつかない曲名リスト（サイドバー・表・1行型・流し込み・縦一列）はこれで組み、空きマスの行を作らない。
      画面（グリッドのバッジ・「N番に入れました」・編集パネル）は操作用なので位置の番号のまま */
-  const listCells = () => viewCells().filter(Boolean);
+  const listTracks = () => viewCells().filter(Boolean);   // 曲の入ったマスだけ（backend/render.pyの _tracks）
+  /* **曲名リストの項目**（backend/render.pyの _songsと同じ）。曲の入ったマスを順に並べ、行の見出しがあれば、その行の最初の曲の前に
+     見出し（{ title, artist: "", heading: true }）を差し込む。見出しは曲と同じ1項目として組むので、列の数・字の大きさ・流し込みは曲と同じ道を通る */
+  function listCells() {
+    const cells = viewCells(), cols = _canonCells ? exCols() : state.cols, rows = _canonCells ? exRows() : state.rows;
+    const labels = state.rowLabels.slice(0, rows).map(t => oneLine(t || ""));
+    const out = []; let last = -1;
+    cells.forEach((t, i) => {
+      if (!t) return;
+      const r = Math.floor(i / cols);
+      if (r !== last && r < labels.length && labels[r]) out.push({ title: labels[r], artist: "", heading: true });
+      last = r; out.push(t);
+    });
+    return out;
+  }
+  // 曲名リストの項目ごとの番号（曲は序数「01」…、見出しは空。backend/render.pyの _nums）
+  function listNums(items) { let k = 0; return items.map(t => (t.heading ? "" : String(++k).padStart(2, "0"))); }
   /* **組み方を決めるための並び**（backend/render.pyの _canonと同じ。2026-09-25）。曲の入ったマスの位置はそのままで、
      曲だけを曲名 → アーティスト名の順（**文字の符号位置で比べる**。JSの既定の比べ方はUTF-16の単位なので、
      「𝓒」のようなBMPの外の字でPythonと順番が食い違う）に並べ替える。
@@ -6313,11 +6329,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       }
     };
     // 番号は曲の入ったマスの序数（空きマスは飛ばして詰める。backend/render.pyと同じ。2026-09-25）
-    listCells().forEach((t, i) => {
+    const items = listCells(), nums = listNums(items);
+    items.forEach((t, i) => {
       if (full()) return;
+      if (!nums[i]) {   // 行の見出し。**必ず新しい行から**、番号を付けずに曲名と同じ太字で（backend/render.pyと同じ）
+        if (cur.length) rows.push({ parts: cur, width: x, gaps, end: true });   // 見出しの手前で切った行は右端をそろえない
+        cur = []; x = 0; gaps = 0;
+        put("title", oneLine(t.title));
+        return;
+      }
       // 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない送りが入る）
       if (cur.length) { if (x + gap > cw()) flush(); else { x += gap; gaps += 1; } }
-      const num = String(i + 1).padStart(2, "0"), title2 = oneLine(t.title);
+      const num = nums[i], title2 = oneLine(t.title);
       // **番号だけが行末に取り残されないようにする**（backend/render.pyと同じ規則）
       // **ここも1字ごとの丸めた幅で測る**（backend/render.pyと同じ）。実寸で比べると
       // 判定が入れ替わって行数が1つずれ、中央寄せの量が変わって全体がずれる
@@ -6563,7 +6586,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      段の少ない横長の並び（7x1など）だと下に大きな空きが残るので、1曲1行で縦に積んで真ん中に置く */
   function slabStack(gw, gh, titleH, ratio, m, maxSide) {
     // **曲の入ったマスだけを積む**（空きマスの行を作らない。backend/render.pyと同じ。2026-09-25）
-    const n = listCells().length;
+    const n = listTracks().length;   // 段は曲の序数で並ぶ（行の見出しは差し込まない。描くのはマスの順）
     if (!n || exRows() > SLAB_STACK_MAX_ROWS) return null;
     const [W, H, pad] = slabFrame(gw, ratio, m, false, state.gap);
     if (W <= 0 || H <= 0) return null;
@@ -6881,6 +6904,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const f = fontBold(Math.max(12, fontS));
     // **曲の入ったマスだけ**（空きマスの行を作らない。backend/render.pyと同じ。2026-09-25）
     return listCells().map((t) => {
+      if (t.heading) return 1;   // 行の見出しは1行（長ければ「…」で切る）
       let rows = 1 + artistRows(oneLine(t.artist), fontS, avail);
       const title = oneLine(t.title);
       let w = 0;
@@ -8745,7 +8769,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         const yy = sc(sy0 + L.lineH / 2) + base;
         // 余った幅を曲の切れ目に配って段の右端をそろえる（配りすぎない規則は下の流し込みと同じ）
         // **上乗せも整数にする**（backend/render.pyと同じ。端数のまま足すと1pxずれる）
-        const extra = fr.gaps && row < flow.length - 1
+        const extra = fr.gaps && row < flow.length - 1 && !fr.end
           ? Math.round(Math.min(Math.max(0, sc(sw) - sc(fr.width)) / fr.gaps, sp)) : 0;
         fr.parts.forEach(([kind, text], j) => {
           if (kind === "num" && j > 0) x += sp + extra;
@@ -8785,7 +8809,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           // 空白1つぶんまで（切れ目は最大2つぶん）
           ctx.font = fonts.title;
           const sp = Math.round(Math.round(ctx.measureText("　").width * 64) / 64);
-          const extra = fr.gaps && row < flow.length - 1
+          const extra = fr.gaps && row < flow.length - 1 && !fr.end
             ? Math.round(Math.min(Math.max(0, sc(colW) - sc(fr.width)) / fr.gaps, sp)) : 0;
           fr.parts.forEach(([kind, text], j) => {
             if (kind === "num" && j > 0) x += sp + extra;   // 番号の手前が曲の切れ目（行頭は除く）
@@ -8797,7 +8821,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         return { canvas, bg };
       }
       // **曲の入ったマスだけを詰めて並べる**（空きマスの行を作らない。番号は序数。backend/render.pyと同じ。2026-09-25）
-      const songs = listCells(), ns = songs.length;
+      const songs = listCells(), ns = songs.length, nums = listNums(songs);   // 行の見出しは番号が空
       const plan = (L.sbPlan && L.sbPlan.length) ? L.sbPlan : songs.map(() => 1);
       // 行の割り付け（列・その列の中での行番号）。**1曲が列をまたがないように**詰める
       const rowsPerCol = planRows(plan, L.sbCols);
@@ -8823,7 +8847,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
             const ly = sc(sy + (row + 1) * L.lineH);
             ctx.fillStyle = cssRgb(rule); ctx.fillRect(x, ly, right - x, ruleH);
           }
-          const num = String(i + 1).padStart(2, "0");
+          const num = nums[i];
+          if (!num) {   // 行の見出し: 番号の位置から、曲名と同じ太字で（backend/render.pyと同じ）
+            ctx.font = titleFont2; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
+            ctx.fillText(ellipsizeText(ctx, oneLine(t.title), tColW * S), x, yy + base);
+            continue;
+          }
           ctx.font = numFont; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(muted);
           const mm = ctx.measureText(num), top = -mm.actualBoundingBoxAscent, bottom = mm.actualBoundingBoxDescent;
           ctx.fillText(num, x, Math.round(yy - (top + bottom) / 2));
@@ -8847,7 +8876,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         const t = songs[i], [col, row0] = places[i];
         const row = row0 - (shift[col] || 0);
         const x = sc(sx + col * (colW + LIST_COL_GAP)), yy = rowY(row);
-        const num = String(i + 1).padStart(2, "0");
+        const num = nums[i];
+        if (!num) {   // 行の見出し: 番号の位置から、曲名と同じ太字で1行（backend/render.pyと同じ）
+          ctx.font = titleFont2; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
+          ctx.fillText(ellipsizeText(ctx, oneLine(t.title), colW * S), x, yy);
+          continue;
+        }
         ctx.font = numFont; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(muted);
         const mm = ctx.measureText(num), top = -mm.actualBoundingBoxAscent, bottom = mm.actualBoundingBoxDescent;   // 字面の中心を行の中心に
         ctx.fillText(num, x, Math.round(yy - (top + bottom) / 2));

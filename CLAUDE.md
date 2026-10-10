@@ -204,7 +204,7 @@ Webツールとは逆を行く。**素っ気なさと厚みの同居**が持ち�
 - 色・比率・`CELL_W` / `CELL_H_BY_RATIO` / `GAP_PX` / `MAX_SIDE`: `render.py` と `index.html`
 - 背景の画像: `render.py` の `_paint_bg_image` ↔ `renderShareCanvas` の頭（切り抜き・`bgImageAlpha` の濃さ）
 - マスへの絵の入れ方: `_cover_blur_pad` / `blur_margin` ↔ `coverBlurPad` / `blurMargin`（**下地はマスより広く作ってから切り取る**）
-- 行の見出しの列と行の間隔: `_label_col` / `_row_gap` / `LABEL_COL_PX` / `ROW_GAP_FRAC` ↔ `labelCol` / `rowGap` / 同名の定数（`gw` に列を、縦の送りに間隔を足す）。字数の上限は `grids.py` の `MAX_ROW_LABEL` ↔ frontendの `MAX_ROW_LABEL`
+- 行の見出しの列と行の間隔: `_label_col` / `_row_gap` / `LABEL_COL_PX` / `ROW_GAP_FRAC` ↔ `labelCol` / `rowGap` / 同名の定数（`gw` に列を、縦の送りに間隔を足す）。曲名リストの見出しは `_songs` / `_nums` / `_Head` ↔ `listCells` / `listNums`。字数の上限は `grids.py` の `MAX_ROW_LABEL` ↔ frontendの `MAX_ROW_LABEL`
 - お問い合わせのフォームのURL: `backend/pages.py` の `CONTACT_FORM` ↔ frontendの `CONTACT_FORM`（`docs/ops.md`）
 
 ## 覚え書き（核）

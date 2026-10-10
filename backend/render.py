@@ -424,6 +424,7 @@ class FlowRow(NamedTuple):
     parts: list[tuple[str, str]]   # ("num"|"title"|"artist", 文字列)
     width: float                   # 文字と曲間の送りで使った幅
     gaps: int                      # 曲の切れ目の数（余った幅をここに配る）
+    end: bool = False              # 行の見出しの手前で切った行（最後の行と同じく、右端をそろえるために伸ばさない）
 
 
 FLOW_MIN_FONT = 20        # 1曲1行のとき、出力でこれより小さくなるなら流し込み（や回り込み）を試す
@@ -608,12 +609,47 @@ CLIP_GAIN = 0.35          # 右に置くとき、名前が消える曲が1つ増
                           # 6x6・36曲は1.39倍しか大きくならないので両方とも増やさない）
 
 
-def _songs(doc: GridDoc) -> list[Track]:
+@dataclass(frozen=True)
+class _Head:
+    """曲名リストに差し込む**行の見出し**（2026-10-11、利用者の求め）。曲と同じ1項目として組むので、
+    列の数・字の大きさ・流し込みの計算は曲と同じ道を通る。番号は付けず、曲の序数にも数えない（`_nums`）"""
+    title: str
+    artist: str = ""
+
+
+def _tracks(doc: GridDoc) -> list[Track]:
     """曲の入ったマスだけを、マスの順（左上から右へ、次の段）に並べたもの。
-    **書き出しの番号はこの並びの序数**（01・02・03…。空きマスの番号は飛ばして詰める。2026-09-25、利用者の決定）。
-    マスの位置と結びつかない曲名リスト（サイドバー・表・1行型・流し込み・縦一列）はこれで組み、
-    空きマスの行を作らない。frontendのlistCellsと同じ"""
+    **書き出しの番号はこの並びの序数**（01・02・03…。空きマスの番号は飛ばして詰める。2026-09-25、利用者の決定）"""
     return [t for t in doc.cells if t]
+
+
+def _songs(doc: GridDoc) -> list:
+    """**曲名リストの項目**。曲の入ったマスを順に並べ、行の見出しがあれば、その行の最初の曲の前に見出し（`_Head`）を差し込む。
+    マスの位置と結びつかない曲名リスト（サイドバー・表・1行型・流し込み）はこれで組み、空きマスの行を作らない。
+    frontendのlistCellsと同じ"""
+    labels = [_one_line(t) for t in doc.rowLabels[:doc.rows]]
+    out, last = [], -1
+    for i, t in enumerate(doc.cells):
+        if not t:
+            continue
+        r = i // doc.cols
+        if r != last and r < len(labels) and labels[r]:
+            out.append(_Head(labels[r]))
+        last = r
+        out.append(t)
+    return out
+
+
+def _nums(items: list) -> list[str]:
+    """曲名リストの項目ごとの番号（曲は序数「01」…、見出しは空）。frontendのlistNumsと同じ"""
+    out, k = [], 0
+    for t in items:
+        if isinstance(t, _Head):
+            out.append("")
+        else:
+            k += 1
+            out.append(f"{k:02d}")
+    return out
 
 
 def _canon_key(t: Track) -> tuple[str, str]:
@@ -630,7 +666,7 @@ def _canon(doc: GridDoc) -> GridDoc:
     **組み方・出力の大きさ・字の大きさ・列数はこの並びで決め**、描くときは曲の順のまま
     （`layout()` の最後で、実際の並びに合わせて行の高さや段の位置だけを直す）
     """
-    songs = _songs(doc)
+    songs = _tracks(doc)
     order = sorted(songs, key=_canon_key)
     if all(a is b for a, b in zip(order, songs)):
         return doc
@@ -744,6 +780,9 @@ def _row_plan(doc: GridDoc, font_s: int, max_w: float) -> tuple[int, ...]:
     plan = []
     # **曲の入ったマスだけ**（空きマスの行を作らない。2026-09-25）。以前は空きマスにも番号だけの行を1つ取っていた
     for t in _songs(doc):
+        if isinstance(t, _Head):   # 行の見出しは1行（長ければ「…」で切る）
+            plan.append(1)
+            continue
         # **アーティスト名も2行まで折る**。0.8に縮めれば入るぶんは1行のまま（行を増やさない）
         rows = 1 + _artist_rows(_one_line(t.artist), font_s, avail)
         title = _one_line(t.title)
@@ -989,9 +1028,17 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             x += w
 
     # 番号は曲の入ったマスの序数（空きマスは飛ばして詰める。2026-09-25）
-    for i, t in enumerate(_songs(doc)):
+    items = _songs(doc)
+    for t, num in zip(items, _nums(items)):
         if full():
             break
+        if not num:
+            # 行の見出し。**必ず新しい行から**、番号を付けずに曲名と同じ太字で置く（前の曲に続けると、まとまりの境目が見えない）
+            if cur:
+                rows.append(FlowRow(cur, x, gaps, True))
+            cur, x, gaps = [], 0.0, 0
+            put("title", _one_line(t.title))
+            continue
         if cur:
             # 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない
             # 送りが入り、余りの配り方がずれる）
@@ -1000,7 +1047,7 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             else:
                 x += gap
                 gaps += 1
-        num, title = f"{i + 1:02d}", _one_line(t.title)
+        title = _one_line(t.title)
         # **番号だけが行末に取り残されないようにする**。番号と曲名の頭2字が入らないなら先に折る。
         # **ここも1字ごとの丸めた幅で測る**。文字列まるごとの実寸で比べるとPILとCanvasで
         # 判定が入れ替わり、行数が1つずれる。行数は中央寄せの量に効くので、**全体がずれる**
@@ -1317,7 +1364,7 @@ def _slab_stack(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: i
     `WRAP_MIN_SEG` 字ぶんの幅を持てる中でいちばん大きいものを選ぶ。
     """
     # **曲の入ったマスだけを積む**（空きマスの行を作らない。2026-09-25）。段は曲の序数で並ぶ
-    n = len(_songs(doc))
+    n = len(_tracks(doc))   # 段は曲の序数で並ぶ（行の見出しは差し込まない。描くのはマスの順）
     if not n or doc.rows > SLAB_STACK_MAX_ROWS:
         return None
     W, H, pad = _slab_frame(gw, ratio, m, False, doc.options.gap, _pad_frac(doc))
@@ -2421,7 +2468,7 @@ def render(doc: GridDoc) -> Image.Image:
             yy = sc(sy0 + L.line_h / 2) + base
             # 余った幅を曲の切れ目に配って段の右端をそろえる（配りすぎない規則は下の流し込みと同じ）
             extra = 0.0
-            if fr.gaps and row < len(flow) - 1:
+            if fr.gaps and row < len(flow) - 1 and not fr.end:
                 # **上乗せも整数にする**。端数を持ったまま足すと、描く位置が両者で1pxずれる
                 extra = float(rnd(min(max(0.0, sc(sw) - sc(fr.width)) / fr.gaps, sp)))
             for j, (kind, text) in enumerate(fr.parts):
@@ -2463,7 +2510,7 @@ def render(doc: GridDoc) -> Image.Image:
                 # extraは右端をそろえるための上乗せで、空白1つぶんまで（切れ目は最大2つぶん）
                 sp = float(rnd(f_flow["title"].getlength("　")))
                 extra = 0.0
-                if fr.gaps and row < len(flow) - 1:
+                if fr.gaps and row < len(flow) - 1 and not fr.end:
                     extra = float(rnd(min(max(0.0, sc(col_w) - sc(fr.width)) / fr.gaps, sp)))
                 for j, (kind, text) in enumerate(fr.parts):
                     # 番号の手前が曲の切れ目（行頭は除く）
@@ -2476,6 +2523,7 @@ def render(doc: GridDoc) -> Image.Image:
             return im
         # **曲の入ったマスだけを詰めて並べる**（空きマスの行を作らない。番号は序数。2026-09-25）
         songs = _songs(doc)
+        nums = _nums(songs)   # 行の見出しは番号が空
         plan = L.sb_plan or tuple(1 for _ in songs)
         # 行の割り付け（列・その列の中での行番号）。**1曲が列をまたがないように**詰める
         rows_per_col = _plan_rows(plan, L.sb_cols)
@@ -2510,7 +2558,10 @@ def render(doc: GridDoc) -> Image.Image:
                 if L.sb_cols > 1 and row < per_col - 1 and i < len(songs) - 1:
                     ly = sc(sy + (row + 1) * L.line_h)
                     d.rectangle((x, ly, right - 1, ly + rule_h - 1), fill=rule)
-                num = f"{i + 1:02d}"
+                num = nums[i]
+                if not num:   # 行の見出し: 番号の位置から、曲名と同じ太字で
+                    d.text((x, yy + base), _ellipsize(d, _one_line(t.title), f_title, col_w * S), font=f_title, fill=ink, anchor="ls")
+                    continue
                 _, top, _, bottom = f_num.getbbox(num, anchor="ls")
                 d.text((x, rnd(yy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
                 nw = d.textlength(num, font=f_num) + sc(L.font_s * 0.8)
@@ -2533,7 +2584,10 @@ def render(doc: GridDoc) -> Image.Image:
             x = sc(sx + col * (col_w + LIST_COL_GAP))
             row_y = lambda r: sc(sy + r * L.line_h + L.line_h / 2)   # noqa: E731
             yy = row_y(row)
-            num = f"{i + 1:02d}"
+            num = nums[i]
+            if not num:   # 行の見出し: 番号の位置から、曲名と同じ太字で1行
+                d.text((x, yy), _ellipsize(d, _one_line(t.title), f_title, col_w * S), font=f_title, fill=ink, anchor="lm")
+                continue
             # ピクセルフォントはemボックス内で字面が上に寄るので、字面（インク）の中心を行の中心に置く
             _, top, _, bottom = f_num.getbbox(num, anchor="ls")
             d.text((x, rnd(yy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
