@@ -2226,7 +2226,7 @@ def _row_label(d: ImageDraw.ImageDraw, x: int, y: int, cw: int, text: str, sc, b
     d.rectangle((x, y, x + bw - 1, y + bh - 1), fill=bg)
     d.rectangle((x + bw, y, x + bw + shadow, y + bh - 1), fill=ink)
     d.rectangle((x, y + bh, x + bw + shadow, y + bh + shadow), fill=ink)
-    # 字面の中心を札の中心に置く（タイトルの回り込みと同じ固定比 BASELINE。PILとCanvasで字面の測り方が違うため）
+    # 字面の中心を札の中心に置く（タイトルの回り込みと同じ固定比BASELINE。PILとCanvasで字面の測り方が違うため）
     d.text((x + padx, y + rnd(bh / 2) + rnd(px * BASELINE)), s, font=font("bold", px), fill=ink, anchor="ls")
     return bh + shadow * 2
 
