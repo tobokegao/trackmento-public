@@ -21,13 +21,17 @@ from __future__ import annotations
 import json
 import re
 import threading
+import time
 import unicodedata
+from collections import Counter
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor
 
 from . import storage
 from .config import share_retention_days
+from .merge import _n
+from .names import trim
 
 PREFIX = "listed/"
 MAX_ENTRIES = 50_000      # メモリの上限（1件1KB見当）。超えたら古いものから落とす
@@ -72,7 +76,22 @@ def _hay(e: dict) -> str:
     return _norm(e["title"] + "".join(t + a for t, a in e["tracks"]))
 
 
+def _keys(e: dict) -> list[tuple[str, str, str]]:
+    """「よく選ばれている曲」で数える形（曲の鍵・表示する曲名・アーティスト名）。同じグリッドの重複は1つに。
+    刈り込みは正規表現が多くて重いので、載せるときに1回だけ通す（`popular` は数えるだけ）"""
+    out, seen = [], set()
+    for title, artist in e["tracks"]:
+        t, a = trim(title, artist)
+        k = _n(t) + "|" + _n(a)
+        if not _n(t) or k in seen:
+            continue
+        seen.add(k)
+        out.append((k, t, a))
+    return out
+
+
 def _push(e: dict) -> None:
+    e["_keys"] = _keys(e)   # ロックの外で（刈り込みが重いため）
     with _lock:
         if e["id"] in _ids:
             return
@@ -91,6 +110,8 @@ def forget(sid: str) -> None:
             return
         _ids.discard(sid)
         _entries[:] = [e for e in _entries if e["id"] != sid]
+    global _popular_memo
+    _popular_memo = None   # 外した並びの曲を「よく選ばれている曲」に数えたままにしない
 
 
 def add(snap: dict) -> None:
@@ -234,6 +255,46 @@ def varied(limit: int = 8) -> list[dict]:
         out.append(_row(e))
         if len(out) >= limit:
             break
+    return out
+
+
+POPULAR_TTL = 600         # 「よく選ばれている曲」を数え直す間隔（秒）
+POPULAR_MIN = 2           # 1つのグリッドにしか無い曲は出さない（どれも1件だと順位にならない）
+_popular_memo: tuple[float, int, list[dict]] | None = None
+
+
+def popular(limit: int = 20) -> list[dict]:
+    """探す前の画面に出す「よく選ばれている曲」。載る並びのうち、**入っているグリッドの数**が多い順。
+
+    数えるのはみんなのグリッドに載せたもの（opt-in）だけで、保持日数より古いものは数えない
+    （共有と一緒に消えるので、自然に「最近30日」の集計になる）。1つのグリッドに同じ曲が2つあっても1と数える。
+    曲の見分けは刈り込み（`names.trim`）をしてから `merge._n` でそろえた曲名とアーティスト名（`_keys`）。
+    表示する名前は、同じ曲のなかでいちばん多く使われていた書き方にする。
+    全件をなめるので、`POPULAR_TTL` のあいだは前の結果を返す（2026-10-11）。
+    """
+    global _popular_memo
+    now = time.monotonic()
+    memo = _popular_memo
+    if memo and now - memo[0] < POPULAR_TTL and memo[1] >= limit:
+        return memo[2][:limit]
+    with _lock:
+        items = list(_entries)
+    alive = _alive_after()
+    count: Counter[str] = Counter()
+    names: dict[str, Counter[tuple[str, str]]] = {}
+    for e in items:
+        if e["createdAt"] and e["createdAt"] < alive:
+            continue
+        for k, t, a in e["_keys"]:
+            count[k] += 1
+            names.setdefault(k, Counter())[(t, a)] += 1
+    out = []
+    for k, n in count.most_common():
+        if n < POPULAR_MIN or len(out) >= limit:
+            break
+        t, a = names[k].most_common(1)[0][0]
+        out.append({"title": t, "artist": a, "n": n})
+    _popular_memo = (now, limit, out)
     return out
 
 

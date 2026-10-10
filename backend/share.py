@@ -14,6 +14,7 @@ import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 import io
 
@@ -336,6 +337,9 @@ TEXT = {
         "find_yes": "外す",
         "find_varied": "いろんな切り口",
         "find_recent": "最近のグリッド",
+        "find_popular": "よく選ばれている曲",
+        "find_popular_note": "この{days}日間に載ったグリッドのうち、入っている数の多い曲です。",
+        "find_popular_n": "（{n}件）",
     },
     "en": {
         "expired_title": "This share is gone",
@@ -393,6 +397,9 @@ TEXT = {
         "find_yes": "Remove",
         "find_varied": "Different themes",
         "find_recent": "Recent grids",
+        "find_popular": "Most-picked tracks",
+        "find_popular_note": "Tracks that appear in the most grids listed in the last {days} days.",
+        "find_popular_n": "({n} grids)",
     },
 }
 
@@ -791,7 +798,8 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
 
 
 def find_html(q: str, results: list[dict], base: str, app_url: str | None = None,
-              lang: str = "ja", listed_total: int = 0, varied: list[dict] | None = None, nonce: str = "") -> str:
+              lang: str = "ja", listed_total: int = 0, varied: list[dict] | None = None, nonce: str = "",
+              popular: list[dict] | None = None) -> str:
     """「みんなの並びを探す」ページ。**ここに出るのはopt-inの共有だけ**（`backend/shareindex.py`）。
 
     探すのはフォームのGETだけ。スクリプトは、自分の共有の横に「外す」を出す小さなもの1つだけ（2026-09-26。
@@ -814,10 +822,23 @@ def find_html(q: str, results: list[dict], base: str, app_url: str | None = None
         body = f'<p class="note">{t(lang, "find_none")}</p>'
     elif q:
         body = f'<p class="meta">{t(lang, "find_hits", n=len(results))}</p><ol>{items(results)}</ol>'
-    elif results or varied:
+    elif results or varied or popular:
         # 探す前: 「私を構成する9曲」ばかりにならないよう、ほかのテーマを先に出す（open-use ⑤）
-        body = "".join(f'<section><h2>{t(lang, key)}</h2><ol>{items(rs)}</ol></section>'
-                       for key, rs in (("find_varied", varied or []), ("find_recent", results)) if rs)
+        secs = [f'<section><h2>{t(lang, key)}</h2><ol>{items(rs)}</ol></section>'
+                for key, rs in (("find_varied", varied or []), ("find_recent", results)) if rs]
+        if popular:
+            # よく選ばれている曲（2026-10-11）。押すとその曲で探す。曲名とアーティスト名の両方で探すと
+            # 語のANDで同じ曲の入ったグリッドだけが残る
+            ps = "".join(
+                f'<li><span class=n>{i:02d}</span><span class=t>'
+                f'<a href="/find?q={quote((p["title"] + " " + p["artist"]).strip()[:80])}"><b>{html.escape(p["title"])}</b></a> '
+                f'<span class=a>{html.escape(p["artist"])}</span> '
+                f'<span class=a>{t(lang, "find_popular_n", n=p["n"])}</span></span></li>'
+                for i, p in enumerate(popular, 1))
+            secs.insert(1 if varied else 0,
+                        f'<section><h2>{t(lang, "find_popular")}</h2>'
+                        f'<p class="meta">{t(lang, "find_popular_note", days=share_retention_days())}</p><ol>{ps}</ol></section>')
+        body = "".join(secs)
     elif listed_total:
         body = ""
     else:

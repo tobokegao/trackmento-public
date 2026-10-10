@@ -2262,7 +2262,8 @@ async def find_page(request: Request, q: str = "") -> HTMLResponse:
     varied = [] if q else shareindex.varied()
     rows = shareindex.search(q) if q else shareindex.newest(skip={r["id"] for r in varied})
     return HTMLResponse(share.find_html(q, rows, base_url_for(request), app_url_for(request),
-                                        _lang_for(request), shareindex.count(), varied, nonce=request.state.csp_nonce))
+                                        _lang_for(request), shareindex.count(), varied, nonce=request.state.csp_nonce,
+                                        popular=None if q else shareindex.popular()))
 
 
 @app.get("/find.json")
@@ -2274,6 +2275,7 @@ async def find_json(q: str = "", limit: int = 40) -> dict:
                 "results": shareindex.search(q, limit)}
     varied = shareindex.varied()
     return {"q": q, "total": shareindex.count(), "ready": shareindex.ready(), "varied": varied,
+            "popular": shareindex.popular(),
             "results": shareindex.newest(limit, skip={r["id"] for r in varied})}
 
 

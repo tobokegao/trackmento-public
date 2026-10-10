@@ -27,7 +27,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年10月1日", "en": "Last updated: October 1, 2026"}
+UPDATED = {"ja": "最終更新: 2026年10月11日", "en": "Last updated: October 11, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Googleフォーム。2026-09-19）
 
@@ -468,6 +468,10 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-10-11", "「みんなのグリッドを探す」に「よく選ばれている曲」を足しました。この30日間に載ったグリッドに多く入っている曲が20曲まで並び、押すとその曲の入ったグリッドを探せます。",
+     "“Find shared grids” now has a “Most-picked tracks” list: up to 20 tracks that appear in the most grids listed in the last 30 days. Tap one to find the grids that contain it."),
+    ("2026-10-11", "「お題」に「私の音楽遍歴（中学・高校・大人・今）」を足しました。横5 × 縦4になり、上の行から時期の順に5曲ずつ並べられます。",
+     "Added “My music history (junior high, high school, adult, now)” to “Theme”. It sets the grid to 5 × 4 so you can fill one row of 5 tracks per period, top to bottom."),
     ("2026-10-01", "TRACKMENTOを2つのタブで開いていると、片方で作った並びが「並び」のメニューから消えることがあったのを直しました。消えていた並びは、次に開いたときにメニューへ戻るようになります（中身が端末に残っている場合）。",
      "Fixed layouts sometimes disappearing from the “Layout” menu when TRACKMENTO was open in two tabs. Missing layouts come back to the menu the next time you open it (as long as they are still stored on your device)."),
     ("2026-10-01", "日本語の画面と案内の文で、英字や数字と日本語のあいだの空白を詰めました（「9 トラック」→「9トラック」）。",

@@ -1715,6 +1715,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <span class="popup"><select id="theme-sel">
           <option value="">見本から選ぶ…</option>
           <option value="3x3">私を構成する9曲</option>
+          <!-- 横5 × 縦4で、上の行から時期の順に5曲ずつ（2026-10-11）。行ごとの見出しは画像に描けないので、題名の括弧で行の意味を伝える -->
+          <option value="5x4">私の音楽遍歴（中学・高校・大人・今）</option>
           <option value="t">推しの「歌ってみた」</option>
           <option value="t">雨の日に聴く曲</option>
           <option value="t">好きな音MAD</option>
@@ -2559,6 +2561,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "配置数": "Cells filled",
         "グリッドを折りたたむ": "Collapse grid",
         "例: 私を構成する9曲": "e.g. 9 tracks that made me",
+        "例: 私の音楽遍歴（中学・高校・大人・今）": "e.g. My music history (junior high, high school, adult, now)",
         "例: 推しの「歌ってみた」": "e.g. Covers by my favorite singer",
         "例: 雨の日に聴く曲": "e.g. Songs for rainy days",
         "例: 好きな音MAD": "e.g. My favorite otomads",
@@ -2753,6 +2756,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "お題": "Theme",
         "見本から選ぶ…": "Pick an example…",
         "私を構成する9曲": "9 tracks that made me",
+        "私の音楽遍歴（中学・高校・大人・今）": "My music history (junior high, high school, adult, now)",
         "推しの「歌ってみた」": "Covers by my favorite singer",
         "雨の日に聴く曲": "Songs for rainy days",
         "好きな音MAD": "My favorite otomads",
@@ -2902,12 +2906,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* 題名欄の例は開くたびに変える（2026-09-23、運用ボードのopen-use）。例が「私を構成する9曲」だけだと、
      ほかの決まりで並べた人が「想定と合っているか分からない」と感じるため。選ぶ基準がばらばらな例を混ぜる。
      言語を切り替えても同じ例のままにするので、番号は読み込んだときに1回だけ決める。
-     **中身は「お題」のメニュー（theme-sel）と同じ10個にそろえる**（2026-09-24、利用者の依頼）。片方を変えたらもう片方も */
+     **中身は「お題」のメニュー（theme-sel）と同じ11個にそろえる**（2026-09-24、利用者の依頼。10-11に「音楽遍歴」を足した）。片方を変えたらもう片方も */
   // tr() の形で書く（scripts/check_i18n.pyがtr("…") を拾って英訳と突き合わせるため）
-  const titleExamples = () => [tr("例: 私を構成する9曲"), tr("例: 推しの「歌ってみた」"), tr("例: 雨の日に聴く曲"), tr("例: 好きな音MAD"),
+  const titleExamples = () => [tr("例: 私を構成する9曲"), tr("例: 私の音楽遍歴（中学・高校・大人・今）"), tr("例: 推しの「歌ってみた」"), tr("例: 雨の日に聴く曲"), tr("例: 好きな音MAD"),
     tr("例: 今月かなり聴いた曲"), tr("例: 好きなボカロ"), tr("例: 文化祭のセトリ"), tr("例: ジャケットが青い曲"), tr("例: 作業がはかどるBGM"),
     tr("例: ドライブで聴きたい曲")];
-  const TITLE_EX_I = Math.floor(Math.random() * 10);
+  const TITLE_EX_I = Math.floor(Math.random() * titleExamples().length);
   function titleExample() { return titleExamples()[TITLE_EX_I]; }
 
   const I18N_SNAP = [];
