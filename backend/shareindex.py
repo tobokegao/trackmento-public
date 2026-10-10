@@ -262,6 +262,7 @@ def varied(limit: int = 8) -> list[dict]:
 
 POPULAR_TTL = 600         # 「よく選ばれている曲」を数え直す間隔（秒）
 POPULAR_MIN = 2           # 1つのグリッドにしか無い曲は出さない（どれも1件だと順位にならない）
+POPULAR_SAME = 3          # これだけの曲が重なり、かつ小さいほうの半分以上なら同じ人の並びと見る
 _popular_memo: tuple[float, int, list[dict]] | None = None
 
 
@@ -282,14 +283,28 @@ def popular(limit: int = 20) -> list[dict]:
     with _lock:
         items = list(_entries)
     alive = _alive_after()
-    count: Counter[str] = Counter()
+    # **曲が大きく重なる並びは1つにまとめて数える**。手直ししながら同じ並びを載せ直す人がいて、
+    # 1人の「私を構成する25曲」の約25回分で上位20曲が埋まった（2026-10-11、本番）。重なりが
+    # `POPULAR_SAME` 曲以上かつ小さいほうの半分以上なら同じ人の並びと見て、曲はまとまりごとに1と数える
+    groups: list[set[str]] = []
+    where: dict[str, list[int]] = {}      # 曲 → それを含むまとまり
     names: dict[str, Counter[tuple[str, str]]] = {}
     for e in items:
         if e["createdAt"] and e["createdAt"] < alive:
             continue
+        ks = {k for k, _, _ in e["_keys"]}
         for k, t, a in e["_keys"]:
-            count[k] += 1
             names.setdefault(k, Counter())[(t, a)] += 1
+        shared = Counter(g for k in ks for g in where.get(k, ()))
+        gid = next((g for g, c in shared.most_common()
+                    if c >= POPULAR_SAME and c * 2 >= min(len(ks), len(groups[g]))), None)
+        if gid is None:
+            gid = len(groups)
+            groups.append(set())
+        for k in ks - groups[gid]:
+            groups[gid].add(k)
+            where.setdefault(k, []).append(gid)
+    count = Counter(k for g in groups for k in g)
     out = []
     for k, n in count.most_common():
         if n < POPULAR_MIN or len(out) >= limit:
