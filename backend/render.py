@@ -2195,6 +2195,40 @@ def _title_width(title: str, title_size: int) -> int:
 # **マスの番号バッジの大きさ**（論理px。マスの幅CELL_W=600に対して）。frontendのBADGE_PX / BADGE_PAD / BADGE_SHADOWと同じ値にする。
 # 2026-09-27に字22・余白12・影3から大きくした（書き出しでバッジが小さすぎる、と利用者）
 BADGE_PX, BADGE_PAD, BADGE_SHADOW = 48, 20, 6
+# **行の見出しの札**（論理px。2026-10-11、お題「私の音楽遍歴」）。各行の左端のマスの左上に、番号バッジと同じ作りの札を重ねる。
+# 割り付けは変えない（札はマスの上）。番号バッジはその下にずらす。frontendのLABEL_* と同じ値にする
+LABEL_PX, LABEL_PAD_X, LABEL_PAD_Y = 40, 16, 10
+
+
+def _label_w(s: str, px: int) -> int:
+    """札の字の幅。**1字ずつ1pxに丸めて足す**（`_title_width` と同じ。丸ごと測るとPILとCanvasで数px違う）"""
+    return _title_width(s, px) - 8 if s else 0
+
+
+def _fit_label(s: str, px: int, max_w: int) -> str:
+    """札がマスに収まるよう後ろを「…」にする。幅は `_label_w` で測る（frontendのfitLabelと同じ規則）"""
+    if _label_w(s, px) <= max_w:
+        return s
+    for k in range(len(s) - 1, 0, -1):
+        if _label_w(s[:k] + "…", px) <= max_w:
+            return s[:k] + "…"
+    return ""
+
+
+def _row_label(d: ImageDraw.ImageDraw, x: int, y: int, cw: int, text: str, sc, bg, ink) -> int:
+    """行の見出しの札を (x, y) に描き、札の下端から番号バッジまでずらす量（出力px）を返す。描かなければ0"""
+    px = max(8, sc(LABEL_PX))
+    padx, pady, shadow = max(2, sc(LABEL_PAD_X)), max(2, sc(LABEL_PAD_Y)), sc(BADGE_SHADOW)
+    s = _fit_label(text, px, cw - shadow - padx * 2)
+    if not s:
+        return 0
+    bw, bh = _label_w(s, px) + padx * 2, px + pady * 2
+    d.rectangle((x, y, x + bw - 1, y + bh - 1), fill=bg)
+    d.rectangle((x + bw, y, x + bw + shadow, y + bh - 1), fill=ink)
+    d.rectangle((x, y + bh, x + bw + shadow, y + bh + shadow), fill=ink)
+    # 字面の中心を札の中心に置く（タイトルの回り込みと同じ固定比 BASELINE。PILとCanvasで字面の測り方が違うため）
+    d.text((x + padx, y + rnd(bh / 2) + rnd(px * BASELINE)), s, font=font("bold", px), fill=ink, anchor="ls")
+    return bh + shadow * 2
 
 
 def render(doc: GridDoc) -> Image.Image:
@@ -2282,6 +2316,11 @@ def render(doc: GridDoc) -> Image.Image:
                 if artist:
                     fa = _shrink_font(d, artist, f_ov_a, ov_as, max_w, kind="regular")
                     d.text((x + ov_pad, ab), _ellipsize(d, artist, fa, max_w), font=fa, fill=OVERLAY_SUB, anchor="ls")
+        # 行の見出し（各行の左端のマス。空きマスでも描く。行の意味を示すものなので）
+        dy = 0
+        if c == 0 and r < len(doc.rowLabels) and doc.rowLabels[r]:
+            dy = _row_label(d, x, y, cw, _one_line(doc.rowLabels[r]), sc, badge_bg, ink)
+        y += dy
         # **番号バッジは曲の入ったマスだけ**、曲名リストと同じ序数で（2026-09-25。前は空きマスにも位置の番号を出していた）
         if o.numbers and t:
             label = f"{k:02d}"

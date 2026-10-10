@@ -468,6 +468,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-10-11", "お題の下に「行の見出し」を足しました。行ごとに12字まで書くことができ、書き出す画像では各行の左端のマスに札として出ます。「私の音楽遍歴」を選ぶと、中学・高校・大人・今が入ります。",
+     "Added “Row labels” below “Theme”. You can write up to 12 characters per row, and each label appears as a tag on the first cell of its row in the exported image. Choosing “My music history” fills in junior high, high school, adult and now."),
     ("2026-10-11", "「みんなのグリッドを探す」に「よく選ばれている曲」を足しました。この30日間に載ったグリッドに多く入っている曲が20曲まで並び、押すとその曲の入ったグリッドを探せます。",
      "“Find shared grids” now has a “Most-picked tracks” list: up to 20 tracks that appear in the most grids listed in the last 30 days. Tap one to find the grids that contain it."),
     ("2026-10-11", "「お題」に「私の音楽遍歴（中学・高校・大人・今）」を足しました。横5 × 縦4になり、上の行から時期の順に5曲ずつ並べられます。",

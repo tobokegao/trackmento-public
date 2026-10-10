@@ -25,6 +25,7 @@ NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 MAX_COLS = 32
 MAX_ROWS = 32
 MAX_STASH = 200   # マスから溢れた曲の控え。無制限だとJSONが肥大する
+MAX_ROW_LABEL = 12   # 行の見出しの字数。frontendのMAX_ROW_LABELと同じ（札がマスからはみ出しにくい長さ）
 Ratio = Literal["1:1", "16:9", "4:5", "9:16", "free"]
 BG_KEYS = ("paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink",
            "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
@@ -199,6 +200,19 @@ class GridDoc(BaseModel):
     # **みんなの並びから探せるようにするか**（既定オフ）。共有は本来URLを知っている人だけのものなので、
     # 索引（`backend/shareindex.py`）に載せるのは利用者が自分でチェックを入れたものだけにする
     listed: bool = False
+    # **行の見出し**（2026-10-11、お題「私の音楽遍歴」のため。利用者が書き換えられる）。上の行から順に、書き出しでは
+    # 各行の左端のマスに札として描く（render.pyの `_row_label` とfrontendの `rowLabelBox`）。空の行は描かない
+    rowLabels: list[str] = Field(default_factory=list)
+
+    @field_validator("rowLabels", mode="before")
+    @classmethod
+    def _row_labels(cls, v) -> list[str]:
+        if not isinstance(v, list):
+            return []
+        out = [" ".join((s if isinstance(s, str) else "").split())[:MAX_ROW_LABEL] for s in v[:MAX_ROWS]]
+        while out and not out[-1]:
+            out.pop()
+        return out
 
     @field_validator("cols", "rows", mode="before")
     @classmethod

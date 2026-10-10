@@ -14,6 +14,8 @@
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 16 16 16:9 fill
     #    「ぼかして埋める」を比べるときはblur（マスは正方形のまま）、横長のマスならwideも足す
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 3 3 1:1 blur
+    #    行の見出しを比べるときはlabels
+    PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py make 5 4 16:9 labels
     # 2) 出たURLをブラウザで開き「トラックを共有」を押す（ブラウザ描画の共有ができる）
     # 3) 2つの共有IDを比べる
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py diff <サーバーのID> <ブラウザのID>
@@ -41,11 +43,13 @@ NO_COVER_CELL = {"source": "manual", "title": "ジャケット無しの曲", "ar
                  "image": "/no-cover.png", "thumb": "/no-cover.png", "external_url": None}
 
 
-def make(cols: int, rows: int, ratio: str, fill: bool = False, blur: bool = False, wide: bool = False) -> None:
+def make(cols: int, rows: int, ratio: str, fill: bool = False, blur: bool = False, wide: bool = False,
+         labels: bool = False) -> None:
     """grids/default.jsonの曲を使って比較用の並びを作り、サーバー描画の共有を1件作る。
 
     fill=Trueなら曲を繰り返して全部のマスを埋める。曲名リストの流し込み（曲が多いときだけ
     切り替わる）を比べるには、マスが埋まっていないと再現しない。
+    labels=Trueなら行の見出し（各行の左端の札。2026-10-11）を付ける。長くて「…」になる行も混ぜる
     """
     src = json.loads((ROOT / "grids" / "default.json").read_text(encoding="utf-8"))
     tracks = [c for c in src["cells"] if c] + [NO_COVER_CELL]   # うちのアイコンの経路も通す
@@ -56,9 +60,10 @@ def make(cols: int, rows: int, ratio: str, fill: bool = False, blur: bool = Fals
     else:
         for i, t in enumerate(tracks[: cols * rows]):
             cells[i] = t
-    name = f"u-rendercmp{cols}x{rows}{'full' if fill else ''}{'blur' if blur else ''}{'wide' if wide else ''}"
+    name = f"u-rendercmp{cols}x{rows}{'full' if fill else ''}{'blur' if blur else ''}{'wide' if wide else ''}{'lab' if labels else ''}"
     doc = {"app": "trackmento", "version": 1, "name": name, "cols": cols, "rows": rows,
            "cells": cells, "stash": [], "title": "描画くらべ",
+           "rowLabels": (["中学", "高校", "大人", "今", "とても長い見出しの行です"] * 7)[:rows] if labels else [],
            "options": {"ratio": ratio, "showTitle": True, "sidebar": True, "numbers": True,
                        "bg": "mustard", "bgCustom": None, "margin": 16, "gap": 16,
                        "cellRatio": "16:9" if wide else "1:1", "cellFit": "blur" if blur else "crop"}}
@@ -140,10 +145,10 @@ def main() -> int:
         return 2
     cmd = sys.argv[1]
     if cmd == "make":
-        flags = {"fill", "blur", "wide"}
+        flags = {"fill", "blur", "wide", "labels"}
         args = [a for a in sys.argv[2:] if a not in flags]
         make(int(args[0]), int(args[1]), args[2] if len(args) > 2 else "16:9", "fill" in sys.argv[2:],
-             blur="blur" in sys.argv[2:], wide="wide" in sys.argv[2:])
+             blur="blur" in sys.argv[2:], wide="wide" in sys.argv[2:], labels="labels" in sys.argv[2:])
         return 0
     if cmd == "diff":
         return diff(sys.argv[2], sys.argv[3])

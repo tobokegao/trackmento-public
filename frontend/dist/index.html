@@ -36,7 +36,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.b7c1047f.css">
+<link rel="stylesheet" href="app/app.c31430e3.css">
 </head>
 <body>
 
@@ -216,7 +216,7 @@
           <option value="">見本から選ぶ…</option>
           <option value="3x3">私を構成する9曲</option>
           <!-- 横5 × 縦4で、上の行から時期の順に5曲ずつ（2026-10-11）。行ごとの見出しは画像に描けないので、題名の括弧で行の意味を伝える -->
-          <option value="5x4">私の音楽遍歴（中学・高校・大人・今）</option>
+          <option value="5x4" data-rows="history">私の音楽遍歴（中学・高校・大人・今）</option>
           <option value="t">推しの「歌ってみた」</option>
           <option value="t">雨の日に聴く曲</option>
           <option value="t">好きな音MAD</option>
@@ -227,6 +227,18 @@
           <option value="t">作業がはかどるBGM</option>
           <option value="t">ドライブで聴きたい曲</option>
         </select></span>
+      </div>
+      <!-- 行の見出し（2026-10-11）。書き出しでは各行の左端のマスに札を重ねる。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
+           枠とサムネと同じ三角で畳む（ふだんは使わないので） -->
+      <div class="rowlabels">
+        <div class="disclose-head">
+          <button class="disclose" type="button" id="rowlab-btn" aria-expanded="false" aria-controls="rowlab-body"><span class="tri" aria-hidden="true"></span><span>行の見出し</span></button>
+          <p class="disclose-sum" id="rowlab-sum"></p>
+        </div>
+        <div class="disclose-body" id="rowlab-body" hidden>
+          <p class="hint">各行の左端のマスに札として出ます。空にした行には出ません。</p>
+          <ol class="rowlab-list" id="rowlab-list"></ol>
+        </div>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
@@ -685,6 +697,6 @@
 <div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
-<script id="app-js" src="app/app.9a17b865.js"></script>
+<script id="app-js" src="app/app.92e5aca5.js"></script>
 </body>
 </html>
