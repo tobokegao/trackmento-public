@@ -1225,7 +1225,7 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
             if rp is not None:
                 return rp
         inline = False
-    pitch = cell_h(doc) + doc.options.gap      # マスの段1つぶんの送り（**高さ**で決まる）
+    pitch = cell_h(doc) + _row_gap(doc)      # マスの段1つぶんの送り（**高さ**で決まる。行の見出しがあれば行の間隔は広い）
     # **段の中で縦に積むか、横に並べるか**。縦に積むほうが1行が長く取れて読みやすいので既定。
     # ただし段が多いと1曲ぶんが薄くなりすぎるので（2x32で出力10.8px）、そのときは横に並べる
     # （マスと同じ「左から右へ、次の段へ」の順になる）
@@ -1498,7 +1498,7 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         font_s = fs if fs else max(18, rnd(target / scale))
         # **マスの送りの約数に寄せる**（塊の左右に流れる行が、ジャケットの段とそろう）。
         # ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
-        line_h = lh or _snap_lead(rnd(font_s * 1.5), cell_h(doc) + doc.options.gap)   # マスの段にそろえる（高さ）
+        line_h = lh or _snap_lead(rnd(font_s * 1.5), cell_h(doc) + _row_gap(doc))   # マスの段にそろえる（高さ）
         pad = _mod_pad(max(m, rnd(min(W, H) * _pad_frac(doc))), doc.options.gap)
         # **左右が半端なら、塊を左端に寄せて右に1本の広い段を作る**（コの字に囲む）。
         # 中央に置くと左右が両方とも「文字を流すには狭い」幅になり、両方とも使えず捨てになる。
@@ -1739,7 +1739,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     n_tracks = max(1, sum(1 for t in doc.cells if t))   # 入っている曲の数（「消える曲」の割合を測る母数）
     title = _one_line(doc.title) if o.showTitle else ""
     gw = _label_col(doc) + cols * CELL_W + (cols - 1) * g   # 行の見出しがあれば左にその列を足す（`_label_col`）
-    gh = rows * cell_h(doc) + (rows - 1) * g
+    gh = rows * cell_h(doc) + (rows - 1) * _row_gap(doc)   # 行の見出しがあれば行の間隔を広げる（`_row_gap`）
     # `_title_px` は「曲名リストより十分大きく」するための組み直し（下のTITLE_MIN_SCALEを参照）
     title_size = _title_px or rnd(min(96, max(48, gw * 0.045)))
     title_h = rnd(title_size * 1.9) if title else 0
@@ -1773,7 +1773,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         w_est = rnd((title_top_h + gh + m * 2) * ratio)
         cap = max(LIST_MIN_COL, min(gw * 2, w_est - m * 2 - gw - sb_gap))
 
-    pitch = cell_h(doc) + doc.options.gap  # マスの段1つぶんの送り（行をこれの約数にそろえる。**高さ**）
+    pitch = cell_h(doc) + _row_gap(doc)  # マスの段1つぶんの送り（行をこれの約数にそろえる。**高さ**）
 
     def _sidebar(cols: int, rows_total: int) -> tuple[int, int, int]:
         """列数を決めたときの (行の高さ, 文字の大きさ, サイドバーの幅)。"""
@@ -2207,6 +2207,16 @@ def _label_w(s: str, px: int) -> int:
     return _title_width(s, px) - 8 if s else 0
 
 
+ROW_GAP_FRAC = 0.5   # 行の見出しがあるときの行と行のあいだ（マスの高さに対する比）。48・120（論理px）では狭く、サムネの半分ほどにと言われた（2026-10-11、利用者の求め）
+
+
+def _row_gap(doc: GridDoc) -> int:
+    """行と行のあいだ（論理px）。ふだんはマスの間隔と同じで、行の見出しがあるときだけマスの高さの `ROW_GAP_FRAC`
+    （マスの間隔のほうが広ければそちら）。縦の送り（マスの段の高さ＋これ）を使うところはすべてこれを通す。frontendのrowGapと同じ"""
+    g = doc.options.gap
+    return max(g, rnd(cell_h(doc) * ROW_GAP_FRAC)) if _label_col(doc) else g
+
+
 def _label_col(doc: GridDoc) -> int:
     """見出しの列の幅（論理px。マスとのあいだの間隔を含む）。見出しが1つも無ければ0"""
     w = max((_label_w(_one_line(t), LABEL_COL_PX) for t in doc.rowLabels[:doc.rows] if _one_line(t)), default=0)
@@ -2281,12 +2291,12 @@ def render(doc: GridDoc) -> Image.Image:
         f_lab = font("bold", lpx)
         for r, t in enumerate(doc.rowLabels[:doc.rows]):
             if _one_line(t):
-                d.text((sc(L.ox), sc(y0 + r * (cell_h(doc) + o.gap)) + rnd(ch / 2) + rnd(lpx * BASELINE)),
+                d.text((sc(L.ox), sc(y0 + r * (cell_h(doc) + _row_gap(doc))) + rnd(ch / 2) + rnd(lpx * BASELINE)),
                        _one_line(t), font=f_lab, fill=ink, anchor="ls")
     k = 0                             # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。2026-09-25）
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
-        x, y = sc(L.ox + lab + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + o.gap))
+        x, y = sc(L.ox + lab + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + _row_gap(doc)))
         k += 1 if t else 0
         # **空きマスは塗らない**（背景の色が見える。2026-09-25、利用者の指摘。灰色の四角が並ぶと「読み込めなかった」ように見える）。
         # 曲の入ったマスだけ下地を塗る（ジャケットが取れなかったときに、そこに曲があると分かるように）。frontendのrenderShareCanvasと同じ

@@ -3061,7 +3061,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const BADGE_PX = 48, BADGE_PAD = 20, BADGE_SHADOW = 6;
   /* 行の見出し（論理px。backend/render.pyのLABEL_COL_PXと同じ値。2026-10-11、お題「私の音楽遍歴」）。
      グリッドの左に見出しの列を足し、各行の高さの中央に字を置く（labelCol。描くのはrenderShareCanvas）。字数はbackend/grids.pyのMAX_ROW_LABELと同じ */
-  const LABEL_COL_PX = 64, MAX_ROW_LABEL = 12;
+  const LABEL_COL_PX = 64, MAX_ROW_LABEL = 12, ROW_GAP_FRAC = 0.5;   // ROW_GAP_FRAC: 見出しがあるときの行の間隔（マスの高さに対する比）
   const CELL_PX = CELL_W;                                       // 旧名。幅から決まる式が読む
   const cellH = () => CELL_H_BY_RATIO[state.cellRatio] || CELL_W;
   const cellShort = () => Math.min(CELL_W, cellH());             // 帯や番号を出すかの判定は**短辺**
@@ -6389,7 +6389,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       }
       inline = false;
     }
-    const pitch = cellH() + state.gap;   // マスの段1つぶんの送り（**高さ**で決まる）
+    const pitch = cellH() + rowGap();   // マスの段1つぶんの送り（**高さ**で決まる。行の見出しがあれば行の間隔は広い）
     // 段の中で縦に積むか横に並べるか。縦に積むほうが1行を長く取れるので既定。
     // 段が多いと1曲ぶんが薄くなりすぎるので（2x32で出力10.8px）、そのときは横に並べる
     const per = beside ? pitch : Math.round(pitch / cols);   // 曲名1曲ぶんの高さ
@@ -6626,7 +6626,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       const fontS = fs || Math.max(18, Math.round(target / scale));
       // **マスの送りの約数に寄せる**（塊の左右に流れる行がジャケットの段とそろう）。
       // ここは枠を探しながら組むので、入らなければ探索が次の大きさへ進む
-      const lineH = lhFix || snapLead(Math.round(fontS * 1.5), cellH() + state.gap);   /* マスの段にそろえる（高さ） */
+      const lineH = lhFix || snapLead(Math.round(fontS * 1.5), cellH() + rowGap());   /* マスの段にそろえる（高さ） */
       const pad = modPad(Math.max(m, Math.round(Math.min(W, H) * padFrac())), state.gap);
       // **左右が半端なら、塊を左端に寄せて右に1本の広い段を作る**（コの字に囲む。下を参照）
       let gx = Math.round((W - gw) / 2);
@@ -7059,7 +7059,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const n = viewCells().length;
     const nTracks = Math.max(1, viewCells().filter(Boolean).length);   // 入っている曲の数（「消える曲」の割合の母数）
     const g = state.gap;
-    const gw = labelCol(rows) + cols * CELL_W + (cols - 1) * g, gh = rows * cellH() + (rows - 1) * g;   // 行の見出しがあれば左にその列を足す
+    const gw = labelCol(rows) + cols * CELL_W + (cols - 1) * g, gh = rows * cellH() + (rows - 1) * rowGap(rows);   // 行の見出しがあれば左にその列を足し、行の間隔を広げる
     const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
     let titleH = title ? Math.round(titleSize * 1.9) : 0;   // 右に置くときは、下で行の整数倍に直す
     const ratio = RATIOS[state.ratio];
@@ -7076,7 +7076,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // **数えるのは曲の入ったマスだけ**（空きマスの行を作らない。backend/render.pyと同じ。2026-09-25）
     const baseRows = listCells().reduce((a, t) => a + (oneLine(t.artist) ? 2 : 1), 0);
     const availH = gh - titleH;
-    const pitch = cellH() + state.gap;   // マスの段1つぶんの送り（行をこれの約数にそろえる。**高さ**）
+    const pitch = cellH() + rowGap();   // マスの段1つぶんの送り（行をこれの約数にそろえる。**高さ**）
     let sbW = 0, sbH = 0, sbCols = 1;
     // **マスの塊と曲名リストのすきま**。定数だと枠が大きいときに出力で3pxにしかならない。
     // 内容の高さに比例させる（backend/render.pyと同じ）
@@ -7526,7 +7526,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function syncPreview() {
     const lab = labelCol(state.rows);   // 行の見出しの列（書き出しと同じ幅。画面では空き段も含めて全部の行に出す）
     const gw = lab + state.cols * CELL_W + (state.cols - 1) * state.gap;
-    const gh = state.rows * cellH() + (state.rows - 1) * state.gap;
+    const gh = state.rows * cellH() + (state.rows - 1) * rowGap(state.rows);
     const ar = (gw + state.margin * 2) / (gh + state.margin * 2);   // 中身の縦横比
     if (gridZoomed) {
       // **拡大窓では並び全体がそのまま入る大きさにする**（縦・横のうち先に当たるほうに合わせる）。
@@ -7590,6 +7590,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     els.grid.style.padding = `${pad}px`;
     els.grid.style.gap = `${gap}px`;
     els.grid.dataset.labels = lab ? "on" : "off";
+    els.grid.style.rowGap = `${rowGap(state.rows) * k}px`;   // 行の見出しがあれば行の間隔は広い（書き出しと同じ比率）
     els.grid.style.setProperty("--labw", `${Math.max(0, lab - state.gap) * k}px`);
     els.grid.style.setProperty("--labpx", `${Math.max(9, LABEL_COL_PX * k)}px`);
     els.grid.style.setProperty("--grid-ink", token(isLight(bgColor() || token("paper")) ? "ink" : "paper"));   // 見出しの字は書き出しと同じく地の明るさで黒か白
@@ -8296,6 +8297,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* 行の見出し（backend/render.pyの _label_w / _label_colと対で直すこと）。
      幅は1字ずつ1pxに丸めて足す（titleWidthと同じ。丸ごと測るとPILと数px違う） */
   const labelW = (s, px) => (s ? titleWidth(s, px) - 8 : 0);
+  // 行と行のあいだ（論理px）。行の見出しがあるときだけマスの高さのROW_GAP_FRAC（間隔のほうが広ければそちら。backend/render.pyの _row_gapと同じ）
+  const rowGap = (rows = exRows()) => (labelCol(rows) ? Math.max(state.gap, Math.round(cellH() * ROW_GAP_FRAC)) : state.gap);
   // 見出しの列の幅（論理px。マスとのあいだの間隔を含む）。見出しが1つも無ければ0
   function labelCol(rows = exRows()) {
     const w = Math.max(0, ...state.rowLabels.slice(0, rows).map(t => oneLine(t || "")).filter(Boolean).map(t => labelW(t, LABEL_COL_PX)));
@@ -8592,13 +8595,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       ctx.font = fontBold(lpx); ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
       state.rowLabels.slice(0, EX.rows).forEach((t, r) => {
         const s = oneLine(t || "");
-        if (s) ctx.fillText(s, sc(L.ox), sc(y0 + r * (cellH() + state.gap)) + Math.round(ch / 2) + Math.round(lpx * BASELINE));
+        if (s) ctx.fillText(s, sc(L.ox), sc(y0 + r * (cellH() + rowGap(EX.rows))) + Math.round(ch / 2) + Math.round(lpx * BASELINE));
       });
     }
     let k = 0;   // 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。backend/render.pyと同じ。2026-09-25）
     for (let i = 0; i < n; i++) {
       const t = VC[i], c = i % EX.cols, r = Math.floor(i / EX.cols);
-      const x = sc(L.ox + lab + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + state.gap));
+      const x = sc(L.ox + lab + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + rowGap(EX.rows)));
       if (t) k++;
       // **空きマスは塗らない**（背景の色が見える。backend/render.pyと同じ。2026-09-25）
       if (t) { ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch); }
