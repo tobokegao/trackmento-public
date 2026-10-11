@@ -609,6 +609,9 @@ CLIP_GAIN = 0.35          # 右に置くとき、名前が消える曲が1つ増
                           # 6x6・36曲は1.39倍しか大きくならないので両方とも増やさない）
 
 
+LIST_HEAD_SCALE = 1.25   # 曲名リストの見出しの字（曲名の字に対する倍率）。同じ大きさだと見分けにくい（2026-10-11、利用者の指摘）。frontendと同じ値
+
+
 @dataclass(frozen=True)
 class _Head:
     """曲名リストに差し込む**行の見出し**（2026-10-11、利用者の求め）。曲と同じ1項目として組むので、
@@ -947,7 +950,8 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
     行には「使った幅」と「曲の切れ目の数」を添える。描画側が余った幅を切れ目に配って
     右端をそろえる。
     """
-    sizes = {"num": ("pixel", rnd(font_s * 0.8)), "title": ("bold", font_s), "artist": ("regular", font_s)}
+    sizes = {"num": ("pixel", rnd(font_s * 0.8)), "title": ("bold", font_s), "artist": ("regular", font_s),
+             "head": ("bold", rnd(font_s * LIST_HEAD_SCALE))}   # 行の見出しは大きい字（幅もその字で測る）
     fonts = {k: font(*v) for k, v in sizes.items()}
     gap = float(rnd(fonts["title"].getlength("　")))   # 曲と曲のあいだは全角空白1つぶん
     rows: list[FlowRow] = []
@@ -1037,7 +1041,7 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             if cur:
                 rows.append(FlowRow(cur, x, gaps, True))
             cur, x, gaps = [], 0.0, 0
-            put("title", _one_line(t.title))
+            put("head", _one_line(t.title))
             continue
         if cur:
             # 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない
@@ -2449,9 +2453,10 @@ def render(doc: GridDoc) -> Image.Image:
     # 曲名（マスの塊のまわりに回り込ませる）
     if L.wrap:
         fs = max(8, sc(L.font_s))
-        sizes = {"num": ("pixel", max(8, sc(L.font_s * 0.8))), "title": ("bold", fs), "artist": ("regular", fs)}
+        sizes = {"num": ("pixel", max(8, sc(L.font_s * 0.8))), "title": ("bold", fs), "artist": ("regular", fs),
+                 "head": ("bold", max(8, rnd(fs * LIST_HEAD_SCALE)))}
         f_flow = {k: font(*v) for k, v in sizes.items()}
-        colors = {"num": muted, "title": ink, "artist": muted}
+        colors = {"num": muted, "title": ink, "artist": muted, "head": ink}
         flow = _flow_rows(doc, L.font_s, 0.0, [float(sg[2]) for sg in L.wrap_segs])
         # **送りは1pxに丸めて足す**。実寸のまま足すとPILとCanvasの1px未満の差が
         # 行の中で積み上がり、**文字が大きいほど大きくずれる**（32x1・1:1で11% の差になった）
@@ -2493,9 +2498,10 @@ def render(doc: GridDoc) -> Image.Image:
         if L.sb_flow:
             # 曲名を続けて流し込む。行の中身は種類ごとに書体と色を変えて描く
             fs = max(8, sc(L.font_s))
-            sizes = {"num": ("pixel", max(8, sc(L.font_s * 0.8))), "title": ("bold", fs), "artist": ("regular", fs)}
+            sizes = {"num": ("pixel", max(8, sc(L.font_s * 0.8))), "title": ("bold", fs), "artist": ("regular", fs),
+                     "head": ("bold", max(8, rnd(fs * LIST_HEAD_SCALE)))}
             f_flow = {k: font(*v) for k, v in sizes.items()}
-            colors = {"num": muted, "title": ink, "artist": muted}
+            colors = {"num": muted, "title": ink, "artist": muted, "head": ink}
             flow = _flow_rows(doc, L.font_s, col_w)
             # 行の中身は1本のベースラインに乗せる（上の回り込みと同じ理由）
             base = rnd(fs * BASELINE)
@@ -2537,6 +2543,7 @@ def render(doc: GridDoc) -> Image.Image:
         f_num = font("pixel", max(8, sc(L.font_s * 0.8)))
         f_title = font("bold", font_s)
         f_artist = font("regular", max(8, rnd(font_s * ARTIST_SCALE)))
+        f_head = font("bold", max(8, rnd(font_s * LIST_HEAD_SCALE)))   # 行の見出し
         if L.sb_inline:
             # 1行型: 曲名は番号の後ろ、アーティスト名は列の右端にそろえる。2つは同じベースラインに乗せる
             # （字の大きさが違うので、行の中心で合わせると下端がずれて見える）
@@ -2560,7 +2567,7 @@ def render(doc: GridDoc) -> Image.Image:
                     d.rectangle((x, ly, right - 1, ly + rule_h - 1), fill=rule)
                 num = nums[i]
                 if not num:   # 行の見出し: 番号の位置から、曲名と同じ太字で
-                    d.text((x, yy + base), _ellipsize(d, _one_line(t.title), f_title, col_w * S), font=f_title, fill=ink, anchor="ls")
+                    d.text((x, yy + base), _ellipsize(d, _one_line(t.title), f_head, col_w * S), font=f_head, fill=ink, anchor="ls")
                     continue
                 _, top, _, bottom = f_num.getbbox(num, anchor="ls")
                 d.text((x, rnd(yy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
@@ -2586,7 +2593,7 @@ def render(doc: GridDoc) -> Image.Image:
             yy = row_y(row)
             num = nums[i]
             if not num:   # 行の見出し: 番号の位置から、曲名と同じ太字で1行
-                d.text((x, yy), _ellipsize(d, _one_line(t.title), f_title, col_w * S), font=f_title, fill=ink, anchor="lm")
+                d.text((x, yy), _ellipsize(d, _one_line(t.title), f_head, col_w * S), font=f_head, fill=ink, anchor="lm")
                 continue
             # ピクセルフォントはemボックス内で字面が上に寄るので、字面（インク）の中心を行の中心に置く
             _, top, _, bottom = f_num.getbbox(num, anchor="ls")

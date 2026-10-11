@@ -3061,6 +3061,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const BADGE_PX = 48, BADGE_PAD = 20, BADGE_SHADOW = 6;
   /* 行の見出し（論理px。backend/render.pyのLABEL_COL_PXと同じ値。2026-10-11、お題「私の音楽遍歴」）。
      グリッドの左に見出しの列を足し、各行の高さの中央に字を置く（labelCol。描くのはrenderShareCanvas）。字数はbackend/grids.pyのMAX_ROW_LABELと同じ */
+  const LIST_HEAD_SCALE = 1.25;   // 曲名リストの見出しの字（曲名の字に対する倍率。backend/render.pyと同じ）
   const LABEL_COL_PX = 64, MAX_ROW_LABEL = 12, ROW_GAP_FRAC = 0.5;   // ROW_GAP_FRAC: 見出しがあるときの行の間隔（マスの高さに対する比）
   const CELL_PX = CELL_W;                                       // 旧名。幅から決まる式が読む
   const cellH = () => CELL_H_BY_RATIO[state.cellRatio] || CELL_W;
@@ -6256,14 +6257,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 折り返しは字の単位。曲の単位で折ると行の頭がいつも番号になって規則的に見えるため。
     // そのかわりサーバー（PIL）とブラウザ（Canvas）で折り返す位置がわずかにずれる
     const ctx = probe;
-    const fonts = { num: fontPixel(Math.round(fontS * 0.8)), title: fontBold(fontS), artist: fontRegular(fontS) };
+    const fonts = { num: fontPixel(Math.round(fontS * 0.8)), title: fontBold(fontS), artist: fontRegular(fontS), head: fontBold(Math.round(fontS * LIST_HEAD_SCALE)) };
     // **PILは字幅を1/64 pxの固定小数で返す**。Canvasの実数をそこへ丸めてから1pxに丸めないと、
     // 実寸がちょうど .5になる字（IBM Plexのe / r / -）だけ両者の丸めが1px食い違い、
     // その字から先の折り返しが全部ずれる（回り込みの突き合わせで2.9% の差になっていた）
     const snapW = (w) => Math.round(Math.round(w * 64) / 64);
     // **同じ字を何度も測らない**（割り付けを探すあいだに数十万回になる）。値は変わらない
     // 書体ごとの表は最初に1回だけ取り、あとは字だけで引く（1字ごとに鍵の文字列を作らない）
-    const wm = { num: fontWidths(fonts.num), title: fontWidths(fonts.title), artist: fontWidths(fonts.artist) };
+    const wm = { num: fontWidths(fonts.num), title: fontWidths(fonts.title), artist: fontWidths(fonts.artist), head: fontWidths(fonts.head) };
     const cw1 = (kind, ch) => {
       const m = wm[kind];
       let w = m.get(ch);
@@ -6335,7 +6336,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (!nums[i]) {   // 行の見出し。**必ず新しい行から**、番号を付けずに曲名と同じ太字で（backend/render.pyと同じ）
         if (cur.length) rows.push({ parts: cur, width: x, gaps, end: true });   // 見出しの手前で切った行は右端をそろえない
         cur = []; x = 0; gaps = 0;
-        put("title", oneLine(t.title));
+        put("head", oneLine(t.title));
         return;
       }
       // 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない送りが入る）
@@ -8750,8 +8751,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     } else if (L.wrap) {
       // 曲名をマスの塊のまわりに回り込ませる（backend/render.pyと同じ規則）
       const fs = Math.max(8, sc(L.fontS));
-      const fonts = { num: fontPixel(Math.max(8, sc(L.fontS * 0.8))), title: fontBold(fs), artist: fontRegular(fs) };
-      const colors = { num: cssRgb(muted), title: cssRgb(ink), artist: cssRgb(muted) };
+      const fonts = { num: fontPixel(Math.max(8, sc(L.fontS * 0.8))), title: fontBold(fs), artist: fontRegular(fs), head: fontBold(Math.max(8, Math.round(fs * LIST_HEAD_SCALE))) };
+      const colors = { num: cssRgb(muted), title: cssRgb(ink), artist: cssRgb(muted), head: cssRgb(ink) };
       // **行の中身は1本のベースラインに乗せる**（backend/render.pyと同じ）。textBaseline="middle"
       // とPILのanchor="lm" は基準が違い、文字が大きいほど食い違う（出力64pxで10pxずれた）
       ctx.textBaseline = "alphabetic";
@@ -8794,8 +8795,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (L.sbFlow) {
         // 曲名を続けて流し込む。行の中身は種類ごとに書体と色を変えて描く
         const fs = Math.max(8, sc(L.fontS));
-        const fonts = { num: fontPixel(Math.max(8, sc(L.fontS * 0.8))), title: fontBold(fs), artist: fontRegular(fs) };
-        const colors = { num: cssRgb(muted), title: cssRgb(ink), artist: cssRgb(muted) };
+        const fonts = { num: fontPixel(Math.max(8, sc(L.fontS * 0.8))), title: fontBold(fs), artist: fontRegular(fs), head: fontBold(Math.max(8, Math.round(fs * LIST_HEAD_SCALE))) };
+        const colors = { num: cssRgb(muted), title: cssRgb(ink), artist: cssRgb(muted), head: cssRgb(ink) };
         // 行の中身は1本のベースラインに乗せる（上の回り込みと同じ理由）
         ctx.textBaseline = "alphabetic";
         ctx.font = fonts.title;
@@ -8832,6 +8833,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       }
       const fontS = Math.max(8, sc(L.fontS)), numFont = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
       const titleFont2 = fontBold(fontS), artistFont = fontRegular(Math.max(8, Math.round(fontS * ARTIST_SCALE)));
+      const headFont = fontBold(Math.max(8, Math.round(fontS * LIST_HEAD_SCALE)));   // 行の見出し
       const rowY = (r) => sc(sy + r * L.lineH + L.lineH / 2);
       if (L.sbInline) {
         // 1行型: 曲名は番号の後ろ、アーティスト名は列の右端にそろえる。同じベースラインに乗せる（backend/render.pyと同じ）
@@ -8849,7 +8851,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           }
           const num = nums[i];
           if (!num) {   // 行の見出し: 番号の位置から、曲名と同じ太字で（backend/render.pyと同じ）
-            ctx.font = titleFont2; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
+            ctx.font = headFont; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
             ctx.fillText(ellipsizeText(ctx, oneLine(t.title), tColW * S), x, yy + base);
             continue;
           }
@@ -8878,7 +8880,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         const x = sc(sx + col * (colW + LIST_COL_GAP)), yy = rowY(row);
         const num = nums[i];
         if (!num) {   // 行の見出し: 番号の位置から、曲名と同じ太字で1行（backend/render.pyと同じ）
-          ctx.font = titleFont2; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
+          ctx.font = headFont; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
           ctx.fillText(ellipsizeText(ctx, oneLine(t.title), colW * S), x, yy);
           continue;
         }
