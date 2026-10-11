@@ -7174,7 +7174,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         const padW = Math.max(m, Math.round(gw * pf));
         const limit = Math.round((gw + padW * 2) / ratio) - padW * 2 - titleH;
         for (let f = Math.round(CELL_W * GRP_FONT_MAX); f > fs; f--) if (build(f, sep0)[2] <= limit) { fs = f; break; }
-        // 字を上限まで大きくしても縦に余るなら、まとまりの間を広げて使う（行の間隔 rg まで）
+        // 字を上限まで大きくしても縦に余るなら、まとまりの間を広げて使う（行の間隔rgまで）
         if (groups.length > 1) sep = sep0 + Math.max(0, Math.min(rg - sep0, Math.floor((limit - build(fs, sep0)[2]) / (groups.length - 1))));
       }
       lh = Math.round(fs * 1.5);
