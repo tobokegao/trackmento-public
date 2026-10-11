@@ -340,6 +340,8 @@ TEXT = {
         "find_popular": "よく選ばれている曲",
         "find_popular_note": "この{days}日間に載ったグリッドのうち、入っている数の多い曲です。",
         "find_popular_n": "（{n}件）",
+        "find_rare": "ひとりだけが選んだ曲",
+        "find_rare_note": "この{days}日間に載ったグリッドのうち、1人の並びにしか入っていない曲です。ほかに誰も選んでいないアーティストの曲を先に並べています。",
     },
     "en": {
         "expired_title": "This share is gone",
@@ -400,6 +402,8 @@ TEXT = {
         "find_popular": "Most-picked tracks",
         "find_popular_note": "Tracks that appear in the most grids listed in the last {days} days.",
         "find_popular_n": "({n} grids)",
+        "find_rare": "Picked by only one person",
+        "find_rare_note": "Tracks that appear in only one person's grid listed in the last {days} days, starting with artists no one else picked.",
     },
 }
 
@@ -812,7 +816,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
 
 def find_html(q: str, results: list[dict], base: str, app_url: str | None = None,
               lang: str = "ja", listed_total: int = 0, varied: list[dict] | None = None, nonce: str = "",
-              popular: list[dict] | None = None) -> str:
+              popular: list[dict] | None = None, rare: list[dict] | None = None) -> str:
     """「みんなの並びを探す」ページ。**ここに出るのはopt-inの共有だけ**（`backend/shareindex.py`）。
 
     探すのはフォームのGETだけ。スクリプトは、自分の共有の横に「外す」を出す小さなもの1つだけ（2026-09-26。
@@ -835,7 +839,7 @@ def find_html(q: str, results: list[dict], base: str, app_url: str | None = None
         body = f'<p class="note">{t(lang, "find_none")}</p>'
     elif q:
         body = f'<p class="meta">{t(lang, "find_hits", n=len(results))}</p><ol>{items(results)}</ol>'
-    elif results or varied or popular:
+    elif results or varied or popular or rare:
         # 探す前: 「私を構成する9曲」ばかりにならないよう、ほかのテーマを先に出す（open-use ⑤）
         secs = [f'<section><h2>{t(lang, key)}</h2><ol>{items(rs)}</ol></section>'
                 for key, rs in (("find_varied", varied or []), ("find_recent", results)) if rs]
@@ -851,6 +855,16 @@ def find_html(q: str, results: list[dict], base: str, app_url: str | None = None
             secs.insert(1 if varied else 0,
                         f'<section><h2>{t(lang, "find_popular")}</h2>'
                         f'<p class="meta">{t(lang, "find_popular_note", days=share_retention_days())}</p><ol>{ps}</ol></section>')
+        if rare:
+            # ひとりだけが選んだ曲（2026-10-11）。順位ではないので番号は付けず、押すと「よく選ばれている曲」と同じく探す
+            rs = "".join(
+                f'<li><span class=n>--</span><span class=t>'
+                f'<a href="/find?q={quote((p["title"] + " " + p["artist"]).strip()[:80])}"><b>{html.escape(p["title"])}</b></a> '
+                f'<span class=a>{html.escape(p["artist"])}</span></span></li>'
+                for p in rare)
+            secs.insert(2 if varied and popular else (1 if varied or popular else 0),
+                        f'<section><h2>{t(lang, "find_rare")}</h2>'
+                        f'<p class="meta">{t(lang, "find_rare_note", days=share_retention_days())}</p><ol>{rs}</ol></section>')
         body = "".join(secs)
     elif listed_total:
         body = ""

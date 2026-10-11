@@ -468,6 +468,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-10-11", "「みんなのグリッドを探す」に「ひとりだけが選んだ曲」を足しました。この30日間に載ったグリッドのうち、1人の並びにしか入っていない曲が20曲まで並びます。ほかに誰も選んでいないアーティストの曲が先に出て、押すとその曲の入ったグリッドを探せます。",
+     "“Find shared grids” now has a “Picked by only one person” list: up to 20 tracks that appear in only one person's grid listed in the last 30 days, starting with artists no one else picked. Tap one to find the grid that contains it."),
     ("2026-10-11", "お題の下に「行の見出し」を足しました。行ごとに12字まで書くことができ、書き出す画像ではグリッドの左に行ごとに出て、行と行のあいだも広がります。曲名は見出しごとに、そのジャケットの右（正方形や縦長の画像では下）にまとめて並び、番号は見出しごとに01から始まります。「私の音楽遍歴」を選ぶと、中学・高校・大人・今が入ります。",
      "Added “Row labels” below “Theme”. You can write up to 12 characters per row, and in the exported image the labels appear to the left of the grid, one per row, with more space between rows. Track names are grouped under each label, to the right of its covers (below them in square or tall images), and numbering starts at 01 for each label. Choosing “My music history” fills in junior high, high school, adult and now."),
     ("2026-10-11", "「みんなのグリッドを探す」に「よく選ばれている曲」を足しました。この30日間に載ったグリッドに多く入っている曲が20曲まで並び、押すとその曲の入ったグリッドを探せます。",

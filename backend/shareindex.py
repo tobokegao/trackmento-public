@@ -161,8 +161,8 @@ def forget(sid: str) -> None:
             return
         _ids.discard(sid)
         _entries[:] = [e for e in _entries if e["id"] != sid]
-    global _popular_memo
-    _popular_memo = None   # 外した並びの曲を「よく選ばれている曲」に数えたままにしない
+    global _tally_memo
+    _tally_memo = None   # 外した並びの曲を「よく選ばれている曲」に数えたままにしない
 
 
 def add(snap: dict) -> None:
@@ -203,8 +203,8 @@ def seed() -> int:
     for e in got:
         _push(e)
     _seeded = True
-    global _popular_memo
-    _popular_memo = None   # 読み込み前に数えた空の結果を覚えたままにしない（10-11の本番で20曲が出なかった）
+    global _tally_memo
+    _tally_memo = None   # 読み込み前に数えた空の結果を覚えたままにしない（10-11の本番で20曲が出なかった）
     return len(got)
 
 
@@ -314,40 +314,42 @@ def varied(limit: int = 8) -> list[dict]:
 POPULAR_TTL = 600         # 「よく選ばれている曲」を数え直す間隔（秒）
 POPULAR_MIN = 2           # 1つのグリッドにしか無い曲は出さない（どれも1件だと順位にならない）
 POPULAR_SAME = 3          # これだけの曲が重なり、かつ小さいほうの半分以上なら同じ人の並びと見る
-_popular_memo: tuple[float, int, list[dict]] | None = None
+RARE_PER_GROUP = 2        # 「ひとりだけが選んだ曲」で、1人の並びから出す曲数の上限（1人の25曲で20曲が埋まらないように）
+_tally_memo: tuple[float, dict] | None = None
 
 
-def popular(limit: int = 20) -> list[dict]:
-    """探す前の画面に出す「よく選ばれている曲」。載る並びのうち、**入っているグリッドの数**が多い順。
-
-    数えるのはみんなのグリッドに載せたもの（opt-in）だけで、保持日数より古いものは数えない
-    （共有と一緒に消えるので、自然に「最近30日」の集計になる）。1つのグリッドに同じ曲が2つあっても1と数える。
-    曲の見分けは刈り込み（`names.trim`）をしてから `merge._n` でそろえた曲名とアーティスト名（`_keys`）。
-    客演の書き方（feat.）は落とし、アーティスト名の書き方違いはそろえる（`_artist_alias`）。
-    表示する名前は、同じ曲のなかでいちばん多く使われていた書き方にする。
+def _tally() -> dict:
+    """載る並びの曲を数えた結果。「よく選ばれている曲」と「ひとりだけが選んだ曲」が共有する。
     全件をなめるので、`POPULAR_TTL` のあいだは前の結果を返す（2026-10-11）。
+
+    - 曲の見分けは刈り込み（`names.trim`）をしてから `merge._n` でそろえた曲名とアーティスト名（`_keys`）。
+      客演の書き方（feat.）は落とし、アーティスト名の書き方違いはそろえる（`_artist_alias`）
+    - **曲が大きく重なる並びは1つにまとめて数える**。手直ししながら同じ並びを載せ直す人がいて、
+      1人の「私を構成する25曲」の約25回分で上位20曲が埋まった（2026-10-11、本番）。重なりが
+      `POPULAR_SAME` 曲以上かつ小さいほうの半分以上なら同じ人の並びと見て、曲はまとまりごとに1と数える
     """
-    global _popular_memo
+    global _tally_memo
     now = time.monotonic()
-    memo = _popular_memo
-    if memo and now - memo[0] < POPULAR_TTL and memo[1] >= limit:
-        return memo[2][:limit]
+    memo = _tally_memo
+    if memo and now - memo[0] < POPULAR_TTL:
+        return memo[1]
     with _lock:
         items = list(_entries)
     alive = _alive_after()
     items = [e for e in items if not (e["createdAt"] and e["createdAt"] < alive)]
     alias = _artist_alias(items)
-    # **曲が大きく重なる並びは1つにまとめて数える**。手直ししながら同じ並びを載せ直す人がいて、
-    # 1人の「私を構成する25曲」の約25回分で上位20曲が埋まった（2026-10-11、本番）。重なりが
-    # `POPULAR_SAME` 曲以上かつ小さいほうの半分以上なら同じ人の並びと見て、曲はまとまりごとに1と数える
     groups: list[set[str]] = []
+    gnew: list[str] = []                  # まとまりごとの、いちばん新しい載せた日
     where: dict[str, list[int]] = {}      # 曲 → それを含むまとまり
     names: dict[str, Counter[tuple[str, str]]] = {}
+    kart: dict[str, str] = {}             # 曲 → そろえたアーティスト名
     for e in items:
         ks = set()
         for nt, na, t, a in e["_keys"]:
-            k = nt + "|" + alias.get(na, na)
+            na = alias.get(na, na)
+            k = nt + "|" + na
             ks.add(k)
+            kart[k] = na
             names.setdefault(k, Counter())[(t, a)] += 1
         shared = Counter(g for k in ks for g in where.get(k, ()))
         gid = next((g for g, c in shared.most_common()
@@ -355,18 +357,61 @@ def popular(limit: int = 20) -> list[dict]:
         if gid is None:
             gid = len(groups)
             groups.append(set())
+            gnew.append("")
+        gnew[gid] = max(gnew[gid], e["createdAt"] or "")
         for k in ks - groups[gid]:
             groups[gid].add(k)
             where.setdefault(k, []).append(gid)
-    count = Counter(k for g in groups for k in g)
+    art: Counter[str] = Counter()         # アーティスト → それを選んだまとまりの数
+    for g in groups:
+        for na in {kart[k] for k in g if kart[k]}:
+            art[na] += 1
+    out = {"count": Counter(k for g in groups for k in g), "names": names,
+           "where": where, "gnew": gnew, "kart": kart, "art": art}
+    if _seeded:   # 読み込みの途中は覚えない
+        _tally_memo = (now, out)
+    return out
+
+
+def popular(limit: int = 20) -> list[dict]:
+    """探す前の画面に出す「よく選ばれている曲」。載る並びのうち、**入っているグリッドの数**が多い順。
+
+    数えるのはみんなのグリッドに載せたもの（opt-in）だけで、保持日数より古いものは数えない
+    （共有と一緒に消えるので、自然に「最近30日」の集計になる）。1つのグリッドに同じ曲が2つあっても1と数える。
+    表示する名前は、同じ曲のなかでいちばん多く使われていた書き方にする。
+    """
+    tl = _tally()
     out = []
-    for k, n in count.most_common():
+    for k, n in tl["count"].most_common():
         if n < POPULAR_MIN or len(out) >= limit:
             break
-        t, a = names[k].most_common(1)[0][0]
+        t, a = tl["names"][k].most_common(1)[0][0]
         out.append({"title": t, "artist": a, "n": n})
-    if _seeded:   # 読み込みの途中は覚えない
-        _popular_memo = (now, limit, out)
+    return out
+
+
+def rare(limit: int = 20) -> list[dict]:
+    """探す前の画面に出す「ひとりだけが選んだ曲」（2026-10-11、利用者の求め）。順位は付けない。
+
+    **1まとまり（＝1人）の並びにしか入っていない曲**のうち、そのアーティストの曲をほかの誰も
+    選んでいないものを先に、同じ段なら新しく載ったものを先に出す。1人の並びからは `RARE_PER_GROUP` 曲まで
+    （1人の25曲で20曲が埋まらないように）。アーティスト名の無い曲は、アーティストでは測れないので
+    「誰も選んでいない」側に数える。
+    """
+    tl = _tally()
+    ks = [k for k, n in tl["count"].items() if n == 1]
+    ks.sort(key=lambda k: tl["gnew"][tl["where"][k][0]], reverse=True)
+    ks.sort(key=lambda k: tl["art"][tl["kart"][k]] if tl["kart"][k] else 1)   # 並べ替えは安定なので、同じ段は新しい順のまま
+    out, per = [], Counter()
+    for k in ks:
+        gid = tl["where"][k][0]
+        if per[gid] >= RARE_PER_GROUP:
+            continue
+        per[gid] += 1
+        t, a = tl["names"][k].most_common(1)[0][0]
+        out.append({"title": t, "artist": a})
+        if len(out) >= limit:
+            break
     return out
 
 
