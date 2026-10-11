@@ -522,6 +522,7 @@ li {{ display: flex; gap: 10px; align-items: baseline; }}
 /* 曲名とアーティスト名は1つの流し込み。別々のflex項目にすると狭い画面でアーティスト名だけ細長く折り返る */
 .t {{ min-width: 0; overflow-wrap: anywhere; }}
 .n {{ font-family: "Silkscreen", monospace; font-size: .7rem; color: #53595f; }}
+li.head {{ display: block; font-weight: 700; font-size: 1.1rem; margin-top: 8px; }}   /* 行の見出し（2026-10-11） */
 .a {{ color: #53595f; }}
 /* 曲ごとのメモ。曲名の下に、左の縦線で「この曲への書き込み」と分かるようにする */
 .memo {{ display: block; margin: 2px 0 6px; padding-left: 8px; border-left: 2px solid #12171b; font-size: .9rem; white-space: pre-line; }}
@@ -735,8 +736,20 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
     trim_names = ((snap.get("options") or {}).get("trimNames")) is not False
     rows = []
     alt_items = []
-    # 番号は**曲の入ったマスの序数**（空きマスは飛ばして詰める。書き出し画像の番号と同じ。2026-09-25）
-    for i, c in enumerate((c for c in snap.get("cells") or [] if c), 1):
+    # 番号は**曲の入ったマスの序数**（空きマスは飛ばして詰める。書き出し画像の番号と同じ。2026-09-25）。
+    # 行の見出しがあれば、その行の最初の曲の前に見出しを入れ、番号は見出しごとに01から数え直す（`render.cell_nums`。2026-10-11）
+    cells = snap.get("cells") or []
+    cols = max(1, int(snap.get("cols") or 1))
+    labels = [render._one_line(x) if isinstance(x, str) else "" for x in (snap.get("rowLabels") or [])][:int(snap.get("rows") or 0)]
+    nums = render.cell_nums(cells, cols, labels)
+    last = -1
+    for idx, c in enumerate(cells):
+        if not c:
+            continue
+        r = idx // cols
+        if r != last and r < len(labels) and labels[r]:
+            rows.append(f"<li class=head>{html.escape(labels[r])}</li>")
+        last = r
         c_title, c_artist = (c.get("title") or ""), (c.get("artist") or "")
         if trim_names:
             c_title, c_artist = names.trim(c_title, c_artist)
@@ -754,8 +767,8 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
         note = (c.get("note") or "").strip()
         if note:
             inner += f"<span class=memo>{html.escape(note)}</span>"
-        rows.append(f"<li><span class=n>{i:02d}</span><span class=t>{inner}</span></li>")
-    n = len(rows)
+        rows.append(f"<li><span class=n>{nums[idx]}</span><span class=t>{inner}</span></li>")
+    n = sum(1 for c in cells if c)
     # 画像の代替テキスト。読み上げや画像が読めないときにも何の並びか分かるよう、題・大きさ・曲名を入れる。
     # **曲名は先頭ALT_TRACKS曲まで**（全曲は直後の一覧にあり、読み上げで同じものを2度聞かせない）
     alt = t(lang, "img_alt", cols=snap.get("cols"), rows=snap.get("rows"))

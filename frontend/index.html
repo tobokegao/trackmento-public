@@ -3431,8 +3431,21 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     });
     return out;
   }
-  // 曲名リストの項目ごとの番号（曲は序数「01」…、見出しは空。backend/render.pyの _nums）
-  function listNums(items) { let k = 0; return items.map(t => (t.heading ? "" : String(++k).padStart(2, "0"))); }
+  // 曲名リストの項目ごとの番号（曲は序数「01」…、見出しは空。**見出しごとに01から数え直す**。backend/render.pyの _nums）
+  function listNums(items) { let k = 0; return items.map(t => (t.heading ? (k = 0, "") : String(++k).padStart(2, "0"))); }
+  /* マスごとの番号（曲の入ったマスの序数、空きマスは空。行の見出しごとに数え直す。backend/render.pyのcell_numsと同じ）。
+     数え直すのは見出しのある行の最初の曲（listCellsが見出しを差し込む所と同じ）。番号バッジと回り込みの段が使う */
+  function cellNums(cells, cols, rows) {
+    const labels = state.rowLabels.slice(0, rows).map(t => oneLine(t || ""));
+    let k = 0, last = -1;
+    return cells.map((t, i) => {
+      if (!t) return "";
+      const r = Math.floor(i / cols);
+      if (r !== last && r < labels.length && labels[r]) k = 0;
+      last = r;
+      return String(++k).padStart(2, "0");
+    });
+  }
   /* **組み方を決めるための並び**（backend/render.pyの _canonと同じ。2026-09-25）。曲の入ったマスの位置はそのままで、
      曲だけを曲名 → アーティスト名の順（**文字の符号位置で比べる**。JSの既定の比べ方はUTF-16の単位なので、
      「𝓒」のようなBMPの外の字でPythonと順番が食い違う）に並べ替える。
@@ -8623,11 +8636,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         if (s) ctx.fillText(s, sc(L.ox), sc(y0 + r * (cellH() + rowGap(EX.rows))) + Math.round(ch / 2) + Math.round(lpx * BASELINE));
       });
     }
-    let k = 0;   // 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。backend/render.pyと同じ。2026-09-25）
+    const cnums = cellNums(VC, EX.cols, EX.rows);   // 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰め、行の見出しごとに数え直す。backend/render.pyと同じ）
     for (let i = 0; i < n; i++) {
       const t = VC[i], c = i % EX.cols, r = Math.floor(i / EX.cols);
       const x = sc(L.ox + lab + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + rowGap(EX.rows)));
-      if (t) k++;
       // **空きマスは塗らない**（背景の色が見える。backend/render.pyと同じ。2026-09-25）
       if (t) { ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch); }
       const drawOverlay = () => {
@@ -8658,7 +8670,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       }
       // **番号バッジは曲の入ったマスだけ**、曲名リストと同じ序数で（backend/render.pyと同じ。2026-09-25）
       if (state.numbers && t) {
-        const label = String(k).padStart(2, "0");
+        const label = cnums[i];
         // **枠は字面（インク）に四辺の余白を足して作る**（backend/render.pyと同じ規則）。
         // ピクセルフォントはemボックスの中で字面が上に寄るので、emの高さで枠を作ると数字が下に寄る
         ctx.font = numF; ctx.textBaseline = "alphabetic";
@@ -8680,7 +8692,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       // **段の持ち方は2通り**（backend/render.pyと同じ。2026-09-25）。マスごと（slabRows）は段がマスの位置ごとにある
       // （段の数 ＝ マスの数）ので、空きマスの段は残して何も描かない。縦一列・表（slabStack）は曲の入ったマスだけを
       // 積んである（段の数 ＝ 曲の数）。番号はどちらも曲の序数
-      const cellsV = VC, byPos = L.wrapSegs.length === cellsV.length;
+      const cellsV = VC, byPos = L.wrapSegs.length === cellsV.length, wNums = cellNums(VC, EX.cols, EX.rows);   // 番号はバッジと同じ
       const entries = [];
       cellsV.forEach((t, i) => { if (t) entries.push([i, t]); });
       for (let k2 = 0; k2 < entries.length; k2++) {
@@ -8688,7 +8700,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         if (si >= L.wrapSegs.length) break;
         const [sx0, sy0, sw] = L.wrapSegs[si];
         const x = sc(sx0), cy = sc(sy0 + L.lineH / 2);
-        const num = String(k2 + 1).padStart(2, "0");
+        const num = wNums[i];
         // ピクセルフォントはemボックスの中で字面が上に寄るので、字面の中心を行の中心に置く
         ctx.font = fNum; ctx.textBaseline = "alphabetic"; ctx.fillStyle = cssRgb(muted);
         const mm = ctx.measureText(num), top = -mm.actualBoundingBoxAscent, bottom = mm.actualBoundingBoxDescent;

@@ -643,12 +643,36 @@ def _songs(doc: GridDoc) -> list:
     return out
 
 
+def cell_nums(cells: list, cols: int, labels: list[str]) -> list[str]:
+    """マスごとの番号（曲の入ったマスの序数「01」…、空きマスは空）。**行の見出しごとに01から数え直す**（2026-10-11、利用者の求め）。
+    数え直すのは、見出しのある行の最初の曲（曲名リストに見出しを差し込む所と同じ。`_songs`）。
+    番号バッジ・回り込みの段・共有ページの一覧が使う。`labels` は1行にした見出し。frontendのcellNumsと同じ"""
+    out, k, last = [], 0, -1
+    for i, t in enumerate(cells):
+        if not t:
+            out.append("")
+            continue
+        r = i // cols
+        if r != last and r < len(labels) and labels[r]:
+            k = 0
+        last = r
+        k += 1
+        out.append(f"{k:02d}")
+    return out
+
+
+def _cell_nums(doc: GridDoc) -> list[str]:
+    return cell_nums(doc.cells, doc.cols, [_one_line(t) for t in doc.rowLabels[:doc.rows]])
+
+
 def _nums(items: list) -> list[str]:
-    """曲名リストの項目ごとの番号（曲は序数「01」…、見出しは空）。frontendのlistNumsと同じ"""
+    """曲名リストの項目ごとの番号（曲は序数「01」…、見出しは空）。**見出しごとに01から数え直す**（`cell_nums` と同じ番号になる）。
+    frontendのlistNumsと同じ"""
     out, k = [], 0
     for t in items:
         if isinstance(t, _Head):
             out.append("")
+            k = 0
         else:
             k += 1
             out.append(f"{k:02d}")
@@ -2344,11 +2368,10 @@ def render(doc: GridDoc) -> Image.Image:
             if _one_line(t):
                 d.text((sc(L.ox), sc(y0 + r * (cell_h(doc) + _row_gap(doc))) + rnd(ch / 2) + rnd(lpx * BASELINE)),
                        _one_line(t), font=f_lab, fill=ink, anchor="ls")
-    k = 0                             # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰める。2026-09-25）
+    nums = _cell_nums(doc)            # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰め、行の見出しごとに数え直す）
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
         x, y = sc(L.ox + lab + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + _row_gap(doc)))
-        k += 1 if t else 0
         # **空きマスは塗らない**（背景の色が見える。2026-09-25、利用者の指摘。灰色の四角が並ぶと「読み込めなかった」ように見える）。
         # 曲の入ったマスだけ下地を塗る（ジャケットが取れなかったときに、そこに曲があると分かるように）。frontendのrenderShareCanvasと同じ
         if t:
@@ -2370,7 +2393,7 @@ def render(doc: GridDoc) -> Image.Image:
                     d.text((x + ov_pad, ab), _ellipsize(d, artist, fa, max_w), font=fa, fill=OVERLAY_SUB, anchor="ls")
         # **番号バッジは曲の入ったマスだけ**、曲名リストと同じ序数で（2026-09-25。前は空きマスにも位置の番号を出していた）
         if o.numbers and t:
-            label = f"{k:02d}"
+            label = nums[i]
             # **枠は字面（インク）に四辺の余白を足して作る**。ピクセルフォントはemボックスの中で
             # 字面が上に寄るので、emの高さで枠を作ると数字が下に寄って見える。余白は2pxを下限にした
             # （マスが小さいときは2px、大きいときは今までどおりsc(12)）
@@ -2393,13 +2416,14 @@ def render(doc: GridDoc) -> Image.Image:
         # 空きマスの段は残して何も描かない。縦一列・表（`_slab_stack`）は曲の入ったマスだけを積んである（段の数 ＝ 曲の数）。
         # 空きマスが無ければどちらも同じ対応になる。番号はどちらも曲の序数
         by_pos = len(L.wrap_segs) == len(doc.cells)
+        cnums = _cell_nums(doc)   # 番号はマスの番号バッジと同じ（行の見出しごとに数え直す）
         for k, (i, t) in enumerate((i, t) for i, t in enumerate(doc.cells) if t):
             si = i if by_pos else k
             if si >= len(L.wrap_segs):
                 break
             sx0, sy0, sw = L.wrap_segs[si]
             x, cy = sc(sx0), sc(sy0 + L.line_h / 2)
-            num = f"{k + 1:02d}"
+            num = cnums[i]
             # ピクセルフォントはemボックスの中で字面が上に寄るので、字面の中心を行の中心に置く
             _, top, _, bottom = f_num.getbbox(num, anchor="ls")
             d.text((x, rnd(cy - (top + bottom) / 2)), num, font=f_num, fill=muted, anchor="ls")
