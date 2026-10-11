@@ -414,6 +414,12 @@ class Layout:
     sb_inline: bool = False                             # 1行型（曲名の右端にアーティスト名を右寄せ。`_inline_one_line`）
     wrap_tx: int = 0                                    # タイトルの左端（0ならwrap_pad）。比率なしの「マスごと」は右の列の上
     wrap_inline: bool = False                           # マスごとの1行型（`_slab_rows` のinline）
+    # **まとまりごと**（行の見出しがあるとき。2026-10-11）。"right" は各まとまりの右、"bottom" は各まとまりの下に、その行の曲名を置く
+    grp: str = ""
+    grp_rows: tuple[int, ...] = ()                      # 行ごとの上端（マスの塊の上端からの論理px）
+    grp_lists: tuple[tuple[int, int, int, int], ...] = ()   # まとまりごとの曲名の場所 (x, y, 幅, 高さ)。x / yはマスの塊の左上から
+    grp_cols: int = 1                                   # 右置きの曲名の列の数
+    grp_inline: bool = False                            # 右置きで曲名とアーティスト名を1行に並べるか
     sb_top: int = 0                                     # 曲名リストの頭を下げる量（表の行間に上限を掛けて余った高さの半分。`TABLE_LH_CAP`）
 
 
@@ -964,7 +970,7 @@ def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
 
 
 def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
-               seg_w: list[float] | None = None, max_rows: int | None = None) -> list[FlowRow]:
+               seg_w: list[float] | None = None, max_rows: int | None = None, src: list | None = None) -> list[FlowRow]:
     """流し込んだときの各行を返す。
 
     `seg_w` を渡すと**行ごとに幅が変わる**（マスの塊を避ける回り込み。`_wrap_plan` から使う）。
@@ -1059,7 +1065,7 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             x += w
 
     # 番号は曲の入ったマスの序数（空きマスは飛ばして詰める。2026-09-25）
-    items = _songs(doc)
+    items = _songs(doc) if src is None else src   # `src` はまとまりごとの組み方が渡す、そのまとまりの曲だけ
     for t, num in zip(items, _nums(items)):
         if full():
             break
@@ -1810,6 +1816,128 @@ def _cropped(doc: GridDoc) -> GridDoc:
     return doc.model_copy(update={"cols": nc, "rows": nr, "cells": [doc.cells[r * cols + c] for r in range(nr) for c in range(nc)]})
 
 
+# ---------- まとまりごと（行の見出しがあるとき。2026-10-11、利用者の求め） ----------
+# 見出しのある行から次の見出しのある行の手前までを1つのまとまりにし、そのまとまりのジャケットの右（横長の枠）か
+# 下（正方形・縦長）に、そのまとまりの曲名だけを置く。番号はまとまりごとに01から（`cell_nums` と同じ）。
+# frontendのgroupsOf / groupLayout / GRP_* と対で直すこと
+GRP_GAP = 48          # ジャケットと曲名のあいだ（論理px）
+GRP_FONT = 0.075      # 下に置くときの曲名の字（マスの幅に対する比）
+GRP_LIST_MAX = 3      # 右に置くときの曲名の幅の上限（マスの幅の何倍か）
+
+
+def _groups(doc: GridDoc) -> list[tuple[int, int, list[Track]]]:
+    """まとまり（始まりの行, 終わりの行の次, 曲）の並び。見出しの無い先頭の行は、見出しの無いまとまりになる"""
+    labels = [_one_line(t) for t in doc.rowLabels[:doc.rows]]
+    starts = [0] + [r for r in range(1, doc.rows) if r < len(labels) and labels[r]]
+    ends = starts[1:] + [doc.rows]
+    return [(a, b, [t for i, t in enumerate(doc.cells) if t and a <= i // doc.cols < b]) for a, b in zip(starts, ends)]
+
+
+def _grp_split(ts: list, k: int) -> list[list]:
+    """まとまりの曲をk列に分ける（上から順に、1列 ceil(n/k) 曲）"""
+    per = max(1, math.ceil(len(ts) / k))
+    return [ts[i:i + per] for i in range(0, len(ts), per)]
+
+
+def _grp_lines(ts: list, inline: bool) -> int:
+    return len(ts) if inline else sum(2 if _one_line(t.artist) else 1 for t in ts)
+
+
+def _grp_width(ts: list, fs: int, k: int, inline: bool) -> int:
+    """右置きの曲名の幅（k列ぶん、列のあいだ込み）。字ごとに1pxへ丸めた和で測る"""
+    fa = max(8, rnd(fs * ARTIST_SCALE))
+    col = 0
+    for t in ts:
+        tw = sum(char_w("bold", fs, c) for c in _one_line(t.title))
+        aw = sum(char_w("regular", fa, c) for c in _one_line(t.artist))
+        col = max(col, rnd(_num_w(fs) + ((tw + (rnd(fs * INLINE_GAP_EM) + aw if aw else 0)) if inline else max(tw, aw))))
+    return k * col + (k - 1) * rnd(fs * 1.5)
+
+
+GRP_FONT_MAX = 0.12   # 下に置くときの曲名の字の上限（マスの幅に対する比）。枠が縦に余るときはここまで大きくする
+
+
+def _group_layout(doc: GridDoc, gw: int, title: str, title_size: int, title_h: int,
+                  ratio: float | None, m: int, max_side_v: int) -> Layout:
+    """まとまりごとの割り付け。**右か下かは今の曲名リストと同じ決め方**（横長の比率なら右、正方形以下なら下。
+    比率なしはマスの塊が縦長なら右）。マスの段の位置（`grp_rows`）と曲名の場所（`grp_lists`）を返す。
+    右置きは「列の数（1か2）× 曲名とアーティスト名を2行か1行か」のうち、比率から決まる幅に収まって字がいちばん大きいもの。
+    下置きは、比率から決まる高さに収まる範囲で字を大きくする（`GRP_FONT` 〜 `GRP_FONT_MAX`）"""
+    g, ch, rg = doc.options.gap, cell_h(doc), _row_gap(doc)
+    pf = _pad_frac(doc)
+    lab = _label_col(doc)
+    groups = _groups(doc)
+    tracks = [t for _, _, ts in groups for t in ts]
+    cols_w = doc.cols * CELL_W + (doc.cols - 1) * g          # マスだけの幅（見出しの列を除く）
+    gh_plain = doc.rows * ch + (doc.rows - 1) * rg
+    mode = ("right" if gh_plain >= gw else "bottom") if ratio is None else ("right" if ratio > 1 else "bottom")
+    rows_y, lists = [], []
+    k_best, inline_best = 1, False
+    if mode == "right":
+        rows_y = [r * (ch + rg) for r in range(doc.rows)]
+        hc = title_h + gh_plain
+        pad_h = max(m, rnd(hc * pf))
+        budget = rnd((hc + pad_h * 2) * ratio) - pad_h * 2 - gw - GRP_GAP if ratio is not None else None
+        best = None
+        for inline in (False, True):
+            for k in (1, 2):
+                lh = rnd(ch / 4)
+                for a, b, ts in groups:
+                    lines = max((_grp_lines(c, inline) for c in _grp_split(ts, k)), default=0)
+                    if lines:
+                        lh = min(lh, ((b - a) * ch + (b - a - 1) * rg) // lines)
+                lh = max(1, lh)
+                fs = max(8, rnd(lh * 0.56))
+                # 幅に収めるため字を縮めるのは、下置きと同じ大きさ（`GRP_FONT`）まで。それでも入らなければ枠のほうを横に広げる
+                floor = min(fs, rnd(CELL_W * GRP_FONT))
+                while budget is not None and fs > floor and _grp_width(tracks, fs, k, inline) > budget:
+                    fs -= 1
+                if best is None or fs > best[0]:
+                    best = (fs, lh, k, inline)
+        fs, lh, k_best, inline_best = best
+        lh = min(lh, rnd(fs / 0.56))   # 幅のために字を縮めたら、行の間も字に合わせて詰める（間延びしないように）
+        lw = max(CELL_W, _grp_width(tracks, fs, k_best, inline_best))
+        for a, b, _ in groups:
+            lists.append((gw + GRP_GAP, rows_y[a], lw, (b - a) * ch + (b - a - 1) * rg))
+        wc = gw + GRP_GAP + lw
+    else:
+        def build(fs: int) -> tuple[list[int], list[tuple[int, int, int, int]], int]:
+            lh = rnd(fs * 1.5)
+            ys, ls, y = [], [], 0
+            for a, b, ts in groups:
+                for r in range(a, b):
+                    ys.append(y)
+                    y += ch + (g if r < b - 1 else 0)
+                n = len(_flow_rows(doc, fs, cols_w, src=ts)) if ts else 0
+                ls.append((lab, y + GRP_GAP, cols_w, n * lh))
+                y += (GRP_GAP + n * lh if n else 0) + rg
+            return ys, ls, y - rg
+        fs = rnd(CELL_W * GRP_FONT)
+        if ratio is not None:
+            pad_w = max(m, rnd(gw * pf))
+            limit = rnd((gw + pad_w * 2) / ratio) - pad_w * 2 - title_h   # 枠の高さに収まる中身の高さ
+            for f in range(rnd(CELL_W * GRP_FONT_MAX), fs, -1):
+                if build(f)[2] <= limit:
+                    fs = f
+                    break
+        lh = rnd(fs * 1.5)
+        rows_y, lists, gh_plain = build(fs)
+        wc = gw
+    hc = title_h + gh_plain
+    pad = max(m, rnd(min(wc, hc) * pf))
+    w0, h0 = wc + pad * 2, hc + pad * 2
+    if ratio is None:
+        W, H = w0, h0
+    elif w0 < h0 * ratio:
+        W, H = rnd(h0 * ratio), h0
+    else:
+        W, H = w0, rnd(w0 / ratio)
+    scale = min(1.0, max_side_v / max(W, H))
+    return Layout(W, H, scale, rnd((W - wc) / 2), rnd((H - hc) / 2), gw, gh_plain, title, title_size, title_h,
+                  "grp", lists[0][2] if lists else 0, 0, 1, lh, fs, GRP_GAP, False,
+                  grp=mode, grp_rows=tuple(rows_y), grp_lists=tuple(lists), grp_cols=k_best, grp_inline=inline_best)
+
+
 def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layout:
     real = _cropped(_trimmed(doc))
     # **組み方は曲の順番に左右されない並び（`_canon`）で決める**（2026-09-25）。`doc` はその並び、
@@ -1825,6 +1953,11 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     title_size = _title_px or rnd(min(96, max(48, gw * 0.045)))
     title_h = rnd(title_size * 1.9) if title else 0
     ratio = RATIOS[o.ratio]
+    # **行の見出しがあり、曲名リストを横に並べるなら、まとまりごとの組み方**（`_group_layout`）。
+    # 曲名の量はまとまりごとに測るので、並べ替えに左右されない並び（`doc`）ではなく曲の順の並び（`real`）で組む
+    if o.sidebar and not o.overlay and _label_col(real) > 0:
+        from backend.config import max_side
+        return _group_layout(real, gw, title, title_size, title_h, ratio, m, max_side())
     # サイドバー: 横長なら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
     # 正方形で右に置くと内容が横長になり、上下の余白ばかり広がるため。
     # **比率なしのときは「マスの塊が縦長なら右・横長なら下」**。枠は内容に合わせて伸びるので、
@@ -2361,8 +2494,12 @@ def render(doc: GridDoc) -> Image.Image:
             d.text((sc(tx), sc(L.wrap_top + L.title_h / 2) + rnd(max(8, sc(L.title_size)) * BASELINE)),
                    t, font=f_title, fill=ink, anchor="ls")
     elif L.title and L.side != "right":
-        d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f_title, L.gw * S), font=f_title, fill=ink, anchor="lm")
+        # まとまりごとの右置きは、タイトルを曲名の右端まで使える
+        tw = (L.gw + GRP_GAP + L.sb_w) if L.grp == "right" else L.gw
+        d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f_title, tw * S), font=f_title, fill=ink, anchor="lm")
         y0 += L.title_h
+    # 行の上端（論理px）。まとまりごとの組み方は割り付けが決めた位置、ほかは行の送りの倍数
+    row_top = (lambda r: y0 + L.grp_rows[r]) if L.grp_rows else (lambda r: y0 + r * (cell_h(doc) + _row_gap(doc)))
 
     # グリッド（画像は並列に取得し、取得スレッドの中でマスの大きさに切り抜く。原寸を抱えない）
     cw, ch = sc(CELL_W), sc(cell_h(doc))     # マスの幅と高さ（出力px）
@@ -2394,13 +2531,13 @@ def render(doc: GridDoc) -> Image.Image:
             if not _one_line(t):
                 continue
             lines = _label_lines(_one_line(t))
-            cy = sc(y0 + r * (cell_h(doc) + _row_gap(doc))) + rnd(ch / 2) + rnd(lpx * BASELINE)
+            cy = sc(row_top(r)) + rnd(ch / 2) + rnd(lpx * BASELINE)
             for j, ln in enumerate(lines):   # 2行なら行の中央をはさんで上下に
                 d.text((sc(L.ox), cy + rnd((2 * j - (len(lines) - 1)) * llh / 2)), ln, font=f_lab, fill=ink, anchor="ls")
     nums = _cell_nums(doc)            # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰め、行の見出しごとに数え直す）
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols
-        x, y = sc(L.ox + lab + c * (CELL_W + o.gap)), sc(y0 + r * (cell_h(doc) + _row_gap(doc)))
+        x, y = sc(L.ox + lab + c * (CELL_W + o.gap)), sc(row_top(r))
         # **空きマスは塗らない**（背景の色が見える。2026-09-25、利用者の指摘。灰色の四角が並ぶと「読み込めなかった」ように見える）。
         # 曲の入ったマスだけ下地を塗る（ジャケットが取れなかったときに、そこに曲があると分かるように）。frontendのrenderShareCanvasと同じ
         if t:
@@ -2434,6 +2571,11 @@ def render(doc: GridDoc) -> Image.Image:
             d.rectangle((x, y + bh, x + bw + sc(BADGE_SHADOW), y + bh + sc(BADGE_SHADOW)), fill=ink)
             d.text((x + pad - bx0, y + pad - by0), label, font=num_font, fill=ink)
     covers = None
+
+    if L.grp:
+        _draw_groups(d, doc, L, y0, sc, S, ink, muted)
+        _release_memory()
+        return im
 
     # 曲名をマス1つ1つの横に並べる（柱・1列の並び）。番号 → 曲名、その下にアーティスト名
     if L.wrap and L.wrap_rows:
@@ -2706,6 +2848,70 @@ def render(doc: GridDoc) -> Image.Image:
 
     _release_memory()
     return im
+
+
+def _draw_groups(d: ImageDraw.ImageDraw, doc: GridDoc, L: Layout, y0: float, sc, S: float, ink, muted) -> None:
+    """まとまりごとの曲名（`_group_layout`）。右置きは1曲を曲名＋アーティスト名の2行で、まとまりの高さの真ん中に積む。
+    下置きはそのまとまりの曲だけを流し込む。frontendのrenderShareCanvasの同じ所と対で直すこと"""
+    fs = max(8, sc(L.font_s))
+    f_num = font("pixel", max(8, sc(L.font_s * 0.8)))
+    f_title = font("bold", fs)
+    fa_px = max(8, rnd(fs * ARTIST_SCALE))
+    f_artist = font("regular", fa_px)
+    for (a, b, ts), (lx, ly, lw, lhgt) in zip(_groups(doc), L.grp_lists):
+        if not ts:
+            continue
+        x0, top = L.ox + lx, y0 + ly
+        nums = _nums(ts)
+        if L.grp == "right":
+            cols = _grp_split(list(zip(ts, nums)), L.grp_cols)
+            colw = (lw - (L.grp_cols - 1) * rnd(L.font_s * 1.5)) / L.grp_cols if L.grp_cols > 1 else lw
+            lines = max(_grp_lines([t for t, _ in c], L.grp_inline) for c in cols)
+            start = top + rnd((lhgt - lines * L.line_h) / 2)
+            for ci, col in enumerate(cols):
+                cx = x0 + ci * (colw + rnd(L.font_s * 1.5))
+                row = 0
+                for t, num in col:
+                    yy = sc(start + row * L.line_h + L.line_h / 2)
+                    _, tp, _, bt = f_num.getbbox(num, anchor="ls")
+                    d.text((sc(cx), rnd(yy - (tp + bt) / 2)), num, font=f_num, fill=muted, anchor="ls")
+                    nw = d.textlength(num, font=f_num) + sc(L.font_s * 0.8)
+                    max_w = colw * S - nw
+                    artist = _one_line(t.artist)
+                    if L.grp_inline:
+                        # 1行型: アーティスト名は列の右端にそろえ、曲名と同じベースラインに乗せる
+                        base = rnd(fs * BASELINE)
+                        d.text((sc(cx) + nw, yy + base), _ellipsize(d, _one_line(t.title), f_title, max_w), font=f_title, fill=ink, anchor="ls")
+                        if artist:
+                            d.text((sc(cx + colw), yy + base), _ellipsize(d, artist, f_artist, max_w), font=f_artist, fill=muted, anchor="rs")
+                        row += 1
+                        continue
+                    d.text((sc(cx) + nw, yy), _ellipsize(d, _one_line(t.title), f_title, max_w), font=f_title, fill=ink, anchor="lm")
+                    row += 1
+                    if artist:
+                        ay = sc(start + row * L.line_h + L.line_h / 2) - sc(L.line_h * 0.14)
+                        fa1 = _shrink_font(d, artist, f_artist, fa_px, max_w, kind="regular")
+                        d.text((sc(cx) + nw, ay), _ellipsize(d, artist, fa1, max_w), font=fa1, fill=muted, anchor="lm")
+                        row += 1
+        else:
+            sizes = {"num": ("pixel", max(8, sc(L.font_s * 0.8))), "title": ("bold", fs), "artist": ("regular", fs),
+                     "head": ("bold", max(8, rnd(fs * LIST_HEAD_SCALE)))}
+            f_flow = {k: font(*v) for k, v in sizes.items()}
+            colors = {"num": muted, "title": ink, "artist": muted, "head": ink}
+            flow = _flow_rows(doc, L.font_s, lw, src=ts)
+            base = rnd(fs * BASELINE)
+            sp = float(rnd(f_flow["title"].getlength("　")))
+            for k, fr in enumerate(flow):
+                x = sc(x0)
+                yy = sc(top + k * L.line_h + L.line_h / 2) + base
+                extra = 0.0
+                if fr.gaps and k < len(flow) - 1 and not fr.end:
+                    extra = float(rnd(min(max(0.0, sc(lw) - sc(fr.width)) / fr.gaps, sp)))
+                for j, (kind, text) in enumerate(fr.parts):
+                    if kind == "num" and j > 0:
+                        x += sp + extra
+                    d.text((x, yy), text, font=f_flow[kind], fill=colors[kind], anchor="ls")
+                    x += rnd(d.textlength(text, font=f_flow[kind]))
 
 
 def _release_memory() -> None:

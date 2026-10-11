@@ -6269,7 +6269,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     while (text && ctx.measureText(text + "…").width > maxW) text = text.slice(0, -1);
     return text + "…";
   }
-  function flowRows(fontS, maxW, segW = null, maxRows = null) {
+  function flowRows(fontS, maxW, segW = null, maxRows = null, src = null) {   // srcはまとまりごとの組み方が渡す、そのまとまりの曲だけ
     // segWがあれば**行ごとに幅が変わる**（マスの塊を避ける回り込み。wrapPlanから使う）。
     // maxRowsは「入るかどうか」を試すときの打ち切り（backend/render.pyの _flow_rowsと同じ）
     // 折り返しは字の単位。曲の単位で折ると行の頭がいつも番号になって規則的に見えるため。
@@ -6348,7 +6348,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       }
     };
     // 番号は曲の入ったマスの序数（空きマスは飛ばして詰める。backend/render.pyと同じ。2026-09-25）
-    const items = listCells(), nums = listNums(items);
+    const items = src || listCells(), nums = listNums(items);
     items.forEach((t, i) => {
       if (full()) return;
       if (!nums[i]) {   // 行の見出し。**必ず新しい行から**、番号を付けずに曲名と同じ太字で（backend/render.pyと同じ）
@@ -7088,6 +7088,98 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   }
   /* レイアウト計算。描画せずにサイズだけ求める（右ペインの「出力サイズ」表示にも使う） */
   // `titlePx` は「曲名リストより十分大きく」するための組み直し（TITLE_MIN_SCALEを参照）
+  /* ---- まとまりごと（行の見出しがあるとき。backend/render.pyの _groups / _group_layout / _draw_groupsと対で直すこと。2026-10-11） ----
+     見出しのある行から次の見出しのある行の手前までを1つのまとまりにし、横長の枠なら右、正方形以下なら下に、そのまとまりの曲名だけを置く */
+  const GRP_GAP = 48, GRP_FONT = 0.075, GRP_FONT_MAX = 0.12;
+  function groupsOf(cells, cols, rows) {
+    const labels = state.rowLabels.slice(0, rows).map(t => oneLine(t || ""));
+    const starts = [0];
+    for (let r = 1; r < rows; r++) if (r < labels.length && labels[r]) starts.push(r);
+    return starts.map((a, i) => {
+      const b = i + 1 < starts.length ? starts[i + 1] : rows;
+      return [a, b, cells.filter((t, j) => t && Math.floor(j / cols) >= a && Math.floor(j / cols) < b)];
+    });
+  }
+  function grpSplit(ts, k) {
+    const per = Math.max(1, Math.ceil(ts.length / k)), out = [];
+    for (let i = 0; i < ts.length; i += per) out.push(ts.slice(i, i + per));
+    return out;
+  }
+  const grpLines = (ts, inline) => (inline ? ts.length : ts.reduce((a, t) => a + (oneLine(t.artist) ? 2 : 1), 0));
+  function grpWidth(ts, fs, k, inline) {
+    const fb = fontBold(fs), fa = fontRegular(Math.max(8, Math.round(fs * ARTIST_SCALE)));
+    let col = 0;
+    for (const t of ts) {
+      let tw = 0, aw = 0;
+      for (const ch of oneLine(t.title)) tw += charW1(fb, ch);
+      for (const ch of oneLine(t.artist)) aw += charW1(fa, ch);
+      col = Math.max(col, Math.round(numW(fs) + (inline ? tw + (aw ? Math.round(fs * INLINE_GAP_EM) + aw : 0) : Math.max(tw, aw))));
+    }
+    return k * col + (k - 1) * Math.round(fs * 1.5);
+  }
+  function groupLayout(cells, cols, rows, gw, title, titleSize, titleH, ratio, m, maxSide) {
+    const g = state.gap, ch = cellH(), rg = rowGap(rows), pf = padFrac(), lab = labelCol(rows);
+    const groups = groupsOf(cells, cols, rows), tracks = groups.flatMap(x => x[2]);
+    const colsW = cols * CELL_W + (cols - 1) * g;
+    let ghPlain = rows * ch + (rows - 1) * rg;
+    const mode = ratio === null ? (ghPlain >= gw ? "right" : "bottom") : ratio > 1 ? "right" : "bottom";
+    let rowsY = [], lists = [], kBest = 1, inlineBest = false, fs, lh, wc;
+    if (mode === "right") {
+      for (let r = 0; r < rows; r++) rowsY.push(r * (ch + rg));
+      const hc0 = titleH + ghPlain, padH = Math.max(m, Math.round(hc0 * pf));
+      const budget = ratio !== null ? Math.round((hc0 + padH * 2) * ratio) - padH * 2 - gw - GRP_GAP : null;
+      let best = null;
+      for (const inline of [false, true]) for (const k of [1, 2]) {
+        let l = Math.round(ch / 4);
+        for (const [a, b, ts] of groups) {
+          const lines = Math.max(0, ...grpSplit(ts, k).map(c => grpLines(c, inline)));
+          if (lines) l = Math.min(l, Math.floor(((b - a) * ch + (b - a - 1) * rg) / lines));
+        }
+        l = Math.max(1, l);
+        let f = Math.max(8, Math.round(l * 0.56));
+        // 幅に収めるため字を縮めるのは、下置きと同じ大きさ（GRP_FONT）まで。それでも入らなければ枠のほうを横に広げる（backend/render.pyと同じ）
+        const floor = Math.min(f, Math.round(CELL_W * GRP_FONT));
+        while (budget !== null && f > floor && grpWidth(tracks, f, k, inline) > budget) f -= 1;
+        if (best === null || f > best[0]) best = [f, l, k, inline];
+      }
+      [fs, lh, kBest, inlineBest] = best;
+      lh = Math.min(lh, Math.round(fs / 0.56));   // 幅のために字を縮めたら、行の間も字に合わせて詰める（backend/render.pyと同じ）
+      const lw = Math.max(CELL_W, grpWidth(tracks, fs, kBest, inlineBest));
+      for (const [a, b] of groups) lists.push([gw + GRP_GAP, rowsY[a], lw, (b - a) * ch + (b - a - 1) * rg]);
+      wc = gw + GRP_GAP + lw;
+    } else {
+      const build = (f) => {
+        const l = Math.round(f * 1.5), ys = [], ls = [];
+        let y = 0;
+        for (const [a, b, ts] of groups) {
+          for (let r = a; r < b; r++) { ys.push(y); y += ch + (r < b - 1 ? g : 0); }
+          const n = ts.length ? flowRows(f, colsW, null, null, ts).length : 0;
+          ls.push([lab, y + GRP_GAP, colsW, n * l]);
+          y += (n ? GRP_GAP + n * l : 0) + rg;
+        }
+        return [ys, ls, y - rg];
+      };
+      fs = Math.round(CELL_W * GRP_FONT);
+      if (ratio !== null) {
+        const padW = Math.max(m, Math.round(gw * pf));
+        const limit = Math.round((gw + padW * 2) / ratio) - padW * 2 - titleH;
+        for (let f = Math.round(CELL_W * GRP_FONT_MAX); f > fs; f--) if (build(f)[2] <= limit) { fs = f; break; }
+      }
+      lh = Math.round(fs * 1.5);
+      [rowsY, lists, ghPlain] = build(fs);
+      wc = gw;
+    }
+    const hc = titleH + ghPlain, pad = Math.max(m, Math.round(Math.min(wc, hc) * pf));
+    const w0 = wc + pad * 2, h0 = hc + pad * 2;
+    let W, H;
+    if (ratio === null) { W = w0; H = h0; }
+    else if (w0 < h0 * ratio) { W = Math.round(h0 * ratio); H = h0; }
+    else { W = w0; H = Math.round(w0 / ratio); }
+    const scale = Math.min(1, maxSide / Math.max(W, H));
+    return { W, H, scale, ox: Math.round((W - wc) / 2), oy: Math.round((H - hc) / 2), gw, gh: ghPlain, title, titleSize, titleH,
+             side: "grp", sbW: lists.length ? lists[0][2] : 0, sbH: 0, sbCols: 1, lineH: lh, fontS: fs, sbGap: GRP_GAP, sbFlow: false,
+             grp: mode, grpRows: rowsY, grpLists: lists, grpCols: kBest, grpInline: inlineBest };
+  }
   function layout(maxSide = MAX_SIDE, titlePx = null, depth = 0) {
     // **組み方は曲の順番に左右されない並び（canonCells）で決める**（backend/render.pyのlayoutと同じ。2026-09-25）。
     // 割り付けの中のviewCells / listCellsはその並びを返す。曲の順で数えるのは最後の組み直しだけ（withRealCells）
@@ -7107,6 +7199,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
     let titleH = title ? Math.round(titleSize * 1.9) : 0;   // 右に置くときは、下で行の整数倍に直す
     const ratio = RATIOS[state.ratio];
+    // **行の見出しがあり、曲名リストを横に並べるなら、まとまりごとの組み方**（backend/render.pyと同じ）。曲の順の並びで組む
+    if (state.sidebar && !state.overlay && labelCol(rows) > 0) {
+      return groupLayout(_exGrid.cells, cols, rows, gw, title, titleSize, titleH, ratio, m, maxSide);
+    }
     // サイドバー: 横長なら右、正方形以下（1:1 / 4:5 / 9:16）ならグリッドの下。
     // **比率なしのときは「マスの塊が縦長なら右・横長なら下」**（backend/render.pyと同じ）。
     // 枠は内容に合わせて伸びるので、長いほうの辺にさらに足すと極端な形になる
@@ -8623,9 +8719,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       }
     } else if (L.title && L.side !== "right") {
       ctx.font = titleFont; ctx.textBaseline = "middle"; ctx.fillStyle = cssRgb(ink);
-      ctx.fillText(ellipsizeText(ctx, oneLine(L.title), L.gw * S), sc(L.ox), sc(y0 + L.titleH / 2));
+      // まとまりごとの右置きは、タイトルを曲名の右端まで使える（backend/render.pyと同じ）
+      const tw = L.grp === "right" ? L.gw + GRP_GAP + L.sbW : L.gw;
+      ctx.fillText(ellipsizeText(ctx, oneLine(L.title), tw * S), sc(L.ox), sc(y0 + L.titleH / 2));
       y0 += L.titleH;
     }
+    // 行の上端（論理px）。まとまりごとの組み方は割り付けが決めた位置、ほかは行の送りの倍数
+    const rowTop = (r) => (L.grpRows ? y0 + L.grpRows[r] : y0 + r * (cellH() + rowGap(EX.rows)));
     const numPx = Math.max(8, sc(BADGE_PX));   // 番号の字の大きさ。**8pxを下限にする**
     const cw = sc(CELL_W), ch = sc(cellH()), cs = Math.min(cw, ch), numF = fontPixel(numPx);   /* 帯の文字は**短辺**から */
     // 描く前にR2の場所をまとめて聞く（302を追わないため。上のpreloadR2Mapを参照）
@@ -8654,14 +8754,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       state.rowLabels.slice(0, EX.rows).forEach((t, r) => {
         const s = oneLine(t || "");
         if (!s) return;
-        const lines = labelLines(s), cy = sc(y0 + r * (cellH() + rowGap(EX.rows))) + Math.round(ch / 2) + Math.round(lpx * BASELINE);
+        const lines = labelLines(s), cy = sc(rowTop(r)) + Math.round(ch / 2) + Math.round(lpx * BASELINE);
         lines.forEach((ln, j) => ctx.fillText(ln, sc(L.ox), cy + Math.round((2 * j - (lines.length - 1)) * llh / 2)));   // 2行なら行の中央をはさんで上下に
       });
     }
     const cnums = cellNums(VC, EX.cols, EX.rows);   // 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰め、行の見出しごとに数え直す。backend/render.pyと同じ）
     for (let i = 0; i < n; i++) {
       const t = VC[i], c = i % EX.cols, r = Math.floor(i / EX.cols);
-      const x = sc(L.ox + lab + c * (CELL_W + state.gap)), y = sc(y0 + r * (cellH() + rowGap(EX.rows)));
+      const x = sc(L.ox + lab + c * (CELL_W + state.gap)), y = sc(rowTop(r));
       // **空きマスは塗らない**（背景の色が見える。backend/render.pyと同じ。2026-09-25）
       if (t) { ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch); }
       const drawOverlay = () => {
@@ -8705,6 +8805,73 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         ctx.fillStyle = cssRgb(ink); ctx.fillRect(x + bw, y, sc(BADGE_SHADOW) + 1, bh); ctx.fillRect(x, y + bh, bw + sc(BADGE_SHADOW) + 1, sc(BADGE_SHADOW) + 1);
         ctx.fillText(label, x + pad + m2.actualBoundingBoxLeft, y + pad + m2.actualBoundingBoxAscent);
       }
+    }
+    if (L.grp) {
+      // まとまりごとの曲名（backend/render.pyの _draw_groupsと同じ）。右置きは曲名＋アーティスト名の2行か1行型をk列、下置きは流し込み
+      const fs = Math.max(8, sc(L.fontS)), fNum = fontPixel(Math.max(8, sc(L.fontS * 0.8)));
+      const fT = fontBold(fs), faPx = Math.max(8, Math.round(fs * ARTIST_SCALE)), fA = fontRegular(faPx);
+      groupsOf(VC, EX.cols, EX.rows).forEach(([a, b, ts], gi) => {
+        if (!ts.length) return;
+        const [lx, ly, lw, lhgt] = L.grpLists[gi], x0 = L.ox + lx, top = y0 + ly;
+        const nums = listNums(ts);
+        if (L.grp === "right") {
+          const gapC = Math.round(L.fontS * 1.5);
+          const cols2 = grpSplit(ts.map((t, i) => [t, nums[i]]), L.grpCols);
+          const colw = L.grpCols > 1 ? (lw - (L.grpCols - 1) * gapC) / L.grpCols : lw;
+          const lines = Math.max(...cols2.map(c => grpLines(c.map(x => x[0]), L.grpInline)));
+          const start = top + Math.round((lhgt - lines * L.lineH) / 2);
+          cols2.forEach((col, ci) => {
+            const cx = x0 + ci * (colw + gapC);
+            let row = 0;
+            for (const [t, num] of col) {
+              const yy = sc(start + row * L.lineH + L.lineH / 2);
+              ctx.font = fNum; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(muted);
+              const mm = ctx.measureText(num), tp = -mm.actualBoundingBoxAscent, bt = mm.actualBoundingBoxDescent;
+              ctx.fillText(num, sc(cx), Math.round(yy - (tp + bt) / 2));
+              const nw = mm.width + sc(L.fontS * 0.8), maxW = colw * S - nw, artist = oneLine(t.artist);
+              if (L.grpInline) {
+                const base = Math.round(fs * BASELINE);
+                ctx.font = fT; ctx.fillStyle = cssRgb(ink); ctx.textBaseline = "alphabetic";
+                ctx.fillText(ellipsizeText(ctx, oneLine(t.title), maxW), sc(cx) + nw, yy + base);
+                if (artist) {
+                  ctx.font = fA; ctx.fillStyle = cssRgb(muted); ctx.textAlign = "right";
+                  ctx.fillText(ellipsizeText(ctx, artist, maxW), sc(cx + colw), yy + base);
+                  ctx.textAlign = "left";
+                }
+                row += 1;
+                continue;
+              }
+              ctx.font = fT; ctx.fillStyle = cssRgb(ink); ctx.textBaseline = "middle";
+              ctx.fillText(ellipsizeText(ctx, oneLine(t.title), maxW), sc(cx) + nw, yy);
+              row += 1;
+              if (artist) {
+                const ay = sc(start + row * L.lineH + L.lineH / 2) - sc(L.lineH * 0.14);
+                ctx.font = shrinkFont(ctx, artist, fA, faPx, maxW, "regular"); ctx.fillStyle = cssRgb(muted);
+                ctx.fillText(ellipsizeText(ctx, artist, maxW), sc(cx) + nw, ay);
+                row += 1;
+              }
+            }
+          });
+        } else {
+          const fonts = { num: fNum, title: fT, artist: fontRegular(fs), head: fontBold(Math.max(8, Math.round(fs * LIST_HEAD_SCALE))) };
+          const colors = { num: cssRgb(muted), title: cssRgb(ink), artist: cssRgb(muted), head: cssRgb(ink) };
+          const flow = flowRows(L.fontS, lw, null, null, ts), base = Math.round(fs * BASELINE);
+          ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.font = fT;
+          const sp = Math.round(Math.round(ctx.measureText("　").width * 64) / 64);
+          flow.forEach((fr, k) => {
+            let x = sc(x0);
+            const yy = sc(top + k * L.lineH + L.lineH / 2) + base;
+            const extra = fr.gaps && k < flow.length - 1 && !fr.end ? Math.round(Math.min(Math.max(0, sc(lw) - sc(fr.width)) / fr.gaps, sp)) : 0;
+            fr.parts.forEach(([kind, text], j) => {
+              if (kind === "num" && j > 0) x += sp + extra;
+              ctx.font = fonts[kind]; ctx.fillStyle = colors[kind];
+              ctx.fillText(text, x, yy);
+              x += Math.round(Math.round(ctx.measureText(text).width * 64) / 64);
+            });
+          });
+        }
+      });
+      return { canvas, bg };
     }
     if (L.wrap && L.wrapRows) {
       // 曲名をマス1つ1つの横に並べる（柱・1列の並び）。番号 → 曲名、その下にアーティスト名
