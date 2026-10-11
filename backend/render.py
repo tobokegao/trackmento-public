@@ -1951,6 +1951,8 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     gh = rows * cell_h(doc) + (rows - 1) * _row_gap(doc)   # 行の見出しがあれば行の間隔を広げる（`_row_gap`）
     # `_title_px` は「曲名リストより十分大きく」するための組み直し（下のTITLE_MIN_SCALEを参照）
     title_size = _title_px or rnd(min(96, max(48, gw * 0.045)))
+    if _label_col(real) > 0:   # 行の見出しがあるときは、タイトルを見出しより大きく（同じくらいだと見出しのほうが目立つ。2026-10-11、利用者の指摘）
+        title_size = max(title_size, rnd(LABEL_COL_PX * TITLE_OVER_LABEL))
     title_h = rnd(title_size * 1.9) if title else 0
     ratio = RATIOS[o.ratio]
     # **行の見出しがあり、曲名リストを横に並べるなら、まとまりごとの組み方**（`_group_layout`）。
@@ -2414,6 +2416,7 @@ BADGE_PX, BADGE_PAD, BADGE_SHADOW = 48, 20, 6
 # 初めはマスの左上に札を重ねていたが、番号バッジが札の下に来るのが不自然で、サムネの外に出した（同日、利用者の指摘）。
 # frontendのLABEL_COL_PX / labelCol / drawRowLabelsと対で直すこと
 LABEL_COL_PX = 64
+TITLE_OVER_LABEL = 1.5   # 行の見出しがあるとき、タイトルの字は見出しのこの倍率以上
 
 
 def _label_w(s: str, px: int) -> int:

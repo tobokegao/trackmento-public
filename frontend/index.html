@@ -3063,6 +3063,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      グリッドの左に見出しの列を足し、各行の高さの中央に字を置く（labelCol。描くのはrenderShareCanvas）。字数はbackend/grids.pyのMAX_ROW_LABELと同じ */
   const LIST_HEAD_SCALE = 1.25;   // 曲名リストの見出しの字（曲名の字に対する倍率。backend/render.pyと同じ）
   const LABEL_COL_PX = 64, MAX_ROW_LABEL = 12, ROW_GAP_FRAC = 0.5;   // ROW_GAP_FRAC: 見出しがあるときの行の間隔（マスの高さに対する比）
+  const TITLE_OVER_LABEL = 1.5;   // 行の見出しがあるとき、タイトルの字は見出しのこの倍率以上（backend/render.pyと同じ）
   const LABEL_WRAP_W = 4 * LABEL_COL_PX, LABEL_LEAD = 1.2;   // 見出しを2行に折る幅（全角4字ぶん）と2行の送り（backend/render.pyと同じ）
   const CELL_PX = CELL_W;                                       // 旧名。幅から決まる式が読む
   const cellH = () => CELL_H_BY_RATIO[state.cellRatio] || CELL_W;
@@ -7196,7 +7197,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const nTracks = Math.max(1, viewCells().filter(Boolean).length);   // 入っている曲の数（「消える曲」の割合の母数）
     const g = state.gap;
     const gw = labelCol(rows) + cols * CELL_W + (cols - 1) * g, gh = rows * cellH() + (rows - 1) * rowGap(rows);   // 行の見出しがあれば左にその列を足し、行の間隔を広げる
-    const titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
+    let titleSize = titlePx || Math.round(Math.min(96, Math.max(48, gw * 0.045)));
+    // 行の見出しがあるときは、タイトルを見出しより大きく（backend/render.pyと同じ）
+    if (labelCol(rows) > 0) titleSize = Math.max(titleSize, Math.round(LABEL_COL_PX * TITLE_OVER_LABEL));
     let titleH = title ? Math.round(titleSize * 1.9) : 0;   // 右に置くときは、下で行の整数倍に直す
     const ratio = RATIOS[state.ratio];
     // **行の見出しがあり、曲名リストを横に並べるなら、まとまりごとの組み方**（backend/render.pyと同じ）。曲の順の並びで組む
