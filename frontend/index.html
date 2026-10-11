@@ -6360,8 +6360,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         return;
       }
       // 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない送りが入る）
-      if (cur.length) { if (x + gap > cw()) flush(); else { x += gap; gaps += 1; } }
       const num = nums[i], title2 = oneLine(t.title);
+      // まとまりごとの組み方（srcあり）では、1曲が1行に収まるなら曲の途中で折らない（backend/render.pyと同じ）
+      let sw = 0;
+      if (src) {
+        for (const c of num) sw += cw1("num", c);
+        for (const c of " " + title2) sw += cw1("title", c);
+        if (t.artist) for (const c of " " + oneLine(t.artist)) sw += cw1("artist", c);
+      }
+      if (cur.length) { if (x + gap > cw() || (sw && x + gap + sw > cw() && sw <= cw())) flush(); else { x += gap; gaps += 1; } }
       // **番号だけが行末に取り残されないようにする**（backend/render.pyと同じ規則）
       // **ここも1字ごとの丸めた幅で測る**（backend/render.pyと同じ）。実寸で比べると
       // 判定が入れ替わって行数が1つずれ、中央寄せの量が変わって全体がずれる
@@ -7091,7 +7098,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   // `titlePx` は「曲名リストより十分大きく」するための組み直し（TITLE_MIN_SCALEを参照）
   /* ---- まとまりごと（行の見出しがあるとき。backend/render.pyの _groups / _group_layout / _draw_groupsと対で直すこと。2026-10-11） ----
      見出しのある行から次の見出しのある行の手前までを1つのまとまりにし、横長の枠なら右、正方形以下なら下に、そのまとまりの曲名だけを置く */
-  const GRP_GAP = 48, GRP_FONT = 0.075, GRP_FONT_MAX = 0.12;
+  const GRP_GAP = 48, GRP_SEP = 120, GRP_FONT = 0.075, GRP_FONT_MAX = 0.12;
   function groupsOf(cells, cols, rows) {
     const labels = state.rowLabels.slice(0, rows).map(t => oneLine(t || ""));
     const starts = [0];
@@ -7149,25 +7156,29 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       for (const [a, b] of groups) lists.push([gw + GRP_GAP, rowsY[a], lw, (b - a) * ch + (b - a - 1) * rg]);
       wc = gw + GRP_GAP + lw;
     } else {
-      const build = (f) => {
+      const sep0 = Math.min(rg, GRP_SEP);   // まとまりの間（曲名の下から次のジャケットまで）。backend/render.pyと同じ
+      const build = (f, sep) => {
         const l = Math.round(f * 1.5), ys = [], ls = [];
         let y = 0;
         for (const [a, b, ts] of groups) {
           for (let r = a; r < b; r++) { ys.push(y); y += ch + (r < b - 1 ? g : 0); }
           const n = ts.length ? flowRows(f, colsW, null, null, ts).length : 0;
           ls.push([lab, y + GRP_GAP, colsW, n * l]);
-          y += (n ? GRP_GAP + n * l : 0) + rg;
+          y += (n ? GRP_GAP + n * l : 0) + sep;
         }
-        return [ys, ls, y - rg];
+        return [ys, ls, y - sep];
       };
       fs = Math.round(CELL_W * GRP_FONT);
+      let sep = sep0;
       if (ratio !== null) {
         const padW = Math.max(m, Math.round(gw * pf));
         const limit = Math.round((gw + padW * 2) / ratio) - padW * 2 - titleH;
-        for (let f = Math.round(CELL_W * GRP_FONT_MAX); f > fs; f--) if (build(f)[2] <= limit) { fs = f; break; }
+        for (let f = Math.round(CELL_W * GRP_FONT_MAX); f > fs; f--) if (build(f, sep0)[2] <= limit) { fs = f; break; }
+        // 字を上限まで大きくしても縦に余るなら、まとまりの間を広げて使う（行の間隔 rg まで）
+        if (groups.length > 1) sep = sep0 + Math.max(0, Math.min(rg - sep0, Math.floor((limit - build(fs, sep0)[2]) / (groups.length - 1))));
       }
       lh = Math.round(fs * 1.5);
-      [rowsY, lists, ghPlain] = build(fs);
+      [rowsY, lists, ghPlain] = build(fs, sep);
       wc = gw;
     }
     const hc = titleH + ghPlain, pad = Math.max(m, Math.round(Math.min(wc, hc) * pf));

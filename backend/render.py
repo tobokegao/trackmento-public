@@ -1079,15 +1079,21 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             else:
                 put("head", _one_line(t.title))
             continue
+        title = _one_line(t.title)
+        # **まとまりごとの組み方（`src` あり）では、1曲が1行に収まるなら曲の途中で折らない**（少ない曲を並べるので、
+        # 「ロスト／ワンの号哭」のように曲名が折れると目立つ。2026-10-11、利用者の指摘）。1行より長い曲は今までどおり字で折る
+        sw = 0
+        if src is not None:
+            sw = (sum(char_w(*sizes["num"], c) for c in num) + sum(char_w(*sizes["title"], c) for c in " " + title)
+                  + (sum(char_w(*sizes["artist"], c) for c in " " + _one_line(t.artist)) if t.artist else 0))
         if cur:
             # 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない
             # 送りが入り、余りの配り方がずれる）
-            if x + gap > cw():
+            if x + gap > cw() or (sw and x + gap + sw > cw() and sw <= cw()):
                 flush()
             else:
                 x += gap
                 gaps += 1
-        title = _one_line(t.title)
         # **番号だけが行末に取り残されないようにする**。番号と曲名の頭2字が入らないなら先に折る。
         # **ここも1字ごとの丸めた幅で測る**。文字列まるごとの実寸で比べるとPILとCanvasで
         # 判定が入れ替わり、行数が1つずれる。行数は中央寄せの量に効くので、**全体がずれる**
@@ -1821,6 +1827,7 @@ def _cropped(doc: GridDoc) -> GridDoc:
 # 下（正方形・縦長）に、そのまとまりの曲名だけを置く。番号はまとまりごとに01から（`cell_nums` と同じ）。
 # frontendのgroupsOf / groupLayout / GRP_* と対で直すこと
 GRP_GAP = 48          # ジャケットと曲名のあいだ（論理px）
+GRP_SEP = 120         # 下に置くとき、曲名の下から次のまとまりのジャケットまで（論理px。枠が縦に余るときは行の間隔まで広げる）
 GRP_FONT = 0.075      # 下に置くときの曲名の字（マスの幅に対する比）
 GRP_LIST_MAX = 3      # 右に置くときの曲名の幅の上限（マスの幅の何倍か）
 
@@ -1901,7 +1908,9 @@ def _group_layout(doc: GridDoc, gw: int, title: str, title_size: int, title_h: i
             lists.append((gw + GRP_GAP, rows_y[a], lw, (b - a) * ch + (b - a - 1) * rg))
         wc = gw + GRP_GAP + lw
     else:
-        def build(fs: int) -> tuple[list[int], list[tuple[int, int, int, int]], int]:
+        sep0 = min(rg, GRP_SEP)   # まとまりの間（曲名の下から次のジャケットまで）。行の間隔（マスの半分）では広すぎた
+
+        def build(fs: int, sep: int) -> tuple[list[int], list[tuple[int, int, int, int]], int]:
             lh = rnd(fs * 1.5)
             ys, ls, y = [], [], 0
             for a, b, ts in groups:
@@ -1910,18 +1919,21 @@ def _group_layout(doc: GridDoc, gw: int, title: str, title_size: int, title_h: i
                     y += ch + (g if r < b - 1 else 0)
                 n = len(_flow_rows(doc, fs, cols_w, src=ts)) if ts else 0
                 ls.append((lab, y + GRP_GAP, cols_w, n * lh))
-                y += (GRP_GAP + n * lh if n else 0) + rg
-            return ys, ls, y - rg
-        fs = rnd(CELL_W * GRP_FONT)
+                y += (GRP_GAP + n * lh if n else 0) + sep
+            return ys, ls, y - sep
+        fs, sep = rnd(CELL_W * GRP_FONT), sep0
         if ratio is not None:
             pad_w = max(m, rnd(gw * pf))
             limit = rnd((gw + pad_w * 2) / ratio) - pad_w * 2 - title_h   # 枠の高さに収まる中身の高さ
             for f in range(rnd(CELL_W * GRP_FONT_MAX), fs, -1):
-                if build(f)[2] <= limit:
+                if build(f, sep0)[2] <= limit:
                     fs = f
                     break
+            # 字を上限まで大きくしても縦に余るなら、まとまりの間を広げて使う（行の間隔 `rg` まで。広げすぎるとまとまりが散るので、それ以上は上下の余白に回す）
+            if len(groups) > 1:
+                sep = sep0 + max(0, min(rg - sep0, (limit - build(fs, sep0)[2]) // (len(groups) - 1)))
         lh = rnd(fs * 1.5)
-        rows_y, lists, gh_plain = build(fs)
+        rows_y, lists, gh_plain = build(fs, sep)
         wc = gw
     hc = title_h + gh_plain
     pad = max(m, rnd(min(wc, hc) * pf))
