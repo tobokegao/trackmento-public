@@ -1834,7 +1834,7 @@ def _groups(doc: GridDoc) -> list[tuple[int, int, list[Track]]]:
 
 
 def _grp_split(ts: list, k: int) -> list[list]:
-    """まとまりの曲をk列に分ける（上から順に、1列 ceil(n/k) 曲）"""
+    """まとまりの曲をk列に分ける（上から順に、1列にceil(n/k)曲）"""
     per = max(1, math.ceil(len(ts) / k))
     return [ts[i:i + per] for i in range(0, len(ts), per)]
 
