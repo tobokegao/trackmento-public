@@ -8822,7 +8822,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           const cols2 = grpSplit(ts.map((t, i) => [t, nums[i]]), L.grpCols);
           const colw = L.grpCols > 1 ? (lw - (L.grpCols - 1) * gapC) / L.grpCols : lw;
           const lines = Math.max(...cols2.map(c => grpLines(c.map(x => x[0]), L.grpInline)));
-          const start = top + Math.round((lhgt - lines * L.lineH) / 2);
+          // 字の見えている範囲で上下の余白をそろえる（アーティスト名の行は0.14行ぶん上に寄せてある。backend/render.pyと同じ）
+          const tail = !L.grpInline && cols2[0].some(([t]) => oneLine(t.artist));
+          const last = tail ? Math.round(L.fontS * ARTIST_SCALE) : L.fontS;
+          const visH = (lines - 1) * L.lineH - (tail ? L.lineH * 0.14 : 0) + (L.fontS + last) / 2;
+          const start = top + Math.round((lhgt - visH) / 2 - L.lineH / 2 + L.fontS / 2);
           cols2.forEach((col, ci) => {
             const cx = x0 + ci * (colw + gapC);
             let row = 0;

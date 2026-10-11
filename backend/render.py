@@ -2870,7 +2870,12 @@ def _draw_groups(d: ImageDraw.ImageDraw, doc: GridDoc, L: Layout, y0: float, sc,
             cols = _grp_split(list(zip(ts, nums)), L.grp_cols)
             colw = (lw - (L.grp_cols - 1) * rnd(L.font_s * 1.5)) / L.grp_cols if L.grp_cols > 1 else lw
             lines = max(_grp_lines([t for t, _ in c], L.grp_inline) for c in cols)
-            start = top + rnd((lhgt - lines * L.line_h) / 2)
+            # **字の見えている範囲で上下の余白をそろえる**（2026-10-11、利用者の指摘）。行の枠で真ん中に置くと、
+            # アーティスト名の行は曲名の下へ0.14行ぶん寄せてあるぶん、字の塊が上にずれて下の余白が広く見えた
+            tail = not L.grp_inline and any(_one_line(t.artist) for t, _ in cols[0])
+            last = rnd(L.font_s * ARTIST_SCALE) if tail else L.font_s
+            vis_h = (lines - 1) * L.line_h - (L.line_h * 0.14 if tail else 0) + (L.font_s + last) / 2
+            start = top + rnd((lhgt - vis_h) / 2 - L.line_h / 2 + L.font_s / 2)
             for ci, col in enumerate(cols):
                 cx = x0 + ci * (colw + rnd(L.font_s * 1.5))
                 row = 0
