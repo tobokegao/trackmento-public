@@ -618,6 +618,7 @@ class _Head:
     列の数・字の大きさ・流し込みの計算は曲と同じ道を通る。番号は付けず、曲の序数にも数えない（`_nums`）"""
     title: str
     artist: str = ""
+    spacer: bool = False   # 2つ目からの見出しの手前に置く空き（1行ぶん。まとまりの間をあける。2026-10-11、利用者の求め）
 
 
 def _tracks(doc: GridDoc) -> list[Track]:
@@ -637,6 +638,8 @@ def _songs(doc: GridDoc) -> list:
             continue
         r = i // doc.cols
         if r != last and r < len(labels) and labels[r]:
+            if out:
+                out.append(_Head("", spacer=True))
             out.append(_Head(labels[r]))
         last = r
         out.append(t)
@@ -1065,7 +1068,10 @@ def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
             if cur:
                 rows.append(FlowRow(cur, x, gaps, True))
             cur, x, gaps = [], 0.0, 0
-            put("head", _one_line(t.title))
+            if t.spacer:   # まとまりの間の空き行
+                rows.append(FlowRow([], 0.0, 0, True))
+            else:
+                put("head", _one_line(t.title))
             continue
         if cur:
             # 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない
@@ -2292,9 +2298,28 @@ def _row_gap(doc: GridDoc) -> int:
     return max(g, rnd(cell_h(doc) * ROW_GAP_FRAC)) if _label_col(doc) else g
 
 
+LABEL_WRAP_W = 4 * LABEL_COL_PX   # 見出しがこれより広ければ2行に折る（全角4字ぶん）。長い見出しで列が広がり、マスが小さくなるため（2026-10-11、利用者の指摘）
+LABEL_LEAD = 1.2                   # 2行にしたときの行の送り（字の大きさに対する比）
+
+
+def _label_lines(s: str) -> list[str]:
+    """見出しを1行か2行に分ける。`LABEL_WRAP_W` より広ければ、**真ん中にいちばん近い空白**で折る（空白は落とす）。
+    空白が無ければ字数の半分（前を多く）で折る。frontendのlabelLinesと同じ"""
+    if _label_w(s, LABEL_COL_PX) <= LABEL_WRAP_W:
+        return [s]
+    mid = len(s) / 2
+    sp = [i for i, ch in enumerate(s) if ch == " " and 0 < i < len(s) - 1]
+    if sp:
+        i = min(sp, key=lambda i: (abs(i - mid), i))
+        return [s[:i], s[i + 1:]]
+    k = (len(s) + 1) // 2
+    return [s[:k], s[k:]]
+
+
 def _label_col(doc: GridDoc) -> int:
-    """見出しの列の幅（論理px。マスとのあいだの間隔を含む）。見出しが1つも無ければ0"""
-    w = max((_label_w(_one_line(t), LABEL_COL_PX) for t in doc.rowLabels[:doc.rows] if _one_line(t)), default=0)
+    """見出しの列の幅（論理px。マスとのあいだの間隔を含む）。見出しが1つも無ければ0。2行に折った見出しは長いほうの行の幅"""
+    w = max((_label_w(ln, LABEL_COL_PX) for t in doc.rowLabels[:doc.rows] if _one_line(t)
+             for ln in _label_lines(_one_line(t))), default=0)
     return w + doc.options.gap if w else 0
 
 
@@ -2364,10 +2389,14 @@ def render(doc: GridDoc) -> Image.Image:
     if lab:
         lpx = max(8, sc(LABEL_COL_PX))
         f_lab = font("bold", lpx)
+        llh = rnd(lpx * LABEL_LEAD)
         for r, t in enumerate(doc.rowLabels[:doc.rows]):
-            if _one_line(t):
-                d.text((sc(L.ox), sc(y0 + r * (cell_h(doc) + _row_gap(doc))) + rnd(ch / 2) + rnd(lpx * BASELINE)),
-                       _one_line(t), font=f_lab, fill=ink, anchor="ls")
+            if not _one_line(t):
+                continue
+            lines = _label_lines(_one_line(t))
+            cy = sc(y0 + r * (cell_h(doc) + _row_gap(doc))) + rnd(ch / 2) + rnd(lpx * BASELINE)
+            for j, ln in enumerate(lines):   # 2行なら行の中央をはさんで上下に
+                d.text((sc(L.ox), cy + rnd((2 * j - (len(lines) - 1)) * llh / 2)), ln, font=f_lab, fill=ink, anchor="ls")
     nums = _cell_nums(doc)            # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰め、行の見出しごとに数え直す）
     for i, t in enumerate(doc.cells):
         c, r = i % doc.cols, i // doc.cols

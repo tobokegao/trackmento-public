@@ -876,7 +876,7 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .rowlab-list .n { flex: none; min-width: 2ch; font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-ink-2); }
 /* 行の見出しの列（書き出しと同じく、グリッドの左。幅と字の大きさはsyncPreviewが書き出しの比率で決める） */
 .grid[data-labels="on"] { grid-template-columns: var(--labw) repeat(var(--cols, 3), minmax(0, 1fr)); }
-.grid .rowhead { align-self: center; min-width: 0; overflow: hidden; white-space: nowrap; font-weight: 700; font-size: var(--labpx); line-height: 1.2; color: var(--grid-ink, var(--color-ink)); }
+.grid .rowhead { align-self: center; min-width: 0; overflow: hidden; white-space: nowrap; font-weight: 700; font-size: var(--labpx); line-height: 1.2;   /* 長い見出しの2行はJSが<br>で折る */ color: var(--grid-ink, var(--color-ink)); }
 .popup { --sh: calc(2 * var(--dot)); --arrow-w: 24px; position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
 .popup select {
   -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; min-height: 40px; margin: 0;
@@ -3063,6 +3063,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      グリッドの左に見出しの列を足し、各行の高さの中央に字を置く（labelCol。描くのはrenderShareCanvas）。字数はbackend/grids.pyのMAX_ROW_LABELと同じ */
   const LIST_HEAD_SCALE = 1.25;   // 曲名リストの見出しの字（曲名の字に対する倍率。backend/render.pyと同じ）
   const LABEL_COL_PX = 64, MAX_ROW_LABEL = 12, ROW_GAP_FRAC = 0.5;   // ROW_GAP_FRAC: 見出しがあるときの行の間隔（マスの高さに対する比）
+  const LABEL_WRAP_W = 4 * LABEL_COL_PX, LABEL_LEAD = 1.2;   // 見出しを2行に折る幅（全角4字ぶん）と2行の送り（backend/render.pyと同じ）
   const CELL_PX = CELL_W;                                       // 旧名。幅から決まる式が読む
   const cellH = () => CELL_H_BY_RATIO[state.cellRatio] || CELL_W;
   const cellShort = () => Math.min(CELL_W, cellH());             // 帯や番号を出すかの判定は**短辺**
@@ -3426,7 +3427,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     cells.forEach((t, i) => {
       if (!t) return;
       const r = Math.floor(i / cols);
-      if (r !== last && r < labels.length && labels[r]) out.push({ title: labels[r], artist: "", heading: true });
+      if (r !== last && r < labels.length && labels[r]) {
+        if (out.length) out.push({ title: "", artist: "", heading: true, spacer: true });   // 2つ目からの見出しの手前に1行ぶんの空き
+        out.push({ title: labels[r], artist: "", heading: true });
+      }
       last = r; out.push(t);
     });
     return out;
@@ -4915,7 +4919,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       // 行の見出し（書き出しと同じく、グリッドの左の列）。見出しが1つでもあれば、どの行の頭にも列の升を置く
       if (i % state.cols === 0 && labOn) {
         const h = document.createElement("li"); h.className = "rowhead"; h.setAttribute("aria-hidden", "true");
-        h.textContent = oneLine(state.rowLabels[Math.floor(i / state.cols)] || "");
+        // 書き出しと同じく、長い見出しは2行に折る
+        labelLines(oneLine(state.rowLabels[Math.floor(i / state.cols)] || "")).forEach((ln, j) => { if (j) h.append(document.createElement("br")); h.append(ln); });
         els.grid.append(h);
       }
       els.grid.append(li);
@@ -6349,7 +6354,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (!nums[i]) {   // 行の見出し。**必ず新しい行から**、番号を付けずに曲名と同じ太字で（backend/render.pyと同じ）
         if (cur.length) rows.push({ parts: cur, width: x, gaps, end: true });   // 見出しの手前で切った行は右端をそろえない
         cur = []; x = 0; gaps = 0;
-        put("head", oneLine(t.title));
+        if (t.spacer) rows.push({ parts: [], width: 0, gaps: 0, end: true });   // まとまりの間の空き行
+        else put("head", oneLine(t.title));
         return;
       }
       // 曲の切れ目。**行末に来た切れ目は数えない**（数えると、その行の幅に使っていない送りが入る）
@@ -8338,8 +8344,21 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   // 行と行のあいだ（論理px）。行の見出しがあるときだけマスの高さのROW_GAP_FRAC（間隔のほうが広ければそちら。backend/render.pyの _row_gapと同じ）
   const rowGap = (rows = exRows()) => (labelCol(rows) ? Math.max(state.gap, Math.round(cellH() * ROW_GAP_FRAC)) : state.gap);
   // 見出しの列の幅（論理px。マスとのあいだの間隔を含む）。見出しが1つも無ければ0
+  /* 見出しを1行か2行に分ける（backend/render.pyの _label_linesと同じ）。LABEL_WRAP_Wより広ければ、真ん中にいちばん近い空白で折る
+     （空白は落とす）。空白が無ければ字数の半分（前を多く）で。**字は符号位置で数える**（Pythonの文字列の添字と合わせる） */
+  function labelLines(s) {
+    if (labelW(s, LABEL_COL_PX) <= LABEL_WRAP_W) return [s];
+    const cs = [...s], mid = cs.length / 2;
+    let best = -1;
+    cs.forEach((ch, i) => {
+      if (ch === " " && i > 0 && i < cs.length - 1 && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
+    });
+    if (best >= 0) return [cs.slice(0, best).join(""), cs.slice(best + 1).join("")];
+    const k = Math.floor((cs.length + 1) / 2);
+    return [cs.slice(0, k).join(""), cs.slice(k).join("")];
+  }
   function labelCol(rows = exRows()) {
-    const w = Math.max(0, ...state.rowLabels.slice(0, rows).map(t => oneLine(t || "")).filter(Boolean).map(t => labelW(t, LABEL_COL_PX)));
+    const w = Math.max(0, ...state.rowLabels.slice(0, rows).map(t => oneLine(t || "")).filter(Boolean).flatMap(labelLines).map(t => labelW(t, LABEL_COL_PX)));
     return w ? w + state.gap : 0;
   }
   function ellipsizeText(ctx, text, maxW) {
@@ -8631,9 +8650,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (lab) {
       const lpx = Math.max(8, sc(LABEL_COL_PX));
       ctx.font = fontBold(lpx); ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
+      const llh = Math.round(lpx * LABEL_LEAD);
       state.rowLabels.slice(0, EX.rows).forEach((t, r) => {
         const s = oneLine(t || "");
-        if (s) ctx.fillText(s, sc(L.ox), sc(y0 + r * (cellH() + rowGap(EX.rows))) + Math.round(ch / 2) + Math.round(lpx * BASELINE));
+        if (!s) return;
+        const lines = labelLines(s), cy = sc(y0 + r * (cellH() + rowGap(EX.rows))) + Math.round(ch / 2) + Math.round(lpx * BASELINE);
+        lines.forEach((ln, j) => ctx.fillText(ln, sc(L.ox), cy + Math.round((2 * j - (lines.length - 1)) * llh / 2)));   // 2行なら行の中央をはさんで上下に
       });
     }
     const cnums = cellNums(VC, EX.cols, EX.rows);   // 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰め、行の見出しごとに数え直す。backend/render.pyと同じ）
