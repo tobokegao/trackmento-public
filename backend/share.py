@@ -477,7 +477,6 @@ img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b;
 /* 自分の共有を外す・消す（2026-09-26）。鍵を持つ端末にだけ出る。buttonはaと同じ見た目に */
 button.btn {{ font: inherit; font-weight: 700; cursor: pointer; }}
 button.btn:disabled {{ opacity: .5; cursor: default; }}
-.btn.danger {{ background: oklch(62% 0.200 32); color: #f6f5f3; }}
 .own {{ display: grid; gap: 8px; padding: 12px; border: 2px dashed #12171b; }}
 .own[hidden] {{ display: none; }}
 .own .note {{ margin: 0; padding: 0; border: 0; background: none; }}   /* 破線の枠の中なので、ふだんの .noteの枠は付けない */
