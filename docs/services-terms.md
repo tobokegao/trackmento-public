@@ -35,7 +35,7 @@
 - 「ストアのバッジのそばに置く」（バッジは購入ページへのリンク） → 試聴中の帯に **「Apple Musicで聴く」**
   （元のページ＝`trackViewUrl`）を置いた。**Apple公式のバッジ画像は使っていない**（文字のボタン）。
   厳密には条件の「バッジ」とは違う。言われたら公式のバッジ（Apple Musicのマーケティング素材）に差し替える
-- 「provided courtesy of iTunes と表記する」 → 帯に「試聴音源はiTunesの提供です。」（英語は Previews provided courtesy of iTunes.）
+- 「provided courtesy of iTunesと表記する」 → 帯に「試聴音源はiTunesの提供です。」（英語は Previews provided courtesy of iTunes.）
 - Lookup APIは押した端末からまとめて1回（国ごと）。サーバーの共有IPは使わないので、約20回/分の上限には掛からない
 
 ## YouTube Data APIの使い道が増えた（2026-09-21）
