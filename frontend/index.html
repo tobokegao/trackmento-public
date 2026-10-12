@@ -2982,7 +2982,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* 言語を変えたら、すでに描いてあるものを描き直す（ソース名・色名・マスの読み上げなど）。
      まだ描いていない段階でも呼ばれるので、1つずつ握りつぶす */
   /* **サーバー代の進み具合の棒**（2026-09-26）。数字はbackend/support.pyが <meta name="trackmento-support"> に
-     「月,サーバー代,支援の額,人数」で入れる。置き換わっていない（__SUPPORT__ のまま）・壊れているときは棒ごと出さない */
+     「月,サーバー代,支援の額,人数」で入れる。置き換わっていない（印のまま）・壊れているときは棒ごと出さない */
   function paintFund() {
     const face = document.querySelector(".promo-btn img");
     if (face) for (const el of document.querySelectorAll(".maker-face")) el.style.backgroundImage = `url("${face.src}")`;

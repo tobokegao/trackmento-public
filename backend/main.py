@@ -655,9 +655,6 @@ async def index(request: Request) -> HTMLResponse:
     if (fbase := _fonts_r2_base()):
         for _f in ("Silkscreen-Regular.woff2", "Silkscreen-Bold.woff2"):
             html = html.replace(f'url("fonts/{_f}")', f'url("{fbase}/{_f}")')   # **woff2だけ**（ttfはR2に置いていない）
-    # Google Search Consoleの所有権確認（HTMLタグ方式）。GOOGLE_SITE_VERIFICATIONが無ければタグごと消す
-    token = os.getenv("GOOGLE_SITE_VERIFICATION", "").strip()
-    html = html.replace("<!--__VERIFY__-->", f'<meta name="google-site-verification" content="{token}">' if token else "", 1)
     # ETagはnonceを入れる前の内容から作る（nonceは毎回変わる）。ブラウザが同じETagを持っていれば304で本文（約40KB）を省く。
     # 304にはCSPヘッダーを付けない（付けるとキャッシュ済み本文のnonceと食い違ってスクリプトが止まる。middleware側で除外）
     etag = '"' + hashlib.sha256(html.encode("utf-8")).hexdigest()[:16] + '"'

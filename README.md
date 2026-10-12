@@ -231,6 +231,6 @@ promo/                  紹介動画（Remotion + Playwright）
 
 - `/robots.txt`（トップだけ許可、API・画像・共有は除外）と `/sitemap.xml` を配る。共有ページ `/s/…` は30日で消えるので `noindex`
 - Googleに載せるには [Search Console](https://search.google.com/search-console) でURLプレフィックス型のプロパティ（`https://trackmento.com/`）を追加し、
-  所有権の確認方法に「HTMLタグ」を選ぶ。表示される `content="…"` の値を環境変数 `GOOGLE_SITE_VERIFICATION` に入れて再デプロイすると、
-  トップページに確認タグが出る。確認後、「URL検査」→「インデックス登録をリクエスト」でクロールを頼める（反映は数日〜数週間）
+  所有権の確認方法に「HTMLタグ」を選ぶ。表示される `<meta name="google-site-verification">` を `frontend/index.html` の `<head>` に書く
+  （trackmento.comの分は書いてある。2026-09-10までは環境変数から差し込んでいた）。確認後、「URL検査」→「インデックス登録をリクエスト」でクロールを頼める（反映は数日〜数週間）
 - 新しいサイトは、外部からリンクされるまで検索結果に出づらい。自分のサイト（tobokegao.github.io）やSNSのプロフィールからリンクを張ると早い

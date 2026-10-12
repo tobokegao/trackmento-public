@@ -57,7 +57,6 @@ oEmbedに落ち、アーティスト名が空になる。プレイリストは�
 `YOUTUBE_API_KEY`（YouTube Data API v3。**無いと再生リストをまとめて取れない**。単体の動画はoEmbedなので要らない）、
 `DISCOGS_TOKEN`（Discogs検索。未設定なら候補に出ない）、
 `ITUNES_PROXY_URL` / `ITUNES_PROXY_TOKEN`（iTunesが国から弾かれるときの迂回）、
-`GOOGLE_SITE_VERIFICATION`（Search ConsoleのHTMLタグ）、
 `RENDER_API_KEY` / `RENDER_SERVICE_NAME`（点検スクリプトがRenderのAPIを叩く）、
 `ROXY_CONCURRENCY`（otoDBのroxyへの同時接続。既定3）、
 `CHECK_*`（点検の判定しきい値の上書き）。

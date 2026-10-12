@@ -70,8 +70,6 @@ services:
         sync: false
       - key: R2_PUBLIC_URL
         sync: false
-      - key: GOOGLE_SITE_VERIFICATION   # Search Consoleの「HTMLタグ」のcontent値。未設定ならタグは出ない
-        sync: false
       # Spotifyの公式Web API（Client Credentials）。無いと曲名とジャケット300pxだけのoEmbedに落ち、
       # プレイリストはまとめて取れない（2026-09-20に、ページの読み取りから公式APIへ移した）
       - key: SPOTIFY_CLIENT_ID

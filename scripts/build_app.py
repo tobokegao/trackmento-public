@@ -4,7 +4,7 @@
   python scripts/build_app.py --check    # 生成物の有無と大きさを表示するだけ
 
 背景: Renderの帯域は出費の最大項で、Hobbyプランの込みは月5GBだけ（2026-09-20時点で143.33GB・$20.85）。
-index.htmlは424,697バイトあり、その93% が <style> と <script>。ETagの304が効くので再訪は0バイトだが、
+当時のindex.htmlは424,697バイトあり、その93% が <style> と <script>。ETagの304が効くので再訪は0バイトだが、
 **初回訪問とデプロイ直後はbr圧縮後130KBがまるごとサーバーから出ていく**。
 CSSとJSはどの訪問者にも同じものなので、内容ハッシュを付けてR2（転送量が無料）から配る。
 
@@ -60,7 +60,8 @@ def split(src: str) -> tuple[str, str, str, str, str]:
     # **__RETENTION__ だけはJSに残ってよい**。英語の対訳表は日本語の文面を鍵にしていて、その文面に
     # 日数が入る（「共有URLは __RETENTION__ 日で消えます」）。鍵ごと外に出すしかないので、
     # JS側が起動時に <meta name="trackmento-retention"> の値で表を作り直す。CSSには出てこない
-    for mark in ("__BASE__", "__PUBLIC__", "__MIGRATE__", "__LOGO_FONT__", "__FONT_LINK__", "__VERIFY__"):
+    # 印はbackend/main.pyのindex()が置き換えるもの。増やしたらここにも足す
+    for mark in ("__BASE__", "__PUBLIC__", "__MIGRATE__", "__LOGO_FONT__", "__FONT_LINK__", "__SUPPORT__"):
         for name, body in (("CSS", css), ("JS", js)):
             if mark in body:
                 raise SystemExit(f"{name}の中に{mark}が残っています。殻（HTML）側へ移してください")
