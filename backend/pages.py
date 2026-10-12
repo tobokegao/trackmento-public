@@ -949,7 +949,7 @@ def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja"
     meta = (f"{_updated_of(lang) if kind == 'updates' else UPDATED[lang]}・ "
             f"<a href=\"/{kind}{'?lang=' + other if other == 'en' else ''}\">{'English' if other == 'en' else '日本語'}</a>")
     js = _HOWTO_JS.format(nonce=nonce) if kind == "howto" else ""
-    return _frame(lang, title, f"{html.escape(title)} — TRACKMENTO", head, body_of(kind, lang), meta, base, app_url, js)
+    return _frame(lang, title, f"{html.escape(title)} — TRACKMENTO", head, body_of(kind, lang), meta, base, app_url, js, here=kind)
 
 
 def article_html(slug: str, base: str, app_url: str | None = None, lang: str = "ja") -> str | None:
@@ -966,12 +966,17 @@ def article_html(slug: str, base: str, app_url: str | None = None, lang: str = "
 
 
 def _frame(lang: str, title: str, description: str, head: str, body: str, meta: str, base: str,
-           app_url: str | None, js: str, nav_lang: str | None = None) -> str:
-    """文章のページの枠（見出し・本文・日付の行・下の案内）。nav_langは下の案内の言語（既定はページと同じ）"""
+           app_url: str | None, js: str, nav_lang: str | None = None, here: str | None = None) -> str:
+    """文章のページの枠（見出し・本文・日付の行・下の案内）。nav_langは下の案内の言語（既定はページと同じ）。
+    hereは今いるページ（guideなど）。下の案内でそこだけリンクを外して太字にする"""
     app_url = (app_url or base).rstrip("/")
     nav_lang = nav_lang or lang
     q = "?lang=en" if nav_lang == "en" else ""
-    back, n_guide, n_howto, n_articles, n_privacy, n_terms, n_about, n_updates = NAV[nav_lang]
+    back, *names = NAV[nav_lang]
+    # 今いるページの印（2026-10-12）。リンクのままだと今どこにいるか分からず、押しても同じページが開くだけだった
+    nav = f'<a href="{app_url}/{q}">{back}</a>' + "".join(
+        f'<b aria-current="page">{name}</b>' if k == here else f'<a href="/{k}{q}">{name}</a>'
+        for k, name in zip(("guide", "howto", "articles", "privacy", "terms", "about", "updates"), names))
     return f"""<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)} — TRACKMENTO</title>
@@ -1018,7 +1023,7 @@ dl.articles dt {{ font-size: 1rem; }}
   <h1>{html.escape(title)}</h1>
   {body}
   <p class="meta">{meta}</p>
-  <nav class="pages"><a href="{app_url}/{q}">{back}</a><a href="/guide{q}">{n_guide}</a><a href="/howto{q}">{n_howto}</a><a href="/articles{q}">{n_articles}</a><a href="/privacy{q}">{n_privacy}</a><a href="/terms{q}">{n_terms}</a><a href="/about{q}">{n_about}</a><a href="/updates{q}">{n_updates}</a></nav>
+  <nav class="pages">{nav}</nav>
 </main>
 {js}
 </body></html>"""
