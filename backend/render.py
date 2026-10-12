@@ -2468,6 +2468,21 @@ def _label_col(doc: GridDoc) -> int:
     return w + doc.options.gap if w else 0
 
 
+def _grid_top(L: Layout) -> float:
+    """マスの塊の上端（論理px）。回り込みと右サイドバーはタイトルを別の場所に描くので下げない。"""
+    return L.oy + (L.title_h if (not L.wrap and L.title and L.side != "right") else 0)
+
+
+def cell_box(doc: GridDoc, L: Layout, i: int) -> tuple[float, float, int, int]:
+    """i番目のマスの (x, y, 幅, 高さ)（論理px）。`render()` が描く位置そのもの。
+    共有ページの試聴（`share.cell_boxes`）が、画像の上に押せる範囲を重ねるのにも使う。
+    docは `_cropped(_trimmed(doc))` を通したもの（`layout()` と同じものを見る）"""
+    c, r = i % doc.cols, i // doc.cols
+    y0 = _grid_top(L)
+    y = y0 + L.grp_rows[r] if L.grp_rows else y0 + r * (cell_h(doc) + _row_gap(doc))
+    return L.ox + _label_col(doc) + c * (CELL_W + doc.options.gap), y, CELL_W, cell_h(doc)
+
+
 def render(doc: GridDoc) -> Image.Image:
     """レイアウト（論理px。CELL_PX=600基準）を計算し、最終サイズ（max_side以内）で直接描く。
     以前は原寸で描いてから縮小していたが、8×8だと原寸キャンバスだけで140MBになり、無料ホストのメモリ上限を超えた。"""
@@ -2510,8 +2525,8 @@ def render(doc: GridDoc) -> Image.Image:
         tw = (L.gw + GRP_GAP + L.sb_w) if L.grp == "right" else L.gw
         d.text((sc(L.ox), sc(y0 + L.title_h / 2)), _ellipsize(d, L.title, f_title, tw * S), font=f_title, fill=ink, anchor="lm")
         y0 += L.title_h
-    # 行の上端（論理px）。まとまりごとの組み方は割り付けが決めた位置、ほかは行の送りの倍数
-    row_top = (lambda r: y0 + L.grp_rows[r]) if L.grp_rows else (lambda r: y0 + r * (cell_h(doc) + _row_gap(doc)))
+    # 行の上端（論理px）。まとまりごとの組み方は割り付けが決めた位置、ほかは行の送りの倍数（`cell_box`）
+    row_top = lambda r: cell_box(doc, L, r * doc.cols)[1]
 
     # グリッド（画像は並列に取得し、取得スレッドの中でマスの大きさに切り抜く。原寸を抱えない）
     cw, ch = sc(CELL_W), sc(cell_h(doc))     # マスの幅と高さ（出力px）
@@ -2548,8 +2563,8 @@ def render(doc: GridDoc) -> Image.Image:
                 d.text((sc(L.ox), cy + rnd((2 * j - (len(lines) - 1)) * llh / 2)), ln, font=f_lab, fill=ink, anchor="ls")
     nums = _cell_nums(doc)            # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰め、行の見出しごとに数え直す）
     for i, t in enumerate(doc.cells):
-        c, r = i % doc.cols, i // doc.cols
-        x, y = sc(L.ox + lab + c * (CELL_W + o.gap)), sc(row_top(r))
+        bx, by, _, _ = cell_box(doc, L, i)
+        x, y = sc(bx), sc(by)
         # **空きマスは塗らない**（背景の色が見える。2026-09-25、利用者の指摘。灰色の四角が並ぶと「読み込めなかった」ように見える）。
         # 曲の入ったマスだけ下地を塗る（ジャケットが取れなかったときに、そこに曲があると分かるように）。frontendのrenderShareCanvasと同じ
         if t:

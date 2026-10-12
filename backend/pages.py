@@ -27,7 +27,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年10月12日", "en": "Last updated: October 12, 2026"}
+UPDATED = {"ja": "最終更新: 2026年10月13日", "en": "Last updated: October 13, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Googleフォーム。2026-09-19）
 
@@ -199,7 +199,9 @@ domains (host names) are aggregated.</p>
 <h2>3. Communication with external services</h2>
 <p>When searching for or retrieving track and cover information, the search terms and URLs you enter are sent to the relevant external
 services (for example, the Apple iTunes Search API, Apple Music, MusicBrainz / Cover Art Archive, VocaDB, otoDB, Bandcamp,
-SoundCloud, YouTube, Niconico and Spotify). Some searches are sent directly from your browser to these APIs. Information sent is handled under
+SoundCloud, YouTube, Niconico and Spotify). Some searches are sent directly from your browser to these APIs. When you tap a cover on a
+share page to hear a preview, your browser sends the IDs of the Apple Music tracks in that share to Apple and plays the preview directly
+from Apple. Information sent is handled under
 each platform's privacy policy.</p>
 <p>The Site's server infrastructure runs on Render, and Cloudflare is used to deliver and cache shared files.</p>
 
@@ -235,7 +237,7 @@ The latest version is always published on this page.</p>
 <p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（トラック名・検索語・URLなどの内容は含みません）。不正アクセスの対策や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは元に戻せない形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザの識別情報（User-Agent）そのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
 
 <h2>3. 外部サービスとの通信</h2>
-<p>トラックやサムネイルの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、Apple Music、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
+<p>トラックやサムネイルの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、Apple Music、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。共有ページでジャケットを押して試聴するときは、ブラウザがその共有ページにあるApple Musicのトラックの番号をAppleに送り、試聴音源をAppleから直接再生します。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
 <p>また、当サイトのサーバーインフラにはRenderを採用しており、共有ファイルの配信・キャッシュにはCloudflareを利用しています。</p>
 
 <h2>4. Cookieおよび広告配信について</h2>
@@ -468,6 +470,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-10-13", "共有ページで、Apple Musicにある曲のジャケットを押すと30秒ほど試聴できるようにしました。試聴音源はiTunesのもので、再生されるのは押した1曲だけです。",
+     "On a share page, tapping the cover of a track that is on Apple Music now plays a preview of about 30 seconds. The previews come from iTunes, and only the track you tapped plays."),
     ("2026-10-12", "「行の見出し」を付けて曲名を下に並べるとき、見出しごとのまとまりのあいだの空きを詰めました。また、まとまりの中の曲名は、1行に収まるかぎり途中で折り返さず、1曲ずつ続けて並びます。",
      "When “Row labels” are used and track names are placed below, the space between the groups has been tightened. Within a group, a track name is no longer broken in the middle as long as it fits on one line."),
     ("2026-10-11", "「みんなのグリッドを探す」に「ひとりだけが選んだ曲」を足しました。この30日間に載ったグリッドのうち、1人の並びにしか入っていない曲が20曲まで並びます。ほかに誰も選んでいないアーティストの曲が先に出て、押すとその曲の入ったグリッドを探せます。",

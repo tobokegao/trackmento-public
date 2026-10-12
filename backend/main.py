@@ -500,7 +500,8 @@ async def rate_limit(request: Request, call_next):
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'{r2}; "
         # connect-src: iTunesとMusicBrainz（＋Cover Art Archive → archive.orgへリダイレクト）の検索はブラウザから直接叩く
         # （サーバーの共有IPがAppleに遮断され、MusicBrainzにはレート制限されるため）
-        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; media-src 'self'{r2}; object-src 'none'; base-uri 'self'; "
+        # media-src: 共有ページの試聴（iTunesの試聴音源をAppleから直接流す。`share._PREVIEW_JS`）
+        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; media-src 'self' https://audio-ssl.itunes.apple.com{r2}; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'self'")
     if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
@@ -1243,4 +1244,7 @@ async def share_page(request: Request, sid: str) -> HTMLResponse:
         shareindex.forget(sid)   # 期限より前に消した共有（scripts/delete_share.py）を「みんなのグリッド」から外す
         # JSONの404だとXから開いた人に何が起きたか伝わらない。案内ページ（期限切れ・作り直し）を返す
         return HTMLResponse(share.expired_html(sid, base_url_for(request), app_url_for(request), _lang_for(request)), status_code=410)   # 消えた共有は410（Gone）
-    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request), nonce=request.state.csp_nonce))
+    # 試聴できるマスの位置（割り付けの計算。初回はフォントを読むので数十ms。ループの外で）
+    boxes = await run_in_threadpool(share.cell_boxes, snap)
+    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request),
+                                        nonce=request.state.csp_nonce, boxes=boxes))

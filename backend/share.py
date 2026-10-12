@@ -336,6 +336,16 @@ TEXT = {
         "find_popular_n": "（{n}件）",
         "find_rare": "ひとりだけが選んだ曲",
         "find_rare_note": "この{days}日間に載ったグリッドのうち、1人の並びにしか入っていない曲です。ほかに誰も選んでいないアーティストの曲を先に並べています。",
+        # ジャケットを押して試聴（2026-10-13）。「iTunes提供」とストアへのリンクはAppleの条件
+        "pv_hint": "Apple Musicにある曲は、ジャケットを押すと30秒ほど試聴できます。",
+        "pv_now": "試聴中",
+        "pv_load": "読み込み中",
+        "pv_stop": "止める",
+        "pv_store": "Apple Musicで聴く",
+        "pv_credit": "試聴音源はiTunesの提供です。",
+        "pv_none": "この曲には試聴音源がありません。",
+        "pv_fail": "試聴音源を読み込めませんでした。時間をおいてもう一度お試しください。",
+        "pv_label": "「{{title}}」を試聴",
     },
     "en": {
         "expired_title": "This share is gone",
@@ -398,6 +408,15 @@ TEXT = {
         "find_popular_n": "({n} grids)",
         "find_rare": "Picked by only one person",
         "find_rare_note": "Tracks that appear in only one person's grid listed in the last {days} days, starting with artists no one else picked.",
+        "pv_hint": "Tap a cover to hear a 30-second preview (tracks on Apple Music only).",
+        "pv_now": "Playing",
+        "pv_load": "Loading",
+        "pv_stop": "Stop",
+        "pv_store": "Listen on Apple Music",
+        "pv_credit": "Previews provided courtesy of iTunes.",
+        "pv_none": "No preview is available for this track.",
+        "pv_fail": "Couldn't load the preview. Try again in a little while.",
+        "pv_label": "Preview “{{title}}”",
     },
 }
 
@@ -533,6 +552,23 @@ li.head {{ display: block; font-weight: 700; font-size: 1.1rem; margin-top: 8px;
 p.meta {{ margin: 0; color: #53595f; font-size: .85rem; overflow-wrap: anywhere; }}
 p.meta a {{ color: #12171b; }}
 p.note {{ margin: 0; padding: 12px 16px; border: 2px solid #12171b; background: #fff; overflow-wrap: anywhere; }}
+/* ジャケットを押して試聴（2026-10-13）。押せる範囲は画像の上に重ねた透明のボタン。
+   触れたマスと鳴っているマスは、内側に黒と白の二重の枠（ジャケットの色が何でも見える） */
+/* 枠は画像ではなく外の箱に付ける（押せる範囲の%が、枠の内側＝画像そのものに対して決まるように）。
+   箱は画像の幅に合わせる（縦長の画像で箱だけ広がると、押せる範囲が横にずれる） */
+.pv-wrap {{ position: relative; justify-self: start; width: fit-content; max-width: 100%; border: 2px solid #12171b; }}
+.pv-wrap img {{ border: 0; }}
+.pv-cell {{ position: absolute; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent; }}
+.pv-cell:hover, .pv-cell:focus-visible {{ outline: none; box-shadow: inset 0 0 0 2px #12171b, inset 0 0 0 4px #f6f5f3; }}
+.pv-cell.on {{ box-shadow: inset 0 0 0 3px #12171b, inset 0 0 0 6px #f6f5f3, inset 0 0 0 7px #12171b; }}
+.pv {{ display: grid; gap: 8px; padding: 12px; border: 2px solid #12171b; background: #fff; box-shadow: 2px 2px 0 #12171b; }}
+.pv[hidden] {{ display: none; }}
+.pv p {{ margin: 0; overflow-wrap: anywhere; }}
+.pv-tag {{ display: inline-block; margin-right: 8px; padding: 0 6px; font-size: .8rem; font-weight: 700; line-height: 1.6;
+  background: #12171b; color: #f6f5f3; vertical-align: 1px; }}
+.pv-tag:empty {{ display: none; }}
+.pv-msg {{ display: block; color: #53595f; font-size: .9rem; }}
+.pv-credit {{ color: #53595f; font-size: .8rem; }}
 """
 
 
@@ -707,7 +743,161 @@ def _owner_script(nonce: str, lang: str, mode: str) -> str:
     return f'<script nonce="{html.escape(nonce, quote=True)}">{js}</script>'
 
 
-def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja", nonce: str = "") -> str:
+# ---------- ジャケットを押して試聴（2026-10-13、利用者の求め） ----------
+# 共有ページの画像の、Apple Musicの曲のマスを押すと、iTunesの30秒の試聴音源を鳴らす。
+# **音源の場所（previewUrl）は並びに持たない**。押されたときにブラウザがiTunesのLookup APIで引く
+# （曲のIDは元のページのURLにある）。今までの共有でもそのまま鳴り、URLの期限切れも気にしなくてよい。
+# Appleの条件（Search APIの文書のPromo Content）: 試聴は**流すだけ**（こちらで保存・中継しない）、
+# **ストアへのリンクのそばで**、「iTunes提供」と書く、宣伝から離れた娯楽として使わない。だから
+# 鳴らすのは押した1曲だけで、次の曲へは進めない（`docs/services-terms.md`）
+APPLE_TRACK_RE = re.compile(
+    r"^https://(?:music|itunes)\.apple\.com/([a-z]{2})(?:/[^?#]*?)?(?:/song/(?:[^/?#]+/)?(\d+)(?=[?#]|$)|\?(?:[^#]*&)?i=(\d+))")
+
+
+def apple_track(url: str | None) -> tuple[str, str] | None:
+    """Apple Music（旧iTunes）の曲のURL → (国, 曲のID)。アルバムやプレイリストのURL、ほかのサイトはNone。
+    `https://music.apple.com/jp/album/…/1538265733?i=1538265741` と `https://music.apple.com/jp/song/…/1538265741` の2つの形"""
+    m = APPLE_TRACK_RE.match((url or "").strip())
+    return (m.group(1), m.group(2) or m.group(3)) if m else None
+
+
+_BOXES: dict[str, dict | None] = {}
+_BOXES_MAX = 256
+
+
+def cell_boxes(snap: dict) -> dict | None:
+    """試聴できるマスの位置（画像の幅・高さに対する比）と曲のID。Apple Musicの曲が無ければNone。
+    位置は `render.layout` と `render.cell_box` から出す（書き出しの割り付けそのもの。ブラウザの描画とは
+    `compare_render.py` で一致を確かめてある）。**割り付けの規則が変わる前に作った共有はずれうる**ので、
+    画像の縦横比が割り付けと合わないときはブラウザ側で重ねない（`_PREVIEW_JS`）。
+    共有の中身は変わらないので、共有IDごとに覚える。重いもの（フォントの読み込み）があるので、ループの外で呼ぶ"""
+    sid = snap.get("id") or ""
+    if sid in _BOXES:
+        return _BOXES[sid]
+    out = None
+    try:
+        out = _cell_boxes(snap)
+    except Exception as e:   # 試聴は飾り。共有ページそのものを落とさない
+        print(f"[preview] {sid}: {type(e).__name__}: {e}", flush=True)
+    if len(_BOXES) >= _BOXES_MAX:
+        _BOXES.pop(next(iter(_BOXES)))
+    _BOXES[sid] = out
+    return out
+
+
+def _cell_boxes(snap: dict) -> dict | None:
+    cells = snap.get("cells") or []
+    want = {i: a for i, c in enumerate(cells) if c and (a := apple_track(c.get("external_url")))}
+    if not want:
+        return None
+    doc0 = GridDoc.model_validate(snap)
+    doc = render._cropped(render._trimmed(doc0))
+    L = render.layout(doc)
+    items = []
+    for i, (cc, tid) in sorted(want.items()):
+        r, c = divmod(i, doc0.cols)
+        if r >= doc.rows or c >= doc.cols:   # 書き出しで落とした末尾の段（曲は無いはずだが念のため）
+            continue
+        x, y, w, h = render.cell_box(doc, L, r * doc.cols + c)
+        items.append({"x": round(x / L.W, 5), "y": round(y / L.H, 5), "w": round(w / L.W, 5), "h": round(h / L.H, 5),
+                      "cc": cc, "id": tid, "t": render._one_line(cells[i].get("title")),
+                      "u": cells[i].get("external_url")})
+    return {"W": L.W, "H": L.H, "cells": items} if items else None
+
+
+# 押したマスの曲を鳴らすスクリプト。__T__ / __D__ を差し替えて使う。**音源はAppleから直接流す**（保存も中継もしない）
+_PREVIEW_JS = """
+(() => {
+  const T = __T__, D = __D__;
+  const img = document.querySelector("main > .pv-wrap > img"), wrap = img && img.parentElement;
+  const bar = document.getElementById("pv"), hint = document.getElementById("pv-hint");
+  if (!img || !bar) return;
+  const audio = new Audio();
+  audio.preload = "none";
+  let cur = null;          // 鳴らしているマスのボタン
+  let urls = null;         // 曲のID → 試聴音源のURL（1回目に押したときにまとめて引く）
+  const lookup = async () => {
+    if (urls) return urls;
+    const by = {};
+    for (const c of D.cells) (by[c.cc] = by[c.cc] || []).push(c.id);
+    const got = {};
+    await Promise.all(Object.entries(by).map(async ([cc, ids]) => {
+      const r = await fetch(`https://itunes.apple.com/lookup?country=${cc}&entity=song&id=${ids.join(",")}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      for (const it of (await r.json()).results || []) if (it.previewUrl) got[String(it.trackId)] = it.previewUrl;
+    }));
+    return (urls = got);
+  };
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+  // 試聴中の帯。**Apple Musicへのリンクと「iTunes提供」を必ず添える**（Appleの条件）
+  const show = (c, state) => {
+    bar.replaceChildren();
+    const head = el("p", "pv-now");
+    head.append(el("span", "pv-tag", state === "play" ? T.pv_now : state === "load" ? T.pv_load : ""), el("b", "", c.t));
+    if (state === "none" || state === "fail") head.append(el("span", "pv-msg", state === "none" ? T.pv_none : T.pv_fail));
+    const row = el("div", "btns");
+    if (state === "play" || state === "load") {
+      const stop = el("button", "btn", T.pv_stop);
+      stop.type = "button";
+      stop.addEventListener("click", () => halt());
+      row.append(stop);
+    }
+    const a = el("a", "btn", T.pv_store);
+    a.href = c.u; a.target = "_blank"; a.rel = "noopener noreferrer nofollow";
+    row.append(a);
+    bar.append(head, row, el("p", "pv-credit", T.pv_credit));
+    bar.hidden = false;
+  };
+  const halt = () => {
+    audio.pause(); audio.removeAttribute("src"); audio.load();
+    if (cur) { cur.classList.remove("on"); cur.setAttribute("aria-pressed", "false"); }
+    cur = null; bar.hidden = true;
+  };
+  audio.addEventListener("ended", halt);
+  const press = async (b, c) => {
+    if (cur === b) { halt(); return; }   // 鳴っているマスをもう一度押すと止まる
+    halt();
+    cur = b; b.classList.add("on"); b.setAttribute("aria-pressed", "true");
+    show(c, "load");
+    let src = "";
+    try { src = (await lookup())[c.id] || ""; } catch { if (cur === b) { show(c, "fail"); b.classList.remove("on"); cur = null; } return; }
+    if (cur !== b) return;   // 待っているあいだに別のマスが押された
+    if (!src) { show(c, "none"); b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); cur = null; return; }
+    audio.src = src;
+    try { await audio.play(); if (cur === b) show(c, "play"); }
+    catch { if (cur === b) { show(c, "fail"); b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); cur = null; } }
+  };
+  const attach = () => {
+    // **割り付けと画像の縦横比が合わないときは重ねない**（割り付けの規則が変わる前に作った共有。押す場所がずれる）
+    if (!img.naturalWidth || Math.abs(img.naturalWidth / img.naturalHeight - D.W / D.H) > 0.01) return;
+    for (const c of D.cells) {
+      const b = el("button", "pv-cell");
+      b.type = "button";
+      b.setAttribute("aria-label", T.pv_label.replace("{title}", c.t));
+      b.setAttribute("aria-pressed", "false");
+      b.style.left = `${c.x * 100}%`; b.style.top = `${c.y * 100}%`;
+      b.style.width = `${c.w * 100}%`; b.style.height = `${c.h * 100}%`;
+      b.addEventListener("click", () => press(b, c));
+      wrap.append(b);
+    }
+    hint.hidden = false;
+  };
+  if (img.complete) attach(); else img.addEventListener("load", attach, { once: true });
+})();
+"""
+
+
+def _preview_script(nonce: str, lang: str, boxes: dict | None) -> str:
+    if not (nonce and boxes):
+        return ""
+    tx = {k: t(lang, k) for k in ("pv_now", "pv_load", "pv_stop", "pv_store", "pv_credit", "pv_none", "pv_fail", "pv_label")}
+    js = (_PREVIEW_JS.replace("__T__", json.dumps(tx, ensure_ascii=False).replace("</", "<\\/"))
+          .replace("__D__", json.dumps(boxes, ensure_ascii=False).replace("</", "<\\/")))
+    return f'<script nonce="{html.escape(nonce, quote=True)}">{js}</script>'
+
+
+def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja", nonce: str = "",
+              boxes: dict | None = None) -> str:
     """共有ページ。依存なしの単一HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
     app_url = (app_url or base).rstrip("/")
@@ -789,7 +979,9 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
 <header><a class="mark" href="{app_url}/">TRACKMENTO</a></header>
 <main>
   {heading}
-  <img src="{img_url}" alt="{html.escape(alt, quote=True)}">
+  <p class="meta pv-hint" id="pv-hint" hidden>{t(lang, "pv_hint")}</p>
+  <div class="pv-wrap"><img src="{img_url}" alt="{html.escape(alt, quote=True)}"></div>
+  <section class="pv" id="pv" aria-live="polite" hidden></section>
   <div class="btns">
     <a class="btn primary" href="/shares/{sid}.{ext}" download="{html.escape((snap.get('title') or 'trackmento').replace('/', '_'))}.{ext}">{t(lang, "save_img")}</a>
     <a class="btn" href="{app_url}/?share={sid}">{t(lang, "open_in")}</a>
@@ -804,6 +996,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
   </section>
 </main>
 {_owner_script(nonce, lang, "page") if nonce else ""}
+{_preview_script(nonce, lang, boxes)}
 </body></html>"""
 
 
