@@ -232,8 +232,9 @@ def _shrink_font(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, f
     return f
 
 
-def _fits_shrunk(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, font_s: int, max_w: float) -> bool:
-    return d.textlength(text, font=_shrink_font(d, text, f, font_s, max_w)) <= max_w
+def _fits_shrunk(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, font_s: int, max_w: float,
+                 kind: str = "bold") -> bool:
+    return d.textlength(text, font=_shrink_font(d, text, f, font_s, max_w, kind)) <= max_w
 
 
 def _ellipsize(draw: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
@@ -269,7 +270,8 @@ def fetch_image_bytes(url: str) -> bytes:
     # 私設アドレス宛てやリダイレクト先の内部ホストはnetguardが拒否する（SSRF対策）
     # 上限は短め。共有は1リクエストで全マスを取りに行くので、遅い配信元（archive.orgなど）で長く待つと
     # プロキシ側のタイムアウト（HTMLの502/504が返り、ブラウザがJSONとして読めない）になる
-    r = netguard.safe_get_sync(url, allowlist=IMAGE_HOSTS, timeout=12, headers={"User-Agent": UA, "Accept": "image/*,*/*;q=0.8"})
+    r = netguard.safe_get_sync(url, allowlist=IMAGE_HOSTS, timeout=12, max_bytes=IMAGE_MAX_BYTES,
+                              headers={"User-Agent": UA, "Accept": "image/*,*/*;q=0.8"})
     r.raise_for_status()
     ctype = r.headers.get("content-type", "").split(";")[0].strip()
     if not ctype.startswith("image/"):
@@ -903,12 +905,14 @@ def _split_title3(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont,
 
 
 def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, max_w: float,
-                 frac: float = 0.5) -> tuple[str, str]:
+                 frac: float = 0.5, kind: str = "bold") -> tuple[str, str]:
     """曲名を2行に分ける。**なるべく2行の長さがそろう位置**で折る。
 
     切れ目の候補は「区切りに使える記号の前後」。そのうち**行の真ん中にいちばん近いもの**を選ぶ。
     「(feat. …)」の手前は少し優遇する（そこで折れれば曲名の本体が単独で読めるため）。
     候補が無ければ字の途中で折る。
+    `kind` は縮めて測るときの字の太さ。アーティスト名は "regular"（太字で測ると、入る2行目を入らないとみなして
+    字の途中で折り直していた。2026-10-12）
     """
     total = d.textlength(title, font=f)
     # fracは1行目に入れたい割合。3行に折るときは1/3（真ん中で折ってから残りを半分にすると、
@@ -948,9 +952,9 @@ def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, 
         # 「【巡音ルカ】ダブルラリアット【オリジナル】」を 】 で折ると6字＋15字になり2行目が「…」で
         # 切れる。真ん中で折れば10字＋11字で全部入る。折り直しても入らないなら記号の切れ目のまま
         # （単語の途中で折るだけ損）。「(feat. …)」の手前は今までどおり（本体が単独で読めるほうを取る）
-        if fit is None and not best[2] and not _fits_shrunk(d, l2, f, f.size, max_w):
+        if fit is None and not best[2] and not _fits_shrunk(d, l2, f, f.size, max_w, kind):
             alt = _break_near(d, title, f, max_w, target)
-            if alt[1] and _fits_shrunk(d, alt[1], f, f.size, max_w):
+            if alt[1] and _fits_shrunk(d, alt[1], f, f.size, max_w, kind):
                 return alt
         return l1, l2
     return _break_near(d, title, f, max_w, target)
@@ -2412,6 +2416,18 @@ LABEL_COL_PX = 64
 TITLE_OVER_LABEL = 1.5   # 行の見出しがあるとき、タイトルの字は見出しのこの倍率以上
 
 
+def _ink_bbox(f: ImageFont.FreeTypeFont, text: str) -> tuple[int, int, int, int]:
+    """字面（インク）の範囲。frontendの `actualBoundingBox*` と同じものを測る。
+    **PILのgetbboxは横に字の左右の余白まで含む**（Silkscreenの48pxで左右6pxずつ。縦は字面どおり）ので、
+    番号バッジの枠がブラウザより12px広くなっていた（2026-10-12、compare_render.pyのautoで発覚）。
+    描いてから実際に色の付いた範囲を取る"""
+    x0, y0, x1, y1 = f.getbbox(text)
+    im = Image.new("L", (x1 - x0 + 4, y1 - y0 + 4))
+    ImageDraw.Draw(im).text((2 - x0, 2 - y0), text, font=f, fill=255)
+    b = im.getbbox()
+    return (x0, y0, x1, y1) if b is None else (b[0] - 2 + x0, b[1] - 2 + y0, b[2] - 2 + x0, b[3] - 2 + y0)
+
+
 def _label_w(s: str, px: int) -> int:
     """見出しの字の幅。**1字ずつ1pxに丸めて足す**（`_title_width` と同じ。丸ごと測るとPILとCanvasで数px違う）"""
     return _title_width(s, px) - 8 if s else 0
@@ -2559,7 +2575,7 @@ def render(doc: GridDoc) -> Image.Image:
             # **枠は字面（インク）に四辺の余白を足して作る**。ピクセルフォントはemボックスの中で
             # 字面が上に寄るので、emの高さで枠を作ると数字が下に寄って見える。余白は2pxを下限にした
             # （マスが小さいときは2px、大きいときはsc(BADGE_PAD)）
-            bx0, by0, bx1, by1 = num_font.getbbox(label)
+            bx0, by0, bx1, by1 = _ink_bbox(num_font, label)
             pad = max(2, sc(BADGE_PAD))
             bw, bh = (bx1 - bx0) + pad * 2, (by1 - by0) + pad * 2
             d.rectangle((x, y, x + bw - 1, y + bh - 1), fill=badge_bg)
@@ -2828,7 +2844,7 @@ def render(doc: GridDoc) -> Image.Image:
                 # どの曲名の下なのかが読み取りにくい）
                 a_size = max(8, rnd(font_s * ARTIST_SCALE))
                 ay = row_y(row + title_rows) - sc(L.line_h * 0.14)
-                a1, a2 = (_split_title(d, artist, f_artist, max_w) if a_rows >= 2 else (artist, ""))
+                a1, a2 = (_split_title(d, artist, f_artist, max_w, kind="regular") if a_rows >= 2 else (artist, ""))
                 if a_rows >= 2 and not a2:
                     a_rows = 1   # 割り付けでは2行取ったが実際は1行で収まった（測る字の大きさが少し違うため）
                 if a_rows >= 2:
@@ -2862,10 +2878,13 @@ def _draw_groups(d: ImageDraw.ImageDraw, doc: GridDoc, L: Layout, y0: float, sc,
         if L.grp == "right":
             cols = _grp_split(list(zip(ts, nums)), L.grp_cols)
             colw = (lw - (L.grp_cols - 1) * rnd(L.font_s * 1.5)) / L.grp_cols if L.grp_cols > 1 else lw
-            lines = max(_grp_lines([t for t, _ in c], L.grp_inline) for c in cols)
+            lns = [_grp_lines([t for t, _ in c], L.grp_inline) for c in cols]
+            lines = max(lns)
             # **字の見えている範囲で上下の余白をそろえる**（2026-10-11、利用者の指摘）。行の枠で真ん中に置くと、
             # アーティスト名の行は曲名の下へ0.14行ぶん寄せてあるぶん、字の塊が上にずれて下の余白が広く見えた
-            tail = not L.grp_inline and any(_one_line(t.artist) for t, _ in cols[0])
+            # 下端の行は**いちばん行の多い列の最後の曲**で決まる（1列目にアーティスト名が1つでもあるか、で見ていた。
+            # 2026-10-12）。行の数が並ぶ列が複数あれば、曲名で終わる列があるほうが下まで字が見える
+            tail = not L.grp_inline and all(_one_line(c[-1][0].artist) for c, n in zip(cols, lns) if n == lines)
             last = rnd(L.font_s * ARTIST_SCALE) if tail else L.font_s
             vis_h = (lines - 1) * L.line_h - (L.line_h * 0.14 if tail else 0) + (L.font_s + last) / 2
             start = top + rnd((lhgt - vis_h) / 2 - L.line_h / 2 + L.font_s / 2)

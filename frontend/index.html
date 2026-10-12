@@ -6870,8 +6870,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     return f;
   }
-  function fitsShrunk(ctx, text, f, fontS, maxW) {
-    ctx.font = shrinkFont(ctx, text, f, fontS, maxW);
+  function fitsShrunk(ctx, text, f, fontS, maxW, kind) {
+    ctx.font = shrinkFont(ctx, text, f, fontS, maxW, kind);
     return ctx.measureText(text).width <= maxW;
   }
   /* 曲ごとの行数。アーティスト名があれば2行（曲名 + アーティスト）、曲名が入らなければ +1行。
@@ -7020,7 +7020,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
     return [l1, l2, l3];
   }
-  function splitTitle(ctx, title, f, maxW, frac = 0.5) {
+  // kindは縮めて測るときの字の太さ。アーティスト名は "regular"（backend/render.pyの _split_titleと同じ）
+  function splitTitle(ctx, title, f, maxW, frac = 0.5, kind) {
     ctx.font = f;
     // fracは1行目に入れたい割合。3行に折るときは1/3（backend/render.pyと同じ）
     const total = ctx.measureText(title).width, target = total * frac;
@@ -7049,9 +7050,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       const l1 = title.slice(0, i).replace(/\s+$/, ""), l2 = title.slice(i).replace(/^\s+/, "");
       // **記号で折った2行目が縮めても入らないなら、字の途中で折り直す**（backend/render.pyと同じ）。
       // 折り直しても入らないなら記号の切れ目のまま。「(feat. …)」の手前は今までどおり
-      if (fit === null && !best[2] && !fitsShrunk(ctx, l2, f, fontPx(f), maxW)) {
+      if (fit === null && !best[2] && !fitsShrunk(ctx, l2, f, fontPx(f), maxW, kind)) {
         const alt = breakNear(ctx, title, f, maxW, target);
-        if (alt[1] && fitsShrunk(ctx, alt[1], f, fontPx(f), maxW)) return alt;
+        if (alt[1] && fitsShrunk(ctx, alt[1], f, fontPx(f), maxW, kind)) return alt;
       }
       return [l1, l2];
     }
@@ -8801,9 +8802,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           const gapC = Math.round(L.fontS * 1.5);
           const cols2 = grpSplit(ts.map((t, i) => [t, nums[i]]), L.grpCols);
           const colw = L.grpCols > 1 ? (lw - (L.grpCols - 1) * gapC) / L.grpCols : lw;
-          const lines = Math.max(...cols2.map(c => grpLines(c.map(x => x[0]), L.grpInline)));
+          const lns = cols2.map(c => grpLines(c.map(x => x[0]), L.grpInline)), lines = Math.max(...lns);
           // 字の見えている範囲で上下の余白をそろえる（アーティスト名の行は0.14行ぶん上に寄せてある。backend/render.pyと同じ）
-          const tail = !L.grpInline && cols2[0].some(([t]) => oneLine(t.artist));
+          // 下端の行はいちばん行の多い列の最後の曲で決まる（backend/render.pyと同じ）
+          const tail = !L.grpInline && cols2.every((c, i) => lns[i] !== lines || !!oneLine(c[c.length - 1][0].artist));
           const last = tail ? Math.round(L.fontS * ARTIST_SCALE) : L.fontS;
           const visH = (lines - 1) * L.lineH - (tail ? L.lineH * 0.14 : 0) + (L.fontS + last) / 2;
           const start = top + Math.round((lhgt - visH) / 2 - L.lineH / 2 + L.fontS / 2);
@@ -9112,7 +9114,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           const ay = rowY(row + titleRows) - sc(L.lineH * 0.14);
           let a1 = artist, a2 = "";
           if (aRows >= 2) {
-            [a1, a2] = splitTitle(ctx, artist, artistFont, maxW);
+            [a1, a2] = splitTitle(ctx, artist, artistFont, maxW, 0.5, "regular");
             if (!a2) aRows = 1;   // 実際は1行で収まった（測る字の大きさが少し違うため）
           }
           if (aRows >= 2) {
