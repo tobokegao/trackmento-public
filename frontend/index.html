@@ -6141,12 +6141,6 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function isLight(cssColor) { const [r, g, b] = toRGB(cssColor); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55; }
 
   /* ---- render (Canvas) ---- */
-  function drawCover(ctx, img, x, y, w, h) {
-    const s = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-    const sw = w / s, sh = h / s, sx = (img.naturalWidth - sw) / 2, sy = (img.naturalHeight - sh) / 2;
-    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
-  }
-
   /* タイトル1行の幅。右サイドバーの幅をこれ以上にして「…」で切れにくくする。サーバー側の _title_widthと同じ */
   // 1字の幅を1/64pxにそろえてから1pxに丸める（PILは字幅を1/64pxの固定小数で返すため）
   const snapW1 = (w) => Math.round(Math.round(w * 64) / 64);
