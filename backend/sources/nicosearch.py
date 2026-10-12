@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 import time
 from xml.etree import ElementTree
 
@@ -24,7 +23,6 @@ import httpx
 
 from backend.logutil import brief
 from backend.merge import _n
-from backend.models import Origin
 from backend.names import _drop_brackets, trim
 
 SNAPSHOT = "https://snapshot.search.nicovideo.jp/api/v2/snapshot/video/contents/search"
@@ -133,7 +131,3 @@ async def older_posts(title: str, *, before: str = "", self_id: str = "",
     finally:
         if own:
             await client.aclose()
-
-
-def to_origin(row: dict) -> Origin:
-    return Origin(kind="nicovideo", id=row["id"], artist=row.get("artist") or "")

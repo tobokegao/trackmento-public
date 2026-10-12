@@ -162,16 +162,6 @@ def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
     while len(_font_cache) > FONT_CACHE_MAX:
         _font_cache.popitem(last=False)
     return f
-    if True:
-        name = {"bold": "IBMPlexSansJP-Bold.ttf", "regular": "IBMPlexSansJP-Regular.ttf", "pixel": "Silkscreen-Bold.ttf"}[kind]
-        p = FONTS / name
-        try:
-            f = _font_cache[key] = ImageFont.truetype(str(p), size)
-        except OSError as e:
-            raise RuntimeError(f"フォントが見つかりません: {p}") from e
-        while len(_font_cache) > FONT_CACHE_MAX:
-            _font_cache.popitem(last=False)
-    return f
 
 
 _cmap_cache: set[int] | None = None
@@ -960,15 +950,6 @@ def _split_title(d: ImageDraw.ImageDraw, title: str, f: ImageFont.FreeTypeFont, 
     return _break_near(d, title, f, max_w, target)
 
 
-def _clip_to(text: str, f: ImageFont.FreeTypeFont, max_w: float) -> str:
-    """max_wに収まるところまで切って「…」を付ける。"""
-    if f.getlength(text) <= max_w:
-        return text
-    while text and f.getlength(text + "…") > max_w:
-        text = text[:-1]
-    return text + "…"
-
-
 def _flow_rows(doc: GridDoc, font_s: int, max_w: float,
                seg_w: list[float] | None = None, max_rows: int | None = None, src: list | None = None) -> list[FlowRow]:
     """流し込んだときの各行を返す。
@@ -1230,13 +1211,6 @@ SLAB_STACK_LINE = 2.4      # 1曲ぶんの高さ（曲名の行 + アーティ�
 SLAB_ROW_BESIDE_SEG = 12
 # 出力での曲名の大きさ。大きいほうから試して、**入る中でいちばん大きいもの**を採る
 SLAB_TARGET_PX = (96, 84, 72, 64, 56, 48, 42, 36, 32, 28, 24, 20, 18, 16, 14)
-# **文字の置き場所をこれだけ使えていないと、マスが同じ大きさのときは回り込みに譲る**。
-# 曲が少ないうえに塊が細長いと（11x1を9:16など）、比率で決まる縦長の枠に対して
-# 曲名リストが短く、下に大きな空白が残る。回り込みなら塊のまわりに散らせて埋まる
-SLAB_USE_MIN = 0.7
-# マスが**はっきり**大きくなるとき（この倍率以上）は、置き場所が余っていても辺に付けるほうを採る。
-# 1% ほどの差で選んでしまうと、見た目は同じ大きさなのに空白だけ増える
-SLAB_CELL_GAIN = 1.02
 # 帯・柱は回り込みよりマスがこの割合まで小さくても採る（並びのほうが分かりやすいため）
 SLAB_PREFER = 0.98
 
@@ -1829,7 +1803,6 @@ def _cropped(doc: GridDoc) -> GridDoc:
 GRP_GAP = 48          # ジャケットと曲名のあいだ（論理px）
 GRP_SEP = 120         # 下に置くとき、曲名の下から次のまとまりのジャケットまで（論理px。枠が縦に余るときは行の間隔まで広げる）
 GRP_FONT = 0.075      # 下に置くときの曲名の字（マスの幅に対する比）
-GRP_LIST_MAX = 3      # 右に置くときの曲名の幅の上限（マスの幅の何倍か）
 
 
 def _groups(doc: GridDoc) -> list[tuple[int, int, list[Track]]]:

@@ -29,7 +29,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 
 from backend.models import Track
-from backend.sources import applemusic, bandcamp, otodb, spotify, video, vocadb
+from backend.sources import applemusic, bandcamp, otodb, spotify, vocadb
 
 # マスの上限（256）より多く取る。入りきらない分は候補に置かれ、そこから選んで絞り込めるため
 # （500は実機で候補パネルの描画が500件52ms／1000件132msだったので、その手前で切った値。

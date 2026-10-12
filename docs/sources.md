@@ -109,7 +109,7 @@ YouTubeの取得は **Data API（`videos.list`）**が主になった（概要�
     - 回数は `[vocadb]` 行に種類ごとに出す（`CALLS` / `take_calls`。`search` / `pv` / `title` と、覚えていた
       `*_mem` / `*_r2`）。点検の要約に「1日に直すと約N」として出る。**語そのものは数えない**
   - ソースを足すときに触る所: `backend/sources/<名前>.py`、`backend/models.py` の `Source`、
-    `backend/main.py` のimportと `SOURCES`、frontendの `SOURCE_LABEL` / `ALL_SOURCES` / `SOURCE_ORDER`、
+    `backend/main.py` のimportと `SOURCES`、frontendの `SOURCE_LABEL` / `SOURCE_ORDER`、
     バッジのCSS、ソースの説明（`#src-modal`）とEN表
 - 消えた動画（削除・非公開）はotoDBで埋める。otoDBのサムネイルは元動画が消えてもCDNに残るため
   - **「その動画が消えているか」はotoDBのAPIだけで分かる**。`/api/work/sources?work_id=N` が返す

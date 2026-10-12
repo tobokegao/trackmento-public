@@ -9,14 +9,12 @@
 """
 from __future__ import annotations
 
-import json
 import re
 from urllib.parse import parse_qs, urlparse
 from xml.etree import ElementTree
 
 import httpx
 
-from backend import netguard
 from backend.logutil import brief
 
 from backend.models import Origin, Track
@@ -31,20 +29,11 @@ NICO_THUMBINFO = "https://ext.nicovideo.jp/api/getthumbinfo/"
 _YT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 _NICO_ID_RE = re.compile(r"\b((?:sm|nm|so)\d+)\b")
 _BILI_ID_RE = re.compile(r"/video/((?:BV[0-9A-Za-z]{10})|(?:av\d+))", re.IGNORECASE)
-_BILI_STATE_RE = re.compile(r"window\.__INITIAL_STATE__=(\{.*?\});\(function", re.S)
 
 # bilibiliの画像CDN（hdslb.com）はURLの後ろに @<幅>w_<高さ>h_1cを付けると、その大きさに切って返す。
 # 付けないと原寸（実測1076x608で640KB）が返り、書き出しのマス600pxには過剰。600角なら50KB（-92%）。
-BILI_COVER_SUFFIX = "@600w_600h_1c"   # 600 = render.py / index.htmlのCELL_PX
-BILI_THUMB_SUFFIX = "@320w_320h_1c"
+# 指定は clamp_size が付ける
 _BILI_SIZE_RE = re.compile(r"@[0-9a-z_]+$")
-
-
-def bili_sized(url: str, suffix: str = BILI_COVER_SUFFIX) -> str:
-    """hdslb.comの画像URLに大きさの指定を付ける（既に付いていれば置き換える）。"""
-    if "hdslb.com" not in url:
-        return url
-    return _BILI_SIZE_RE.sub("", url) + suffix
 
 
 # YouTubeのサムネイルの名前 → 正方形に切り出したときの実寸（＝短辺）。実測した寸法とバイト数:
@@ -95,12 +84,6 @@ def is_nicovideo(url: str) -> bool:
 def is_bilibili(url: str) -> bool:
     h = _host(url)
     return h.endswith("bilibili.com") or h == "b23.tv"
-
-
-def _meta(html: str, attr: str, name: str) -> str | None:
-    m = re.search(r'<meta[^>]+%s="%s"[^>]+content="([^"]*)"' % (attr, re.escape(name)), html) or \
-        re.search(r'<meta[^>]+content="([^"]*)"[^>]+%s="%s"' % (attr, re.escape(name)), html)
-    return m.group(1) if m else None
 
 
 # **bilibiliの動画ページは叩かない**（2026-09-20）。利用者規約4.2.11が「事前の明確な書面許可なしに、

@@ -30,7 +30,6 @@ MAX_PAGES = 8   # ページングの頭打ち。240件あればマスの上限�
 # roxyは応答にCache-Controlを持たないので、こちらで覚えないと同じプレイリストを貼るたび叩いてしまう。
 # 見つからなかったときも空リストで覚える（消えた動画の大半はotoDBにも無く、そちらのほうが多い）
 ROXY_CACHE = "roxy"
-_ID_RE = re.compile(r"^(?:(?:sm|nm|so)\d+|BV[0-9A-Za-z]{10}|av\d+|[A-Za-z0-9_-]{11})$")
 
 # 配信元（Cloudflare）の一時的な不調は1回だけ引き直す（2026-09-21）。
 # 点検の2時間で64回中5回が503 / 521で落ち、そのたび検索結果からotoDBが丸ごと抜けていた。
@@ -64,11 +63,6 @@ def is_otodb_image(url: str) -> bool:
     except ValueError:
         return False
     return any(host == h or host.endswith("." + h) for h in IMAGE_HOSTS)
-
-
-def is_video_id(s: str) -> bool:
-    """URLではなく動画IDだけが貼られたか（sm…, BV…, YouTubeの11文字）。"""
-    return bool(_ID_RE.match(s.strip()))
 
 
 def _creators(tags: list[dict]) -> str:

@@ -39,7 +39,6 @@ def _new_id(doc: GridDoc) -> str:
 
 OG_W, OG_H = 1200, 630            # リンクカード（Xのsummary_large_image、Discord・LINEも同じ1.91:1）
 MAX_IMAGE_BYTES = 4_900_000       # Xの画像添付は5 MBまで。公開モードではこれに収まるまで縮小する
-MAX_PNG_BYTES = MAX_IMAGE_BYTES   # 旧名
 IMAGE_EXT = "jpg"                 # 本体はJPEG（品質90、色差は間引かない）。PNGの1/6程度で、Xは投稿時に再圧縮するので見た目は変わらない
 JPEG_QUALITY = 78   # ブラウザ側のencodeShareと同じ。90 → 82（-17%）→ 78（2026-09-19、送信の時間を縮めるため）
 
@@ -88,10 +87,6 @@ def og_url(sid: str) -> str:
 def image_url(sid: str, ext: str = IMAGE_EXT) -> str:
     """本体画像のURL。R2の公開URLがあればそれ（絶対URL）、無ければバックエンドの /shares/<id>.<ext>（相対）。"""
     return storage.get_storage().public_url(f"{sid}.{ext}") or f"/shares/{sid}.{ext}"
-
-
-def png_url(sid: str) -> str:
-    return image_url(sid, "png")
 
 
 class BudgetExceeded(Exception):
@@ -165,7 +160,6 @@ def store(doc: GridDoc, image: bytes, og: bytes | None, width: int, height: int,
 
 
 MAX_UPLOAD_IMAGE = MAX_IMAGE_BYTES + 200_000   # ブラウザ側の縮小判定の誤差ぶんだけ許す
-MAX_UPLOAD_PNG = MAX_UPLOAD_IMAGE
 MAX_UPLOAD_OG = 600_000
 MAX_UPLOAD_SIDE = 4096
 

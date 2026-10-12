@@ -29,17 +29,6 @@ def is_upload_url(url: str) -> bool:
     return url.startswith(PREFIX)
 
 
-def local_path(url: str) -> Path | None:
-    """/uploads/<name> → 実ファイル。名前が不正か無ければNone。"""
-    if not is_upload_url(url):
-        return None
-    name = url[len(PREFIX):]
-    if not _NAME_RE.match(name):
-        return None
-    p = UPLOADS / name
-    return p if p.is_file() else None
-
-
 def content_type(path: Path | str) -> str:
     return _CTYPE.get(str(path).rsplit(".", 1)[-1].lower(), "application/octet-stream")
 

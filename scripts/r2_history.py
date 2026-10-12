@@ -28,7 +28,6 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

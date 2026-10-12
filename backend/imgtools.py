@@ -46,10 +46,6 @@ def _is_dark(gray: Image.Image, box: tuple[int, int, int, int]) -> bool:
     return st.mean[0] < DARK and st.extrema[0][1] < DARK_MAX
 
 
-def _mean_row(gray: Image.Image, y: int) -> float:  # 互換用
-    return ImageStat.Stat(gray.crop((0, y, gray.width, y + 1))).mean[0]
-
-
 def letterbox_box(im: Image.Image) -> tuple[int, int, int, int] | None:
     """黒帯を除いた範囲 (left, top, right, bottom)。切るものが無ければNone。"""
     gray = im.convert("L")
