@@ -27,7 +27,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年10月11日", "en": "Last updated: October 11, 2026"}
+UPDATED = {"ja": "最終更新: 2026年10月12日", "en": "Last updated: October 12, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Googleフォーム。2026-09-19）
 
@@ -468,6 +468,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-10-12", "「行の見出し」を付けて曲名を下に並べるとき、見出しごとのまとまりのあいだの空きを詰めました。また、まとまりの中の曲名は、1行に収まるかぎり途中で折り返さず、1曲ずつ続けて並びます。",
+     "When “Row labels” are used and track names are placed below, the space between the groups has been tightened. Within a group, a track name is no longer broken in the middle as long as it fits on one line."),
     ("2026-10-11", "「みんなのグリッドを探す」に「ひとりだけが選んだ曲」を足しました。この30日間に載ったグリッドのうち、1人の並びにしか入っていない曲が20曲まで並びます。ほかに誰も選んでいないアーティストの曲が先に出て、押すとその曲の入ったグリッドを探せます。",
      "“Find shared grids” now has a “Picked by only one person” list: up to 20 tracks that appear in only one person's grid listed in the last 30 days, starting with artists no one else picked. Tap one to find the grid that contains it."),
     ("2026-10-11", "お題の下に「行の見出し」を足しました。行ごとに12字まで書くことができ、書き出す画像ではグリッドの左に行ごとに出て、行と行のあいだも広がります。曲名は見出しごとに、そのジャケットの右（正方形や縦長の画像では下）にまとめて並び、番号は見出しごとに01から始まります。「私の音楽遍歴」を選ぶと、中学・高校・大人・今が入ります。",
