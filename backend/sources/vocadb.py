@@ -160,7 +160,7 @@ async def search(q: str, artist: str = "", *, limit: int = PAGE,
                  client: httpx.AsyncClient | None = None) -> list[Track]:
     """VocaDBを検索する。原曲が上に来るように評価の高い順で引く。
 
-    **`main.py` からは曲名だけの語（`query_key`）で呼ばれ、アーティストでの絞り込みは呼び出し側
+    **`searchapi.py` からは曲名だけの語（`query_key`）で呼ばれ、アーティストでの絞り込みは呼び出し側
     （`narrow`）で行う**。ここにartistを渡しても同じ結果になるが、控えの鍵が分かれる"""
     # **queryは曲名だけ**（無ければアーティスト名）。「シャルル バルーン」のように2つをつなぐと
     # VocaDBは曲名にその全文が含まれるものを探して0件になる（artistNameパラメータは無視される。実測）。

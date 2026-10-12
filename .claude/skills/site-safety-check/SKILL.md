@@ -28,7 +28,7 @@ PYTHONUTF8=1 .venv/Scripts/python scripts/safety_check.py https://trackmento.com
 | CSP / HSTS / nosniff / Referrer-Policy / X-Frame-Options | 応答ヘッダ | `backend/main.py` の `rate_limit` ミドルウェア |
 | インラインscriptのnonce | `/` のHTML | `backend/main.py` の `index()`、`frontend/index.html` の `<script>` |
 | image-proxy / from-urlの私設宛て拒否（SSRF） | 403になるか | `backend/netguard.py`（DNSピンニング、`_ip_public`） |
-| ボディ1MB・検索語200字・URL 2048字の上限 | 413 / 422 | `backend/main.py` の `_BODY_LIMIT_*`、`Query(max_length=)` |
+| ボディ1MB・検索語200字・URL 2048字の上限 | 413 / 422 | `backend/main.py` の `_BODY_LIMIT_*`、`Query(max_length=)`（`searchapi.py` / `imageproxy.py`） |
 | 公開モードで `/render`・`/grids` 一覧・DELETEが閉じている | 404 / 405 | `backend/main.py` の `public_mode()` 分岐 |
 | `javascript:` / `data:` のリンク先が捨てられる（XSS） | PUT /gridsの応答 | `backend/models.py` の `_opt_url` / `_image_url` |
 | アップロードのEXIF / コメント除去、ランダム名、元名を返さない | /uploadと保存画像 | `backend/uploads.py` の `_reencode`、`backend/main.py` の `upload_image` |

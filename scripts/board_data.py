@@ -174,13 +174,13 @@ def services(data: list[dict]) -> dict | None:
 
 
 def img_index_max() -> int:
-    """`backend/main.py` の `IMAGE_INDEX_MAX` の既定値。
+    """`backend/imageproxy.py` の `IMAGE_INDEX_MAX` の既定値。
 
     数字を2か所に書かないため、コードから読む（本番が環境変数で上書きしていれば実際はそちら。
     上書きは今のところしていない）。読めなければ0を返し、呼び出し側がimgcacheの行を出さない。
     """
     try:
-        src = (ROOT / "backend" / "main.py").read_text(encoding="utf-8")
+        src = (ROOT / "backend" / "imageproxy.py").read_text(encoding="utf-8")
         m = re.search(r'IMAGE_INDEX_MAX",\s*"(\d+)"', src)
         return int(m.group(1)) if m else 0
     except OSError:

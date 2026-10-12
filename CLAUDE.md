@@ -34,7 +34,10 @@ FastAPI (backend/)
   ├ render.py     … **サーバー側の描画**（CLIと、Canvasが使えない端末のため）
   ├ share.py      … 共有ページ（/s/<id>）の組み立て
   ├ storage.py    … R2（Cloudflare）への読み書き
-  └ main.py       … 経路・CSP・画像の中継・ログ
+  ├ searchapi.py  … 検索・URLやプレイリストからの取り込み
+  ├ imageproxy.py … 画像の中継（/image-proxy）とR2の画像キャッシュの索引
+  ├ loadstats.py  … 負荷の診断ログの数え（[stats] など）
+  └ main.py       … 経路・CSP・ログの出力・起動処理
   ▼
 Cloudflare R2 (img.trackmento.com)
    共有画像・並びの控え・アップロード画像・分割フォント・画像キャッシュ
@@ -83,7 +86,8 @@ Webツールとは逆を行く。**素っ気なさと厚みの同居**が持ち�
 | ファイル | 役割 | 触るときの注意 |
 | --- | --- | --- |
 | `frontend/index.html` | 画面すべて。CSSもJSも1枚に入っている（**編集するのはここ**） | 固定文字を変えたら**フォントの作り直しとi18nの照合**が要る（下の表）。配るときだけ `build_app.py` が殻＋`app.<hash>.css` / `.js` に割り、CSSとJSはR2から出す |
-| `backend/main.py` | 経路、CSP、`/image-proxy`、ログ、起動処理 | CSPは `R2_PUBLIC_URL` から自動で組む。手で書き足さない |
+| `backend/main.py` | 経路、CSP、ログの出力、起動処理 | CSPは `R2_PUBLIC_URL` から自動で組む。手で書き足さない |
+| `backend/searchapi.py` / `imageproxy.py` | 検索と取り込み（`SOURCES` はここ）／画像の中継 | 読み込んだときに環境変数を見るので、`main.py` は**`.env` を読んでから**importする |
 | `backend/render.py` | サーバー側の描画 | `renderShareCanvas` と**対で直す**。`rnd()` を使う（Pythonの `round()` は偶数丸め） |
 | `backend/grids.py` | 並びの検証・保存 | マスの上限をここだけ小さくすると**並びが黙って潰れる** |
 | `backend/cache.py` | 検索結果と画像のSQLiteキャッシュ | 画像の期限はR2の掃除（14日）より短い13日。逆にすると404が出続ける |

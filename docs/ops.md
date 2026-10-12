@@ -81,7 +81,7 @@
   ヘルスチェックは `/health`。インスタンスはStandard（`1c_2g`）
 - **デプロイのたびにコンテナのディスクが消える**。つまり `cache.sqlite3`（検索結果と画像の対応）も消える。
   そのままだとR2に画像があるのに配信元から取り直すので、**起動時に `imgcache/` を一覧して索引を作る**
-  （`main.py` の `_seed_image_index`。起動ログの `[storage] imgcacheの索引: N件`）。
+  （`imageproxy.py` の `_seed_r2_index`。起動ログの `[storage] imgcacheの索引: N件`）。
   一覧は数千件でも1回で済み、`head_object` を1件ずつ叩くより安い
 - **Cloudflare** が前段にいるが、**Web Serviceの応答はキャッシュしない**（`cf-cache-status: DYNAMIC`）。
   転送量を減らすにはR2へ逃がすしかない、という制約はここから来ている
@@ -133,8 +133,8 @@
   - `imgcache/` は `r2_prune.py` が14日で消すため、SQLite側は13日（`cache.R2_IMAGE_TTL`）で `r2key` を無効とみなす。**この大小を逆にすると、R2から消えた後もリダイレクトし続けて404になる**
   - **デプロイのたびに `cache.sqlite3` はコンテナごと消えるが、R2の `imgcache/` は残る**。SQLiteが対応表を忘れるだけで、
     直後は既存のURLが302ではなく200（本体）で返り、配信元から取り直してR2に上げ直していた（本体68KB × 件数が
-    そのままRenderの転送量になる）。**起動時に `imgcache/` を一覧してメモリに索引を作る**（`main.py` の
-    `_seed_image_index` / `_IMG_INDEX`。sha1の頭20桁 → (キー, 最終更新)）。`_image_r2_redirect` は
+    そのままRenderの転送量になる）。**起動時に `imgcache/` を一覧してメモリに索引を作る**（`imageproxy.py` の
+    `_seed_r2_index` / `_IMG_INDEX`。sha1の頭20桁 → (キー, 最終更新)）。`_image_r2_redirect` は
     SQLiteが忘れていても索引で引けるので、デプロイ直後から302に戻る
     - **1件ずつ `head_object` を投げる案より一覧のほうが安い**。本番の `imgcache/` は5,609件・371MB・平均68KBで、
       一覧は1000件ごとに1回のClass A（6回）で済む。ミスごとに1往復するhead方式だと件数ぶん増える。
@@ -299,7 +299,7 @@
     User-Agentの合計と経路の上位の合計の大きいほう（9/12〜9/17の手の行と同じ数え方で、実際より少し少ない）。
     検索の内訳（`srch` / `vocadb`）は空
   - **`?src=…` でどこから来たかを数える**（2026-09-15）。投稿に貼るリンクへ `?src=x` のように付けると、
-    60秒ごとに `[src] x=12 bsky=3` の形でログに出る（`main.py` の `_note_src`。画面と共有ページの両方で数える）。
+    60秒ごとに `[src] x=12 bsky=3` の形でログに出る（`loadstats.py` の `_note_src`。画面と共有ページの両方で数える）。
     **数えるだけで、誰が来たかは残さない**（`[ua]` と同じ方針）。名前は英数と `-` `_` の16文字までに刈り込み、
     種類は30までで打ち止め（それ以上は「ほか」にまとめる）。点検の要約にも「流入の印」として出る
   - **点検で読める追加の数字**（2026-09-19）:
@@ -353,7 +353,7 @@
 | 5xxの合計・`[error]` | `[error] <メソッド> <経路>`（`unhandled_error`） | 経路から該当する `backend/` のファイル。「R2の…できませんでした」は `backend/storage.py` | `docs/gotchas.md` |
 | 共有の5xx | `[share] failed`・`並びが読めない`・`送信途中で切断` | `backend/main.py` の `_finish_share` / `share_upload`、`backend/share.py` | `docs/share.md` |
 | 共有が429 / 507 | `[share] quota` / `[share] budget` | `_check_share_quota`（`main.py`）/ `_check_budget`（`share.py`）。上限の値は `docs/env.md` | `docs/share.md` |
-| `/image-proxy` の5xxの割合 | `[stats]` の `/image-proxy` | `image_proxy`・`_s3_missing`（`main.py`）、配信元ごとの `clamp_size`（`backend/sources/`） | `docs/sources.md` |
+| `/image-proxy` の5xxの割合 | `[stats]` の `/image-proxy` | `image_proxy`・`_s3_missing`（`imageproxy.py`）、配信元ごとの `clamp_size`（`backend/sources/`） | `docs/sources.md` |
 | ブラウザ側の失敗 | `[client]`（種類は `CLIENT_KINDS`） | `up_*`（共有画像の送信）→ frontendの送信部（`hiccup("up_…")` の所）と `share_upload`、`canvas_*` → `renderShareCanvas`、`itunes_*` / `mb_*` → ブラウザからの直接検索（`itunesSearch` ほか） | `docs/share.md`・`docs/layout.md` |
 | 検索の失敗 | `[srch]` の失敗の数 | そのソースの `backend/sources/<名前>.py` | `docs/sources.md` |
 | `[loop] lag` がデプロイの回数くらいだけ出る（`[health]` のuptimeのリセットと同じ頃） | `[loop] lag=… render_queue=0` | 起動直後のR2の一覧（`lifespan` の `_seed_*`、`_load_r2_index` の同時に走らせる本数） | 2026-09-27: 16本同時で1デプロイ1回2〜5秒止まり、4本に落とした |
@@ -428,7 +428,7 @@ PYTHONUTF8=1 .venv/Scripts/python scripts/delete_share.py <共有IDか /s/<id> �
 
 ### 入れた対策（2026-09-16）
 
-- **textとJSONだけgzipで返す**（`main.py` の `GZipText`）。Starletteの `GZipMiddleware` は
+- **textとJSONだけgzipで返す**（`gziptext.py` の `GZipText`）。Starletteの `GZipMiddleware` は
   内容の種類で分けないので使わず、自前のASGIミドルウェアにした。`_GZIP_TYPES`（text/・JSON・
   JavaScript・XML・SVG）だけ、`_GZIP_MIN`（900バイト）を超えるものに `_GZIP_LEVEL` 6で掛ける。
   **分割して送る応答（`more_body`）は素通し**（画像の中継など）。本番の実測で `/` が

@@ -97,7 +97,7 @@ YouTubeの取得は **Data API（`videos.list`）**が主になった（概要�
   - **キーは要らない**。データはCCライセンスなので、画面のフッターに出典が出る（`#foot-sources` が自動）
   - **聞く回数を減らす作り**（2026-09-20）。VocaDBの決まりに「1日数千件の問い合わせには事前の許可が要る」とあり、
     本番は2時間で118〜215件（1日1,500〜2,500件）とその線に近かった。問い合わせを送る前に次の3つを入れた
-    - **曲名だけで引き、アーティストでの絞り込みは手元で行う**（`query_key` / `narrow`、`main.py` の
+    - **曲名だけで引き、アーティストでの絞り込みは手元で行う**（`query_key` / `narrow`、`searchapi.py` の
       `_source_key` / `_narrow`）。**控えとキャッシュの鍵もその語にする**ので、「メルトryo」と
       「メルトsupercell」はVocaDBへ1回しか聞かない。ほかのソースは今までどおり（曲名とアーティストをそのまま）
     - **表記の揺れをそろえてから送る**（NFKC＋casefold＋ 続く空白をまとめる）。「ｼｬﾙﾙ」と「シャルル」、
@@ -109,7 +109,7 @@ YouTubeの取得は **Data API（`videos.list`）**が主になった（概要�
     - 回数は `[vocadb]` 行に種類ごとに出す（`CALLS` / `take_calls`。`search` / `pv` / `title` と、覚えていた
       `*_mem` / `*_r2`）。点検の要約に「1日に直すと約N」として出る。**語そのものは数えない**
   - ソースを足すときに触る所: `backend/sources/<名前>.py`、`backend/models.py` の `Source`、
-    `backend/main.py` のimportと `SOURCES`、frontendの `SOURCE_LABEL` / `SOURCE_ORDER`、
+    `backend/searchapi.py` のimportと `SOURCES`、frontendの `SOURCE_LABEL` / `SOURCE_ORDER`、
     バッジのCSS、ソースの説明（`#src-modal`）とEN表
 - 消えた動画（削除・非公開）はotoDBで埋める。otoDBのサムネイルは元動画が消えてもCDNに残るため
   - **「その動画が消えているか」はotoDBのAPIだけで分かる**。`/api/work/sources?work_id=N` が返す
@@ -159,7 +159,7 @@ YouTubeの取得は **Data API（`videos.list`）**が主になった（概要�
 - **検索は既定でiTunesだけ**（2026-09-15から）。MusicBrainzは「1秒に1リクエスト」の制限があり、
   常に一緒に引くと検索が2秒かかっていた（iTunesだけなら0.06〜0.5秒。本番実測2052ms → 58ms）。
   **見つからなかったときだけMusicBrainzで引き直す**ので、iTunesに無い音源の取りこぼしは埋まる
-  - サーバー（`main.py` の `DEFAULT_SOURCES` / `FALLBACK_SOURCE`）: `source` の指定が無くて0件ならMusicBrainz。
+  - サーバー（`searchapi.py` の `DEFAULT_SOURCES` / `FALLBACK_SOURCE`）: `source` の指定が無くて0件ならMusicBrainz。
     **指定があるときは足さない**（利用者が選んだ通りに返す）
   - 画面（`frontend/index.html`）: 選んだソースで0件かつ失敗も無いときだけMusicBrainzを直接引き、
     「iTunesに無かったのでMusicBrainzでも探しました。」と添える

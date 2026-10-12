@@ -46,7 +46,7 @@ PYTHONUTF8=1 .venv/Scripts/python scripts/check_consistency.py
 sed -n '1,70p' backend/sources/fromurl.py
 grep -n "raise ValueError\|_FETCHERS" backend/sources/playlist.py
 # 検索元（トークンの有無で増減する）
-grep -n "SOURCES\[" backend/main.py
+grep -n "SOURCES\[" backend/searchapi.py
 ```
 
 見る場所:

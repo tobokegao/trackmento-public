@@ -286,10 +286,10 @@ def _to_gb(value: float, unit: str) -> float:
 # ---- ログの読み取り ----
 
 STATS_RE = re.compile(r"(\S+?):(\d+)件/([\d.]+)s/max([\d.]+)s(?:/5xx(\d+))?(?:/h([\d.]+))?")
-# 待ち時間の区切り（秒）。backend/main.pyのLAT_BUCKETSと同じ。[stats] と [srch] の `/h` は区切りごとの件数
+# 待ち時間の区切り（秒）。backend/loadstats.pyのLAT_BUCKETSと同じ。[stats] と [srch] の `/h` は区切りごとの件数
 LAT_BUCKETS = (0.25, 0.5, 1, 2, 5, 10, 20)
 ALWAYS_PATHS = ("/share/upload", "/share", "/from-url", "/from-playlist", "/hiccup")
-# [srch] vocadb:db3/r2/net5/fail1/max8.0s/h… の1ソースぶん（ソースごとの検索。backend/main.pyの _srch_stats）
+# [srch] vocadb:db3/r2/net5/fail1/max8.0s/h… の1ソースぶん（ソースごとの検索。backend/loadstats.pyの _srch_stats）
 SRCH_RE = re.compile(r"(\S+?):db(\d+)/r2(\d+)/net(\d+)/fail(\d+)/max([\d.]+)s/h([\d.]+)")
 
 

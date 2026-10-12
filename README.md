@@ -208,7 +208,11 @@ backend/shareindex.py   「みんなのグリッド」の索引（共有する�
 backend/pages.py        使い方・プライバシーポリシー・運営者・更新情報のページ
 backend/uploads.py      手入力用の画像アップロード
 backend/netguard.py     外部URLの取得の検査（SSRF対策）
-backend/main.py         経路・CSP・画像の中継・ログ・起動処理
+backend/main.py         経路・CSP・ログ・起動処理
+backend/searchapi.py    検索とURL・プレイリストからの取り込み（/search・/from-url・/from-playlist）
+backend/imageproxy.py   画像の中継（/image-proxy）とR2の画像キャッシュの索引
+backend/loadstats.py    負荷の診断ログの数え（[stats]・[srch]・[ua] など）
+backend/gziptext.py     textとJSONだけgzipで返すミドルウェア
 cli.py                  add / pick / search / list / move / remove / share / render / clear / grids
 frontend/index.html     画面（単一HTML。CSSもJSも1枚）
 fonts/                  同梱フォント（OFL）。Web用の分割ファイルはfonts/split/

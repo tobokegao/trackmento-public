@@ -17,7 +17,7 @@ def sniff_image_type(data: bytes) -> str | None:
     """中身の先頭から画像の種類を見分ける。分からなければNone。
 
     Content-Typeを付けずに返す配信元があるため（otoDBのCDNが実際にそう）。ヘッダを信じずに実データで確かめる。
-    `/image-proxy`（main.py）とサーバー描画（render.pyのfetch_image_bytes）の両方で使う（2026-09-21にmain.pyから移した。
+    `/image-proxy`（imageproxy.py）とサーバー描画（render.pyのfetch_image_bytes）の両方で使う（2026-09-21にmain.pyから移した。
     描画の側に無く、Canvasの使えない端末の共有でotoDBのサムネだけ抜けていた）。
     """
     if data[:3] == bytes((0xFF, 0xD8, 0xFF)):
