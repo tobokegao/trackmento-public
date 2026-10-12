@@ -15,8 +15,8 @@ CIは `.github/workflows/check.yml`。
   - check_i18n.py / check_trim.py / check_consistency.pyが落ちる
   - --r2: 殻が指すCSS / JS、fonts.<hash>.cssが指す断片がR2に無い（上げ忘れ → 本番で404）
 
-知らせるだけのもの: compare_render.pyとcompare_trim.py。サーバーを立て、ブラウザでの操作も
-要るので自動では回せない。該当するファイルを変えたときに、回すよう表示する。
+知らせるだけのもの: compare_render.pyとcompare_trim.py。手元にサーバーを立てる必要があるので、ここでは回さない。
+該当するファイルを変えたときに、回すよう表示する。
 足した行に英数字と日本語のあいだの半角スペースが残っているときも知らせる（曲名のデータにはありうるので止めない）。
 
 わざと通したいときは `git commit --no-verify` / `git push --no-verify`。
@@ -222,7 +222,7 @@ def main() -> int:
             if files is not None:
                 notes.append("刈り込みを変えたので、サーバーを立ててscripts/compare_trim.pyも回す")
         if files is not None and (touched("backend/render.py") or RENDER_NAMES.search(diff)):
-            notes.append("描画を変えたのでscripts/compare_render.pyで突き合わせる（手順はファイルの頭）")
+            notes.append("描画を変えたのでscripts/compare_render.py autoで突き合わせる（手順はファイルの頭）")
         if files is None or files:
             run("check_consistency.py", "文書とコードの突き合わせ")
         if files:

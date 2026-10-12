@@ -89,7 +89,12 @@
 33 KB前後なら殻、440 KB前後なら1枚配信）。
 
 - 描画は2系統: Webは端末のCanvasで描いて `/share/upload` に送る（`frontend/index.html` の `renderShareCanvas`）。サーバー描画（`backend/render.py`）はCLIと、描けない端末のフォールバック（`/share`）。レイアウト・色・文字の省略規則は両方同じ式。**片方変更時は他方も変更**し、`scripts/compare_render.py` で両方の描画を突き合わせる（差は輪郭のみが正常）。
-  手順はスクリプトのdocstring。サーバーは `PUBLIC_MODE=1 SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0` で立てる（R2が無料枠を超えていると507、本番の共有数を復元して1日上限にも当たる）。
+  **ふだんは `compare_render.py auto`**（2026-10-12）。サーバー描画は `render()` を直接呼び、ブラウザ描画は
+  `promo/dump_render.mjs` がPlaywrightで開いた画面のCanvasをPNGで持ち帰る。**共有を作らない**（R2に書かない・手で押さない・
+  後片付けが要らない）。両方とも出力の最大辺2400で描き、ジャケットは同梱の `/no-cover.png` に差し替える。決まった9通りを数分で回せる。
+  最初に回したとき、**番号バッジの枠がサーバーだけ12px広い**ずれが見つかった（PILの `getbbox` が横に字の左右の余白まで含むため。
+  `_ink_bbox` で字面を測るよう直した）。今までの `make` / `diff` では、基準の内側に埋もれて見えていなかった。
+  本物の共有画像どうしを比べたいときだけ `make` / `diff` / `clean`（手順はスクリプトのdocstring）。サーバーは `PUBLIC_MODE=1 SHARE_BUDGET_GB=0 SHARE_LIMIT_PER_DAY=0 SHARE_LIMIT_PER_IP_DAY=0` で立てる（R2が無料枠を超えていると507、本番の共有数を復元して1日上限にも当たる）。
   **見るのは「ぼかし後の差 > 32」**。輪郭のズレはぼかすと消え、マスや文字の位置のズレだけが残る。
   **3pxのぼかしで1% 未満、または6pxで0.3% 未満**なら正常。マスが少ないと文字が大きく、3pxでは
   輪郭が消えきらない（2026-09-14の実測で4x4が1.65%。6pxまで掛けると0.15%、行の位置は完全に一致）。
