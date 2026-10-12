@@ -12,6 +12,7 @@ from typing import NamedTuple
 import unicodedata
 import os
 import re
+import threading
 import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
@@ -68,7 +69,7 @@ def _oklch_to_hex(L: float, C: float, H: float) -> str:
     def gamma(x: float) -> int:
         x = max(0.0, min(1.0, x))
         x = 1.055 * x ** (1 / 2.4) - 0.055 if x > 0.0031308 else 12.92 * x
-        return max(0, min(255, round(x * 255)))
+        return max(0, min(255, rnd(x * 255)))
 
     return "#{:02x}{:02x}{:02x}".format(gamma(r), gamma(g), gamma(bl))
 
@@ -87,9 +88,8 @@ TOKENS = {
     "vermilion": _oklch_to_hex(0.62, 0.200, 32),
     "mint": _oklch_to_hex(0.84, 0.110, 165),
     "pink": _oklch_to_hex(0.78, 0.130, 350),
-    # もう1組のパレット（2026-09-15に追加）。リソグラフ寄りの上の6色より彩度が高い。
-    # **この6色は実際の色見本から取った値なのでoklchではなく生の16進で持つ**
-    # （frontend/index.htmlのTOKENS_RGBとPOP_PALETTEにも同じ値がある。片方だけ変えない）
+    # 以下の2組（ナイト・ポップ）は**実際の色見本から取った値なのでoklchではなく生の16進で持つ**
+    # （frontend/index.htmlのTOKENS_RGBにも同じ値がある。片方だけ変えない）
     # 3つ目の組「ナイト」（2026-09-16）。**地が暗い組**。画面も暗い側のプラチナに入れ替わる
     "night": "#14181d",
     "chalk": "#f2f0ec",
@@ -128,6 +128,9 @@ def _is_light(rgb: tuple[int, int, int]) -> bool:
 # 使った順に並べ、上限を超えたら古いものから捨てる
 FONT_CACHE_MAX = int(os.getenv("FONT_CACHE_MAX", "160"))
 _font_cache: "OrderedDict[tuple[str, int], ImageFont.FreeTypeFont]" = OrderedDict()
+# サーバー描画は同時に走る（main.pyの_RENDER_POOL）。取り出してから先頭へ移すまでの間に別の描画が
+# そのキーを追い出すとKeyErrorになるので、出し入れはロックの中で行う
+_font_lock = threading.Lock()
 
 # 字幅の控え。1件は小さいが、利用者の曲名の字 × 大きさで際限なく増えるので、上限で丸ごと捨てる
 CHAR_W_CACHE_MAX = int(os.getenv("CHAR_W_CACHE_MAX", "200000"))
@@ -149,18 +152,21 @@ def char_w(kind: str, size: int, ch: str) -> float:
 def font(kind: str, size: int) -> ImageFont.FreeTypeFont:
     """kind: 'bold' | 'regular' | 'pixel'（Silkscreen Bold）"""
     key = (kind, size)
-    f = _font_cache.get(key)
-    if f is not None:
-        _font_cache.move_to_end(key)
-        return f
+    with _font_lock:
+        f = _font_cache.get(key)
+        if f is not None:
+            _font_cache.move_to_end(key)
+            return f
     name = {"bold": "IBMPlexSansJP-Bold.ttf", "regular": "IBMPlexSansJP-Regular.ttf", "pixel": "Silkscreen-Bold.ttf"}[kind]
     p = FONTS / name
     try:
-        f = _font_cache[key] = ImageFont.truetype(str(p), size)
+        f = ImageFont.truetype(str(p), size)
     except OSError as e:
         raise RuntimeError(f"フォントが見つかりません: {p}") from e
-    while len(_font_cache) > FONT_CACHE_MAX:
-        _font_cache.popitem(last=False)
+    with _font_lock:
+        _font_cache[key] = f
+        while len(_font_cache) > FONT_CACHE_MAX:
+            _font_cache.popitem(last=False)
     return f
 
 
@@ -362,7 +368,7 @@ def _paint_bg_image(im: Image.Image, url: str, bg: tuple[int, int, int], alpha: 
 
 def blur_margin(h: int) -> int:
     """下地を作るときにマスの外へ広げる幅。**frontendの `blurMargin` と同じ式**"""
-    return max(1, round(max(1.0, h * BLUR_RADIUS) * 3))
+    return max(1, rnd(max(1.0, h * BLUR_RADIUS) * 3))
 
 
 def _cover_blur_pad(img: Image.Image, w: int, h: int) -> Image.Image:
@@ -379,7 +385,7 @@ def _cover_blur_pad(img: Image.Image, w: int, h: int) -> Image.Image:
     m = blur_margin(h)
     base = _cover_fit(img, w + m * 2, h + m * 2).filter(ImageFilter.GaussianBlur(r)).crop((m, m, m + w, m + h))
     f = min(w / img.width, h / img.height)                  # contain
-    fw, fh = max(1, round(img.width * f)), max(1, round(img.height * f))
+    fw, fh = max(1, rnd(img.width * f)), max(1, rnd(img.height * f))
     base.paste(img.resize((fw, fh), Image.LANCZOS), ((w - fw) // 2, (h - fh) // 2))
     return base
 
@@ -1117,6 +1123,7 @@ def _refit_flow(build, plan: "WrapPlan") -> "WrapPlan":
         got = build(None, fs)
         if got is not None:
             return got
+    print("[render] refit_flow: 曲の順で組み直せず、元の計画のまま（末尾の曲名が欠けるかもしれない）")
     return plan
 
 
@@ -1219,7 +1226,7 @@ def _slab_frame(fixed: int, ratio: float, m: int, vertical: bool, gap: int, frac
     """塊が使い切る辺の長さ `fixed` から枠と余白を出す。
 
     余白は「枠の短いほうの辺の `frac`（ふつうは3.5%）」（`_frame` と同じ規則）なので、枠と余白が互いを参照する。
-    余白0から始めて3回回せば十分収束する。
+    余白の指定値 `m` から始めて数回回せば収束する。
     `vertical` は塊が縦（高さを使い切る）か横（幅を使い切る）か。
     """
     pad = m
@@ -1315,7 +1322,7 @@ def _slab_rows(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float | None
             return None
         top_h = t_h + (wgap if t_h else 0)
         if ratio is None:
-            # 余白は枠の短い辺の3.5%（`_frame` と同じ規則）で、枠と余白が互いを参照する。0から3回回す
+            # 余白は枠の短い辺の3.5%（`_frame` と同じ規則）で、枠と余白が互いを参照する。指定値 `m` から回す
             seg_w = min(font_s * SLAB_ROW_SEG, max(LIST_MIN_COL, rnd(gh * SLAB_ROW_WIDE)))
             pad = m
             for _ in range(3):
@@ -1551,7 +1558,8 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
     内容が縦長なので比率合わせで**左右にごっそり余白が残り**、そのぶんマスが小さくなる。
     まわりに流し込めば余白を使い切れるので、同じ出力サイズでマスを大きくできる。
 
-    決め方は「**出力での文字の大きさをFLOW_MIN_FONTに固定し、入る範囲で枠をいちばん小さくする**」
+    決め方は「**出力での文字の大きさをWRAP_TARGET_PXの順に試し、入る範囲で枠をいちばん小さくする**」
+    （入ったあとはWRAP_TARGET_UPで字を大きくできるか試す）
     （枠が小さいほど、出力に占めるマスの塊が大きい）。枠の大きさは塊に対する % で二分探索する。
     入らなければNoneを返し、呼び出し側は今までの組み方に戻す。
     """
@@ -1981,8 +1989,8 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         if side == "right":
             rows = max(1, math.ceil(rows_total / cols))
             # **マスの送りの約数に寄せる**（曲名の行とジャケットの段がそろう）。
-            # **頭打ちを当ててから寄せる**（先に寄せると96で切られて寄せた意味が消える）。
-            # 下へだけ動かす（上げると高さに入らないか、96を超える）
+            # **頭打ち（送りのLEAD_PITCH_DIV分の1）を当ててから寄せる**（先に寄せると頭打ちで切られて寄せた意味が消える）。
+            # 下へだけ動かす（上げると高さに入らないか、頭打ちを超える）
             lh = max(30, min(pitch // LEAD_PITCH_DIV, avail_h // rows))
             lh = max(30, _snap_lead(lh, pitch, max_lh=lh))
         else:
@@ -2129,7 +2137,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     if side == "right":
         n_i = len(songs)
         lh_i, fs_i, w_i = _sidebar(1, n_i)
-        # 下限はFLOW_MIN_FONT（20px）ではなくFLOW_KEEP_FONT（16px）。20pxを割った1行型は下で流し込み・
+        # 下限はFLOW_MIN_FONT（20px）ではなくFLOW_KEEP_FONT（14px）。20pxを割った1行型は下で流し込み・
         # 回り込み・柱を試し、そちらが「流し込みの右サイドバー」になるなら1行型に戻る（1曲1行と同じ扱い）。
         # 20pxで切ると、長い曲名が1曲ある25曲（5x5・16:9）が段落のような流し込みに落ちていた
         floor_i = max(math.ceil(font_s * INLINE_GAIN), math.ceil(FLOW_KEEP_FONT / scale))
@@ -2276,7 +2284,7 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     # **流し込みに落ちるくらいなら、1曲1行を残す**（2026-09-17）。回り込みや柱・帯のほうがマスを大きく
     # 取れる並びは上で返っている。ここに来るのは「流し込みの右サイドバー」で、字は24〜34pxと大きいが
     # 高さの半分が空き、曲の区切りも見えない（利用者の4x4・5x5・6x6の16:9で「整列できそう」と指摘）。
-    # 1曲1行がFLOW_KEEP_FONT（16px）以上あるなら、そちら（実測17〜21px）のほうが整って見える
+    # 1曲1行がFLOW_KEEP_FONT（14px）以上あるなら、そちら（実測17〜21px）のほうが整って見える
     if sb_flow and keep[4] * keep[7] >= FLOW_KEEP_FONT:
         sb_w, sb_h, sb_cols, line_h, font_s, W, H, scale, title_h = keep
         sb_flow = False
@@ -2550,7 +2558,7 @@ def render(doc: GridDoc) -> Image.Image:
             label = nums[i]
             # **枠は字面（インク）に四辺の余白を足して作る**。ピクセルフォントはemボックスの中で
             # 字面が上に寄るので、emの高さで枠を作ると数字が下に寄って見える。余白は2pxを下限にした
-            # （マスが小さいときは2px、大きいときは今までどおりsc(12)）
+            # （マスが小さいときは2px、大きいときはsc(BADGE_PAD)）
             bx0, by0, bx1, by1 = num_font.getbbox(label)
             pad = max(2, sc(BADGE_PAD))
             bw, bh = (bx1 - bx0) + pad * 2, (by1 - by0) + pad * 2
@@ -2934,7 +2942,12 @@ def prune_outputs(keep: int | None = None) -> int:
     keep = outputs_keep() if keep is None else keep
     if not OUTPUTS.exists():
         return 0
-    files = sorted(OUTPUTS.glob("*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+    def mtime(p: Path) -> float:
+        try:
+            return p.stat().st_mtime
+        except OSError:   # 同時に走った書き出しが先に消した
+            return 0.0
+    files = sorted(OUTPUTS.glob("*.png"), key=mtime, reverse=True)
     removed = 0
     for p in files[keep:]:
         try:
@@ -2952,9 +2965,14 @@ def render_to_file(doc: GridDoc) -> tuple[Path, Image.Image]:
     stem = _SAFE_RE.sub("", doc.name) or "grid"
     path = OUTPUTS / f"{stem}-{time.strftime('%Y%m%d-%H%M%S')}.png"
     n = 1
-    while path.exists():
-        n += 1
-        path = OUTPUTS / f"{stem}-{time.strftime('%Y%m%d-%H%M%S')}-{n}.png"
-    im.save(path, "PNG", compress_level=6)   # optimize=Trueは3倍遅いわりに数 % しか縮まない
+    while True:
+        try:
+            fp = open(path, "xb")   # 確かめてから作るまでの隙間で、同じ秒の書き出しと名前がぶつからないように
+            break
+        except FileExistsError:
+            n += 1
+            path = OUTPUTS / f"{stem}-{time.strftime('%Y%m%d-%H%M%S')}-{n}.png"
+    with fp:
+        im.save(fp, "PNG", compress_level=6)   # optimize=Trueは3倍遅いわりに数 % しか縮まない
     prune_outputs()
     return path, im

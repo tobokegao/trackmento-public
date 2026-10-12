@@ -7340,7 +7340,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (side === "right") {
       const nI = listCells().length;
       let [lhI, fsI, wI] = sidebar(1, nI);
-      // 下限はFLOW_KEEP_FONT（16px）。20pxを割ったら下で流し込み・回り込みを試し、流し込みなら1行型に戻る
+      // 下限はFLOW_KEEP_FONT（14px）。20pxを割ったら下で流し込み・回り込みを試し、流し込みなら1行型に戻る
       const floorI = Math.max(Math.ceil(fontS * INLINE_GAIN), Math.ceil(FLOW_KEEP_FONT / scale));
       while (fsI >= floorI && !inlineOneLine(fsI, wI)) fsI -= 1;
       if (fsI >= floorI) {
