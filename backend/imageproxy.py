@@ -513,9 +513,12 @@ async def fetch_image(url: str, client: httpx.AsyncClient) -> tuple[str, bytes]:
     try:
         # 画像CDNの中には汎用UAを弾くものがある（Wikimedia等）ためブラウザ風にする。リダイレクトは1ホップずつ宛先を検査
         r = await netguard.safe_get(client, url, allowlist=IMAGE_HOST_ALLOWLIST, timeout=IMAGE_FETCH_TIMEOUT,
+                                    max_bytes=IMAGE_MAX_BYTES,
                                     headers={"User-Agent": "Mozilla/5.0 (compatible; trackmento/0.1)", "Accept": "image/*,*/*;q=0.8"})
     except netguard.BlockedURL as e:
         raise HTTPException(403, str(e)) from e
+    except netguard.TooLarge as e:
+        raise HTTPException(413, "画像が大きすぎます") from e
     except httpx.HTTPError as e:
         # **配信元のホスト名だけ理由に添える**（2026-09-17）。点検で「404が1,039件」と出ても、どの配信元かが
         # 分からず手が打てなかった。URL全体は利用者のデータなので出さない（ホストは出どころの種類にすぎない）

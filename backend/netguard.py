@@ -121,33 +121,80 @@ def _next(url: str, r: httpx.Response) -> str | None:
     return None
 
 
-async def safe_get(client: httpx.AsyncClient, url: str, *, allowlist: tuple[str, ...] = (), **kw) -> httpx.Response:
+class TooLarge(ValueError):
+    """本体がmax_bytesを超えた（読みながら打ち切った）。"""
+
+
+def _capped(r: httpx.Response, max_bytes: int) -> None:
+    """Content-Lengthで先に断れるなら断る（chunkedなどで無いときは読みながら数える）。"""
+    try:
+        n = int(r.headers.get("content-length", ""))
+    except ValueError:
+        return
+    if n > max_bytes:
+        raise TooLarge(f"大きすぎます（{n} bytes）")
+
+
+def _rebuild(r: httpx.Response, body: bytes, url: str) -> httpx.Response:
+    """読み終えた本体でResponseを作り直す。**中身はもう解凍してある**ので、Content-Encodingは外す
+    （付けたままだと、.contentを読むときにもう一度解凍しようとして壊れる）。"""
+    drop = ("content-encoding", "content-length", "transfer-encoding")
+    headers = [(k, v) for k, v in r.headers.multi_items() if k.lower() not in drop]
+    out = httpx.Response(r.status_code, headers=headers, content=body, request=r.request)
+    out.final_url = url  # type: ignore[attr-defined]
+    return out
+
+
+async def safe_get(client: httpx.AsyncClient, url: str, *, allowlist: tuple[str, ...] = (),
+                   max_bytes: int | None = None, **kw) -> httpx.Response:
     """検査したIPに接続しながらGETし、リダイレクトは1ホップずつ再検査して追う。
-    返すResponseのfinal_urlに、最後に取得した論理URL（IPではなく元のホスト名のもの）を入れる。"""
+    返すResponseのfinal_urlに、最後に取得した論理URL（IPではなく元のホスト名のもの）を入れる。
+    max_bytesを渡すと、本体が超えた時点で読むのをやめてTooLargeを出す（全部読んでから捨てると、
+    大きいファイルでメモリが跳ねる。2026-10-12）。"""
     kw.pop("follow_redirects", None)
     headers = dict(kw.pop("headers", None) or {})
     for _ in range(MAX_REDIRECTS + 1):
         # _planの名前解決は同期（getaddrinfo）。イベントループを止めないようスレッドで行う
         pinned, extra, ext = await asyncio.to_thread(_plan, url, allowlist)
-        r = await client.get(pinned, follow_redirects=False, headers={**headers, **extra}, extensions=ext or None, **kw)
-        nxt = _next(url, r)
-        if nxt is None:
-            r.final_url = url  # type: ignore[attr-defined]
-            return r
+        async with client.stream("GET", pinned, follow_redirects=False, headers={**headers, **extra},
+                                 extensions=ext or None, **kw) as r:
+            nxt = _next(url, r)
+            if nxt is None:
+                if max_bytes is None:
+                    await r.aread()
+                    r.final_url = url  # type: ignore[attr-defined]
+                    return r
+                _capped(r, max_bytes)
+                buf = bytearray()
+                async for chunk in r.aiter_bytes():
+                    buf += chunk
+                    if len(buf) > max_bytes:
+                        raise TooLarge(f"大きすぎます（{max_bytes} bytesを超えた）")
+                return _rebuild(r, bytes(buf), url)
         url = nxt
     raise BlockedURL("リダイレクトが多すぎます")
 
 
-def safe_get_sync(url: str, *, allowlist: tuple[str, ...] = (), timeout: float = 20, headers: dict | None = None) -> httpx.Response:
-    """同期版（サーバー側描画・CLI用）。"""
+def safe_get_sync(url: str, *, allowlist: tuple[str, ...] = (), timeout: float = 20, headers: dict | None = None,
+                  max_bytes: int | None = None) -> httpx.Response:
+    """同期版（サーバー側描画・CLI用）。max_bytesはsafe_getと同じ。"""
     headers = dict(headers or {})
     with httpx.Client(timeout=timeout, follow_redirects=False) as c:
         for _ in range(MAX_REDIRECTS + 1):
             pinned, extra, ext = _plan(url, allowlist)
-            r = c.get(pinned, headers={**headers, **extra}, extensions=ext or None)
-            nxt = _next(url, r)
-            if nxt is None:
-                r.final_url = url  # type: ignore[attr-defined]
-                return r
+            with c.stream("GET", pinned, headers={**headers, **extra}, extensions=ext or None) as r:
+                nxt = _next(url, r)
+                if nxt is None:
+                    if max_bytes is None:
+                        r.read()
+                        r.final_url = url  # type: ignore[attr-defined]
+                        return r
+                    _capped(r, max_bytes)
+                    buf = bytearray()
+                    for chunk in r.iter_bytes():
+                        buf += chunk
+                        if len(buf) > max_bytes:
+                            raise TooLarge(f"大きすぎます（{max_bytes} bytesを超えた）")
+                    return _rebuild(r, bytes(buf), url)
             url = nxt
     raise BlockedURL("リダイレクトが多すぎます")
