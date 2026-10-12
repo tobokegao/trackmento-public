@@ -65,6 +65,8 @@
      同じ濃さの線が並んで**濃いグレーが2本に見える**（実機で「影が二重」と報告。画素で確認した）。
      地（--color-bar 91%）と外枠（66%）の中間にすると、2段の面取りとして読める */
   --color-bevel:   oklch(78% 0.012 250);
+  /* 掴んでいる間のつまみの地（`.is-grabbed`）。地（--color-bar）より一段暗くして「押し込んだ」と読ませる */
+  --color-thumb-held: var(--color-rule-2);
   /* つまみのドット絵の1マス（2026-09-22）。**端末の画素のちょうど整数倍にする**（JSのsetDotUnitが
      round(画素密度) / 画素密度pxを入れる。2.625倍の端末なら3画素 = 1.143px）。1pxのままだと1マスが
      2.625画素になり、同じ太さのはずの縞が位置によって2画素と3画素にばらつく（真ん中だけ太い、と報告） */
@@ -213,6 +215,9 @@ img { max-width: 100%; display: block; }
   --color-hl:       oklch(74% 0.010 250);
   --color-hl-dim:   oklch(58% 0.010 250);
   --color-bevel:    oklch(29% 0.012 250);   /* 地38% と外枠20% の中間 */
+  /* 掴んでいる間のつまみ。rule-2 はこの組ではつまみの地と同じ38% で、掴んでも何も変わらなかった（2026-10-12）。
+     明るい組と同じく地より一段（9%）暗くする */
+  --color-thumb-held: var(--color-bevel);
   --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
   --sb-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h5v1H0zM0 4h5v1H0zM0 0h1v5H0zM4 0h1v5H4z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 3h3v1H1zM3 1h1v3H3z'/%3E%3Cpath fill='%23fff' d='M1 1h3v1H1zM1 1h1v3H1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M3 1h1v1H3zM1 3h1v1H1z'/%3E%3C/svg%3E");
   --sb-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16' viewBox='0 0 9 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM0 6h2v2H0zM0 12h2v2H0z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M2 0h5v2H2zM2 6h5v2H2zM2 12h5v2H2z'/%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M2 2h7v2H2zM2 8h7v2H2zM2 14h7v2H2z'/%3E%3C/svg%3E");
@@ -1334,6 +1339,10 @@ body.sheet-open { overflow: hidden; }
 .custom-color button { width: 28px; height: 28px; padding: 0; border: var(--line) solid var(--color-ink); background: var(--sw, var(--color-paper)); cursor: pointer; }
 .custom-color button.is-on { outline: 3px solid var(--color-ink); outline-offset: 2px; }
 .custom-color button:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
+/* 選んである見本にキーボードで焦点が来ても、選択の太枠（3px）を細い焦点の輪で上書きしない。
+   上書きすると選択の印がそこだけ細くなる（2026-10-12、色だけに頼らない表示の点検で） */
+.swatches input:checked:focus-visible + span,
+.custom-color button.is-on:focus-visible { outline: 3px solid var(--color-ink); outline-offset: 2px; }
 /* カスタムカラーの色相・彩度・明度スライダー。つまみの位置が色で分かるよう、溝に色の帯を敷く */
 .hsv { display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-1); border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
 .hsv[hidden] { display: none; }   /* display: gridがhidden属性のdisplay: noneに勝ってしまうため明示 */
@@ -1398,7 +1407,8 @@ input[type="range"].no-ring:focus-visible { outline: none; }
    以前は `none` で、溝の上に指が乗っただけでもページが動かなかった。つまみの上で触れたときだけJSが既定の動きを止める */
 .range-pad { position: absolute; inset: -6px 0; touch-action: pan-y; cursor: default; }   /* 上下6pxは指の遊び（受け皿22px → 34px。隣の色のスライダーの受け皿とは重ならない） */
 /* 掴んでいる間の色。`:active` は入力を受け取らなくなったので効かない */
-input[type="range"].is-grabbed::-webkit-slider-thumb { background-color: var(--color-rule-2); }
+input[type="range"].is-grabbed::-webkit-slider-thumb { background-color: var(--color-thumb-held); }
+input[type="range"].is-grabbed::-moz-range-thumb { background-color: var(--color-thumb-held); }
 output { font-variant-numeric: tabular-nums; }
 
 /* ---------- output ---------- */
