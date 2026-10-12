@@ -32,7 +32,7 @@ _BILI_ID_RE = re.compile(r"/video/((?:BV[0-9A-Za-z]{10})|(?:av\d+))", re.IGNOREC
 
 # bilibiliの画像CDN（hdslb.com）はURLの後ろに @<幅>w_<高さ>h_1cを付けると、その大きさに切って返す。
 # 付けないと原寸（実測1076x608で640KB）が返り、書き出しのマス600pxには過剰。600角なら50KB（-92%）。
-# 指定は clamp_size が付ける
+# 指定はclamp_sizeが付ける
 _BILI_SIZE_RE = re.compile(r"@[0-9a-z_]+$")
 
 
