@@ -9,9 +9,9 @@
     APP_FROM_R2=0 PUBLIC_MODE=1 PYTHONUTF8=1 .venv/Scripts/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py auto            # 決まった数通りを描き比べる
     PYTHONUTF8=1 .venv/Scripts/python scripts/compare_render.py auto 5x4:16:9:labels 3x3:1:1:blur   # 選んで回す
-    #    --keep を足すと、両方の絵を実寸のPNGでもoutputs/に残す（細部を切り抜いて確かめるとき）
+    #    --keepを足すと、両方の絵を実寸のPNGでもoutputs/に残す（細部を切り抜いて確かめるとき）
     #    --tracks=<json> で曲を差し替える（既定はgrids/default.jsonの曲。長い題や長いアーティスト名を試すとき）
-    #    書き方は「横x縦:比率:付け足し…」。付け足しは fill / blur / wide / labels / covers（本物のジャケットを使う）
+    #    書き方は「横x縦:比率:付け足し…」。付け足しはfill / blur / wide / labels / covers（本物のジャケットを使う）
 
 両方とも同じ出力の最大辺（COMPARE_MAX_SIDE、既定2400）で描く。ジャケットは既定でうちの同梱画像に差し替える
 （外へ取りに行かないので速く、R2の画像キャッシュにも書かない。割り付けと文字を見るにはこれで足りる）。
@@ -175,7 +175,7 @@ def auto(specs: list[str]) -> int:
     try:
         httpx.get(f"{BASE}/robots.txt", timeout=5).raise_for_status()
     except httpx.HTTPError:
-        print(f"{BASE} にサーバーがありません（公開モードで立ててから。使い方はファイルの頭）")
+        print(f"{BASE}にサーバーがありません（公開モードで立ててから。使い方はファイルの頭）")
         return 2
     keep = "--keep" in specs   # 両方の絵を実寸のPNGでも残す（細部を切り抜いて見るとき）
     global TRACKS_FILE
@@ -211,7 +211,7 @@ def auto(specs: list[str]) -> int:
             b.save(ROOT / "outputs" / f"compare-auto-{c['key']}-browser.png")
         if not _score(a, b, ROOT / "outputs" / f"compare-auto-{c['key']}.jpg"):
             bad.append(c["key"])
-    print(f"\nずれ {len(bad)} / {len(cases)}" + (f"（{', '.join(bad)}）" if bad else ""))
+    print(f"\nずれ{len(bad)} / {len(cases)}" + (f"（{', '.join(bad)}）" if bad else ""))
     return 1 if bad else 0
 
 
