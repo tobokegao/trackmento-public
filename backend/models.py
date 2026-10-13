@@ -1,4 +1,5 @@
 """全ソース共通のレスポンス型。"""
+import re
 from typing import Literal, Optional
 
 from pydantic import BaseModel, field_validator
@@ -12,6 +13,7 @@ MAX_URL = 2048
 # 200字・3行まで（frontendの `NOTE_MAX` / `NOTE_LINES` と同じ）
 MAX_NOTE = 200
 MAX_NOTE_LINES = 3
+BANDCAMP_RE = re.compile(r"^(?:track|album)=\d{1,12}$")
 
 
 def _is_http(v: str) -> bool:
@@ -61,6 +63,14 @@ class Track(BaseModel):
     origin: Optional[Origin] = None
     # 作った人のメモ。共有ページ（`share.page_html`）が曲名の下に出す。「みんなのグリッドを探す」の索引には入れない
     note: Optional[str] = None
+    # Bandcampの埋め込みプレイヤーで鳴らすための番号（"track=<ID>" か "album=<ID>"）。曲を取り込むときに
+    # 読んだページの `data-tralbum` から拾う（問い合わせは増やさない）。共有ページの試聴が使う（`share._PREVIEW_JS`。2026-10-13）
+    bandcamp: Optional[str] = None
+
+    @field_validator("bandcamp", mode="before")
+    @classmethod
+    def _bandcamp(cls, v):
+        return v if isinstance(v, str) and BANDCAMP_RE.match(v) else None
 
     @field_validator("fit")
     @classmethod

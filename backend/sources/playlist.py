@@ -246,7 +246,8 @@ def _bc_album(text: str, url: str) -> list[Track]:
                          album=album_title,
                          image=f"https://f4.bcbits.com/img/a{art_id}_{bandcamp.COVER_SIZE}.jpg",
                          thumb=f"https://f4.bcbits.com/img/a{art_id}_{bandcamp.THUMB_SIZE}.jpg",
-                         external_url=(base + link) if link.startswith("/") else (link or None)))
+                         external_url=(base + link) if link.startswith("/") else (link or None),
+                         bandcamp=bandcamp.embed_ref("track", t.get("track_id") or t.get("id"))))
     return out
 
 

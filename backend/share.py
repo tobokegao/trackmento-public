@@ -23,6 +23,7 @@ from PIL import Image
 from backend import names, render, shareindex, storage
 from backend.config import public_mode, share_retention_days
 from backend.grids import GridDoc
+from backend.models import BANDCAMP_RE
 
 ROOT = Path(__file__).resolve().parent.parent
 SHARES = ROOT / "shares"
@@ -337,7 +338,7 @@ TEXT = {
         "find_rare": "ひとりだけが選んだ曲",
         "find_rare_note": "この{days}日間に載ったグリッドのうち、1人の並びにしか入っていない曲です。ほかに誰も選んでいないアーティストの曲を先に並べています。",
         # ジャケットを押して試聴（2026-10-13）。「iTunes提供」とストアへのリンクはAppleの条件
-        "pv_hint": "Apple Musicにある曲は、ジャケットを押すと30秒ほど試聴できます。",
+        "pv_hint": "Apple MusicとBandcampの曲は、ジャケットを押すと試聴できます。",
         "pv_now": "試聴中",
         "pv_load": "読み込み中",
         "pv_stop": "止める",
@@ -346,6 +347,10 @@ TEXT = {
         "pv_none": "この曲には試聴音源がありません。",
         "pv_fail": "試聴音源を読み込めませんでした。時間をおいてもう一度お試しください。",
         "pv_label": "「{{title}}」を試聴",
+        "pv_bc_note": "Bandcampのプレイヤーの再生ボタンを押すと流れます。",
+        "pv_bc_title": "「{{title}}」のBandcampのプレイヤー",
+        "pv_bc_store": "Bandcampで開く",
+        "pv_close": "閉じる",
     },
     "en": {
         "expired_title": "This share is gone",
@@ -408,7 +413,7 @@ TEXT = {
         "find_popular_n": "({n} grids)",
         "find_rare": "Picked by only one person",
         "find_rare_note": "Tracks that appear in only one person's grid listed in the last {days} days, starting with artists no one else picked.",
-        "pv_hint": "Tap a cover to hear a 30-second preview (tracks on Apple Music only).",
+        "pv_hint": "Tap the cover of a track from Apple Music or Bandcamp to hear it.",
         "pv_now": "Playing",
         "pv_load": "Loading",
         "pv_stop": "Stop",
@@ -417,6 +422,10 @@ TEXT = {
         "pv_none": "No preview is available for this track.",
         "pv_fail": "Couldn't load the preview. Try again in a little while.",
         "pv_label": "Preview “{{title}}”",
+        "pv_bc_note": "Press play in the Bandcamp player to listen.",
+        "pv_bc_title": "Bandcamp player for “{{title}}”",
+        "pv_bc_store": "Open on Bandcamp",
+        "pv_close": "Close",
     },
 }
 
@@ -569,6 +578,8 @@ p.note {{ margin: 0; padding: 12px 16px; border: 2px solid #12171b; background: 
 .pv-tag:empty {{ display: none; }}
 .pv-msg {{ display: block; color: #53595f; font-size: .9rem; }}
 .pv-credit {{ color: #53595f; font-size: .8rem; }}
+/* Bandcampの公式プレイヤー（size=smallは高さ42pxで作られている） */
+.pv-bc {{ display: block; width: 100%; height: 42px; border: 0; }}
 """
 
 
@@ -749,7 +760,9 @@ def _owner_script(nonce: str, lang: str, mode: str) -> str:
 # （曲のIDは元のページのURLにある）。今までの共有でもそのまま鳴り、URLの期限切れも気にしなくてよい。
 # Appleの条件（Search APIの文書のPromo Content）: 試聴は**流すだけ**（こちらで保存・中継しない）、
 # **ストアへのリンクのそばで**、「iTunes提供」と書く、宣伝から離れた娯楽として使わない。だから
-# 鳴らすのは押した1曲だけで、次の曲へは進めない（`docs/services-terms.md`）
+# 鳴らすのは押した1曲だけで、次の曲へは進めない（`docs/services-terms.md`）。
+# **Bandcampの曲は公式の埋め込みプレイヤーを帯に出す**（同日追加）。番号は取り込むときに拾った `Track.bandcamp`。
+# プレイヤーには外から再生を始める口が無いので、帯のプレイヤーの再生ボタンをもう1回押してもらう
 APPLE_TRACK_RE = re.compile(
     r"^https://(?:music|itunes)\.apple\.com/([a-z]{2})(?:/[^?#]*?)?(?:/song/(?:[^/?#]+/)?(\d+)(?=[?#]|$)|\?(?:[^#]*&)?i=(\d+))")
 
@@ -766,7 +779,7 @@ _BOXES_MAX = 256
 
 
 def cell_boxes(snap: dict) -> dict | None:
-    """試聴できるマスの位置（画像の幅・高さに対する比）と曲のID。Apple Musicの曲が無ければNone。
+    """試聴できるマスの位置（画像の幅・高さに対する比）と曲のID。Apple MusicとBandcampの曲が無ければNone。
     位置は `render.layout` と `render.cell_box` から出す（書き出しの割り付けそのもの。ブラウザの描画とは
     `compare_render.py` で一致を確かめてある）。**割り付けの規則が変わる前に作った共有はずれうる**ので、
     画像の縦横比が割り付けと合わないときはブラウザ側で重ねない（`_PREVIEW_JS`）。
@@ -787,21 +800,30 @@ def cell_boxes(snap: dict) -> dict | None:
 
 def _cell_boxes(snap: dict) -> dict | None:
     cells = snap.get("cells") or []
-    want = {i: a for i, c in enumerate(cells) if c and (a := apple_track(c.get("external_url")))}
+    want: dict[int, dict] = {}
+    for i, c in enumerate(cells):
+        if not c:
+            continue
+        if a := apple_track(c.get("external_url")):
+            want[i] = {"k": "am", "cc": a[0], "id": a[1]}
+        elif BANDCAMP_RE.match(c.get("bandcamp") or ""):
+            # Bandcampは公式の埋め込みプレイヤーを帯に出す（外から再生を始める口が無いので、もう1回押してもらう）
+            want[i] = {"k": "bc", "ref": c["bandcamp"]}
     if not want:
         return None
     doc0 = GridDoc.model_validate(snap)
     doc = render._cropped(render._trimmed(doc0))
     L = render.layout(doc)
     items = []
-    for i, (cc, tid) in sorted(want.items()):
+    for i, what in sorted(want.items()):
         r, c = divmod(i, doc0.cols)
         if r >= doc.rows or c >= doc.cols:   # 書き出しで落とした末尾の段（曲は無いはずだが念のため）
             continue
         x, y, w, h = render.cell_box(doc, L, r * doc.cols + c)
+        url = (cells[i].get("external_url") or "").strip()
         items.append({"x": round(x / L.W, 5), "y": round(y / L.H, 5), "w": round(w / L.W, 5), "h": round(h / L.H, 5),
-                      "cc": cc, "id": tid, "t": render._one_line(cells[i].get("title")),
-                      "u": cells[i].get("external_url")})
+                      **what, "t": render._one_line(cells[i].get("title")),
+                      "u": url if url.lower().startswith(("http://", "https://")) else ""})
     return {"W": L.W, "H": L.H, "cells": items} if items else None
 
 
@@ -819,7 +841,7 @@ _PREVIEW_JS = """
   const lookup = async () => {
     if (urls) return urls;
     const by = {};
-    for (const c of D.cells) (by[c.cc] = by[c.cc] || []).push(c.id);
+    for (const c of D.cells) if (c.k === "am") (by[c.cc] = by[c.cc] || []).push(c.id);
     const got = {};
     await Promise.all(Object.entries(by).map(async ([cc, ids]) => {
       const r = await fetch(`https://itunes.apple.com/lookup?country=${cc}&entity=song&id=${ids.join(",")}`);
@@ -842,22 +864,47 @@ _PREVIEW_JS = """
       stop.addEventListener("click", () => halt());
       row.append(stop);
     }
-    const a = el("a", "btn", T.pv_store);
-    a.href = c.u; a.target = "_blank"; a.rel = "noopener noreferrer nofollow";
-    row.append(a);
+    row.append(store(c, T.pv_store));
     bar.append(head, row, el("p", "pv-credit", T.pv_credit));
     bar.hidden = false;
   };
+  const store = (c, text) => {
+    if (!c.u) return "";
+    const a = el("a", "btn", text);
+    a.href = c.u; a.target = "_blank"; a.rel = "noopener noreferrer nofollow";
+    return a;
+  };
+  // Bandcampは**公式の埋め込みプレイヤー**を帯に出す。外から再生を始める口が無いので、プレイヤーの再生ボタンを押してもらう
+  const showBc = (c) => {
+    bar.replaceChildren();
+    const head = el("p", "pv-now");
+    head.append(el("b", "", c.t), el("span", "pv-msg", T.pv_bc_note));
+    const f = document.createElement("iframe");
+    f.className = "pv-bc";
+    f.title = T.pv_bc_title.replace("{title}", c.t);
+    f.src = `https://bandcamp.com/EmbeddedPlayer/${c.ref}/size=small/bgcol=ffffff/linkcol=12171b/transparent=true/`;
+    // sandboxは付けない（Bandcampが配る貼り付けコードと同じ形にする。出せる先はCSPのframe-srcでbandcamp.comだけ）
+    f.referrerPolicy = "strict-origin-when-cross-origin";
+    const close = el("button", "btn", T.pv_close);
+    close.type = "button";
+    close.addEventListener("click", () => halt());
+    const row = el("div", "btns");
+    row.append(close, store(c, T.pv_bc_store));
+    bar.append(head, f, row);
+    bar.hidden = false;
+  };
+  // 止めるときは帯の中身ごと消す（隠すだけだとBandcampのプレイヤーが裏で鳴り続ける）
   const halt = () => {
     audio.pause(); audio.removeAttribute("src"); audio.load();
     if (cur) { cur.classList.remove("on"); cur.setAttribute("aria-pressed", "false"); }
-    cur = null; bar.hidden = true;
+    cur = null; bar.hidden = true; bar.replaceChildren();
   };
   audio.addEventListener("ended", halt);
   const press = async (b, c) => {
     if (cur === b) { halt(); return; }   // 鳴っているマスをもう一度押すと止まる
     halt();
     cur = b; b.classList.add("on"); b.setAttribute("aria-pressed", "true");
+    if (c.k === "bc") { showBc(c); return; }
     show(c, "load");
     let src = "";
     try { src = (await lookup())[c.id] || ""; } catch { if (cur === b) { show(c, "fail"); b.classList.remove("on"); cur = null; } return; }
@@ -890,7 +937,8 @@ _PREVIEW_JS = """
 def _preview_script(nonce: str, lang: str, boxes: dict | None) -> str:
     if not (nonce and boxes):
         return ""
-    tx = {k: t(lang, k) for k in ("pv_now", "pv_load", "pv_stop", "pv_store", "pv_credit", "pv_none", "pv_fail", "pv_label")}
+    tx = {k: t(lang, k) for k in ("pv_now", "pv_load", "pv_stop", "pv_store", "pv_credit", "pv_none", "pv_fail", "pv_label",
+                                   "pv_bc_note", "pv_bc_title", "pv_bc_store", "pv_close")}
     js = (_PREVIEW_JS.replace("__T__", json.dumps(tx, ensure_ascii=False).replace("</", "<\\/"))
           .replace("__D__", json.dumps(boxes, ensure_ascii=False).replace("</", "<\\/")))
     return f'<script nonce="{html.escape(nonce, quote=True)}">{js}</script>'

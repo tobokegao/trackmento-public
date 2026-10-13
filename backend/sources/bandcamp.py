@@ -105,6 +105,11 @@ def _artist_from(tral: dict, single: bool) -> str | None:
     return ((cur or {}).get("artist") or tral.get("artist") or "").strip() or None
 
 
+def embed_ref(kind, ident) -> str | None:
+    """埋め込みプレイヤーの番号（"track=<ID>" / "album=<ID>"。`Track.bandcamp`）。読めなければNone"""
+    return f"{kind}={ident}" if kind in ("track", "album") and str(ident or "").isdigit() else None
+
+
 async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
     p = urlparse(url)
     if p.scheme not in ("http", "https") or not p.netloc:
@@ -164,4 +169,5 @@ async def fetch(url: str, *, client: httpx.AsyncClient | None = None) -> Track:
         image=_sized(og_image, COVER_SIZE),
         thumb=_sized(og_image, THUMB_SIZE),
         external_url=_canonical(url),
+        bandcamp=embed_ref(tral.get("item_type"), tral.get("id")),
     )

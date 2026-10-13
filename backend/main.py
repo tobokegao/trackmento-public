@@ -500,8 +500,8 @@ async def rate_limit(request: Request, call_next):
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'{r2}; "
         # connect-src: iTunesとMusicBrainz（＋Cover Art Archive → archive.orgへリダイレクト）の検索はブラウザから直接叩く
         # （サーバーの共有IPがAppleに遮断され、MusicBrainzにはレート制限されるため）
-        # media-src: 共有ページの試聴（iTunesの試聴音源をAppleから直接流す。`share._PREVIEW_JS`）
-        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; media-src 'self' https://audio-ssl.itunes.apple.com{r2}; object-src 'none'; base-uri 'self'; "
+        # media-src / frame-src: 共有ページの試聴（iTunesの試聴音源をAppleから直接流す・Bandcampの公式プレイヤー。`share._PREVIEW_JS`）
+        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; media-src 'self' https://audio-ssl.itunes.apple.com{r2}; frame-src 'self' https://bandcamp.com; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'self'")
     if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
