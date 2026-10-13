@@ -10,6 +10,7 @@ import hashlib
 import html
 import secrets
 import json
+import threading
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -142,6 +143,10 @@ def store(doc: GridDoc, image: bytes, og: bytes | None, width: int, height: int,
                  "og": True,    # カード用JPEGがある印（古い共有には無い）
                  "ext": ext,    # 本体画像の拡張子（無ければpng）
                  "ownerKeyHash": _key_hash(owner_key)})
+    # **試聴で押せるマスの位置を、作ったときの割り付けの規則で覚えておく**（2026-10-13）。あとで割り付けの規則が
+    # 変わっても、この共有の画像とずれない。合う割り付けが無い（古いタブで描いた等）・混んでいるときは持たない
+    if boxes := cell_boxes(snap, width, height, cache=False):
+        snap["cellBoxes"] = {"w": width, "h": height, "boxes": boxes}
     js = json.dumps(snap, ensure_ascii=False, indent=2).encode("utf-8")
     need = len(image) + len(js) + len(og)
     if budget > 0:
@@ -265,6 +270,7 @@ def delete(sid: str, key: str) -> None:
     _owned(sid, key)
     storage.get_storage().delete_many([f"{sid}.jpg", f"{sid}.png", f"{sid}-og.jpg", f"{sid}.json", f"{shareindex.PREFIX}{sid}.json"])
     shareindex.forget(sid)
+    _SNAPS.pop(sid, None)   # 試聴のために覚えた並び（`remember_snap`）
 
 
 # 共有ページ・案内ページの文言。フロント（frontend/index.htmlのEN表）と違い、こちらはサーバーで組み立てるので
@@ -338,7 +344,7 @@ TEXT = {
         "find_rare": "ひとりだけが選んだ曲",
         "find_rare_note": "この{days}日間に載ったグリッドのうち、1人の並びにしか入っていない曲です。ほかに誰も選んでいないアーティストの曲を先に並べています。",
         # ジャケットを押して試聴（2026-10-13）。「iTunes提供」とストアへのリンクはAppleの条件
-        "pv_hint": "Apple MusicとBandcampの曲は、ジャケットを押すと試聴できます。",
+        "pv_hint": "ジャケットを押すと、その曲を試聴できます（Apple Music・Bandcamp・YouTube・ニコニコ動画・SoundCloud・Spotifyの曲）。",
         "pv_now": "試聴中",
         "pv_load": "読み込み中",
         "pv_stop": "止める",
@@ -347,9 +353,10 @@ TEXT = {
         "pv_none": "この曲には試聴音源がありません。",
         "pv_fail": "試聴音源を読み込めませんでした。時間をおいてもう一度お試しください。",
         "pv_label": "「{{title}}」を試聴",
-        "pv_bc_note": "Bandcampのプレイヤーの再生ボタンを押すと流れます。",
-        "pv_bc_title": "「{{title}}」のBandcampのプレイヤー",
-        "pv_bc_store": "Bandcampで開く",
+        "pv_em_auto": "再生が始まらないときは、プレイヤーの再生ボタンを押してください。",
+        "pv_em_press": "{{svc}}のプレイヤーの再生ボタンを押すと流れます。",
+        "pv_em_title": "「{{title}}」の{{svc}}のプレイヤー",
+        "pv_em_store": "{{svc}}で開く",
         "pv_close": "閉じる",
     },
     "en": {
@@ -413,7 +420,7 @@ TEXT = {
         "find_popular_n": "({n} grids)",
         "find_rare": "Picked by only one person",
         "find_rare_note": "Tracks that appear in only one person's grid listed in the last {days} days, starting with artists no one else picked.",
-        "pv_hint": "Tap the cover of a track from Apple Music or Bandcamp to hear it.",
+        "pv_hint": "Tap a cover to listen to that track (tracks from Apple Music, Bandcamp, YouTube, Niconico, SoundCloud or Spotify).",
         "pv_now": "Playing",
         "pv_load": "Loading",
         "pv_stop": "Stop",
@@ -422,11 +429,19 @@ TEXT = {
         "pv_none": "No preview is available for this track.",
         "pv_fail": "Couldn't load the preview. Try again in a little while.",
         "pv_label": "Preview “{{title}}”",
-        "pv_bc_note": "Press play in the Bandcamp player to listen.",
-        "pv_bc_title": "Bandcamp player for “{{title}}”",
-        "pv_bc_store": "Open on Bandcamp",
+        "pv_em_auto": "If it doesn't start, press play in the player.",
+        "pv_em_press": "Press play in the {{svc}} player to listen.",
+        "pv_em_title": "{{svc}} player for “{{title}}”",
+        "pv_em_store": "Open on {{svc}}",
         "pv_close": "Close",
     },
+}
+
+
+# 試聴の帯に出すサイトの名前（`embed_for` の svc → 表示名）
+SERVICE_NAMES = {
+    "ja": {"bandcamp": "Bandcamp", "youtube": "YouTube", "nico": "ニコニコ動画", "soundcloud": "SoundCloud", "spotify": "Spotify"},
+    "en": {"bandcamp": "Bandcamp", "youtube": "YouTube", "nico": "Niconico", "soundcloud": "SoundCloud", "spotify": "Spotify"},
 }
 
 
@@ -578,8 +593,9 @@ p.note {{ margin: 0; padding: 12px 16px; border: 2px solid #12171b; background: 
 .pv-tag:empty {{ display: none; }}
 .pv-msg {{ display: block; color: #53595f; font-size: .9rem; }}
 .pv-credit {{ color: #53595f; font-size: .8rem; }}
-/* Bandcampの公式プレイヤー（size=smallは高さ42pxで作られている） */
-.pv-bc {{ display: block; width: 100%; height: 42px; border: 0; }}
+/* 各サイトの公式プレイヤー。高さはサイトごと（`share.embed_for` のshape）。動画は16:9で、PCで大きくなりすぎないよう40remまで */
+.pv-em {{ display: block; width: 100%; border: 0; }}
+.pv-em.video {{ max-width: 40rem; height: auto; aspect-ratio: 16 / 9; }}
 """
 
 
@@ -774,57 +790,147 @@ def apple_track(url: str | None) -> tuple[str, str] | None:
     return (m.group(1), m.group(2) or m.group(3)) if m else None
 
 
-_BOXES: dict[str, dict | None] = {}
-_BOXES_MAX = 256
+# 各サイトの**公式の埋め込みプレイヤー**（2026-10-13）。番号は元のページのURL（Bandcampだけは取り込むときに拾った
+# `Track.bandcamp`）から取るので、今までの共有でも使える。**プレイヤーのURLはここで組み、番号は形を確かめてから入れる**
+# （利用者のデータをそのままiframeのsrcにしない）。出せる先はCSPの `frame-src` と同じ5つだけ。
+# auto: 押した直後に鳴り始める見込みがあるか（自動再生の指定がある）。無いものは「再生ボタンを押す」と案内する。
+# bilibiliは入れない（bilibiliには一度も問い合わせないと決めている。`docs/services-terms.md`）
+_YT_RE = re.compile(r"^https://(?:(?:www|m|music)\.)?youtube\.com/(?:watch\?(?:[^#]*&)?v=|shorts/|embed/)([A-Za-z0-9_-]{11})"
+                    r"|^https://youtu\.be/([A-Za-z0-9_-]{11})")
+_NICO_RE = re.compile(r"^https://(?:www\.|sp\.)?nicovideo\.jp/watch/((?:sm|nm|so)\d{1,12})(?:[?#]|$)|^https://nico\.ms/((?:sm|nm|so)\d{1,12})")
+# 短いURL（on.soundcloud.com/…）のまま入っている曲もあるが、プレイヤーに渡すと404になる（2026-10-13に確かめた）ので出さない
+_SC_RE = re.compile(r"^https://soundcloud\.com/[A-Za-z0-9_-]+/[A-Za-z0-9_/-]+$")
+_SP_RE = re.compile(r"^https://open\.spotify\.com/(?:intl-[a-z-]+/)?(track|album|playlist|episode)/([A-Za-z0-9]{22})(?:[?#]|$)")
 
 
-def cell_boxes(snap: dict) -> dict | None:
-    """試聴できるマスの位置（画像の幅・高さに対する比）と曲のID。Apple MusicとBandcampの曲が無ければNone。
-    位置は `render.layout` と `render.cell_box` から出す（書き出しの割り付けそのもの。ブラウザの描画とは
-    `compare_render.py` で一致を確かめてある）。**割り付けの規則が変わる前に作った共有はずれうる**ので、
-    画像の縦横比が割り付けと合わないときはブラウザ側で重ねない（`_PREVIEW_JS`）。
-    共有の中身は変わらないので、共有IDごとに覚える。重いもの（フォントの読み込み）があるので、ループの外で呼ぶ"""
-    sid = snap.get("id") or ""
-    if sid in _BOXES:
-        return _BOXES[sid]
-    out = None
-    try:
-        out = _cell_boxes(snap)
-    except Exception as e:   # 試聴は飾り。共有ページそのものを落とさない
-        print(f"[preview] {sid}: {type(e).__name__}: {e}", flush=True)
-    if len(_BOXES) >= _BOXES_MAX:
-        _BOXES.pop(next(iter(_BOXES)))
-    _BOXES[sid] = out
+def embed_for(cell: dict) -> dict | None:
+    """マスの曲 → 埋め込みプレイヤー（{"k": "em", "svc", "src", "shape", "auto"}）。出せなければNone。
+    shape: "video"（16:9）か、帯の高さ（px）"""
+    url = (cell.get("external_url") or "").strip()
+    ref = cell.get("bandcamp") or ""
+    if BANDCAMP_RE.match(ref):
+        # 外から再生を始める口が無い（embedded_player-*.jsに自動再生の指定もpostMessageの受け口も無い）
+        return {"k": "em", "svc": "bandcamp", "auto": False, "shape": 42,
+                "src": f"https://bandcamp.com/EmbeddedPlayer/{ref}/size=small/bgcol=ffffff/linkcol=12171b/transparent=true/"}
+    if m := _YT_RE.match(url):
+        # 記録の少ないyoutube-nocookie.com。押した操作が自動再生の許可になる（iframeのallow="autoplay"）
+        return {"k": "em", "svc": "youtube", "auto": True, "shape": "video",
+                "src": f"https://www.youtube-nocookie.com/embed/{m.group(1) or m.group(2)}?autoplay=1&rel=0&playsinline=1"}
+    if m := _NICO_RE.match(url):
+        # 埋め込みは ?autoplay=1 を付けても設定がfalseのまま（2026-10-13に確かめた）
+        return {"k": "em", "svc": "nico", "auto": False, "shape": "video",
+                "src": f"https://embed.nicovideo.jp/watch/{m.group(1) or m.group(2)}"}
+    if _SC_RE.match(url):
+        return {"k": "em", "svc": "soundcloud", "auto": True, "shape": 166,
+                "src": "https://w.soundcloud.com/player/?url=" + quote(url, safe="")
+                       + "&auto_play=true&visual=false&show_comments=false&show_reposts=false&hide_related=true"}
+    if m := _SP_RE.match(url):
+        return {"k": "em", "svc": "spotify", "auto": False, "shape": 152,
+                "src": f"https://open.spotify.com/embed/{m.group(1)}/{m.group(2)}"}
+    return None
+
+
+def cell_media(snap: dict) -> list[dict]:
+    """試聴できるマス（i＝マスの番号）と、鳴らし方（Appleの曲のID、または埋め込みプレイヤー）。位置は持たない（`cell_boxes`）"""
+    cells = snap.get("cells") or []
+    out = []
+    for i, c in enumerate(cells):
+        if not isinstance(c, dict):
+            continue
+        what = ({"k": "am", "cc": a[0], "id": a[1]} if (a := apple_track(c.get("external_url"))) else embed_for(c))
+        if what:
+            url = (c.get("external_url") or "").strip()
+            out.append({"i": i, **what, "t": render._one_line(c.get("title")),
+                        "u": url if url.lower().startswith(("http://", "https://")) else ""})
     return out
 
 
-def _cell_boxes(snap: dict) -> dict | None:
-    cells = snap.get("cells") or []
-    want: dict[int, dict] = {}
-    for i, c in enumerate(cells):
-        if not c:
-            continue
-        if a := apple_track(c.get("external_url")):
-            want[i] = {"k": "am", "cc": a[0], "id": a[1]}
-        elif BANDCAMP_RE.match(c.get("bandcamp") or ""):
-            # Bandcampは公式の埋め込みプレイヤーを帯に出す（外から再生を始める口が無いので、もう1回押してもらう）
-            want[i] = {"k": "bc", "ref": c["bandcamp"]}
-    if not want:
+# **マスの位置は、ブラウザが画像の実寸を添えて聞きに来たときに出す**（`GET /s/<id>/cells?w=&h=` → `boxes_for`）。
+# 1. **共有を作ったときに覚えた位置**（`snap["cellBoxes"]`、`store` が作る）があればそれ。作ったときの規則で組んだものなので、
+#    あとで割り付けの規則が変わってもずれない
+# 2. 無ければ（2026-10-13より前の共有）、**割り付けの規則が最後に変わったあと（`LIVE_SINCE`）に作った共有だけ**その場で組む。
+#    それより古い共有は、実寸が合っても中のマスの位置が違う（9/12の共有で確かめた）ので重ねない
+# 割り付けは出力の最大辺で変わる（`render.layout_at`）。ブラウザは端末ごとに2000〜3200pxで描くので、1通りで計算すると
+# 最大辺の違う画像でずれた（2026-10-13、利用者の指摘）。画像の長辺をその最大辺として組み、**出力の大きさが実寸と
+# 1px以内で合ったときだけ**位置を出す
+LIVE_SINCE = "2026-10-12T08:00:00Z"   # 割り付けの最後の変更（dd6c9cf、10-12 16:23 JST）の反映を見込んだ時刻。**動かさない**
+_SNAPS: dict[str, dict] = {}      # 共有ページを出したときの並び（位置を聞きに来たときにR2を読み直さない）
+_BOXES: dict[tuple, dict | None] = {}
+_CACHE_MAX = 256
+_LAYOUT_GATE = threading.Semaphore(1)
+
+
+def boxes_for(snap: dict, img_w: int, img_h: int) -> dict | None:
+    kept = snap.get("cellBoxes")
+    if isinstance(kept, dict):
+        ok = abs(int(kept.get("w") or 0) - img_w) <= 1 and abs(int(kept.get("h") or 0) - img_h) <= 1
+        return kept.get("boxes") if ok else None
+    if (snap.get("createdAt") or "") < LIVE_SINCE:
+        return None
+    return cell_boxes(snap, img_w, img_h)
+
+
+def _remember(store: dict, key, value) -> None:
+    if len(store) >= _CACHE_MAX and key not in store:
+        store.pop(next(iter(store)))
+    store[key] = value
+
+
+def remember_snap(snap: dict) -> None:
+    if cell_media(snap):
+        _remember(_SNAPS, snap.get("id") or "", snap)
+
+
+def cached_snap(sid: str) -> dict | None:
+    return _SNAPS.get(sid)
+
+
+def cell_boxes(snap: dict, img_w: int, img_h: int, cache: bool = True) -> dict | None:
+    """画像の実寸（img_w × img_h）のときのマスの位置 {マスの番号: [x, y, 幅, 高さ]}（画像に対する比）。
+    合う割り付けが無ければNone。共有の中身は変わらないので、共有IDと実寸ごとに覚える（cache=Falseは `store` から。
+    まだIDの無い並びなので覚えない）。重い（割り付けの計算）のでループの外で呼ぶ"""
+    key = (snap.get("id") or "", img_w, img_h)
+    if cache and key in _BOXES:
+        return _BOXES[key]
+    # 実寸を変えて何度も聞かれると割り付けの計算（16x16で1秒近く）が重なるので、1つの共有で計算するのは4通りまで
+    # （同じ共有の画像は1枚。ふつうは1通りしか来ない）
+    if cache and sum(1 for k in _BOXES if k[0] == key[0]) >= 4:
+        return None
+    if not cell_media(snap):
+        return None
+    # **計算は1本ずつ**。16x16では1回1.1〜1.5秒（手元の実測）あり、GILを握るので重なると他の要求まで待たせる。
+    # 5秒待っても順番が来なければあきらめる（覚えないので、次に開いたときにまた試す）
+    if not _LAYOUT_GATE.acquire(timeout=5):
+        return None
+    out = None
+    try:
+        out = _cell_boxes(snap, img_w, img_h)
+    except Exception as e:   # 試聴は飾り。共有ページそのものを落とさない
+        print(f"[preview] {key}: {type(e).__name__}: {e}", flush=True)
+    finally:
+        _LAYOUT_GATE.release()
+    if cache:
+        _remember(_BOXES, key, out)
+    return out
+
+
+def _cell_boxes(snap: dict, img_w: int, img_h: int) -> dict | None:
+    media = cell_media(snap)
+    if not media or not (0 < img_w <= render.MAX_SIDE and 0 < img_h <= render.MAX_SIDE):
         return None
     doc0 = GridDoc.model_validate(snap)
     doc = render._cropped(render._trimmed(doc0))
-    L = render.layout(doc)
-    items = []
-    for i, what in sorted(want.items()):
-        r, c = divmod(i, doc0.cols)
+    L = render.layout_at(doc, max(img_w, img_h))
+    if abs(render.rnd(L.W * L.scale) - img_w) > 1 or abs(render.rnd(L.H * L.scale) - img_h) > 1:
+        return None
+    out = {}
+    for m in media:
+        r, c = divmod(m["i"], doc0.cols)
         if r >= doc.rows or c >= doc.cols:   # 書き出しで落とした末尾の段（曲は無いはずだが念のため）
             continue
         x, y, w, h = render.cell_box(doc, L, r * doc.cols + c)
-        url = (cells[i].get("external_url") or "").strip()
-        items.append({"x": round(x / L.W, 5), "y": round(y / L.H, 5), "w": round(w / L.W, 5), "h": round(h / L.H, 5),
-                      **what, "t": render._one_line(cells[i].get("title")),
-                      "u": url if url.lower().startswith(("http://", "https://")) else ""})
-    return {"W": L.W, "H": L.H, "cells": items} if items else None
+        out[m["i"]] = [round(x / L.W, 5), round(y / L.H, 5), round(w / L.W, 5), round(h / L.H, 5)]
+    return out or None
 
 
 # 押したマスの曲を鳴らすスクリプト。__T__ / __D__ を差し替えて使う。**音源はAppleから直接流す**（保存も中継もしない）
@@ -874,22 +980,26 @@ _PREVIEW_JS = """
     a.href = c.u; a.target = "_blank"; a.rel = "noopener noreferrer nofollow";
     return a;
   };
-  // Bandcampは**公式の埋め込みプレイヤー**を帯に出す。外から再生を始める口が無いので、プレイヤーの再生ボタンを押してもらう
-  const showBc = (c) => {
+  // Bandcamp・YouTube・ニコニコ・SoundCloud・Spotifyは**公式の埋め込みプレイヤー**を帯に出す（URLはサーバーが組んだもの）。
+  // 自動再生の指定があるものは押した操作で鳴り始める（allow="autoplay"）。無いものはプレイヤーの再生ボタンを押してもらう
+  const showEmbed = (c) => {
     bar.replaceChildren();
+    const svc = T.svc[c.svc] || c.svc;
     const head = el("p", "pv-now");
-    head.append(el("b", "", c.t), el("span", "pv-msg", T.pv_bc_note));
+    head.append(el("b", "", c.t), el("span", "pv-msg", c.auto ? T.pv_em_auto : T.pv_em_press.replace("{svc}", svc)));
     const f = document.createElement("iframe");
-    f.className = "pv-bc";
-    f.title = T.pv_bc_title.replace("{title}", c.t);
-    f.src = `https://bandcamp.com/EmbeddedPlayer/${c.ref}/size=small/bgcol=ffffff/linkcol=12171b/transparent=true/`;
-    // sandboxは付けない（Bandcampが配る貼り付けコードと同じ形にする。出せる先はCSPのframe-srcでbandcamp.comだけ）
+    f.className = "pv-em" + (c.shape === "video" ? " video" : "");
+    if (c.shape !== "video") f.style.height = `${c.shape}px`;
+    f.title = T.pv_em_title.replace("{svc}", svc).replace("{title}", c.t);
+    f.src = c.src;
+    // sandboxは付けない（各サイトが配る貼り付けコードと同じ形にする。出せる先はCSPのframe-srcの5つだけ）
+    f.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
     f.referrerPolicy = "strict-origin-when-cross-origin";
     const close = el("button", "btn", T.pv_close);
     close.type = "button";
     close.addEventListener("click", () => halt());
     const row = el("div", "btns");
-    row.append(close, store(c, T.pv_bc_store));
+    row.append(close, store(c, T.pv_em_store.replace("{svc}", svc)));
     bar.append(head, f, row);
     bar.hidden = false;
   };
@@ -904,7 +1014,7 @@ _PREVIEW_JS = """
     if (cur === b) { halt(); return; }   // 鳴っているマスをもう一度押すと止まる
     halt();
     cur = b; b.classList.add("on"); b.setAttribute("aria-pressed", "true");
-    if (c.k === "bc") { showBc(c); return; }
+    if (c.k === "em") { showEmbed(c); return; }
     show(c, "load");
     let src = "";
     try { src = (await lookup())[c.id] || ""; } catch { if (cur === b) { show(c, "fail"); b.classList.remove("on"); cur = null; } return; }
@@ -914,16 +1024,25 @@ _PREVIEW_JS = """
     try { await audio.play(); if (cur === b) show(c, "play"); }
     catch { if (cur === b) { show(c, "fail"); b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); cur = null; } }
   };
-  const attach = () => {
-    // **割り付けと画像の縦横比が合わないときは重ねない**（割り付けの規則が変わる前に作った共有。押す場所がずれる）
-    if (!img.naturalWidth || Math.abs(img.naturalWidth / img.naturalHeight - D.W / D.H) > 0.01) return;
+  // マスの位置は、画像の実寸を添えてサーバーに聞く（割り付けは端末が描いた大きさで変わるため。`share.cell_boxes`）。
+  // 合う割り付けが無ければ何も返らず、重ねない（押す場所がずれるよりよい）
+  const attach = async () => {
+    if (!img.naturalWidth) return;
+    let boxes = null;
+    try {
+      const r = await fetch(`/s/${D.sid}/cells?w=${img.naturalWidth}&h=${img.naturalHeight}`);
+      if (r.ok) boxes = (await r.json()).boxes;
+    } catch {}
+    if (!boxes) return;
     for (const c of D.cells) {
+      const p = boxes[c.i];
+      if (!p) continue;
       const b = el("button", "pv-cell");
       b.type = "button";
       b.setAttribute("aria-label", T.pv_label.replace("{title}", c.t));
       b.setAttribute("aria-pressed", "false");
-      b.style.left = `${c.x * 100}%`; b.style.top = `${c.y * 100}%`;
-      b.style.width = `${c.w * 100}%`; b.style.height = `${c.h * 100}%`;
+      b.style.left = `${p[0] * 100}%`; b.style.top = `${p[1] * 100}%`;
+      b.style.width = `${p[2] * 100}%`; b.style.height = `${p[3] * 100}%`;
       b.addEventListener("click", () => press(b, c));
       wrap.append(b);
     }
@@ -934,18 +1053,18 @@ _PREVIEW_JS = """
 """
 
 
-def _preview_script(nonce: str, lang: str, boxes: dict | None) -> str:
-    if not (nonce and boxes):
+def _preview_script(nonce: str, lang: str, sid: str, media: list[dict]) -> str:
+    if not (nonce and media):
         return ""
-    tx = {k: t(lang, k) for k in ("pv_now", "pv_load", "pv_stop", "pv_store", "pv_credit", "pv_none", "pv_fail", "pv_label",
-                                   "pv_bc_note", "pv_bc_title", "pv_bc_store", "pv_close")}
+    tx: dict = {k: t(lang, k) for k in ("pv_now", "pv_load", "pv_stop", "pv_store", "pv_credit", "pv_none", "pv_fail", "pv_label",
+                                         "pv_em_auto", "pv_em_press", "pv_em_title", "pv_em_store", "pv_close")}
+    tx["svc"] = SERVICE_NAMES.get(lang, SERVICE_NAMES["ja"])
     js = (_PREVIEW_JS.replace("__T__", json.dumps(tx, ensure_ascii=False).replace("</", "<\\/"))
-          .replace("__D__", json.dumps(boxes, ensure_ascii=False).replace("</", "<\\/")))
+          .replace("__D__", json.dumps({"sid": sid, "cells": media}, ensure_ascii=False).replace("</", "<\\/")))
     return f'<script nonce="{html.escape(nonce, quote=True)}">{js}</script>'
 
 
-def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja", nonce: str = "",
-              boxes: dict | None = None) -> str:
+def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja", nonce: str = "") -> str:
     """共有ページ。依存なしの単一HTML（スマホのブラウザで開く前提）。"""
     sid = snap["id"]
     app_url = (app_url or base).rstrip("/")
@@ -1044,7 +1163,7 @@ def page_html(snap: dict, base: str, app_url: str | None = None, lang: str = "ja
   </section>
 </main>
 {_owner_script(nonce, lang, "page") if nonce else ""}
-{_preview_script(nonce, lang, boxes)}
+{_preview_script(nonce, lang, sid, cell_media(snap))}
 </body></html>"""
 
 

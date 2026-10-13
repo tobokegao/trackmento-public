@@ -500,8 +500,8 @@ async def rate_limit(request: Request, call_next):
         f"default-src 'self'; script-src 'nonce-{request.state.csp_nonce}'; style-src 'self' 'unsafe-inline'{r2}; "
         # connect-src: iTunesとMusicBrainz（＋Cover Art Archive → archive.orgへリダイレクト）の検索はブラウザから直接叩く
         # （サーバーの共有IPがAppleに遮断され、MusicBrainzにはレート制限されるため）
-        # media-src / frame-src: 共有ページの試聴（iTunesの試聴音源をAppleから直接流す・Bandcampの公式プレイヤー。`share._PREVIEW_JS`）
-        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; media-src 'self' https://audio-ssl.itunes.apple.com{r2}; frame-src 'self' https://bandcamp.com; object-src 'none'; base-uri 'self'; "
+        # media-src / frame-src: 共有ページの試聴（iTunesの試聴音源をAppleから直接流す・各サイトの公式プレイヤー。`share.embed_for`）
+        f"img-src 'self' data: blob: https:{mig}; connect-src 'self' https://itunes.apple.com https://musicbrainz.org https://coverartarchive.org https://archive.org https://*.archive.org https://*.mzstatic.com{r2}; font-src 'self'{r2}; media-src 'self' https://audio-ssl.itunes.apple.com{r2}; frame-src 'self' https://bandcamp.com https://www.youtube-nocookie.com https://embed.nicovideo.jp https://w.soundcloud.com https://open.spotify.com; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'self'")
     if public_mode() and request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
@@ -1244,7 +1244,16 @@ async def share_page(request: Request, sid: str) -> HTMLResponse:
         shareindex.forget(sid)   # 期限より前に消した共有（scripts/delete_share.py）を「みんなのグリッド」から外す
         # JSONの404だとXから開いた人に何が起きたか伝わらない。案内ページ（期限切れ・作り直し）を返す
         return HTMLResponse(share.expired_html(sid, base_url_for(request), app_url_for(request), _lang_for(request)), status_code=410)   # 消えた共有は410（Gone）
-    # 試聴できるマスの位置（割り付けの計算。初回はフォントを読むので数十ms。ループの外で）
-    boxes = await run_in_threadpool(share.cell_boxes, snap)
-    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request),
-                                        nonce=request.state.csp_nonce, boxes=boxes))
+    share.remember_snap(snap)   # 試聴のマスの位置を聞きに来たとき（/s/<id>/cells）にR2を読み直さない
+    return HTMLResponse(share.page_html(snap, base_url_for(request), app_url_for(request), _lang_for(request), nonce=request.state.csp_nonce))
+
+
+@app.get("/s/{sid}/cells")
+async def share_cells(sid: str, w: int = 0, h: int = 0) -> JSONResponse:
+    """共有ページの試聴: 画像の実寸（w × h）のときのマスの位置。ブラウザが画像を読み込んだあとに聞く（`share._PREVIEW_JS`）。
+    割り付けの計算は数十ms〜（初回はフォントを読む）なのでループの外で。合わなければ404（ブラウザは重ねない）"""
+    snap = share.cached_snap(sid) or await run_in_threadpool(share.load, sid)
+    boxes = await run_in_threadpool(share.boxes_for, snap, w, h) if snap else None
+    if not boxes:
+        return JSONResponse({"boxes": None}, status_code=404)
+    return JSONResponse({"boxes": boxes}, headers={"Cache-Control": "public, max-age=86400"})

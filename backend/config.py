@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import socket
+from contextvars import ContextVar
 
 
 def _flag(name: str) -> bool:
@@ -52,9 +53,16 @@ def max_cells() -> int:
     return max(0, v)
 
 
+# 割り付けを「ブラウザが描いた大きさ」で組み直すときの上書き（`render.layout_at`。共有ページの試聴が使う）。
+# ContextVarなので、同時に来た要求や描画のスレッドには漏れない
+_MAX_SIDE_OVERRIDE: ContextVar[int | None] = ContextVar("max_side_override", default=None)
+
+
 def max_side() -> int:
     """サーバー描画のPNGの最大辺。公開モードは2400px（ブラウザで描けない端末のフォールバック用。0.1 vCPUなので軽く）。
     ローカルは8000px。MAX_SIDEで変更可。ブラウザ描画の大きさは端末ごとにfrontend側で決める（最大3200）"""
+    if (v := _MAX_SIDE_OVERRIDE.get()) is not None:
+        return v
     try:
         return max(1000, int(os.getenv("MAX_SIDE", "2400" if public_mode() else "8000")))
     except ValueError:

@@ -201,7 +201,7 @@ domains (host names) are aggregated.</p>
 services (for example, the Apple iTunes Search API, Apple Music, MusicBrainz / Cover Art Archive, VocaDB, otoDB, Bandcamp,
 SoundCloud, YouTube, Niconico and Spotify). Some searches are sent directly from your browser to these APIs. When you tap a cover on a
 share page to hear a preview, your browser sends the IDs of the Apple Music tracks in that share to Apple and plays the preview directly
-from Apple. When you tap a Bandcamp track, Bandcamp's player is loaded from Bandcamp. Information sent is handled under
+from Apple. When you tap a track from Bandcamp, YouTube, Niconico, SoundCloud or Spotify, that site's player is loaded from that site. Information sent is handled under
 each platform's privacy policy.</p>
 <p>The Site's server infrastructure runs on Render, and Cloudflare is used to deliver and cache shared files.</p>
 
@@ -237,7 +237,7 @@ The latest version is always published on this page.</p>
 <p>サービスの安定運用・保守のため、サーバーはリクエスト種別ごとの件数および応答時間を記録しています。また、画像の送信や作成の失敗といった、ブラウザ側で起きた不具合の種類と回数をサーバーに送って集計しています（トラック名・検索語・URLなどの内容は含みません）。不正アクセスの対策や連続リクエストの制限、1日の共有上限管理のため、IPアドレスは元に戻せない形式（ハッシュ化）に変換したうえで一時的に利用します。検索キーワード、入力されたURLの全文、ブラウザの識別情報（User-Agent）そのものは恒常的に記録しません。「人間によるアクセスか」「URLプレビューボットか」といった大まかな種別、および参照元ドメイン（ホスト名）の統計のみを集計します。</p>
 
 <h2>3. 外部サービスとの通信</h2>
-<p>トラックやサムネイルの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、Apple Music、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。共有ページでジャケットを押して試聴するときは、ブラウザがその共有ページにあるApple Musicのトラックの番号をAppleに送り、試聴音源をAppleから直接再生します。Bandcampのトラックを押したときは、BandcampのプレイヤーをBandcampから読み込みます。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
+<p>トラックやサムネイルの情報を取得・検索する際、入力された検索語句やURLを各外部サービスに送信します（例：Apple iTunes Search API、Apple Music、MusicBrainz / Cover Art Archive、VocaDB、otoDB、Bandcamp、SoundCloud、YouTube、ニコニコ動画、Spotify）。一部の検索処理は、ブラウザから直接これらのAPIへリクエストを送信します。共有ページでジャケットを押して試聴するときは、ブラウザがその共有ページにあるApple Musicのトラックの番号をAppleに送り、試聴音源をAppleから直接再生します。Bandcamp・YouTube・ニコニコ動画・SoundCloud・Spotifyのトラックを押したときは、それぞれのサイトのプレイヤーをそのサイトから読み込みます。送信された情報は、各プラットフォームのプライバシーポリシーに従って管理されます。</p>
 <p>また、当サイトのサーバーインフラにはRenderを採用しており、共有ファイルの配信・キャッシュにはCloudflareを利用しています。</p>
 
 <h2>4. Cookieおよび広告配信について</h2>
@@ -470,6 +470,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-10-13", "共有ページで、YouTube・ニコニコ動画・SoundCloud・Spotifyの曲も、ジャケットを押すとそれぞれのプレイヤーが開くようにしました。YouTubeとSoundCloudは多くの場合そのまま再生が始まり、ニコニコ動画とSpotifyはプレイヤーの再生ボタンを押すと流れます。これまでに作った共有でも使えます（SoundCloudの短いURL「on.soundcloud.com」で入れた曲を除きます）。",
+     "On a share page, tapping the cover of a track from YouTube, Niconico, SoundCloud or Spotify now opens that site's player. YouTube and SoundCloud usually start playing right away; for Niconico and Spotify, press play in the player. This also works on shares made before (except SoundCloud tracks added with a short “on.soundcloud.com” URL)."),
     ("2026-10-13", "共有ページで、Bandcampの曲のジャケットを押すと、その曲のBandcampのプレイヤーが開くようにしました。プレイヤーの再生ボタンを押すと流れます。これから追加するBandcampの曲が対象で、これまでに追加した曲は、URLを貼り直すと使えるようになります。",
      "On a share page, tapping the cover of a Bandcamp track now opens Bandcamp's player for that track; press play in the player to listen. This works for Bandcamp tracks you add from now on. For tracks added earlier, paste the URL again."),
     ("2026-10-13", "共有ページで、Apple Musicにある曲のジャケットを押すと30秒ほど試聴できるようにしました。試聴音源はiTunesのもので、再生されるのは押した1曲だけです。",

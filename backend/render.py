@@ -2468,6 +2468,18 @@ def _label_col(doc: GridDoc) -> int:
     return w + doc.options.gap if w else 0
 
 
+def layout_at(doc: GridDoc, side: int) -> Layout:
+    """出力の最大辺をsideとして組んだ割り付け。**組み方（曲名リストの流し込みか表か、回り込みか）は出力での字の
+    大きさで決まるので、最大辺が違うと割り付けそのものが変わる**。ブラウザは端末ごとに2000〜3200pxで描く
+    （frontendの `shareMaxSide` / `shareRenderPlan`）ので、共有画像のマスの位置を出すときはその大きさで組み直す"""
+    from backend import config
+    tok = config._MAX_SIDE_OVERRIDE.set(side)
+    try:
+        return layout(doc)
+    finally:
+        config._MAX_SIDE_OVERRIDE.reset(tok)
+
+
 def _grid_top(L: Layout) -> float:
     """マスの塊の上端（論理px）。回り込みと右サイドバーはタイトルを別の場所に描くので下げない。"""
     return L.oy + (L.title_h if (not L.wrap and L.title and L.side != "right") else 0)
