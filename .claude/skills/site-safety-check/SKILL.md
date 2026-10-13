@@ -87,6 +87,9 @@ PYTHONUTF8=1 .venv/Scripts/python scripts/safety_check.py https://trackmento.com
      **publicをprivateにすると、無料のsecret scanningごと消える**ので、そのときは見直す
 5. **利用条件の変化**: README「各サービスの利用条件」の日付が6か月以上前なら、iTunes / MusicBrainz / YouTube（oEmbedとData API）/ niconico / Spotify Web API / otoDB / VocaDB / Bandcamp / Apple Musicの規約ページを見直すよう提案する（変更の確認は利用者が原文を読む）
 6. **外部の採点**: 利用者にhttps://securityheaders.comとhttps://observatory.mozilla.orgに `https://trackmento.com` を入れてもらい、A未満の項目があれば理由を調べる
+7. **観点の抜けを探すとき**（数か月に一度・大きな機能を足したあと）: ユーザースコープのスキル `security-audit`（Cloudflare製、2026-10-13に導入）の観点ファイルを読んで、この点検に無い項目を拾う。
+   見る順は `CLIENT-SIDE.md`（XSS・postMessage）→ `WEB-PROTOCOL-AND-AUTH.md`（画像の中継・キャッシュ）→ `RESOURCE-EXHAUSTION-AND-AVAILABILITY.md`。
+   **6段階の全体監査は利用者が頼んだときだけ**（サブエージェントを多数使う）。本番には当てない（スキル側の決まりでもある）
 
 ## 3. 報告のしかた
 
