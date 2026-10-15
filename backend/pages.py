@@ -27,7 +27,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年10月13日", "en": "Last updated: October 13, 2026"}
+UPDATED = {"ja": "最終更新: 2026年10月15日", "en": "Last updated: October 15, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Googleフォーム。2026-09-19）
 
@@ -470,6 +470,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-10-15", "並びが空のとき、グリッドの上に「お題から始める」を出すようにしました。「私を構成する9曲」などを押すと、題名と横 × 縦が入ります。「あとで」を押すと、この端末では出なくなります。",
+     "When the grid is empty, “Start from a theme” now appears above it. Press one such as “9 tracks that made me” to fill in the title and the grid size. Press “Later” to hide it on this device."),
     ("2026-10-13", "共有ページで、YouTube・ニコニコ動画・SoundCloud・Spotifyの曲も、ジャケットを押すとそれぞれのプレイヤーが開くようにしました。YouTubeとSoundCloudは多くの場合そのまま再生が始まり、ニコニコ動画とSpotifyはプレイヤーの再生ボタンを押すと流れます。これまでに作った共有でも使えます（SoundCloudの短いURL「on.soundcloud.com」で入れた曲を除きます）。",
      "On a share page, tapping the cover of a track from YouTube, Niconico, SoundCloud or Spotify now opens that site's player. YouTube and SoundCloud usually start playing right away; for Niconico and Spotify, press play in the player. This also works on shares made before (except SoundCloud tracks added with a short “on.soundcloud.com” URL)."),
     ("2026-10-13", "共有ページで、Bandcampの曲のジャケットを押すと、その曲のBandcampのプレイヤーが開くようにしました。プレイヤーの再生ボタンを押すと流れます。これから追加するBandcampの曲が対象で、これまでに追加した曲は、URLを貼り直すと使えるようになります。",

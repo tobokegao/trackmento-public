@@ -36,7 +36,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.00476a12.css">
+<link rel="stylesheet" href="app/app.ad078f0b.css">
 </head>
 <body>
 
@@ -227,6 +227,18 @@
           <option value="t">作業がはかどるBGM</option>
           <option value="t">ドライブで聴きたい曲</option>
         </select></span>
+      </div>
+      <!-- お題から始める（2026-10-15）。空の並びで題名も空のときだけ出す。押すと上の「お題」のメニューと同じ項目を選んだことになる（中身は #theme-sel の項目の文字で引く）。
+           「あとで」で閉じると端末に覚え、二度と出さない -->
+      <div class="start-themes" id="start-themes" hidden>
+        <h3>お題から始める</h3>
+        <div class="start-btns">
+          <button class="btn" type="button">私を構成する9曲</button>
+          <button class="btn" type="button">私の音楽遍歴（中学・高校・大人・今）</button>
+          <button class="btn" type="button">雨の日に聴く曲</button>
+          <button class="btn" type="button">好きなボカロ</button>
+        </div>
+        <button class="btn" type="button" id="start-later">あとで</button>
       </div>
       <!-- 行の見出し（2026-10-11）。書き出しではグリッドの左に見出しの列を足す。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
            枠とサムネと同じ三角で畳む（ふだんは使わないので） -->
@@ -697,6 +709,6 @@
 <div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
-<script id="app-js" src="app/app.61582434.js"></script>
+<script id="app-js" src="app/app.04195bc8.js"></script>
 </body>
 </html>

@@ -871,6 +871,11 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
    中身はブラウザのselect。開いた一覧は自前のメニュー（下の .popup-hit / #popmenu。2026-09-25までは端末のものが出ていた） */
 .layouts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-3); }
 .layouts > label { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
+/* お題から始める（2026-10-15）。OS 9のダイアログの中身のように、枠線1本とボタンの並び。影・角丸は付けない */
+.start-themes { border: var(--line) solid var(--color-ink); padding: var(--space-3); margin-bottom: var(--space-3); display: grid; gap: var(--space-2); justify-items: start; }
+.start-themes[hidden] { display: none; }
+.start-themes h3 { margin: 0; font-weight: 400; }
+.start-btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 /* 行の見出し（2026-10-11）。入力欄は行ごとに1つ（番号 → 欄）。字数は12まで */
 .rowlabels { margin-bottom: var(--space-3); }
 .rowlabels .disclose-body { gap: var(--space-2); padding-top: var(--space-2); }
@@ -1746,6 +1751,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <option value="t">作業がはかどるBGM</option>
           <option value="t">ドライブで聴きたい曲</option>
         </select></span>
+      </div>
+      <!-- お題から始める（2026-10-15）。空の並びで題名も空のときだけ出す。押すと上の「お題」のメニューと同じ項目を選んだことになる（中身は #theme-sel の項目の文字で引く）。
+           「あとで」で閉じると端末に覚え、二度と出さない -->
+      <div class="start-themes" id="start-themes" hidden>
+        <h3>お題から始める</h3>
+        <div class="start-btns">
+          <button class="btn" type="button">私を構成する9曲</button>
+          <button class="btn" type="button">私の音楽遍歴（中学・高校・大人・今）</button>
+          <button class="btn" type="button">雨の日に聴く曲</button>
+          <button class="btn" type="button">好きなボカロ</button>
+        </div>
+        <button class="btn" type="button" id="start-later">あとで</button>
       </div>
       <!-- 行の見出し（2026-10-11）。書き出しではグリッドの左に見出しの列を足す。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
            枠とサムネと同じ三角で畳む（ふだんは使わないので） -->
@@ -2784,6 +2801,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "{}トラックを色の順に並べ替えました。": "Sorted {0} tracks by color.",
         "（{}トラックはサムネイルを読み込めなかったので、最後に置きました）": "({0} thumbnails could not be loaded and were put last.)",
         "お題": "Theme",
+        "お題から始める": "Start from a theme",
+        "あとで": "Later",
         "行の見出し": "Row labels",
         "なし": "None",
         "グリッドの左に、行ごとに出ます。空にした行には出ません。": "Labels appear to the left of the grid, one per row. Rows left empty get no label.",
@@ -4943,6 +4962,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     renderEditor();
     renderRowLabels();
     updateSpec();
+    updateStart();
   }
   /* 行の見出しの入力欄。縦の数だけ並べる。**数が変わったときだけ作り直す**（打っている最中の欄を消さない） */
   function renderRowLabels() {
@@ -5238,6 +5258,24 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     state.title = title; els.title.value = title; updateSpec(); save();
     say(els.gridMsg, tr`お題「${title}」にしました。`);
   });
+  /* お題から始める（2026-10-15）。空の並びで題名も空、まだ「あとで」を押していないときだけ出す。renderGridから呼ぶ */
+  const START_KEY = "trackmento:start-themes";
+  const startDismissed = () => { try { return localStorage.getItem(START_KEY) === "0"; } catch { return false; } };
+  const dismissStart = () => { try { localStorage.setItem(START_KEY, "0"); } catch { /* 覚えられなくても閉じられる */ } };
+  function updateStart() {
+    $("#start-themes").hidden = state.cells.some(Boolean) || state.stash.length > 0 || !!(state.title || "").trim() || startDismissed();
+  }
+  for (const b of $("#start-themes").querySelectorAll(".start-btns .btn")) {
+    b.addEventListener("click", () => {
+      const sel = $("#theme-sel"), want = b.textContent.trim();
+      const i = [...sel.options].findIndex(o => o.value !== "" && o.textContent.trim() === want);
+      if (i < 0) return;
+      dismissStart();
+      sel.selectedIndex = i; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      updateStart();
+    });
+  }
+  $("#start-later").addEventListener("click", () => { dismissStart(); updateStart(); });
 
   /* ---- options ---- */
   // いま触った側は動かさず、もう一方を減らして総数に収める
