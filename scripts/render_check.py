@@ -57,6 +57,8 @@ def spec_of(plan: str) -> tuple[float | None, int]:
     mem = int(m.group(3)) * (1024 if m.group(4) == "g" else 1)
     return cpu, mem
 
+WATCH_AS_MB = int(os.getenv("CHECK_WATCH_AS_MB", "512"))   # メモリ系の閾値をこの上限の分で見る（0で実際の種類どおり）
+
 THRESHOLDS = {
     "bw_gb_per_hour": float(os.getenv("CHECK_BW_GB_PER_HOUR", "1.0")),   # 1時間の転送量がこれを超えたら異常
     "rss_mb": float(os.getenv("CHECK_RSS_MB", "0")) or 0.0,               # [health] rssの最大。0なら種類から出す
@@ -177,8 +179,11 @@ def thresholds_for(plan: str) -> tuple[dict, float | None, int]:
     """
     cpu_alloc, mem_mb = spec_of(plan)
     T = dict(THRESHOLDS)
-    T["memory_gb"] = T["memory_gb"] or mem_mb * 0.90 / 1024   # 上限の90%
-    T["rss_mb"] = T["rss_mb"] or mem_mb * 0.78                # 上限の78%（残りは描画中の一時的な山に充てる）
+    # 実際の上限が WATCH_AS_MB より大きいときは、WATCH_AS_MB（Starterの512MB）の上限として見張る（2026-10-18）。
+    # 来月Starterに下げてよいかを、今のStandardのまま確かめるため。0で実際の種類どおりに戻る
+    watch_mb = min(mem_mb, WATCH_AS_MB) if WATCH_AS_MB > 0 else mem_mb
+    T["memory_gb"] = T["memory_gb"] or watch_mb * 0.90 / 1024   # 上限の90%
+    T["rss_mb"] = T["rss_mb"] or watch_mb * 0.78                # 上限の78%（残りは描画中の一時的な山に充てる）
     return T, cpu_alloc, mem_mb
 
 
@@ -497,7 +502,9 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         now_jst = datetime.now(JST).strftime("%Y-%m-%d %H:%M JST")
         lines.append(f"## Render点検: {svc.get('name')}（直近{hours:g}時間、{now_jst}）")
     lines.append(f"- インスタンス: {plan or '不明'}"
-                 + (f"（{cpu_alloc:g} vCPU / {mem_mb} MB）" if cpu_alloc else f"（種類が読めないので{mem_mb} MBとして判定）"))
+                 + (f"（{cpu_alloc:g} vCPU / {mem_mb} MB）" if cpu_alloc else f"（種類が読めないので{mem_mb} MBとして判定）")
+                 + (f"。メモリの閾値は{WATCH_AS_MB} MB上限の分（rss {T['rss_mb']:.0f} / 全体 {T['memory_gb'] * 1024:.0f} MB）で見ている"
+                    if 0 < WATCH_AS_MB < mem_mb else ""))
 
     # イベント
     ev_counts: dict[str, int] = defaultdict(int)
@@ -548,6 +555,9 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         ms = la["mem"]
         drop = max((m.get("before", 0) - m.get("after", 0) for m in ms), default=0)
         f, l = ms[0], ms[-1]
+        peak = max((m.get("before", 0) for m in ms), default=0)   # trimの前のRSS（窓の山）
+        if peak > T["rss_mb"]:
+            problems.append(f"[mem] trim前のrss最大{peak} MBが閾値{T['rss_mb']:.0f} MBを超過")
         lines.append(f"- [mem] trim後のrss: {f.get('after')}→{l.get('after')} MB（trimで減った最大{drop} MB、{len(ms)}点）"
                      f" / blocks {f.get('blocks')}→{l.get('blocks')} / img_index {l.get('img_index')}"
                      f" / search_index {l.get('search_index')} / listed {l.get('listed')} / tasks {l.get('tasks')}")
