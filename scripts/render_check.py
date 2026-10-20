@@ -279,8 +279,8 @@ def fetch_metric(key: str, kind: str, sid: str, start: datetime, end: datetime, 
 def fetch_bw_sources(key: str, sid: str, start: datetime, end: datetime) -> dict[str, float]:
     """帯域の経路別の合計（GB）。
 
-    `/metrics/bandwidth` はHTTP応答だけを数えるらしく、Renderの請求（HTTP応答＋サービス発＋…）より少ない。
-    2026-10-21の請求画面は3.87GB（HTTP 2.2 / サービス発 1.68）で、点検の数字は前者に近かった。
+    `/metrics/bandwidth`（`gb`）はすでにこの合計（http＋nat…）に当たる。2026-10-21に実機で確かめた
+    （合計 6.9 MB ＝ gb 0.007）。ここで取るのは請求画面の内訳（HTTP応答 / サービス発）と並べて読むための内訳だけ。
     返すのは `{"http": …, "nat": …, "privatelink": …, "websocket": …}`。取れなければ空（点検は止めない）"""
     params = {"resource": sid, "startTime": _iso(start), "endTime": _iso(end), "resolutionSeconds": 3600}
     try:
@@ -746,7 +746,7 @@ def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: li
         "hours": round(hours, 2),
         "req": sum(v["count"] for v in (la.get("per_path") or {}).values()),
         "gb": round(gb, 3),
-        # 経路別（http / nat=サービス発 / privatelink / websocket）。請求は合計なので、月の見込みはこちらを足す（2026-10-21）
+        # 経路別の内訳（http / nat=サービス発 / privatelink / websocket）。`gb` はこの合計（2026-10-21）
         **({"gb_src": {k: round(v, 3) for k, v in sorted(bws.items())}} if bws else {}),
         "fivexx": sum(v["5xx"] for v in (la.get("per_path") or {}).values()),
         "rss": round(max(rss), 1) if rss else None,

@@ -104,9 +104,7 @@ def build(data: list[dict], limit: int) -> dict:
     for r in data[-limit:] if limit else data:
         jst = str(r.get("jst", ""))[5:]            # 年を落として "MM-DD HH:MM"
         req = round(to_2h(r.get("req"), r.get("hours")))
-        # 請求の対象は経路の合計（HTTP応答＋サービス発…）。`gb_src` が無い古い行はHTTP応答だけの数字のまま（2026-10-21）
-        total = sum((r.get("gb_src") or {}).values()) or r.get("gb")
-        gb = round(to_2h(total, r.get("hours")), 3)
+        gb = round(to_2h(r.get("gb"), r.get("hours")), 3)
         series.append([jst, req, gb])
 
     out_hosts = sorted((last.get("out") or {}).items(), key=lambda kv: -kv[1])
