@@ -288,13 +288,17 @@ def fetch_bw_sources(key: str, sid: str, start: datetime, end: datetime) -> dict
     except RuntimeError as ex:
         print(f"[warn] metrics/bandwidth-sources: {ex}", file=sys.stderr)
         return {}
-    series = resp.get("data") if isinstance(resp, dict) else resp
     out: dict[str, float] = {}
-    for ts in series or []:
-        src = str((ts.get("labels") or {}).get("trafficSource") or "")
-        if not src or src == "total":
-            continue
-        out[src] = out.get(src, 0.0) + sum(float(v.get("value") or 0) for v in ts.get("values", []))
+    try:
+        series = resp.get("data") if isinstance(resp, dict) else resp
+        for ts in series or []:
+            src = str((ts.get("labels") or {}).get("trafficSource") or "")
+            if not src or src == "total":
+                continue
+            out[src] = out.get(src, 0.0) + sum(float(v.get("value") or 0) for v in ts.get("values", []))
+    except (AttributeError, TypeError, ValueError) as ex:   # 形が想定と違っても点検は止めない。生の形を残して直す手掛かりにする
+        print(f"[warn] metrics/bandwidth-sources: 形が読めない（{type(ex).__name__}: {ex}）: {json.dumps(resp, ensure_ascii=False)[:600]}", file=sys.stderr)
+        return {}
     return out
 
 
