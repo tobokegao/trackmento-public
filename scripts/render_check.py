@@ -280,7 +280,7 @@ def fetch_bw_sources(key: str, sid: str, start: datetime, end: datetime) -> dict
     """帯域の経路別の合計（GB）。
 
     `/metrics/bandwidth`（`gb`）はすでにこの合計（http＋nat…）に当たる。2026-10-21に実機で確かめた
-    （合計 6.9 MB ＝ gb 0.007）。ここで取るのは請求画面の内訳（HTTP応答 / サービス発）と並べて読むための内訳だけ。
+    （合計6.9MB＝gb 0.007）。ここで取るのは請求画面の内訳（HTTP応答 / サービス発）と並べて読むための内訳だけ。
     返すのは `{"http": …, "nat": …, "privatelink": …, "websocket": …}`。取れなければ空（点検は止めない）"""
     params = {"resource": sid, "startTime": _iso(start), "endTime": _iso(end), "resolutionSeconds": 3600}
     try:
