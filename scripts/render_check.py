@@ -277,7 +277,7 @@ def fetch_metric(key: str, kind: str, sid: str, start: datetime, end: datetime, 
 
 
 def fetch_bw_sources(key: str, sid: str, start: datetime, end: datetime) -> dict[str, float]:
-    """帯域の経路別の合計（APIの値のまま。単位は呼び出し側が `/metrics/bandwidth` の単位に合わせる）。
+    """帯域の経路別の合計（GB）。
 
     `/metrics/bandwidth` はHTTP応答だけを数えるらしく、Renderの請求（HTTP応答＋サービス発＋…）より少ない。
     2026-10-21の請求画面は3.87GB（HTTP 2.2 / サービス発 1.68）で、点検の数字は前者に近かった。
@@ -292,10 +292,12 @@ def fetch_bw_sources(key: str, sid: str, start: datetime, end: datetime) -> dict
     try:
         series = resp.get("data") if isinstance(resp, dict) else resp
         for ts in series or []:
-            src = str((ts.get("labels") or {}).get("trafficSource") or "")
+            # labelsは [{"field": "trafficSource", "value": "http"}, …] の並び。単位は系列ごとに付く（mb）
+            labels = {x.get("field"): x.get("value") for x in ts.get("labels") or []}
+            src = str(labels.get("trafficSource") or "")
             if not src or src == "total":
                 continue
-            out[src] = out.get(src, 0.0) + sum(float(v.get("value") or 0) for v in ts.get("values", []))
+            out[src] = out.get(src, 0.0) + _to_gb(sum(float(v.get("value") or 0) for v in ts.get("values", [])), str(ts.get("unit") or ""))
     except (AttributeError, TypeError, ValueError) as ex:   # 形が想定と違っても点検は止めない。生の形を残して直す手掛かりにする
         print(f"[warn] metrics/bandwidth-sources: 形が読めない（{type(ex).__name__}: {ex}）: {json.dumps(resp, ensure_ascii=False)[:600]}", file=sys.stderr)
         return {}
@@ -557,7 +559,7 @@ def summarize(svc: dict, hours: float, events: list[dict], la: dict, bw: tuple[s
         total = sum(v for _, v in per_hour)
         lines.append(f"- 帯域: 合計{total:.2f} GB、最大{mx[1]:.2f} GB/時（{_jst(mx[0])}、APIの単位: {bw_unit or '不明'}）")
         if bws:   # 請求の対象は経路の合計（HTTP応答＋サービス発）。上の数字との突き合わせ用に並べる
-            lines.append("- 帯域の経路別: " + "、".join(f"{k} {_to_gb(v, bw_unit):.3f} GB" for k, v in sorted(bws.items())))
+            lines.append("- 帯域の経路別: " + "、".join(f"{k} {v:.3f} GB" for k, v in sorted(bws.items())))
         if mx[1] > T["bw_gb_per_hour"]:
             problems.append(f"帯域{mx[1]:.2f} GB/時 が閾値{T['bw_gb_per_hour']} GB/時 を超過（{_jst(mx[0])}）")
     else:
@@ -745,7 +747,7 @@ def _append_record(path: str, hours: float, la: dict, bw, mem, cpu, problems: li
         "req": sum(v["count"] for v in (la.get("per_path") or {}).values()),
         "gb": round(gb, 3),
         # 経路別（http / nat=サービス発 / privatelink / websocket）。請求は合計なので、月の見込みはこちらを足す（2026-10-21）
-        **({"gb_src": {k: round(_to_gb(v, bw[0]), 3) for k, v in sorted(bws.items())}} if bws else {}),
+        **({"gb_src": {k: round(v, 3) for k, v in sorted(bws.items())}} if bws else {}),
         "fivexx": sum(v["5xx"] for v in (la.get("per_path") or {}).values()),
         "rss": round(max(rss), 1) if rss else None,
         "cpu": round(max((v for _, v in (cpu[1] or [])), default=0.0), 3),
