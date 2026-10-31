@@ -397,14 +397,26 @@ _BODY_LIMIT_JSON = 1 * 1024 * 1024
 _BODY_LIMIT_UPLOAD = 16 * 1024 * 1024
 
 
+async def _next_or_gone(request: Request, call_next):
+    """途中でブラウザが切れた要求は、StarletteのBaseHTTPMiddlewareが`RuntimeError('No response returned.')`を
+    投げて5xxとエラー行になる（アイコンなど小さな静的ファイルで10/27と10/30に出た）。相手はもういないので
+    499（nginxの慣例で「相手が切った」）を返して、5xxの数にもエラー行にも入れない（2026-10-31）"""
+    try:
+        return await call_next(request)
+    except RuntimeError as e:
+        if str(e) != "No response returned.":
+            raise
+        return Response(status_code=499)
+
+
 @app.middleware("http")
 async def request_stats(request: Request, call_next):
     if not public_mode():
-        return await call_next(request)
+        return await _next_or_gone(request, call_next)
     t0 = time.monotonic()
     status = 500
     try:
-        response = await call_next(request)
+        response = await _next_or_gone(request, call_next)
         status = response.status_code
         return response
     finally:
@@ -477,7 +489,7 @@ async def rate_limit(request: Request, call_next):
         if len(_hits) > 5000:  # メモリが膨らまないように古いIPを捨てる
             for k in [k for k, v in _hits.items() if not v or now - v[-1] > 60][:1000]:
                 _hits.pop(k, None)
-    response = await call_next(request)
+    response = await _next_or_gone(request, call_next)
     if request.url.path.startswith("/fonts/"):
         # 同梱フォント（合計2.6 MBのWOFF2）は変わらないので長くキャッシュさせる。アプリ内ブラウザでも2回目以降は読み直さない
         response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
