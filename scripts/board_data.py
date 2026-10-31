@@ -40,7 +40,7 @@ KIND_GROUPS = [
 FREE_GB = 10.0      # R2の無料枠
 PER_GB = 0.015      # 超過1GBあたりの月額（USD）
 # 月の見込み（円）。数字の出どころはdocs/ops.md「帯域とR2の操作回数」とボードの「お金」（2026-09-24）
-RENDER_INSTANCE_USD = 25.0   # Standardインスタンス
+RENDER_INSTANCE_USD = 7.0   # Starterインスタンス（2026-10-31にStandardの25.0から下げた）
 RENDER_FREE_BW_GB = 5.0      # Hobbyプランの込みの帯域（月）
 RENDER_BW_PER_GB = 0.15      # 超過1GBあたり（USD）
 BW_DAYS = 7                  # 帯域の見込みに使う直近の日数

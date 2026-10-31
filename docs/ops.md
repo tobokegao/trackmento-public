@@ -320,7 +320,7 @@
       **どちらも横ばいでRSSだけ増える**ならCの拡張（PIL・SQLite・httpxのTLSなど）かglibcの断片化。Starterに下げる（512MB）かの判断材料。
       点検の要約に2行出し、`series.jsonl` の `mem` に窓の最後の値を残す
       **2026-10-18から、メモリ系の閾値はStarter（512MB）の分で見る**（`render_check.py` の `WATCH_AS_MB`、環境変数 `CHECK_WATCH_AS_MB`。rss 399MB・メモリ全体461MB、`[mem]` のtrim前rssも同じ閾値）。
-      本番はStandardのまま。10月末までIssueが出なければ11月にStarterへ下げる（落ちたら戻す）。10/4以降の実測はrss最大340MB、9月中旬は711MB。`CHECK_WATCH_AS_MB=0` で実際の種類どおりに戻る
+      **2026-10-31にStarter（0.5c-512mb、$7）へ下げた**（利用者がダッシュボードで操作。`render.yaml` と `RENDER_INSTANCE_USD` も7.0に）。10月中にIssueは出ず、10/4以降の実測はrss最大380MB（10/25、デプロイ無しで1日8MBほど上がる）・メモリ最大252MB・CPU最大0.066、9月中旬は711MB。下げたあと1週間はrssを見て、落ちたらStandardに戻す。`CHECK_WATCH_AS_MB=0` で実際の種類どおりに戻る
   - `[ua]` は経路ごとのUser-Agent種別（人／プレビュー／検索／AI／その他ボット／不明）の内訳。**生のUAは残さない**（指紋になるため）。
     種別を分けているのは対策が別だから。**「プレビュー」はXなどがリンクカードを作るための取得なので止めてはいけない**
     （robots.txtで `/s/` を塞ぐとXのカードが出なくなる）。「検索」「AI」「その他ボット」はrobots.txtで減らせる

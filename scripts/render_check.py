@@ -180,7 +180,7 @@ def thresholds_for(plan: str) -> tuple[dict, float | None, int]:
     cpu_alloc, mem_mb = spec_of(plan)
     T = dict(THRESHOLDS)
     # 実際の上限がWATCH_AS_MBより大きいときは、WATCH_AS_MB（Starterの512MB）の上限として見張る（2026-10-18）。
-    # 来月Starterに下げてよいかを、今のStandardのまま確かめるため。0で実際の種類どおりに戻る
+    # Starterに下げる前にStandardのまま確かめるための上限だった（2026-10-31にStarterへ下げたので、今は実際の種類と同じ）。0で実際の種類どおりに戻る
     watch_mb = min(mem_mb, WATCH_AS_MB) if WATCH_AS_MB > 0 else mem_mb
     T["memory_gb"] = T["memory_gb"] or watch_mb * 0.90 / 1024   # 上限の90%
     T["rss_mb"] = T["rss_mb"] or watch_mb * 0.78                # 上限の78%（残りは描画中の一時的な山に充てる）
