@@ -959,7 +959,7 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   min-width: min(100%, 16rem);
   position: relative;   /* マスの見出し（.slotcap）をマスの下に重ねる基準 */
 }
-/* マスの見出し（書き出しでは絵の下の帯）。位置と大きさはJS（syncPreview の placeCaps）がマスから測って決める。押せない・折り返さない */
+/* マスの見出し（書き出しでは絵の下の帯）。位置と大きさはJS（syncPreviewのplaceCaps）がマスから測って決める。押せない・折り返さない */
 .grid .slotcap { position: absolute; margin: 0; pointer-events: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 700; color: var(--grid-ink, var(--color-ink)); }
 .grid[data-numbers="off"] .num { display: none; }
 /* アーティスト名の候補は縦に積む。**`.seg`（横並びのセグメント）は使わない**。
@@ -3121,8 +3121,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const LABEL_WRAP_W = 4 * LABEL_COL_PX, LABEL_LEAD = 1.2;   // 見出しを2行に折る幅（全角4字ぶん）と2行の送り（backend/render.pyと同じ）
   const CELL_PX = CELL_W;                                       // 旧名。幅から決まる式が読む
   /* **マスごとのお題**（論理px。backend/render.pyのCAP_PX / CAP_H / _caps / pic_h / cell_hと同じ。2026-11-07）。ひとつでも書いてあれば
-     全マスの絵の下にお題の帯（高さCAP_H）を足す。帯は**マスの高さ cellH() に含める**ので、行の送り・曲名リストの段・最終行の下の分まで
-     割り付けが追従する（絵の高さだけを見るのは picH()）。字数の上限はbackend/grids.pyのMAX_CELL_LABELと同じ。
+     全マスの絵の下にお題の帯（高さCAP_H）を足す。帯は**マスの高さcellH()に含める**ので、行の送り・曲名リストの段・最終行の下の分まで
+     割り付けが追従する（絵の高さだけを見るのはpicH()）。字数の上限はbackend/grids.pyのMAX_CELL_LABELと同じ。
      **cellLabelsは入れ替えず新しい配列で置き換える**（capsOnが配列の同一性で控える） */
   const CAP_PX = 40, CAP_H = 72, MAX_CELL_LABEL = 20;
   let _capsMemo = null;
