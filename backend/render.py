@@ -514,15 +514,33 @@ OVERLAY_TEXT = (255, 255, 255)
 OVERLAY_SUB = (214, 218, 224)
 
 
-def cell_h(doc: GridDoc) -> int:
-    """マスの高さ（論理px）。`cellRatio` から決まる。幅は `CELL_W` で固定"""
+# **マスごとのお題**（論理px。2026-11-07、利用者の求め）。ひとつでも書いてあれば、全マスの絵の下にお題の帯（高さ `CAP_H`）を足す。
+# 帯は**マスの高さ `cell_h` に含める**ので、行の送り・曲名リストの段・最終行の下の分まで割り付けが勝手に追従する
+# （絵の高さだけを見るのは `pic_h`）。字はIBM Plex Sans JPのBold、左寄せ、マスの幅に収まらなければ縮めて「…」。
+# frontendのCAP_PX / CAP_H / capsOn / cellHと対で直すこと
+CAP_PX = 40
+CAP_H = 72
+
+
+def _caps(doc: GridDoc) -> bool:
+    """お題がひとつでも書いてあるか（書き出す範囲のマスだけ見る）。frontendのcapsOnと同じ"""
+    return any(_one_line(s) for s in doc.cellLabels[:doc.cols * doc.rows])
+
+
+def pic_h(doc: GridDoc) -> int:
+    """マスの**絵**の高さ（論理px）。`cellRatio` から決まる。幅は `CELL_W` で固定"""
     return CELL_H_BY_RATIO.get(doc.options.cellRatio, CELL_W)
+
+
+def cell_h(doc: GridDoc) -> int:
+    """マスの高さ（論理px）＝絵の高さ＋お題の帯（お題があるときだけ）。**縦の送りは絵ではなくこちらで決める**"""
+    return pic_h(doc) + (CAP_H if _caps(doc) else 0)
 
 
 def cell_short(doc: GridDoc) -> int:
     """マスの短いほうの辺。**帯や番号バッジを出すかの判定はこちらを見る**
-    （幅で見ると、16:9のマスが実際より大きく見積もられて潰れた帯が出る）"""
-    return min(CELL_W, cell_h(doc))
+    （幅で見ると、16:9のマスが実際より大きく見積もられて潰れた帯が出る）。お題の帯は含めない（絵の短辺）"""
+    return min(CELL_W, pic_h(doc))
 
 
 def overlay_ok(scale: float, short: int = CELL_W) -> bool:
@@ -1799,13 +1817,16 @@ def _cropped(doc: GridDoc) -> GridDoc:
     途中の空きマスはそのまま（利用者が置いた形）。曲の順は変わらない（落とすのは曲の無い段・列だけ）。
     frontendのcropGridと同じ規則。`layout()` と `render()` の入口で呼ぶので二重に掛かるが、掛け直しても同じ"""
     cols, rows = doc.cols, doc.rows
-    filled = [i for i, t in enumerate(doc.cells[:cols * rows]) if t]
+    # **お題の書いてあるマスも「埋まっている」とみなす**（曲が無くてもお題だけ描くため。2026-11-07）
+    filled = [i for i in range(cols * rows) if (i < len(doc.cells) and doc.cells[i]) or (i < len(doc.cellLabels) and _one_line(doc.cellLabels[i]))]
     if not filled:
         return doc
     nr, nc = max(i // cols for i in filled) + 1, max(i % cols for i in filled) + 1
     if nr == rows and nc == cols:
         return doc
-    return doc.model_copy(update={"cols": nc, "rows": nr, "cells": [doc.cells[r * cols + c] for r in range(nr) for c in range(nc)]})
+    labs = doc.cellLabels
+    return doc.model_copy(update={"cols": nc, "rows": nr, "cells": [doc.cells[r * cols + c] for r in range(nr) for c in range(nc)],
+                                  "cellLabels": [labs[r * cols + c] if r * cols + c < len(labs) else "" for r in range(nr) for c in range(nc)]})
 
 
 # ---------- まとまりごと（行の見出しがあるとき。2026-10-11、利用者の求め） ----------
@@ -2492,7 +2513,7 @@ def cell_box(doc: GridDoc, L: Layout, i: int) -> tuple[float, float, int, int]:
     c, r = i % doc.cols, i // doc.cols
     y0 = _grid_top(L)
     y = y0 + L.grp_rows[r] if L.grp_rows else y0 + r * (cell_h(doc) + _row_gap(doc))
-    return L.ox + _label_col(doc) + c * (CELL_W + doc.options.gap), y, CELL_W, cell_h(doc)
+    return L.ox + _label_col(doc) + c * (CELL_W + doc.options.gap), y, CELL_W, pic_h(doc)   # 返すのは絵の範囲（お題の帯は含めない）
 
 
 def render(doc: GridDoc) -> Image.Image:
@@ -2541,7 +2562,7 @@ def render(doc: GridDoc) -> Image.Image:
     row_top = lambda r: cell_box(doc, L, r * doc.cols)[1]
 
     # グリッド（画像は並列に取得し、取得スレッドの中でマスの大きさに切り抜く。原寸を抱えない）
-    cw, ch = sc(CELL_W), sc(cell_h(doc))     # マスの幅と高さ（出力px）
+    cw, ch = sc(CELL_W), sc(pic_h(doc))      # マスの絵の幅と高さ（出力px。お題の帯は含めない）
     num_px = max(8, sc(BADGE_PX))   # 番号の字の大きさ。**8pxを下限にする**（ピクセルフォントはこれ以下で潰れる）
     num_font = font("pixel", num_px)
     from backend.config import public_mode
@@ -2573,10 +2594,19 @@ def render(doc: GridDoc) -> Image.Image:
             cy = sc(row_top(r)) + rnd(ch / 2) + rnd(lpx * BASELINE)
             for j, ln in enumerate(lines):   # 2行なら行の中央をはさんで上下に
                 d.text((sc(L.ox), cy + rnd((2 * j - (len(lines) - 1)) * llh / 2)), ln, font=f_lab, fill=ink, anchor="ls")
+    caps = _caps(doc)                 # マスごとのお題（絵の下の帯。字は左寄せ、帯の中央に固定比BASELINEで置く）
+    if caps:
+        cpx = max(8, sc(CAP_PX))
+        f_cap = font("bold", cpx)
+        cap_y = rnd(sc(CAP_H) / 2) + rnd(cpx * BASELINE)
     nums = _cell_nums(doc)            # 曲の入ったマスの序数（番号バッジ。空きマスは飛ばして詰め、行の見出しごとに数え直す）
     for i, t in enumerate(doc.cells):
         bx, by, _, _ = cell_box(doc, L, i)
         x, y = sc(bx), sc(by)
+        if caps and i < len(doc.cellLabels) and _one_line(doc.cellLabels[i]):   # お題は空きマスにも描く（曲が無くても「何の枠か」が分かる）
+            cap = _one_line(doc.cellLabels[i])
+            fc = _shrink_font(d, cap, f_cap, cpx, cw)
+            d.text((x, y + ch + cap_y), _ellipsize(d, cap, fc, cw), font=fc, fill=ink, anchor="ls")
         # **空きマスは塗らない**（背景の色が見える。2026-09-25、利用者の指摘。灰色の四角が並ぶと「読み込めなかった」ように見える）。
         # 曲の入ったマスだけ下地を塗る（ジャケットが取れなかったときに、そこに曲があると分かるように）。frontendのrenderShareCanvasと同じ
         if t:

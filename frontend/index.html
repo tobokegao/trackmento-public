@@ -957,7 +957,10 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   list-style: none; margin: 0;
   width: 100%;
   min-width: min(100%, 16rem);
+  position: relative;   /* マスの見出し（.slotcap）をマスの下に重ねる基準 */
 }
+/* マスの見出し（書き出しでは絵の下の帯）。位置と大きさはJS（syncPreview の placeCaps）がマスから測って決める。押せない・折り返さない */
+.grid .slotcap { position: absolute; margin: 0; pointer-events: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 700; color: var(--grid-ink, var(--color-ink)); }
 .grid[data-numbers="off"] .num { display: none; }
 /* アーティスト名の候補は縦に積む。**`.seg`（横並びのセグメント）は使わない**。
    あちらは幅を等分するので、名前が1文字ずつ折れてしまう */
@@ -1774,6 +1777,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <div class="disclose-body" id="rowlab-body" hidden>
           <p class="hint">グリッドの左に、行ごとに出ます。空にした行には出ません。</p>
           <ol class="rowlab-list" id="rowlab-list"></ol>
+        </div>
+      </div>
+      <!-- マスの見出し（2026-11-07）。書き出しでは各マスの絵の下に1行ずつ出る。**固定の一覧は持たない**（誘導しないため）。
+           入力欄の薄い字は例で、自分で決めて書く。行の見出しと同じ三角で畳む -->
+      <div class="rowlabels">
+        <div class="disclose-head">
+          <button class="disclose" type="button" id="cellcap-btn" aria-expanded="false" aria-controls="cellcap-body"><span class="tri" aria-hidden="true"></span><span>マスの見出し</span></button>
+          <p class="disclose-sum" id="cellcap-sum"></p>
+        </div>
+        <div class="disclose-body" id="cellcap-body" hidden>
+          <p class="hint">マスの下に、1マスずつ出ます。空にしたマスには出ません。</p>
+          <ol class="rowlab-list" id="cellcap-list"></ol>
         </div>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
@@ -2807,6 +2822,19 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "なし": "None",
         "グリッドの左に、行ごとに出ます。空にした行には出ません。": "Labels appear to the left of the grid, one per row. Rows left empty get no label.",
         "{}行目の見出し": "Label for row {0}",
+        "マスの見出し": "Cell labels",
+        "マスの下に、1マスずつ出ます。空にしたマスには出ません。": "A label appears below each cell. Cells left empty get no label.",
+        "{}番のマスの見出し": "Label for cell {0}",
+        "{}個": "{0} set",
+        "例: {}": "e.g. {0}",
+        "最初に好きになった曲": "The first song I loved",
+        "夏に聴きたい曲": "A song for summer",
+        "30秒以下の曲": "A song under 30 seconds",
+        "雨の日の曲": "A song for rainy days",
+        "友だちに薦めたい曲": "A song I'd recommend to a friend",
+        "作業中に流す曲": "A song for working",
+        "夜更かしのお供": "A song for staying up late",
+        "何度も聴いた曲": "A song I played on repeat",
         "中学": "Junior high",
         "高校": "High school",
         "大人": "Adult",
@@ -3092,8 +3120,22 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const TITLE_OVER_LABEL = 1.5;   // 行の見出しがあるとき、タイトルの字は見出しのこの倍率以上（backend/render.pyと同じ）
   const LABEL_WRAP_W = 4 * LABEL_COL_PX, LABEL_LEAD = 1.2;   // 見出しを2行に折る幅（全角4字ぶん）と2行の送り（backend/render.pyと同じ）
   const CELL_PX = CELL_W;                                       // 旧名。幅から決まる式が読む
-  const cellH = () => CELL_H_BY_RATIO[state.cellRatio] || CELL_W;
-  const cellShort = () => Math.min(CELL_W, cellH());             // 帯や番号を出すかの判定は**短辺**
+  /* **マスごとのお題**（論理px。backend/render.pyのCAP_PX / CAP_H / _caps / pic_h / cell_hと同じ。2026-11-07）。ひとつでも書いてあれば
+     全マスの絵の下にお題の帯（高さCAP_H）を足す。帯は**マスの高さ cellH() に含める**ので、行の送り・曲名リストの段・最終行の下の分まで
+     割り付けが追従する（絵の高さだけを見るのは picH()）。字数の上限はbackend/grids.pyのMAX_CELL_LABELと同じ。
+     **cellLabelsは入れ替えず新しい配列で置き換える**（capsOnが配列の同一性で控える） */
+  const CAP_PX = 40, CAP_H = 72, MAX_CELL_LABEL = 20;
+  let _capsMemo = null;
+  const capsOn = () => {
+    const n = state.cols * state.rows;
+    if (_capsMemo && _capsMemo.src === state.cellLabels && _capsMemo.n === n) return _capsMemo.v;
+    const v = state.cellLabels.slice(0, n).some((s) => oneLine(s || ""));
+    _capsMemo = { src: state.cellLabels, n, v };
+    return v;
+  };
+  const picH = () => CELL_H_BY_RATIO[state.cellRatio] || CELL_W;   // マスの絵の高さ
+  const cellH = () => picH() + (capsOn() ? CAP_H : 0);             // マスの高さ（絵＋お題の帯）。縦の送りはこちらで決める
+  const cellShort = () => Math.min(CELL_W, picH());             // 帯や番号を出すかの判定は**短辺**（絵の短辺。お題の帯は含めない）
   const RATIOS = { "1:1": 1, "16:9": 16 / 9, "4:5": 4 / 5, "9:16": 9 / 16, free: null };
   // ---- パレット（背景色に並ぶ8色 ＝ 画面の配色）----
   // **地の色（クリーム）・文字の色（黒）＋ 装飾の6色**をひと組として切り替える。
@@ -3250,6 +3292,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     bgImageSrc: null, bgImageFit: "cover", bgImageTile: "m",   // 画像の元・敷き方（引き伸ばす／並べる）・並べる大きさ     // グラデーション背景{ src, colors, seed, image }（backend/grids.pyのBgGrad）   // 背景の画像の濃さ（画像のにぎやかさから決める。0.2〜0.5。backend/grids.pyのbgImageAlpha）
     listed: false,   // みんなのグリッドから探せるようにするか。**既定はオフ**（共有はURLを知っている人だけのもの）
     rowLabels: [],   // 行の見出し（上の行から。backend/grids.pyのrowLabels）。縦を減らしても捨てない（戻せば出る）
+    cellLabels: [],  // マスごとのお題（cellsと同じ並び・同じ位置。backend/grids.pyのcellLabels）。曲を入れ替えても位置に残る
   };
   let available = [];
   let dragFrom = null;
@@ -3501,12 +3544,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      割り付けの間は _exGridに入れ（exCols / exRows / 曲の順の並び）、描くとき（renderShareCanvas）は同じものを作り直して使う */
   let _exGrid = null;
   function cropGrid(cells, cols, rows) {
+    // **お題の書いてあるマスも「埋まっている」とみなす**（曲が無くてもお題だけ描くため。backend/render.pyの _croppedと同じ。2026-11-07）
+    const labs = state.cellLabels;
     let nr = 0, nc = 0;
-    for (let i = 0; i < cols * rows; i++) if (cells[i]) { nr = Math.max(nr, Math.floor(i / cols) + 1); nc = Math.max(nc, i % cols + 1); }
-    if (!nr || (nr === rows && nc === cols)) return { cols, rows, cells };
-    const out = [];
-    for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) out.push(cells[r * cols + c]);
-    return { cols: nc, rows: nr, cells: out };
+    for (let i = 0; i < cols * rows; i++) if (cells[i] || (labs[i] && oneLine(labs[i]))) { nr = Math.max(nr, Math.floor(i / cols) + 1); nc = Math.max(nc, i % cols + 1); }
+    if (!nr || (nr === rows && nc === cols)) return { cols, rows, cells, labels: labs };
+    const out = [], lo = [];
+    for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) { out.push(cells[r * cols + c]); lo.push(labs[r * cols + c] || ""); }
+    return { cols: nc, rows: nr, cells: out, labels: lo };
   }
   const exCols = () => (_exGrid ? _exGrid.cols : state.cols), exRows = () => (_exGrid ? _exGrid.rows : state.rows);
 
@@ -4952,6 +4997,13 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       }
       els.grid.append(li);
     });
+    // マスの見出し（書き出しでは絵の下の帯。画面では行の間隔を広げて、その中に重ねる。位置はsyncPreviewのplaceCapsが決める）
+    if (capsOn()) state.cellLabels.slice(0, state.cols * state.rows).forEach((s, i) => {
+      const text = oneLine(s || "");
+      if (!text) return;
+      const sp = document.createElement("span"); sp.className = "slotcap"; sp.dataset.i = i; sp.setAttribute("aria-hidden", "true"); sp.textContent = text;
+      els.grid.append(sp);
+    });
     if (target !== null && state.cells[target]) target = null;
     els.grid.dataset.selecting = selected !== null ? "true" : "false";
     if (hadFocus) els.grid.querySelector(`.cell[data-index="${kbdCell}"]`)?.focus({ preventScroll: true });
@@ -4961,8 +5013,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     updateGridDensity();
     renderEditor();
     renderRowLabels();
+    renderCellCaps();
     updateSpec();
     updateStart();
+    syncPreview();   // お題の有無で行の間隔と下の余白が変わるので、描き直すたびに決め直す
   }
   /* 行の見出しの入力欄。縦の数だけ並べる。**数が変わったときだけ作り直す**（打っている最中の欄を消さない） */
   function renderRowLabels() {
@@ -4988,6 +5042,39 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     const used = state.rowLabels.slice(0, state.rows).map(s => (s || "").trim()).filter(Boolean);
     $("#rowlab-sum").textContent = used.length ? used.join("・") : tr("なし");
   }
+  /* マスの見出しの入力欄。マスの数だけ並べる。**数が変わったときだけ作り直す**（打っている最中の欄を消さない）。
+     欄の薄い字は例（固定の一覧ではない。マスごとに順に回す）。書き出しでは各マスの絵の下に出る（backend/render.pyのcell_labels） */
+  const capExamples = () => [tr("最初に好きになった曲"), tr("夏に聴きたい曲"), tr("30秒以下の曲"), tr("雨の日の曲"), tr("友だちに薦めたい曲"), tr("作業中に流す曲"), tr("夜更かしのお供"), tr("何度も聴いた曲")];
+  function renderCellCaps() {
+    const list = $("#cellcap-list"), n = state.cols * state.rows;
+    if (list.children.length !== n) {
+      list.replaceChildren(...Array.from({ length: n }, (_, i) => {
+        const li = document.createElement("li");
+        const no = document.createElement("span"); no.className = "n"; no.textContent = String(i + 1).padStart(2, "0");
+        const inp = document.createElement("input"); inp.className = "input"; inp.type = "text"; inp.maxLength = MAX_CELL_LABEL;
+        inp.setAttribute("aria-label", tr`${i + 1}番のマスの見出し`);
+        inp.addEventListener("input", () => {
+          const v = state.cellLabels.slice();
+          while (v.length <= i) v.push("");
+          v[i] = inp.value;
+          state.cellLabels = v;
+          renderGrid(); save();
+        });
+        li.append(no, inp);
+        return li;
+      }));
+    }
+    const ex = capExamples();   // 欄の薄い字は例。言語を替えたときも直るように毎回つける
+    [...list.querySelectorAll("input")].forEach((inp, i) => { inp.placeholder = tr`例: ${ex[i % ex.length]}`; if (document.activeElement !== inp) inp.value = state.cellLabels[i] || ""; });
+    const used = state.cellLabels.slice(0, n).filter((s) => (s || "").trim()).length;
+    $("#cellcap-sum").textContent = used ? tr`${used}個` : tr("なし");
+  }
+  function setCellCapOpen(on, remember = true) {
+    $("#cellcap-btn").setAttribute("aria-expanded", String(on)); $("#cellcap-body").hidden = !on;
+    if (remember) try { localStorage.setItem("trackmento:cellcap", on ? "1" : "0"); } catch { /* 覚えられなくても開け閉めはできる */ }
+  }
+  try { setCellCapOpen(localStorage.getItem("trackmento:cellcap") === "1", false); } catch { setCellCapOpen(false, false); }
+  $("#cellcap-btn").addEventListener("click", () => setCellCapOpen($("#cellcap-btn").getAttribute("aria-expanded") !== "true"));
   function setRowLabOpen(on, remember = true) {
     $("#rowlab-btn").setAttribute("aria-expanded", String(on)); $("#rowlab-body").hidden = !on;
     if (remember) try { localStorage.setItem("trackmento:rowlab", on ? "1" : "0"); } catch { /* 覚えられなくても開け閉めはできる */ }
@@ -7676,8 +7763,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 実物と食い違っていた。**共有と同じ `shareRenderPlan()` の割り付けを使う**（計算は1回で済む）
     const L = sharePlan().L;
     els.specOut.textContent = `${Math.round(L.W * L.scale)} × ${Math.round(L.H * L.scale)} px`;
-    els.specCell.textContent = cellH() === CELL_W ? `${Math.round(CELL_W * L.scale)} px`
-      : `${Math.round(CELL_W * L.scale)} × ${Math.round(cellH() * L.scale)} px`;
+    els.specCell.textContent = picH() === CELL_W ? `${Math.round(CELL_W * L.scale)} px`
+      : `${Math.round(CELL_W * L.scale)} × ${Math.round(picH() * L.scale)} px`;
     /* 折れるのは「/」の後だけにする（2026-09-24）。「上下193 / 左右109 px」が2行に折れるとき「px」だけが次の行に落ち、
        英語は「171 top and bottom / 58 left and right, px」が語の途中の切れ目で3行になった（利用者がスマホで報告）。
        空白をすべてNBSPにし、「/」の後の1つだけ戻す。英語も日本語と同じ「名前 数 / 名前 数px」の形に短くした */
@@ -7759,10 +7846,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     if (!W) return;
     const k = W / (gw + state.margin * 2);
     const pad = state.margin * k, gap = state.gap * k;
-    els.grid.style.padding = `${pad}px`;
+    // マスの見出しがあれば、絵の下の帯（CAP_H）のぶん行の間隔と一番下の余白を広げる（書き出しは帯をマスの高さに含めるが、画面はマスが絵の高さなので間隔に足す）
+    const capH = capsOn() ? CAP_H * k : 0;
+    els.grid.style.padding = `${pad}px ${pad}px ${pad + capH}px`;
     els.grid.style.gap = `${gap}px`;
     els.grid.dataset.labels = lab ? "on" : "off";
-    els.grid.style.rowGap = `${rowGap(state.rows) * k}px`;   // 行の見出しがあれば行の間隔は広い（書き出しと同じ比率）
+    els.grid.style.rowGap = `${rowGap(state.rows) * k + capH}px`;   // 行の見出しがあれば行の間隔は広い（書き出しと同じ比率）
     els.grid.style.setProperty("--labw", `${Math.max(0, lab - state.gap) * k}px`);
     els.grid.style.setProperty("--labpx", `${Math.max(9, LABEL_COL_PX * k)}px`);
     els.grid.style.setProperty("--grid-ink", token(isLight(bgColor() || token("paper")) ? "ink" : "paper"));   // 見出しの字は書き出しと同じく地の明るさで黒か白
@@ -7784,6 +7873,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 欄の中では、枠の大きさは列数・行数によらず3×3のときと同じ正方形に固定
     // （行が列より多いとスクロールバーが出る）。拡大窓の高さは上で決めてある
     if (!gridZoomed) els.gridScroll.style.height = `${Math.round(W) + 4}px`;
+    // マスの見出しを、いまのマスの位置の真下（帯の高さ）に置く。字は帯の中央（書き出しと同じ。長ければ「…」）
+    const slots = els.grid.querySelectorAll(".slotcap");
+    if (slots.length) {
+      const cellEls = els.grid.querySelectorAll(".cell");
+      slots.forEach((sp) => {
+        const li = cellEls[Number(sp.dataset.i)];
+        if (!li) return;
+        sp.style.left = `${li.offsetLeft}px`; sp.style.top = `${li.offsetTop + li.offsetHeight}px`;
+        sp.style.width = `${li.offsetWidth}px`; sp.style.height = `${CAP_H * k}px`;
+        sp.style.fontSize = `${CAP_PX * k}px`; sp.style.lineHeight = `${CAP_H * k}px`;
+      });
+    }
   }
 
   // ---- 送信中の窓（進み具合と、作者の曲） ----
@@ -8176,11 +8277,17 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     while (out.length && !out[out.length - 1]) out.pop();
     return out;
   }
+  // マスごとのお題を保存する形に（backend/grids.pyの _cell_labelsと同じ: 1行にして字数で切り、末尾の空は落とす）
+  function trimCellLabels(v) {
+    const out = (Array.isArray(v) ? v : []).slice(0, MAX_SIDE_CELLS * MAX_SIDE_CELLS).map(s => (typeof s === "string" ? s.split(/\s+/).filter(Boolean).join(" ") : "")).map(s => [...s].slice(0, MAX_CELL_LABEL).join(""));
+    while (out.length && !out[out.length - 1]) out.pop();
+    return out;
+  }
   function serialize() {
     return {
       app: "trackmento", version: 1, name: "default", savedAt: new Date().toISOString(),
       title: state.title, cols: state.cols, rows: state.rows, cells: state.cells, stash: state.stash, listed: state.listed,
-      rowLabels: trimRowLabels(state.rowLabels),
+      rowLabels: trimRowLabels(state.rowLabels), cellLabels: trimCellLabels(state.cellLabels),
       options: { ratio: state.ratio, showTitle: state.showTitle, sidebar: state.sidebar && !state.overlay, overlay: !!state.overlay, numbers: state.numbers, trimNames: state.trimNames !== false,
         cellRatio: state.cellRatio || "1:1", cellFit: state.cellFit || "crop", bg: state.bg, bgCustom: state.bgCustom, bgMode: state.bgMode || "pick", bgImage: state.bgImage || null, bgImageAlpha: state.bgImageAlpha ?? 0.5, bgGrad: state.bgGrad || null, bgImageSrc: state.bgImageSrc || null, bgImageFit: state.bgImageFit || "cover", bgImageTile: state.bgImageTile || "m", margin: state.margin, pad: state.pad || "normal", gap: state.gap },
     };
@@ -8231,6 +8338,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     state.gap = clamp(o.gap, 0, 96, 16);
     state.listed = d.listed === true;   // 読み込んだ並びの指定を引き継ぐ（無ければオフ）
     state.rowLabels = trimRowLabels(d.rowLabels);
+    state.cellLabels = trimCellLabels(d.cellLabels);
     selected = null; target = null;
     applyPalette();
     syncControls();
@@ -8343,7 +8451,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   function emptyDoc() {
     // 出力の設定（比率・色・横 × 縦）は今の並びから引き継ぐ。題とトラックは空
     const d = serialize();
-    return { ...d, title: "", cells: d.cells.map(() => null), stash: [], listed: false, rowLabels: [] };
+    return { ...d, title: "", cells: d.cells.map(() => null), stash: [], listed: false, rowLabels: [], cellLabels: [] };
   }
   async function openLayout(id) {
     ready = false;
@@ -8759,7 +8867,9 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 行の上端（論理px）。まとまりごとの組み方は割り付けが決めた位置、ほかは行の送りの倍数
     const rowTop = (r) => (L.grpRows ? y0 + L.grpRows[r] : y0 + r * (cellH() + rowGap(EX.rows)));
     const numPx = Math.max(8, sc(BADGE_PX));   // 番号の字の大きさ。**8pxを下限にする**
-    const cw = sc(CELL_W), ch = sc(cellH()), cs = Math.min(cw, ch), numF = fontPixel(numPx);   /* 帯の文字は**短辺**から */
+    const cw = sc(CELL_W), ch = sc(picH()), cs = Math.min(cw, ch), numF = fontPixel(numPx);   /* 帯の文字は**短辺**から（絵の高さ。お題の帯は含めない） */
+    // マスごとのお題（絵の下の帯。字は左寄せ、帯の中央に固定比BASELINEで置く。backend/render.pyと同じ）
+    const caps = capsOn(), capPx = Math.max(8, sc(CAP_PX)), capY = Math.round(sc(CAP_H) / 2) + Math.round(capPx * BASELINE);
     // 描く前にR2の場所をまとめて聞く（302を追わないため。上のpreloadR2Mapを参照）
     const wantPx = cw < CELL_W * 0.55 ? Math.ceil(cw / 50) * 50 : 0;
     await preloadR2Map(VC.flatMap(t => (t ? [t.image, t.thumb] : [])).filter(Boolean).map(url => ({ url, px: wantPx })));
@@ -8794,6 +8904,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     for (let i = 0; i < n; i++) {
       const t = VC[i], c = i % EX.cols, r = Math.floor(i / EX.cols);
       const x = sc(L.ox + lab + c * (CELL_W + state.gap)), y = sc(rowTop(r));
+      const capText = caps ? oneLine(EX.labels[i] || "") : "";
+      if (capText) {   // お題は空きマスにも描く（曲が無くても「何の枠か」が分かる。backend/render.pyと同じ）
+        ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = cssRgb(ink);
+        ctx.font = shrinkFont(ctx, capText, fontBold(capPx), capPx, cw);
+        ctx.fillText(ellipsizeText(ctx, capText, cw), x, y + ch + capY);
+      }
       // **空きマスは塗らない**（背景の色が見える。backend/render.pyと同じ。2026-09-25）
       if (t) { ctx.fillStyle = cssRgb(cellBg); ctx.fillRect(x, y, cw, ch); }
       const drawOverlay = () => {

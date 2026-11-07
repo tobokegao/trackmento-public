@@ -64,13 +64,14 @@ TRACKS_FILE: str | None = None   # autoの --tracks=<json>。曲の中身を差�
 
 
 def _doc(cols: int, rows: int, ratio: str, fill: bool = False, blur: bool = False, wide: bool = False,
-         labels: bool = False, covers: bool = True) -> dict:
+         labels: bool = False, covers: bool = True, caps: bool = False) -> dict:
     """grids/default.jsonの曲を使って比較用の並びを作る。
 
     fill=Trueなら曲を繰り返して全部のマスを埋める。曲名リストの流し込み（曲が多いときだけ
     切り替わる）を比べるには、マスが埋まっていないと再現しない。
     labels=Trueなら行の見出し（各行の左端の札。2026-10-11）を付ける。長くて「…」になる行も混ぜる。
     covers=Falseならジャケットを同梱の画像に差し替える（曲名とアーティスト名はそのまま）
+    caps=Trueならマスごとのお題（絵の下の帯。2026-11-07）を付ける。長くて縮めて「…」になるもの・空のマスも混ぜる。
     """
     if TRACKS_FILE:
         tracks = json.loads(pathlib.Path(TRACKS_FILE).read_text(encoding="utf-8"))
@@ -86,9 +87,10 @@ def _doc(cols: int, rows: int, ratio: str, fill: bool = False, blur: bool = Fals
     else:
         for i, t in enumerate(tracks[: cols * rows]):
             cells[i] = t
-    name = f"u-rendercmp{cols}x{rows}{'full' if fill else ''}{'blur' if blur else ''}{'wide' if wide else ''}{'lab' if labels else ''}"
+    name = f"u-rendercmp{cols}x{rows}{'full' if fill else ''}{'blur' if blur else ''}{'wide' if wide else ''}{'lab' if labels else ''}{'cap' if caps else ''}"
     doc = {"app": "trackmento", "version": 1, "name": name, "cols": cols, "rows": rows,
            "cells": cells, "stash": [], "title": "描画くらべ",
+           "cellLabels": (["最初に好きになった曲", "30秒以下", "", "とても長いお題でマスの幅に収まらず縮めて切れるもの", "夏", "A song for rainy days"] * 43)[:cols * rows] if caps else [],
            "rowLabels": (["中学", "高校", "大人", "今", "とても長い見出しの行です"] * 7)[:rows] if labels else [],
            "options": {"ratio": ratio, "showTitle": True, "sidebar": True, "numbers": True,
                        "bg": "mustard", "bgCustom": None, "margin": 16, "gap": 16,
@@ -159,7 +161,8 @@ def _score(a: Image.Image, b: Image.Image, out: pathlib.Path) -> bool:
 
 # autoで回す並び（横, 縦, 比率, 付け足し）。曲名リストの組み方が一通り出るように選んだ
 AUTO_CASES = ("3x3:1:1", "4x4:16:9:fill", "16x16:16:9:fill", "6x6:9:16:fill", "2x5:4:5",
-              "3x3:1:1:blur", "3x3:16:9:wide:blur", "5x4:16:9:labels", "4x6:1:1:labels:fill")
+              "3x3:1:1:blur", "3x3:16:9:wide:blur", "5x4:16:9:labels", "4x6:1:1:labels:fill",
+              "5x4:16:9:caps", "3x3:1:1:caps:wide", "4x6:1:1:caps:labels:fill")
 
 
 def auto(specs: list[str]) -> int:
@@ -181,16 +184,16 @@ def auto(specs: list[str]) -> int:
     global TRACKS_FILE
     TRACKS_FILE = next((v.split("=", 1)[1] for v in specs if v.startswith("--tracks=")), None)
     specs = [v for v in specs if not v.startswith("--")]
-    flags = {"fill", "blur", "wide", "labels", "covers"}
+    flags = {"fill", "blur", "wide", "labels", "covers", "caps"}
     cases = []
     for spec in specs or AUTO_CASES:
         size, *rest = spec.split(":")
         cols, rows = (int(v) for v in size.lower().split("x"))
         ratio = ":".join(v for v in rest if v not in flags)[:5] or "16:9"
         on = {v for v in rest if v in flags}
-        doc = _doc(cols, rows, ratio, "fill" in on, "blur" in on, "wide" in on, "labels" in on, "covers" in on)
+        doc = _doc(cols, rows, ratio, "fill" in on, "blur" in on, "wide" in on, "labels" in on, "covers" in on, "caps" in on)
         key = spec.replace(":", "_")
-        cases.append({"key": key, "cols": cols, "rows": rows, "title": doc["title"], "rowLabels": doc["rowLabels"],
+        cases.append({"key": key, "cols": cols, "rows": rows, "title": doc["title"], "rowLabels": doc["rowLabels"], "cellLabels": doc["cellLabels"],
                       "options": doc["options"], "cells": doc["cells"], "doc": doc})
     tmp = pathlib.Path(tempfile.mkdtemp())
     (tmp / "cases.json").write_text(json.dumps([{k: v for k, v in c.items() if k != "doc"} for c in cases],

@@ -20,7 +20,7 @@ await page.waitForFunction(() => window.__renderShare && window.__setGrid);
 for (const c of cases) {
   const url = await page.evaluate(async ({ c, maxSide }) => {
     // cells はマスの数ちょうどで渡す（__setGrid は渡した配列を i % 長さで配るので、空きマスの null もそのまま入る）
-    window.__setGrid(c.cols, c.rows, { ...c.options, title: c.title, rowLabels: c.rowLabels }, c.cells);
+    window.__setGrid(c.cols, c.rows, { ...c.options, title: c.title, rowLabels: c.rowLabels, cellLabels: c.cellLabels || [] }, c.cells);
     // **字幅の控えは Web フォントが効いてから取る**（promo/dump_layouts.mjs と同じ）
     await window.__loadShareFonts();
     window.__clearCharW();

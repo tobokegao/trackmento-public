@@ -26,6 +26,7 @@ MAX_COLS = 32
 MAX_ROWS = 32
 MAX_STASH = 200   # マスから溢れた曲の控え。無制限だとJSONが肥大する
 MAX_ROW_LABEL = 12   # 行の見出しの字数。frontendのMAX_ROW_LABELと同じ（札がマスからはみ出しにくい長さ）
+MAX_CELL_LABEL = 20   # マスごとのお題の字数。frontendのMAX_CELL_LABELと同じ（マスの幅に1行で収まる長さ。長ければ「…」）
 Ratio = Literal["1:1", "16:9", "4:5", "9:16", "free"]
 BG_KEYS = ("paper", "ink", "mustard", "cerulean", "lavender", "vermilion", "mint", "pink",
            "ivory", "charcoal", "lemon", "ultramarine", "coral", "sky", "leaf", "rose",
@@ -203,6 +204,20 @@ class GridDoc(BaseModel):
     # **行の見出し**（2026-10-11、お題「私の音楽遍歴」のため。利用者が書き換えられる）。上の行から順に、書き出しでは
     # グリッドの左に見出しの列を足して描く（render.pyの `_label_col` とfrontendの `labelCol`）。空の行は描かない
     rowLabels: list[str] = Field(default_factory=list)
+    # **マスごとのお題**（2026-11-07、利用者の求め。「30のお題に1曲ずつ」のような遊び方のため）。`cells` と同じ並び・同じ位置
+    # （曲を入れ替えてもお題は位置に残る）。ひとつでも書いてあれば、書き出しでは全マスの下にお題の帯を足して描く
+    # （render.pyの `cell_h` / `_caps` とfrontendの `cellH` / `capsOn`）。お題は例を示すだけで、固定の一覧は持たない（誘導しないため）
+    cellLabels: list[str] = Field(default_factory=list)
+
+    @field_validator("cellLabels", mode="before")
+    @classmethod
+    def _cell_labels(cls, v) -> list[str]:
+        if not isinstance(v, list):
+            return []
+        out = [" ".join((s if isinstance(s, str) else "").split())[:MAX_CELL_LABEL] for s in v[:MAX_COLS * MAX_ROWS]]
+        while out and not out[-1]:
+            out.pop()
+        return out
 
     @field_validator("rowLabels", mode="before")
     @classmethod
@@ -250,6 +265,7 @@ class GridDoc(BaseModel):
             self.cells = self.cells[:n]
         while len(self.cells) < n:
             self.cells.append(self.stash.pop(0) if self.stash else None)
+        # cellLabelsはここで切らない（縦横を縮めて戻したとき、お題も戻るように。rowLabelsと同じ。描くときは `[:cols*rows]` で見る）
         return self
 
     # ---- 便利メソッド ----

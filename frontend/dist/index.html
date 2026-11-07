@@ -36,7 +36,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.ad078f0b.css">
+<link rel="stylesheet" href="app/app.d38ca5d1.css">
 </head>
 <body>
 
@@ -250,6 +250,18 @@
         <div class="disclose-body" id="rowlab-body" hidden>
           <p class="hint">グリッドの左に、行ごとに出ます。空にした行には出ません。</p>
           <ol class="rowlab-list" id="rowlab-list"></ol>
+        </div>
+      </div>
+      <!-- マスの見出し（2026-11-07）。書き出しでは各マスの絵の下に1行ずつ出る。**固定の一覧は持たない**（誘導しないため）。
+           入力欄の薄い字は例で、自分で決めて書く。行の見出しと同じ三角で畳む -->
+      <div class="rowlabels">
+        <div class="disclose-head">
+          <button class="disclose" type="button" id="cellcap-btn" aria-expanded="false" aria-controls="cellcap-body"><span class="tri" aria-hidden="true"></span><span>マスの見出し</span></button>
+          <p class="disclose-sum" id="cellcap-sum"></p>
+        </div>
+        <div class="disclose-body" id="cellcap-body" hidden>
+          <p class="hint">マスの下に、1マスずつ出ます。空にしたマスには出ません。</p>
+          <ol class="rowlab-list" id="cellcap-list"></ol>
         </div>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
@@ -709,6 +721,6 @@
 <div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
-<script id="app-js" src="app/app.04195bc8.js"></script>
+<script id="app-js" src="app/app.f1b0089e.js"></script>
 </body>
 </html>
