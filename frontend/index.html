@@ -882,6 +882,8 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .rowlabels .hint { margin: 0; color: var(--color-muted); font-size: var(--text-sm); }
 .rowlab-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--space-2) var(--space-3); }
 .rowlab-list li { display: flex; align-items: center; gap: var(--space-2); }
+/* マスの見出しはマスの数だけ並ぶ（最大256）ので、一定の高さでスクロールさせる（2026-11-07、利用者の求め）。スクロールバーは全体の指定が効く */
+#cellcap-list { max-height: 14rem; overflow-y: auto; padding: var(--space-2); border: var(--line) solid var(--color-ink); background: var(--color-paper); }
 .rowlab-list .n { flex: none; min-width: 2ch; font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-ink-2); }
 /* 行の見出しの列（書き出しと同じく、グリッドの左。幅と字の大きさはsyncPreviewが書き出しの比率で決める） */
 .grid[data-labels="on"] { grid-template-columns: var(--labw) repeat(var(--cols, 3), minmax(0, 1fr)); }
