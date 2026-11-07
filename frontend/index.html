@@ -1755,6 +1755,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <option value="t">ジャケットが青い曲</option>
           <option value="t">作業がはかどるBGM</option>
           <option value="t">ドライブで聴きたい曲</option>
+          <!-- 30曲ぴったりの遊びなので横6 × 縦5にする（2026-11-08、利用者の依頼）。お題の文は「マスの見出し」で1マスずつ書ける -->
+          <option value="6x5">30 Track Challenge</option>
         </select></span>
       </div>
       <!-- お題から始める（2026-10-15）。空の並びで題名も空のときだけ出す。押すと上の「お題」のメニューと同じ項目を選んだことになる（中身は #theme-selの項目の文字で引く）。
@@ -2636,6 +2638,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "例: ジャケットが青い曲": "e.g. Tracks with blue cover art",
         "例: 作業がはかどるBGM": "e.g. Music that helps me focus",
         "例: ドライブで聴きたい曲": "e.g. Songs for a drive",
+        "例: 30 Track Challenge": "e.g. 30 Track Challenge",
         "サムネイルの並び": "Thumbnail grid",
         "画像を作り、今の並びと一緒に共有URLにする": "Render an image and put it, with the current layout, behind a share URL",
         "並び（トラック・画像URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる": "Save the layout (tracks, image URLs and output settings) to a JSON file on this device. Load it to get the same layout back",
@@ -2852,8 +2855,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "文化祭のセトリ": "Our school festival setlist",
         "ジャケットが青い曲": "Tracks with blue cover art",
         "作業がはかどるBGM": "Music that helps me focus",
-        "ドライブで聴きたい曲": "Songs for a drive",
-        "お題「{}」にしました（横{} × 縦{}）。": "Set the theme to \"{0}\" ({1} × {2}).",
+        "ドライブで聴きたい曲": "Songs for a drive",        "お題「{}」にしました（横{} × 縦{}）。": "Set the theme to \"{0}\" ({1} × {2}).",
         "お題「{}」にしました。": "Set the theme to \"{0}\".",
         "この並びを消す": "Delete layout",
         "空の並びをもう1つ作る。今の並びはそのまま残る": "Start another, empty layout. The current one stays as it is",
@@ -2993,11 +2995,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* 題名欄の例は開くたびに変える（2026-09-23、運用ボードのopen-use）。例が「私を構成する9曲」だけだと、
      ほかの決まりで並べた人が「想定と合っているか分からない」と感じるため。選ぶ基準がばらばらな例を混ぜる。
      言語を切り替えても同じ例のままにするので、番号は読み込んだときに1回だけ決める。
-     **中身は「お題」のメニュー（theme-sel）と同じ11個にそろえる**（2026-09-24、利用者の依頼。10-11に「音楽遍歴」を足した）。片方を変えたらもう片方も */
+     **中身は「お題」のメニュー（theme-sel）と同じ12個にそろえる**（2026-09-24、利用者の依頼。10-11に「音楽遍歴」、11-08に「30 Track Challenge」を足した）。片方を変えたらもう片方も */
   // tr() の形で書く（scripts/check_i18n.pyがtr("…") を拾って英訳と突き合わせるため）
   const titleExamples = () => [tr("例: 私を構成する9曲"), tr("例: 私の音楽遍歴（中学・高校・大人・今）"), tr("例: 推しの「歌ってみた」"), tr("例: 雨の日に聴く曲"), tr("例: 好きな音MAD"),
     tr("例: 今月かなり聴いた曲"), tr("例: 好きなボカロ"), tr("例: 文化祭のセトリ"), tr("例: ジャケットが青い曲"), tr("例: 作業がはかどるBGM"),
-    tr("例: ドライブで聴きたい曲")];
+    tr("例: ドライブで聴きたい曲"), tr("例: 30 Track Challenge")];
   const TITLE_EX_I = Math.floor(Math.random() * titleExamples().length);
   function titleExample() { return titleExamples()[TITLE_EX_I]; }
 
