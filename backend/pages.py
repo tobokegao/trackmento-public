@@ -958,7 +958,7 @@ def body_of(kind: str, lang: str) -> str:
 
 def _card_meta(base: str, title: str, url: str, description: str | None = None, og_type: str = "website") -> str:
     """Xなどのリンクカード用のメタ（og: / twitter:）。画像はトップと同じ /og.png（1200×630）。
-    descriptionが無いページ（題名だけの文章ページ）では og:description を出さない（題名の繰り返しになるため）。
+    descriptionが無いページ（題名だけの文章ページ）ではog:descriptionを出さない（題名の繰り返しになるため）。
     文章のページには長らくこれが無く、コラムを貼ってもカードが出なかった（2026-11-08）"""
     b = base.rstrip("/")
     desc = f'<meta property="og:description" content="{html.escape(description)}">' if description else ""
