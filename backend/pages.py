@@ -470,6 +470,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-11-08", "コラムのURLをXなどに貼ったときに、リンクのカード（題名・説明・画像）が出るようにしました。すでに貼ったことのあるURLは、Xの側に覚えられていて、しばらく出ないことがあります。",
+     "Article links now show a link card (title, description and image) when pasted into X and similar services. A URL you have already pasted before may not show the card for a while, because X remembers it."),
     ("2026-11-08", "コラムに「共感とお金、そして音楽との距離感」を足しました。",
      "Added the article “Relatability, Money, and How Close I Keep Music” (in Japanese) to Articles."),
     ("2026-11-08", "「お題」の見本に「30 Track Challenge」を足しました。選ぶと題名が入り、横6 × 縦5（30マス）になります。",
@@ -975,7 +977,16 @@ def article_html(slug: str, base: str, app_url: str | None = None, lang: str = "
     if a is None:
         return None
     lang = lang if lang in ("ja", "en") else "ja"
-    head = f'<link rel="canonical" href="{base.rstrip("/")}/articles/{slug}">'
+    b = base.rstrip("/")
+    url = f"{b}/articles/{slug}"
+    # Xなどのリンクカード（2026-11-08）。文章のページにはog:/twitter:のメタが無く、コラムを投稿してもカードが出なかった。
+    # 画像はトップと同じ /og.png（記事ごとの画像は作らない）。題と説明は記事のもの
+    head = (f'<link rel="canonical" href="{url}">\n'
+            f'<meta property="og:type" content="article"><meta property="og:site_name" content="TRACKMENTO">'
+            f'<meta property="og:title" content="{html.escape(a["title"])}">'
+            f'<meta property="og:description" content="{html.escape(a["description"])}">'
+            f'<meta property="og:url" content="{url}"><meta property="og:image" content="{b}/og.png">'
+            f'<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="{b}/og.png">')
     meta = f'{_date_label(a["date"], "ja")}・Tobokegao・ <a href="/articles{"?lang=en" if lang == "en" else ""}">{html.escape(NAV[lang][3])}</a>'
     body = _JA_BREAK.sub("", a["body"])
     return _frame("ja", a["title"], a["description"], head, body, meta, base, app_url, "", nav_lang=lang)
