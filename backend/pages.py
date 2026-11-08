@@ -470,8 +470,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-11-08", "コラムのURLをXなどに貼ったときに、リンクのカード（題名・説明・画像）が出るようにしました。すでに貼ったことのあるURLは、Xの側に覚えられていて、しばらく出ないことがあります。",
-     "Article links now show a link card (title, description and image) when pasted into X and similar services. A URL you have already pasted before may not show the card for a while, because X remembers it."),
+    ("2026-11-08", "コラムや使い方など、文章のページのURLをXなどに貼ったときに、リンクのカード（題名と画像。コラムは説明つき）が出るようにしました。すでに貼ったことのあるURLは、Xの側に覚えられていて、しばらく出ないことがあります。",
+     "Links to the article and info pages (the guide, privacy policy and so on) now show a link card (title and image; articles also show a description) when pasted into X and similar services. A URL you have already pasted before may not show the card for a while, because X remembers it."),
     ("2026-11-08", "コラムに「共感とお金、そして音楽との距離感」を足しました。",
      "Added the article “Relatability, Money, and How Close I Keep Music” (in Japanese) to Articles."),
     ("2026-11-08", "「お題」の見本に「30 Track Challenge」を足しました。選ぶと題名が入り、横6 × 縦5（30マス）になります。",
@@ -956,6 +956,18 @@ def body_of(kind: str, lang: str) -> str:
     return _JA_BREAK.sub("", b) if lang == "ja" else b
 
 
+def _card_meta(base: str, title: str, url: str, description: str | None = None, og_type: str = "website") -> str:
+    """Xなどのリンクカード用のメタ（og: / twitter:）。画像はトップと同じ /og.png（1200×630）。
+    descriptionが無いページ（題名だけの文章ページ）では og:description を出さない（題名の繰り返しになるため）。
+    文章のページには長らくこれが無く、コラムを貼ってもカードが出なかった（2026-11-08）"""
+    b = base.rstrip("/")
+    desc = f'<meta property="og:description" content="{html.escape(description)}">' if description else ""
+    return (f'<meta property="og:type" content="{og_type}"><meta property="og:site_name" content="TRACKMENTO">'
+            f'<meta property="og:title" content="{html.escape(title)}">{desc}'
+            f'<meta property="og:url" content="{url}"><meta property="og:image" content="{b}/og.png">'
+            f'<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="{b}/og.png">')
+
+
 def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja", nonce: str = "") -> str:
     lang = lang if lang in ("ja", "en") else "ja"
     title = TITLES[kind][lang]
@@ -963,7 +975,8 @@ def page_html(kind: str, base: str, app_url: str | None = None, lang: str = "ja"
     b = base.rstrip("/")
     q = "?lang=en" if lang == "en" else ""
     head = (f'<link rel="canonical" href="{b}/{kind}{q}">\n'
-            f'<link rel="alternate" hreflang="ja" href="{b}/{kind}"><link rel="alternate" hreflang="en" href="{b}/{kind}?lang=en">')
+            f'<link rel="alternate" hreflang="ja" href="{b}/{kind}"><link rel="alternate" hreflang="en" href="{b}/{kind}?lang=en">\n'
+            + _card_meta(b, title, f"{b}/{kind}{q}"))
     meta = (f"{_updated_of(lang) if kind == 'updates' else UPDATED[lang]}・ "
             f"<a href=\"/{kind}{'?lang=' + other if other == 'en' else ''}\">{'English' if other == 'en' else '日本語'}</a>")
     js = _HOWTO_JS.format(nonce=nonce) if kind == "howto" else ""
@@ -979,14 +992,8 @@ def article_html(slug: str, base: str, app_url: str | None = None, lang: str = "
     lang = lang if lang in ("ja", "en") else "ja"
     b = base.rstrip("/")
     url = f"{b}/articles/{slug}"
-    # Xなどのリンクカード（2026-11-08）。文章のページにはog:/twitter:のメタが無く、コラムを投稿してもカードが出なかった。
-    # 画像はトップと同じ /og.png（記事ごとの画像は作らない）。題と説明は記事のもの
-    head = (f'<link rel="canonical" href="{url}">\n'
-            f'<meta property="og:type" content="article"><meta property="og:site_name" content="TRACKMENTO">'
-            f'<meta property="og:title" content="{html.escape(a["title"])}">'
-            f'<meta property="og:description" content="{html.escape(a["description"])}">'
-            f'<meta property="og:url" content="{url}"><meta property="og:image" content="{b}/og.png">'
-            f'<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="{b}/og.png">')
+    # Xなどのリンクカード。画像はトップと同じ /og.png（記事ごとの画像は作らない）。題と説明は記事のもの
+    head = f'<link rel="canonical" href="{url}">\n' + _card_meta(b, a["title"], url, a["description"], "article")
     meta = f'{_date_label(a["date"], "ja")}・Tobokegao・ <a href="/articles{"?lang=en" if lang == "en" else ""}">{html.escape(NAV[lang][3])}</a>'
     body = _JA_BREAK.sub("", a["body"])
     return _frame("ja", a["title"], a["description"], head, body, meta, base, app_url, "", nav_lang=lang)
