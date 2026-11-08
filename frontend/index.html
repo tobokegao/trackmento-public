@@ -2840,6 +2840,28 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "作業中に流す曲": "A song for working",
         "夜更かしのお供": "A song for staying up late",
         "何度も聴いた曲": "A song I played on repeat",
+        "初めて買った曲": "The first song I bought",
+        "カラオケの十八番": "My karaoke go-to",
+        "泣いた曲": "A song that made me cry",
+        "元気が出る曲": "A song that lifts me up",
+        "歌詞が刺さった曲": "A song whose lyrics hit home",
+        "朝に聴きたい曲": "A song for the morning",
+        "通勤・通学で聴く曲": "A song for my commute",
+        "ライブで聴きたい曲": "A song I want to hear live",
+        "懐かしい曲": "A nostalgic song",
+        "ジャケットが好きな曲": "A song with a cover I love",
+        "ひとりのときに聴く曲": "A song for being alone",
+        "家族が好きな曲": "A song my family loves",
+        "最近見つけた曲": "A song I found recently",
+        "結婚式で流したい曲": "A song for a wedding",
+        "踊りたくなる曲": "A song that makes me dance",
+        "歌えるようになりたい曲": "A song I want to learn to sing",
+        "失恋したときの曲": "A breakup song",
+        "冬に聴きたい曲": "A song for winter",
+        "誰にも教えたくない曲": "A song I keep to myself",
+        "いちばん長く聴いている曲": "The song I've loved the longest",
+        "今日の気分の曲": "A song for today's mood",
+        "最後に聴きたい曲": "The last song I want to hear",
         "中学": "Junior high",
         "高校": "High school",
         "大人": "Adult",
@@ -5048,7 +5070,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   }
   /* マスの見出しの入力欄。マスの数だけ並べる。**数が変わったときだけ作り直す**（打っている最中の欄を消さない）。
      欄の薄い字は例（固定の一覧ではない。マスごとに順に回す）。書き出しでは各マスの絵の下に出る（backend/render.pyのcell_labels） */
-  const capExamples = () => [tr("最初に好きになった曲"), tr("夏に聴きたい曲"), tr("30秒以下の曲"), tr("雨の日の曲"), tr("友だちに薦めたい曲"), tr("作業中に流す曲"), tr("夜更かしのお供"), tr("何度も聴いた曲")];
+  const capExamples = () => [tr("最初に好きになった曲"), tr("夏に聴きたい曲"), tr("30秒以下の曲"), tr("雨の日の曲"), tr("友だちに薦めたい曲"), tr("作業中に流す曲"), tr("夜更かしのお供"), tr("何度も聴いた曲"),
+    // 30 Track Challenge（横6 × 縦5＝30マス）で1マスずつ違う例が出るよう30個にそろえた（2026-11-08）。固定の一覧ではなく薄い字の例だけ
+    tr("初めて買った曲"), tr("カラオケの十八番"), tr("泣いた曲"), tr("元気が出る曲"), tr("歌詞が刺さった曲"), tr("朝に聴きたい曲"), tr("通勤・通学で聴く曲"), tr("ライブで聴きたい曲"),
+    tr("懐かしい曲"), tr("ジャケットが好きな曲"), tr("ひとりのときに聴く曲"), tr("家族が好きな曲"), tr("最近見つけた曲"), tr("結婚式で流したい曲"), tr("踊りたくなる曲"),
+    tr("歌えるようになりたい曲"), tr("失恋したときの曲"), tr("冬に聴きたい曲"), tr("誰にも教えたくない曲"), tr("いちばん長く聴いている曲"), tr("今日の気分の曲"), tr("最後に聴きたい曲")];
   function renderCellCaps() {
     const list = $("#cellcap-list"), n = state.cols * state.rows;
     if (list.children.length !== n) {
