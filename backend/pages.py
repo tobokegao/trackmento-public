@@ -470,6 +470,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-11-08", "コラムに「共感とお金、そして音楽との距離感」を足しました。",
+     "Added the article “Relatability, Money, and How Close I Keep Music” (in Japanese) to Articles."),
     ("2026-11-08", "「お題」の見本に「30 Track Challenge」を足しました。選ぶと題名が入り、横6 × 縦5（30マス）になります。",
      "Added “30 Track Challenge” to the “Theme” samples. Picking it fills in the title and sets the grid to 6 × 5 (30 cells)."),
     ("2026-11-07", "グリッドの上に「マスの見出し」を足しました。マスごとに20字まで書けて、書き出した画像ではマスの絵の下に出ます。「30のお題に1曲ずつ」のような並びが作れます。書いていないマスには何も出ません。",
