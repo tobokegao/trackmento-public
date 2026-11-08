@@ -1521,6 +1521,8 @@ output { font-variant-numeric: tabular-nums; }
 .fund-pct { font-family: var(--font-outlier); font-size: var(--text-sm); color: var(--color-ink); font-variant-numeric: tabular-nums; }
 .fund-bar { height: 14px; }
 .fund-note { font-size: var(--text-sm); color: var(--color-ink-2); }
+/* 棒が100%（その月のサーバー代をまかなえた）なら、おねがいの欄は見出しと棒とお礼だけに畳む（2026-11-08、利用者の希望）。月が変わって棒が戻れば元に戻る */
+.promo.done .promo-body > :not(.fund) { display: none; }
 .promo .elsewhere { font-size: var(--text-sm); color: var(--color-ink-2); }   /* 主役はBandcamp。ほかは従として小さく並べる */
 .spec { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }   /* 幅があれば横に並び、足りなければ折り返す */
 .spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; align-content: start; }   /* 各項目は8remを基準に、並んだ行の幅を均等に分け合う */
@@ -3089,6 +3091,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       el.querySelector(".fund-bar").setAttribute("aria-label", `${pct}%`);
       el.hidden = false;
     }
+    for (const el of document.querySelectorAll(".promo")) el.classList.toggle("done", got >= cost);   // 100%なら欄を畳む（CSSの .promo.done）
   }
   function reRenderForLang() {
     for (const fn of [() => renderSources(), () => renderSwatches(), () => currentResults.length && renderResults(currentResults),   /* 空のまま描き直すと「該当なし」に変わってしまう */
