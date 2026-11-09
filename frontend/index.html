@@ -1523,6 +1523,7 @@ output { font-variant-numeric: tabular-nums; }
 .fund-note { font-size: var(--text-sm); color: var(--color-ink-2); }
 /* 棒が100%（その月のサーバー代をまかなえた）なら、おねがいの欄は見出しと棒とお礼だけに畳む（2026-11-08、利用者の希望）。月が変わって棒が戻れば元に戻る */
 .promo.done .promo-body > :not(.fund) { display: none; }
+body:has(.promo.done) .foot-song { display: none; }   /* フッターの「おかねがたりないときのうた」も同じ。畳んだのに残っていた（利用者の指摘、11/9） */
 .promo .elsewhere { font-size: var(--text-sm); color: var(--color-ink-2); }   /* 主役はBandcamp。ほかは従として小さく並べる */
 .spec { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }   /* 幅があれば横に並び、足りなければ折り返す */
 .spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; align-content: start; }   /* 各項目は8remを基準に、並んだ行の幅を均等に分け合う */
@@ -2237,7 +2238,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 
 <footer>
   <span>TRACKMENTO</span>
-  <span>♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">おかねがたりないときのうた</a>（サーバー代のたすけ）</span>
+  <span class="foot-song">♪ <a href="https://tbkgao.bandcamp.com/album/okane-ga-tarinai-toki-no-uta?from=trackmento" target="_blank" rel="noopener noreferrer">おかねがたりないときのうた</a>（サーバー代のたすけ）</span>
   <span><a id="contact-link" href="https://forms.gle/2ktpQAXMjJrkFJFz8" target="_blank" rel="noopener noreferrer">お問い合わせフォーム</a></span>
   <!-- 文章のページ（使い方・プライバシーポリシー・運営者。backend/pages.py）。言語は ?lang= で合わせる（applyI18n） -->
   <span class="foot-pages"><a class="foot-page" data-page="guide" href="/guide">使い方</a> / <a class="foot-page" data-page="howto" href="/howto">使い方の動画</a> / <a class="foot-page" data-page="articles" href="/articles">コラム</a> / <a class="foot-page" data-page="privacy" href="/privacy">プライバシーポリシー</a> / <a class="foot-page" data-page="terms" href="/terms">利用規約</a> / <a class="foot-page" data-page="about" href="/about">運営者</a> / <a class="foot-page" data-page="updates" href="/updates">更新情報</a></span>
