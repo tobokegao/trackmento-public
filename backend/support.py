@@ -14,8 +14,8 @@
 
 MONTH = "2026-11"
 COST_JPY = 1101                    # 2026-11-01のmoney()（Starter $7.00 × 157.25、為替は10/30のECB、帯域は直近7日で超過なし）
-RECEIVED_JPY = 823                  # 151円（10/19のBandcampの売上。10月分だが、締めたあとに分かったので11月の棒に入れた。利用者の判断、11/2）＋230円（Bandcamp、11/8）＋442円（PayPal.me、11/8）
-SUPPORTERS = 3
+RECEIVED_JPY = 1072                 # 151円（10/19のBandcampの売上。10月分だが、締めたあとに分かったので11月の棒に入れた。利用者の判断、11/2）＋230円（Bandcamp、11/8）＋442円（PayPal.me、11/8）＋249円（PayPal.me、11/9）
+SUPPORTERS = 4
 
 
 def meta() -> str:
