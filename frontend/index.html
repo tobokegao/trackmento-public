@@ -1524,6 +1524,8 @@ output { font-variant-numeric: tabular-nums; }
 /* 棒が100%（その月のサーバー代をまかなえた）なら、おねがいの欄は見出しと棒とお礼だけに畳む（2026-11-08、利用者の希望）。月が変わって棒が戻れば元に戻る */
 .promo.done .promo-body > :not(.fund) { display: none; }
 body:has(.promo.done) .foot-song { display: none; }   /* フッターの「おかねがたりないときのうた」も同じ。畳んだのに残っていた（利用者の指摘、11/9） */
+/* 共有している間の作者の曲（.up-promo）と、共有したあとの欄の頼み文・Bandcamp・PayPalも同じ（11/9、利用者の希望）。お礼の1行と棒は残す */
+body:has(.promo.done) :is(.up-promo, .support .maker, .support .album, .support .album + span) { display: none; }
 .promo .elsewhere { font-size: var(--text-sm); color: var(--color-ink-2); }   /* 主役はBandcamp。ほかは従として小さく並べる */
 .spec { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); color: var(--color-ink-2); margin: 0; }   /* 幅があれば横に並び、足りなければ折り返す */
 .spec > div { display: grid; gap: var(--space-1); flex: 1 1 8rem; align-content: start; }   /* 各項目は8remを基準に、並んだ行の幅を均等に分け合う */
