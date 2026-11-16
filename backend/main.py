@@ -679,14 +679,6 @@ async def index(request: Request) -> HTMLResponse:
     return HTMLResponse(html, headers={"Cache-Control": "no-cache", "ETag": etag})   # no-cache = 毎回ETagで確認（更新をすぐ配る）
 
 
-@app.get("/ads.txt")
-async def ads_txt() -> Response:
-    """AdSenseに出す広告枠の販売許可（IABのads.txt）。ルート直下に置く決まり。
-    公開されることが前提のファイルなので、publisher IDを書いてよい。"""
-    body = "google.com, pub-6662407728160305, DIRECT, f08c47fec0942fa0\n"
-    return Response(body, media_type="text/plain", headers={"Cache-Control": "public, max-age=86400"})
-
-
 _ROBOTS_DISALLOW = ("/search", "/from-url", "/from-playlist", "/image-proxy", "/grids", "/shares",
                     "/uploads", "/outputs", "/health", "/render", "/upload", "/share")
 # 共有ページ（`/s/<id>`）を名指しの相手にだけ断る（2026-09-21）。ページ自体は前から `noindex` なので

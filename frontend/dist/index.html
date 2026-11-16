@@ -19,7 +19,6 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="__BASE__/">
 <meta name="google-site-verification" content="VG-FvcXDi78sn8uxDecEySYpVwS4dWZiDchZXCyj_ZA">
-<meta name="google-adsense-account" content="ca-pub-6662407728160305">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" href="favicon.png" sizes="64x64">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -36,7 +35,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.73c2ba70.css">
+<link rel="stylesheet" href="app/app.556d5a66.css">
 </head>
 <body>
 
@@ -672,12 +671,8 @@
   </div>
 </div>
 
-<!-- 広告枠。いまは作者の音楽の宣伝（見出しの札は「PR」）。AdSenseの審査が通ったら、この下にもう1つ同じ形のasideを置き、
-     .lblを「広告」、.promo-tagを「SPONSOR」にして、.promo-bodyの中身を
-     <div class="ad-frame"><div class="ad-slot">（広告のコード。固定の大きさのins）</div></div> にする（.ad-frameは立体の枠）。
-     **見出しに使える言葉は「広告」か「スポンサーリンク」だけ**（AdSenseの決まり）。
-     文言でクリックを促すとAdSenseのポリシー違反（アカウント停止）になるため、
-     差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。
+<!-- 広告枠。作者の音楽の宣伝（見出しの札は「PR」）。第三者の広告は載せない（2026-11-16に決めた。AdSenseはやめた）。
+     下の自前の広告（PayPal）の枠は .ad-frame（立体の枠）。
      88×31のボタンの絵は作者が描いた顔（25×25）にサイトの色（ink・cerulean・paper・mustard・mint）を塗り、外側の輪郭だけ整えて枠に入れたもの。data: URIで埋めてある（R2に置くほどの大きさではない） -->
 <aside class="promo" aria-label="サーバー代のおねがい">
   <div class="promo-head"><span class="lbl">サーバー代のおねがい</span><span class="promo-tag">PR</span></div>

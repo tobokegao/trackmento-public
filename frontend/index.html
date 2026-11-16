@@ -19,7 +19,6 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="__BASE__/">
 <meta name="google-site-verification" content="VG-FvcXDi78sn8uxDecEySYpVwS4dWZiDchZXCyj_ZA">
-<meta name="google-adsense-account" content="ca-pub-6662407728160305">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" href="favicon.png" sizes="64x64">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1470,11 +1469,11 @@ output { font-variant-numeric: tabular-nums; }
 /* 作者の顔（ボタンの絵88×31の左の四角27×27（2〜28ドット目）を2倍で切り抜く）と一人称の一言 */
 .maker { display: flex; align-items: center; gap: var(--space-2); }
 .maker-face { flex: none; width: 54px; height: 54px; background-size: 176px 62px; background-position: -4px -4px; image-rendering: pixelated; }
-/* 広告枠。いまは中身が自分の音楽（つなぎ）で、AdSenseの審査が通ったら中身とラベルを差し替える */
+/* 広告枠。中身は自分の音楽の宣伝。第三者の広告は載せない（2026-11-16に決めた。AdSenseはやめた） */
 /* bodyがflexなので、幅を絞るだけだと左に寄る。align-selfで中央に置く */
 /* 見た目は「本体から切り離した、隅の小箱」（2026-09-25）。灰色の平らな見出しの帯に、左は題名、右は小さな札。
    **警告に見せない**: 帯に縞を引かない（窓に見せない）・閉じるボタンを置かない・赤や黄を使わない・影を付けない
-   （AdSenseは広告をOSの画面や通知に見せかける配置を禁じている）。広告を入れたら題名は「広告」か「スポンサーリンク」だけ */
+   （広告をOSの画面や通知に見せかける配置は、見た目としても避ける） */
 .promo { width: min(960px, 100%); align-self: center; margin-top: var(--space-4); border: var(--line) solid var(--color-ink); background: var(--color-paper); display: grid; }
 .promo-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 28px; padding: 0 var(--space-2); background: var(--color-bar); border-bottom: var(--line) solid var(--color-ink); }
 .promo-tag { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); border: 1px solid var(--color-rule); padding: 0 var(--space-1); background: var(--color-paper); }
@@ -1489,7 +1488,7 @@ output { font-variant-numeric: tabular-nums; }
   position: relative; top: -0.08em; background: var(--color-ink);
   -webkit-mask: var(--arrow-left) 0 0 / 100% 100% no-repeat; mask: var(--arrow-left) 0 0 / 100% 100% no-repeat; }
 .promo-row.stacked .point-left { transform: rotate(90deg); }   /* 文がボタンの下に回り込んだら上を指す（JSが .stackedを付ける） */
-/* 広告が入る場所。PCは468×60、スマホは320×100（どちらもAdSenseの固定の大きさ） */
+/* 広告が入る場所。PCは468×60、スマホは320×100（枠は中身の大きさに縮むので、固定の大きさにする） */
 .ad-slot { width: 468px; height: 60px; max-width: 100%; margin-inline: auto; background: var(--color-paper-2); display: grid; place-items: center; font-size: var(--text-sm); color: var(--color-muted); }
 @media not all and (min-width: 60rem) { .ad-slot { width: 320px; height: 100px; } }
 /* 広告を囲む立体の枠（2026-09-27、利用者の希望）。見本はteacup「掲示板自動作成システム」（1998）の下の広告で、
@@ -1507,8 +1506,6 @@ output { font-variant-numeric: tabular-nums; }
 .ad-slot img { width: 100%; height: 100%; image-rendering: pixelated; }
 /* PayPalの広告（468×60のGIF 1枚）。スマホでも同じ絵を幅に合わせて縮める（.ad-slotの320×100は使わない） */
 .promo-banner > .ad-slot { width: min(468px, calc(100vw - 48px)); height: auto; aspect-ratio: 468 / 60; }   /* 自前の広告の絵（PayPal）。1倍の絵を画素密度の端数でにじませない */
-/* 広告が来なかったとき（AdSenseがinsにdata-ad-status="unfilled" を付ける）は欄ごと隠す。空の枠と見出しだけ残さない */
-.promo:has(ins.adsbygoogle[data-ad-status="unfilled"]) { display: none; }
 .promo .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .promo p { margin: 0; font-size: var(--text-sm); color: var(--color-ink-2); }
 .promo .album { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
@@ -2206,12 +2203,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   </div>
 </div>
 
-<!-- 広告枠。いまは作者の音楽の宣伝（見出しの札は「PR」）。AdSenseの審査が通ったら、この下にもう1つ同じ形のasideを置き、
-     .lblを「広告」、.promo-tagを「SPONSOR」にして、.promo-bodyの中身を
-     <div class="ad-frame"><div class="ad-slot">（広告のコード。固定の大きさのins）</div></div> にする（.ad-frameは立体の枠）。
-     **見出しに使える言葉は「広告」か「スポンサーリンク」だけ**（AdSenseの決まり）。
-     文言でクリックを促すとAdSenseのポリシー違反（アカウント停止）になるため、
-     差し替えるときも「見てください」「支援のために」のような書き方にはしないこと。
+<!-- 広告枠。作者の音楽の宣伝（見出しの札は「PR」）。第三者の広告は載せない（2026-11-16に決めた。AdSenseはやめた）。
+     下の自前の広告（PayPal）の枠は .ad-frame（立体の枠）。
      88×31のボタンの絵は作者が描いた顔（25×25）にサイトの色（ink・cerulean・paper・mustard・mint）を塗り、外側の輪郭だけ整えて枠に入れたもの。data: URIで埋めてある（R2に置くほどの大きさではない） -->
 <aside class="promo" aria-label="サーバー代のおねがい">
   <div class="promo-head"><span class="lbl">サーバー代のおねがい</span><span class="promo-tag">PR</span></div>

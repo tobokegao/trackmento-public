@@ -27,7 +27,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年11月8日", "en": "Last updated: November 8, 2026"}
+UPDATED = {"ja": "最終更新: 2026年11月16日", "en": "Last updated: November 16, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Googleフォーム。2026-09-19）
 
@@ -207,11 +207,7 @@ each platform's privacy policy.</p>
 
 <h2>4. Cookies and advertising</h2>
 <p>The Site itself does not use its own cookies (settings are saved in your browser's local storage).</p>
-<p>The Site uses (or plans to use) Google AdSense, a third-party advertising service. Third-party vendors, including Google, use
-cookies to serve ads based on a user's prior visits to this website or other websites.</p>
-<p>You can opt out of personalized advertising in Google's <a href="https://www.google.com/settings/ads" rel="noopener">Ads Settings</a>.
-You can also opt out of third-party vendors' use of cookies by visiting <a href="https://www.aboutads.info/" rel="noopener">www.aboutads.info</a>.
-For details, please see <a href="https://policies.google.com/technologies/ads" rel="noopener">Google's Privacy &amp; Terms</a>.</p>
+<p>The Site does not use third-party advertising services. The ad area on the page (labeled "PR") only promotes the operator's own music releases.</p>
 
 <h2>5. Requests to delete data</h2>
 <p>You can reset your working data at any time by using “Remove all tracks” in the editor or by deleting (clearing) this site's data in
@@ -242,8 +238,7 @@ The latest version is always published on this page.</p>
 
 <h2>4. Cookieおよび広告配信について</h2>
 <p>当サイト本体は独自のCookieを使用していません（設定データはブラウザのローカルストレージに保存されます）。</p>
-<p>当サイトでは、第三者配信の広告サービス「Google AdSense」を利用（または利用を予定）しています。Googleなどの第三者配信事業者は、Cookieを使用し、ユーザーが当サイトや他のウェブサイトに過去にアクセスした際の情報に基づいて広告を配信します。</p>
-<p>ユーザーは、Googleの<a href="https://www.google.com/settings/ads" rel="noopener">広告設定</a>からパーソナライズ広告を無効にできます。また、<a href="https://www.aboutads.info/" rel="noopener">www.aboutads.info</a>にアクセスすることで、第三者配信事業者のCookie使用を無効化できます。詳細につきましては、<a href="https://policies.google.com/technologies/ads?hl=ja" rel="noopener">Googleポリシーと規約</a>をご確認ください。</p>
+<p>当サイトは、第三者配信の広告サービスを利用していません。画面の広告欄（「PR」と書いてある欄）は、運営者自身の音楽リリースの宣伝です。</p>
 
 <h2>5. データの削除依頼</h2>
 <p>作業中のデータは、編集画面の「トラックを全て外す」を押すか、ブラウザのサイトデータを削除（クリア）することでいつでも初期化できます。共有済みのデータは{days}日後に自動消去されますが、期限前の早期削除をご希望の場合は、該当の共有URLを明記のうえ、<a href="{CONTACT_FORM}" rel="noopener noreferrer" target="_blank">お問い合わせフォーム</a>からご連絡ください。</p>
@@ -470,6 +465,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-11-16", "プライバシーポリシーの広告の項目を書き直しました。第三者の広告サービスは使っておらず、画面の広告欄は運営者自身の音楽の宣伝だけです。",
+     "Rewrote the advertising section of the privacy policy. The site does not use third-party advertising services; the ad area only promotes the operator's own music."),
     ("2026-11-08", "コラムや使い方など、文章のページのURLをXなどに貼ったときに、リンクのカード（題名と画像。コラムは説明つき）が出るようにしました。すでに貼ったことのあるURLは、Xの側に覚えられていて、しばらく出ないことがあります。",
      "Links to the article and info pages (the guide, privacy policy and so on) now show a link card (title and image; articles also show a description) when pasted into X and similar services. A URL you have already pasted before may not show the card for a while, because X remembers it."),
     ("2026-11-08", "コラムに「共感とお金、そして音楽との距離感」を足しました。",

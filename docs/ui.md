@@ -809,7 +809,7 @@ Inside Macintosh / Mac OS 8のHIGと突き合わせて直した。
 
 ## 広告を囲む立体の枠（2026-09-27）
 
-AdSenseが通ったときの広告を囲む枠（`.ad-frame`）。利用者の希望で、古のインターネット（@memoriesofhp）が紹介していた
+広告を囲む枠（`.ad-frame`）。もとはAdSenseが通ったときのための枠だったが、**2026-11-16にAdSenseはやめた**（第三者の広告は載せない。いま枠に入っているのは自前のPayPalの広告だけ）。利用者の希望で、古のインターネット（@memoriesofhp）が紹介していた
 teacup「掲示板自動作成システム」（1998、https://web.archive.org/web/19980113074018/http://www.tcup.com/bbs/ ）の下の広告の枠を写した。
 
 - 元は画像ではなく `<table border="5">` をブラウザが描いた枠。画素で実測すると、外に5ドットの出っぱり（左上168・右下84のグレー）、
@@ -818,8 +818,8 @@ teacup「掲示板自動作成システム」（1998、https://web.archive.org/w
   暗い地では `--color-hl` / `--color-bar-dark`（面取りの並びに合わせる。右下の暗い辺は暗い地にほぼ沈むが、OS 9の暗い組の面取りと同じ扱い）
 - 枠は中身の大きさに縮む（`width: fit-content`）ので、**広告は固定の大きさ（PC 468×60・スマホ320×100）にする**。レスポンシブ広告だと枠が行いっぱいに伸びる
 - 外寸は中身 ＋18px（片側9px）。スマホの320×100で338pxになり、幅360px未満の端末でははみ出す
-- 広告が来なかったとき（`ins.adsbygoogle[data-ad-status="unfilled"]`）は欄（`.promo`）ごと隠す
-- 置き方は `index.html` の広告欄の注記。AdSenseの広告はまだ無い
+- （2026-11-16に削除）広告が来なかったとき欄ごと隠す規則（`ins.adsbygoogle[data-ad-status="unfilled"]`）は、AdSenseをやめたので消した
+- 置き方は `index.html` の広告欄の注記
 - **いま枠に入っているのは自前のPayPalの広告**（2026-09-27、利用者の希望）。「サーバー代のおねがい」の欄の下に置き、
   それまでの「音楽を買わずに支援する: PayPal」の1行と入れ替えた。**468×60のGIF 1枚**で、スマホも同じ絵を幅に合わせて縮めて出す
   （`.promo-banner > .ad-slot`。`.ad-slot` の320×100は使わない）。「視差効果を減らす」の人には動かない1コマ目のPNG（`<picture>` の `prefers-reduced-motion`）

@@ -83,11 +83,17 @@
     「リバースエンジニアリングの禁止」（ソースは公開リポジトリ）。同じ日にSearch Consoleの索引を見て、
     文章のページ9件（日英）が登録済み・除外は共有ページのnoindexなど意図どおりだったので、索引は落ちた理由ではない。
     AdSenseはYouTube用に申請した（今は失効）のと同じGoogleアカウントで、管理画面のIDはサイトの `pub-6662407728160305` と一致（重複ではない）
-- ads.txtとmetaタグは本番で配信済み・IDも一致、設定側の問題は無い
+- ads.txtとmetaタグは本番で配信済み・IDも一致、設定側の問題は無い（**2026-11-16にどちらも外した**。下の「AdSenseをやめた」）
   - **承認後、自動広告をオンにするだけでは広告は出ない**。TRACKMENTOはnonceベースのCSPで固めているので、
     `script-src` に `pagead2.googlesyndication.com`、`frame-src` に `googleads.g.doubleclick.net`、
     `img-src` / `connect-src` にも追加が要る（`backend/main.py` のCSPヘッダ）
   - そもそも広告を出すかは未決。Bandcampのカンパ導線を置いた直後なので、承認が下りてから相談する
+- **AdSenseをやめた**（2026-11-16、利用者の決定）。載せる広告は自分の曲（と自前のPayPalの絵）だけで、第三者の広告網は入れない。
+  再申請もしない。消したもの: `/ads.txt`（`backend/main.py`）、`index.html` の `google-adsense-account` のmeta、
+  `ins.adsbygoogle` の「広告が来なかったら隠す」規則、広告欄の「AdSenseが通ったら差し替える」注記。
+  プライバシーポリシー（`/privacy` の「Cookieおよび広告配信について」）は「第三者配信の広告サービスを利用していません。広告欄は運営者自身の音楽の宣伝」に書き直した。
+  ロゴ依頼文の「AdSenseを載せる可能性」も外した。残したもの: `.ad-frame`（いま自前のPayPal広告を囲んでいる）、
+  上の不承認の経緯とコラム（`/articles`）・利用規約（文章のページとして有用）。**CSPにAdSense用の許可は足していない**ので、戻す場合は上の手順が要る
 - **動画制作**（Remotion予定）。要点は `video-notes.md`、素材と手順は `promo/`
   - **`grids/default.json` は動画（`promo/public/final.png`）と同じ状態に揃えてある**（9曲・3x3・
     タイトル「私を構成する9選」）。`grids/*.bak` は古い状態なので、そこから戻すと逆戻りする
