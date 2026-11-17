@@ -514,9 +514,12 @@ main {{ max-width: 56rem; margin: 0 auto; padding: 16px; display: grid; gap: 16p
 h1 {{ font-weight: 700; font-size: 1.25rem; margin: 0; }}
 img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b; }}
 .btns {{ display: flex; flex-wrap: wrap; gap: 8px; }}
-.btn {{ display: inline-flex; align-items: center; min-height: 44px; padding: 4px 16px; border: 2px solid #12171b; background: #f6f5f3; color: #12171b;
-  font-weight: 700; text-decoration: none; box-shadow: 2px 2px 0 #12171b; }}
-.btn.primary {{ background: #12171b; color: #f6f5f3; }}
+/* ボタンと窓の厚みは面取りで出す（2026-11-17。画面のfrontend/index.htmlと同じ作り。それまでは黒2pxの枠に黒い影を右下へずらしていた）。
+   色は下の .own-rmと同じ: 地 #dddcd8、左上に白、右下に #8b8f93。押している間は明るさを逆にする */
+.btn {{ display: inline-flex; align-items: center; min-height: 44px; padding: 5px 17px; border: 1px solid #12171b; background: #dddcd8; color: #12171b;
+  font-weight: 700; text-decoration: none; box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #8b8f93, inset -2px -2px 0 #c2c4c6; }}
+.btn:active {{ background: #c2c4c6; box-shadow: inset 1px 1px 0 #8b8f93, inset -1px -1px 0 #eeeef0; }}
+.btn.primary, .btn.primary:active {{ background: #12171b; color: #f6f5f3; box-shadow: none; }}
 /* 自分の共有を外す・消す（2026-09-26）。鍵を持つ端末にだけ出る。buttonはaと同じ見た目に */
 button.btn {{ font: inherit; font-weight: 700; cursor: pointer; }}
 button.btn:disabled {{ opacity: .5; cursor: default; }}
@@ -540,7 +543,8 @@ button.btn:disabled {{ opacity: .5; cursor: default; }}
 /* 確認の窓。画面（frontend/index.html）の #confirm-modalと同じ作り */
 .odlg {{ position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; }}
 .odlg-bg {{ position: absolute; inset: 0; background: color-mix(in oklab, #12171b 45%, transparent); }}
-.odlg-panel {{ position: relative; width: min(100%, 26rem); border: 2px solid #12171b; background: #f6f5f3; box-shadow: 4px 4px 0 #12171b; }}
+.odlg-panel {{ position: relative; width: min(100%, 26rem); border: 1px solid #12171b; padding: 4px; background: #f6f5f3;
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #8b8f93, inset 0 0 0 3px #dddcd8, inset 0 0 0 4px #12171b, 1px 1px 0 #12171b; }}   /* 枠は外から、黒1・面取り1・グレー2・黒1。影は右下の1pxだけ */
 .odlg-head {{ padding: 8px 12px; background: #12171b; }}
 .odlg-head h2 {{ margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: .04em; color: #f6f5f3; }}
 .odlg-body {{ display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: start; padding: 12px; }}
@@ -550,7 +554,7 @@ button.btn:disabled {{ opacity: .5; cursor: default; }}
 .odlg-body .caution .c-edge, .odlg-body .caution .c-mark {{ fill: #12171b; }}
 .odlg-btns {{ grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; }}
 /* 既定のボタン（やめる）は二重の枠（HIGの決まり） */
-.odlg-default {{ box-shadow: 0 0 0 2px #f6f5f3, 0 0 0 5px #12171b; margin: 4px; }}
+.odlg-default, .odlg-default:active {{ box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #8b8f93, 0 0 0 1px #f6f5f3, 0 0 0 4px #12171b; margin: 4px; }}
 .own-rm:disabled {{ opacity: .5; cursor: default; }}
 li.own-gone .t a {{ text-decoration: line-through; opacity: .5; }}
 /* 外したあとの印は、曲名リストから離した黒地の小さな札（灰色の字のままだと曲名リストと見分けにくかった。2026-09-26、利用者の指摘） */
@@ -585,7 +589,7 @@ p.note {{ margin: 0; padding: 12px 16px; border: 2px solid #12171b; background: 
 .pv-cell {{ position: absolute; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent; }}
 .pv-cell:hover, .pv-cell:focus-visible {{ outline: none; box-shadow: inset 0 0 0 2px #12171b, inset 0 0 0 4px #f6f5f3; }}
 .pv-cell.on {{ box-shadow: inset 0 0 0 3px #12171b, inset 0 0 0 6px #f6f5f3, inset 0 0 0 7px #12171b; }}
-.pv {{ display: grid; gap: 8px; padding: 12px; border: 2px solid #12171b; background: #fff; box-shadow: 2px 2px 0 #12171b; }}
+.pv {{ display: grid; gap: 8px; padding: 12px; border: 1px solid #12171b; background: #fff; box-shadow: 1px 1px 0 #12171b; }}
 .pv[hidden] {{ display: none; }}
 .pv p {{ margin: 0; overflow-wrap: anywhere; }}
 .pv-tag {{ display: inline-block; margin-right: 8px; padding: 0 6px; font-size: .8rem; font-weight: 700; line-height: 1.6;
