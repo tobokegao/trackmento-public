@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.a9796c5f.css">
+<link rel="stylesheet" href="app/app.3ec56c15.css">
 </head>
 <body>
 
@@ -547,7 +547,7 @@
 <div class="modal" id="pl-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pl-modal-title">
   <div class="sheet-backdrop" id="pl-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="pl-modal-title">まとめて取れました</h2><button class="btn" type="button" id="pl-cancel">やめる</button></div>
+    <div class="sheet-head"><h2 id="pl-modal-title">まとめて取れました</h2></div>
     <div class="modal-body note">
       <p id="pl-summary"></p>
       <div class="pl-choices">
@@ -556,6 +556,7 @@
       </div>
       <p id="pl-hint" class="msg"></p>
     </div>
+    <div class="modal-foot"><button class="btn" type="button" id="pl-cancel">やめる</button></div>
   </div>
 </div>
 
@@ -564,11 +565,12 @@
 <div class="modal" id="preview-modal" hidden role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
   <div class="sheet-backdrop" id="preview-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="preview-modal-title">できあがりの見本</h2><button class="btn" type="button" id="preview-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="preview-modal-title">できあがりの見本</h2></div>
     <div class="modal-body">
       <p class="msg" id="preview-msg" role="status" aria-live="polite"></p>
       <img id="preview-img" alt="書き出す画像の見本" hidden>
     </div>
+    <div class="modal-foot"><button class="btn btn-default" type="button" id="preview-modal-close">閉じる</button></div>
   </div>
 </div>
 <div class="popmenu" id="popmenu" hidden role="dialog" aria-modal="true" aria-labelledby="popmenu-title">
@@ -581,7 +583,7 @@
 <div class="modal" id="src-modal" hidden role="dialog" aria-modal="true" aria-labelledby="src-modal-title">
   <div class="sheet-backdrop" id="src-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2><button class="btn" type="button" id="src-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2></div>
     <div class="modal-body note">
           <p><b>iTunes</b>: トラック名に検索した言葉を含み、アーティスト名に検索したアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。</p>
           <p><b>MusicBrainz</b>: 画像はCover Art Archiveに登録された盤だけ。1秒1回の制限があり少し遅いです。</p>
@@ -593,13 +595,14 @@
           <p><b>トラック名の一覧から</b>: 表にアーティスト名とトラック名を1行ずつ入れると、iTunesで1行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excelなどの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
           <p><b>保存されるもの</b>: 検索語と取得したサムネイル画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URLを知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムなIDを使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
+    <div class="modal-foot"><button class="btn btn-default" type="button" id="src-modal-close">閉じる</button></div>
   </div>
 </div>
 
 <div class="modal" id="up-modal" hidden role="dialog" aria-modal="true" aria-labelledby="up-modal-title">
   <div class="sheet-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="up-modal-title">画像を送っています</h2><button class="btn" type="button" id="up-cancel">やめる</button></div>
+    <div class="sheet-head"><h2 id="up-modal-title">画像を送っています</h2></div>
     <div class="modal-body note">
       <div class="up-bar"><div class="up-fill" id="up-fill"></div></div>
       <p class="up-pct" id="up-pct">0%</p>
@@ -609,14 +612,16 @@
         <p id="up-track"></p>
       </aside>
     </div>
+    <div class="modal-foot"><button class="btn" type="button" id="up-cancel">やめる</button></div>
   </div>
 </div>
 
 <div class="modal modal-wide" id="zoom-modal" hidden role="dialog" aria-modal="true" aria-labelledby="zoom-modal-title">
   <div class="sheet-backdrop" id="zoom-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="zoom-modal-title">グリッドを大きく見る</h2><button class="btn" type="button" id="zoom-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="zoom-modal-title">グリッドを大きく見る</h2></div>
     <div class="zoom-slot" id="zoom-slot"></div>
+    <div class="modal-foot"><button class="btn btn-default" type="button" id="zoom-modal-close">閉じる</button></div>
   </div>
 </div>
 
@@ -641,7 +646,7 @@
 <div class="modal" id="pal-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pal-modal-title">
   <div class="sheet-backdrop" id="pal-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="pal-modal-title">パレット</h2><button class="btn" type="button" id="pal-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="pal-modal-title">パレット</h2></div>
     <div class="modal-body note">
       <p>背景色に並ぶ8色と、画面の配色をまとめて切り替えます。</p>
       <div class="pal-lanes" id="pal-lanes"></div>
@@ -669,6 +674,7 @@
         <p class="msg" id="pal-msg"></p>
       </div>
     </div>
+    <div class="modal-foot"><button class="btn btn-default" type="button" id="pal-modal-close">閉じる</button></div>
   </div>
 </div>
 

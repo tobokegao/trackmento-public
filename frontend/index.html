@@ -786,8 +786,13 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: var(--space-4); }
 .modal[hidden] { display: none; }
 /* 枠は窓（.pane）と同じ作り。題名は黒い帯（.sheet-head）なので、「中身を囲む黒」は四辺とも見せる */
-.modal-panel { position: relative; width: min(100%, 40rem); max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--edge) solid var(--color-ink); padding: var(--win-pad); background: var(--color-face); box-shadow: var(--win-frame), var(--shadow); }
+.modal-panel { position: relative; width: min(100%, 40rem); max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border: var(--edge) solid var(--color-ink); padding: var(--win-pad); background: var(--color-face); box-shadow: var(--win-frame), var(--shadow); }
 .modal-body { overflow-y: auto; }
+/* **窓を閉じるボタンは中身の右下**（2026-11-18、利用者が見比べて決めた。HIGの図HIG_CG-084.gif・HIG_CG-087.gif）。
+   題名バーには縞と題名だけを置く。それまでは「閉じる」を題名バーの右端に置いていた。
+   中身が長くてもボタンの行は下に留まる（スクロールするのは .modal-bodyだけ）。「閉じる」1つのときは既定のボタン（輪つき）。
+   **検索の引き出し（#sheet）だけは題名バーの右に残す**: 中身が長く、閉じることが多いので、上にあるほうが届きやすい */
+.modal-foot { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 10px 12px 12px; }
 /* グリッドを大きく見る窓。**画面いっぱいに広げる**（16x16だと欄の中では1マス26pxしかない） */
 /* **行の高さを画面に固定する**（`minmax(0, 1fr)`）。既定のautoだと、中の並びが縦に長いとき（1x32で4,874px）
    窓の中身の高さで行が決まり、`place-items: center` がその行の真ん中に窓を置くので、窓ごと画面の外
@@ -1335,11 +1340,25 @@ body.sheet-open { overflow: hidden; }
 }
 /* 送信中の窓。**上りが細いと80秒かかる**ことがあり、何も出ていないと「固まった」と思って
    押し直される。押し直されると同じ1MBがもう一度流れるので、進み具合を見せる意味がある */
-/* 棒は入力欄と同じへこみ（2026-11-18）: 白い溝を黒1pxで囲み、外の上と左に濃いグレー、下と右に白。それまでは黒2pxの枠 */
-.up-bar { height: 18px; border: var(--edge) solid var(--color-ink); background: var(--color-paper);
+/* **進み具合の棒は本物のプログレスバーの作り**（2026-11-18。Mac OS 8のHIGの図HIG_CG-062.gifの画素を読んで写した）。
+   黒1pxの枠、その外の上と左に濃いグレー・下と右に白のへこみ。中は10段（高さ10px）:
+   - 残りの溝: いちばん上の1段が影（濃いグレー）、あとは中間のグレー、いちばん下の1段だけ明るい
+   - 塗り: **上下が濃く、真ん中が明るい筒**。上から「濃い・やや濃い・地の色・淡い・ほぼ白・淡い・地の色・やや濃い・濃い・いちばん濃い」
+   本物は青紫。ここはサイトのマスタードを地の色にして、同じ明暗の並びを作る（暗い側は --color-on-light、明るい側は --color-on-darkを混ぜる。
+   どちらも配色の組が変わっても暗い色・明るい色のまま）。
+   **「グラデーションの背景は足さない」の決まりには当たらない**: 段ごとに1色の、10本の横線の絵（ハードストップ）。ぼかして繋げない */
+.up-bar { height: 12px; border: var(--edge) solid var(--color-ink);
+  background: linear-gradient(to bottom, var(--color-bar-dark) 0 10%, var(--color-bevel) 10% 90%, var(--color-bar) 90% 100%);
   box-shadow: -1px -1px 0 var(--color-bar-dark), 1px 1px 0 var(--color-hl); overflow: hidden; }
-.up-fill { height: 100%; width: 0; background: var(--color-mustard);
-  border-right: var(--edge) solid var(--color-ink); transition: width .2s linear; }
+.up-fill { height: 100%; width: 0; transition: width .2s linear; border-right: var(--edge) solid var(--color-ink);
+  --pf-1: color-mix(in oklab, var(--color-mustard) 55%, var(--color-on-light));
+  --pf-2: color-mix(in oklab, var(--color-mustard) 78%, var(--color-on-light));
+  --pf-3: var(--color-mustard);
+  --pf-4: color-mix(in oklab, var(--color-mustard) 55%, var(--color-on-dark));
+  --pf-5: color-mix(in oklab, var(--color-mustard) 18%, var(--color-on-dark));
+  --pf-6: color-mix(in oklab, var(--color-mustard) 38%, var(--color-on-light));
+  background: linear-gradient(to bottom, var(--pf-1) 0 10%, var(--pf-2) 10% 20%, var(--pf-3) 20% 30%, var(--pf-4) 30% 40%, var(--pf-5) 40% 50%,
+    var(--pf-4) 50% 60%, var(--pf-3) 60% 70%, var(--pf-2) 70% 80%, var(--pf-1) 80% 90%, var(--pf-6) 90% 100%); }
 .up-fill[data-done="1"] { border-right: none; }
 .up-pct { font-family: var(--font-outlier); font-size: var(--text-sm); margin: var(--space-1) 0 0;
   font-variant-numeric: tabular-nums; }
@@ -1516,7 +1535,8 @@ output { font-variant-numeric: tabular-nums; }
    **上の「窓に見せない」決まりはそのまま**: 見出しに縞を引かない・畳む箱を置かない・落ちる影を付けない */
 .promo { width: min(960px, 100%); align-self: center; margin-top: var(--space-4); border: var(--edge) solid var(--color-ink); padding: var(--win-pad); background: var(--color-face); box-shadow: var(--win-frame); display: grid; }
 .promo-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 28px; padding: 0 var(--space-2); border-bottom: 1px solid var(--color-bar-dark); box-shadow: 0 1px 0 var(--color-hl); }
-.promo-tag { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); border: 1px solid var(--color-rule); padding: 0 var(--space-1); background: var(--color-paper); }
+/* 「PR」の札はプラカードの作り（HIGのPlacards。グレーの地のまま、濃いグレーの枠の内側の左上に白）。白い箱にしていたときは、グレーの地の上でそこだけ浮いた（2026-11-18、利用者の指摘） */
+.promo-tag { font-family: var(--font-outlier); font-size: var(--text-xs); color: var(--color-muted); border: 1px solid var(--color-bar-dark); box-shadow: inset 1px 1px 0 var(--color-hl); padding: 0 var(--space-1); }
 .promo-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); }
 .promo-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }   /* ボタンの右に曲のリンク2行。幅が足りなければ下に回り込む */
 .promo-text { display: grid; gap: var(--space-2); min-width: 0; }
@@ -1556,7 +1576,6 @@ output { font-variant-numeric: tabular-nums; }
 .fund-head { display: flex; justify-content: space-between; gap: var(--space-2); }
 .fund-lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink); }
 .fund-pct { font-family: var(--font-outlier); font-size: var(--text-sm); color: var(--color-ink); font-variant-numeric: tabular-nums; }
-.fund-bar { height: 14px; }
 .fund-note { font-size: var(--text-sm); color: var(--color-ink-2); }
 /* 棒が100%（その月のサーバー代をまかなえた）なら、おねがいの欄は見出しと棒とお礼だけに畳む（2026-11-08、利用者の希望）。月が変わって棒が戻れば元に戻る */
 .promo.done .promo-body > :not(.fund) { display: none; }
@@ -2119,7 +2138,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 <div class="modal" id="pl-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pl-modal-title">
   <div class="sheet-backdrop" id="pl-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="pl-modal-title">まとめて取れました</h2><button class="btn" type="button" id="pl-cancel">やめる</button></div>
+    <div class="sheet-head"><h2 id="pl-modal-title">まとめて取れました</h2></div>
     <div class="modal-body note">
       <p id="pl-summary"></p>
       <div class="pl-choices">
@@ -2128,6 +2147,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       </div>
       <p id="pl-hint" class="msg"></p>
     </div>
+    <div class="modal-foot"><button class="btn" type="button" id="pl-cancel">やめる</button></div>
   </div>
 </div>
 
@@ -2136,11 +2156,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 <div class="modal" id="preview-modal" hidden role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
   <div class="sheet-backdrop" id="preview-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="preview-modal-title">できあがりの見本</h2><button class="btn" type="button" id="preview-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="preview-modal-title">できあがりの見本</h2></div>
     <div class="modal-body">
       <p class="msg" id="preview-msg" role="status" aria-live="polite"></p>
       <img id="preview-img" alt="書き出す画像の見本" hidden>
     </div>
+    <div class="modal-foot"><button class="btn btn-default" type="button" id="preview-modal-close">閉じる</button></div>
   </div>
 </div>
 <div class="popmenu" id="popmenu" hidden role="dialog" aria-modal="true" aria-labelledby="popmenu-title">
@@ -2153,7 +2174,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 <div class="modal" id="src-modal" hidden role="dialog" aria-modal="true" aria-labelledby="src-modal-title">
   <div class="sheet-backdrop" id="src-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2><button class="btn" type="button" id="src-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="src-modal-title">ソースについて</h2></div>
     <div class="modal-body note">
           <p><b>iTunes</b>: トラック名に検索した言葉を含み、アーティスト名に検索したアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。</p>
           <p><b>MusicBrainz</b>: 画像はCover Art Archiveに登録された盤だけ。1秒1回の制限があり少し遅いです。</p>
@@ -2165,13 +2186,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <p><b>トラック名の一覧から</b>: 表にアーティスト名とトラック名を1行ずつ入れると、iTunesで1行ずつ探します。名前がぴったり合ったものだけ空きマスに入り、ほかはいちばん近いトラックが候補に並びます。Excelなどの表や、「トラック名をコピー」で書き出した一覧も貼れます。</p>
           <p><b>保存されるもの</b>: 検索語と取得したサムネイル画像はサーバーに一時的に保存されます（誰が検索したかは記録しません）。「端末から画像を選択」で送った画像は、撮影日時・位置情報などを取り除いてから保存し、「トラックを共有」で作った画像とトラックリストは、URLを知っている人なら誰でも見られます（__RETENTION__ 日で消えます）。並びの保存にはブラウザごとのランダムなIDを使い、それを共有する並びのデータに載せることはありません。</p>
     </div>
+    <div class="modal-foot"><button class="btn btn-default" type="button" id="src-modal-close">閉じる</button></div>
   </div>
 </div>
 
 <div class="modal" id="up-modal" hidden role="dialog" aria-modal="true" aria-labelledby="up-modal-title">
   <div class="sheet-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="up-modal-title">画像を送っています</h2><button class="btn" type="button" id="up-cancel">やめる</button></div>
+    <div class="sheet-head"><h2 id="up-modal-title">画像を送っています</h2></div>
     <div class="modal-body note">
       <div class="up-bar"><div class="up-fill" id="up-fill"></div></div>
       <p class="up-pct" id="up-pct">0%</p>
@@ -2181,14 +2203,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <p id="up-track"></p>
       </aside>
     </div>
+    <div class="modal-foot"><button class="btn" type="button" id="up-cancel">やめる</button></div>
   </div>
 </div>
 
 <div class="modal modal-wide" id="zoom-modal" hidden role="dialog" aria-modal="true" aria-labelledby="zoom-modal-title">
   <div class="sheet-backdrop" id="zoom-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="zoom-modal-title">グリッドを大きく見る</h2><button class="btn" type="button" id="zoom-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="zoom-modal-title">グリッドを大きく見る</h2></div>
     <div class="zoom-slot" id="zoom-slot"></div>
+    <div class="modal-foot"><button class="btn btn-default" type="button" id="zoom-modal-close">閉じる</button></div>
   </div>
 </div>
 
@@ -2213,7 +2237,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
 <div class="modal" id="pal-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pal-modal-title">
   <div class="sheet-backdrop" id="pal-modal-backdrop"></div>
   <div class="modal-panel">
-    <div class="sheet-head"><h2 id="pal-modal-title">パレット</h2><button class="btn" type="button" id="pal-modal-close">閉じる</button></div>
+    <div class="sheet-head"><h2 id="pal-modal-title">パレット</h2></div>
     <div class="modal-body note">
       <p>背景色に並ぶ8色と、画面の配色をまとめて切り替えます。</p>
       <div class="pal-lanes" id="pal-lanes"></div>
@@ -2241,6 +2265,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <p class="msg" id="pal-msg"></p>
       </div>
     </div>
+    <div class="modal-foot"><button class="btn btn-default" type="button" id="pal-modal-close">閉じる</button></div>
   </div>
 </div>
 
