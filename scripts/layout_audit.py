@@ -24,7 +24,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / ".env")
 
-from PIL import Image  # noqa: E402
+from PIL import Image, ImageOps  # noqa: E402
 
 from backend import render as R  # noqa: E402
 from backend.config import max_side  # noqa: E402
@@ -58,10 +58,14 @@ def stub_covers(tracks: list[dict]) -> None:
     if not base:
         base = [Image.new("RGB", (R.CELL_PX, R.CELL_PX), (200, 200, 200))]
 
-    def fake(t, size: int = R.CELL_PX):
-        key = (abs(hash(t.title)) % len(base), size)
+    # **引数は本物（`render.load_cover(t, w, h, fit)`）と同じ形にする**。マスの形（横長16:9）と入れ方（ぼかし埋め）を足したときに
+    # 本物の引数が増え、ここが `(t, size)` のままだったので、`--render` が「引数が多い」で落ちていた（2026-11-18に気付いた）。
+    # 入れ方（fit）は見ない（割り付けの点検なので、マスの大きさに切り抜いた絵が入っていれば足りる）
+    def fake(t, w: int = R.CELL_PX, h: int | None = None, fit: str = "crop"):
+        h = h if h is not None else w
+        key = (abs(hash(t.title)) % len(base), w, h)
         if key not in cache:
-            cache[key] = base[key[0]].resize((size, size), Image.LANCZOS)
+            cache[key] = ImageOps.fit(base[key[0]], (w, h), Image.LANCZOS)
         return cache[key]
 
     R.load_cover = fake
