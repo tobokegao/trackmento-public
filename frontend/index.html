@@ -803,7 +803,9 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .grid-head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
 /* **ボタンの高さはタイトル欄と同じ式で出す**（1行ぶん＋欄の上下の余白＋枠線）。ボタン共通の40pxのままだと
    欄（44.8px）より5px低く、下辺でそろえているぶん上に段差が出ていた（記事のサムネで指摘） */
-.grid-head .btn { white-space: nowrap; min-height: calc(1lh + 2 * var(--space-2) + 4px); }   /* 4pxは欄の枠1px＋足した余白1pxの上下ぶん（.inputの注） */
+/* **1行ぶんは本文の行の高さ（1rem × 1.55）で数える**。`1lh` と書くとボタン自身の行（ドット字12px × 1.55 = 18.6px）で数えられ、
+   欄（44.8px）より6px低くなって、下辺でそろえているぶん上辺に段差が出ていた（2026-11-18、利用者の指摘「入力窓と横のラインが合っていない」） */
+.grid-head .btn { white-space: nowrap; min-height: calc(1.55rem + 2 * var(--space-2) + 4px); }   /* 4pxは欄の枠1px＋足した余白1pxの上下ぶん（.inputの注） */
 .pl-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2); }
 .note p { margin: 0; overflow-wrap: anywhere; }
 /* **リンクの色の既定は組の青**（`--color-cerulean`。ナイトならアジュール）。指定の無いリンクはブラウザ既定の
@@ -914,7 +916,7 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 /* 行の見出しの列（書き出しと同じく、グリッドの左。幅と字の大きさはsyncPreviewが書き出しの比率で決める） */
 .grid[data-labels="on"] { grid-template-columns: var(--labw) repeat(var(--cols, 3), minmax(0, 1fr)); }
 .grid .rowhead { align-self: center; min-width: 0; overflow: hidden; white-space: nowrap; font-weight: 700; font-size: var(--labpx); line-height: 1.2;   /* 長い見出しの2行はJSが<br>で折る */ color: var(--grid-ink, var(--color-ink)); }
-.popup { --arrow-w: 24px; position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
+.popup { --arrow-w: 25px; position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
 .popup select {
   -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; min-height: 40px; margin: 0;
   padding: var(--space-1) calc(var(--arrow-w) + var(--space-2)) var(--space-1) var(--space-3);
@@ -929,9 +931,12 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   background-clip: padding-box;
   font-family: var(--font-display); font-size: var(--text-base); text-overflow: ellipsis;
 }
-/* 矢印は上向きと下向きの三角を縦に2つ（本物のポップアップメニューの印。HIGの図HIG_CG-081.gif）。間は2ドット */
+/* 矢印は上向きと下向きの三角を縦に2つ（本物のポップアップメニューの印。HIGの図HIG_CG-081.gif）。間は2ドット。
+   **置く箱は「区切りの白線の右〜枠の内側」**（幅21px = --arrow-w 25 − 枠3 − 白線1）。箱を枠の外側の端から取っていたときは、
+   右の枠3pxのぶん矢印が右へ寄り、しかも（24 − 7）÷ 2が半端で半画素ずれた（2026-11-18、利用者の指摘「矢印がズレて見える」）。
+   21pxなら7ドットの三角の左右がちょうど7pxずつ */
 .popup::before, .popup::after {
-  content: ""; position: absolute; z-index: 1; top: 50%; right: 0; width: var(--arrow-w); height: calc(4 * var(--u)); pointer-events: none;
+  content: ""; position: absolute; z-index: 1; top: 50%; right: var(--fr); width: calc(var(--arrow-w) - var(--fr) - 1px); height: calc(4 * var(--u)); pointer-events: none;
   background: var(--color-ink);
   -webkit-mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat; mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat;
 }
@@ -1578,7 +1583,7 @@ footer a { color: var(--color-ink); text-decoration: underline; text-decoration-
    **曲名・説明文・メッセージ・書き出し画像はPlexのまま**（長い文はドット字だと読みづらい。書き出しはPlexの字幅で
    render.pyと割り付けを合わせてある）。個々の規則を直さずここで上書きするのは、対象を1か所で見渡すため */
 .pane-title h2, legend, .field label, .field legend, .sub-title, .seg span, .seg.radio span, .check > span,
-.layouts > label, .custom-color, .custom-size label, .hsv label, .hsv .hex, .lang-switch, .spec dt, .spec dd,
+.layouts > label, .custom-color, .custom-size label, .hsv label, .hsv .hex, .lang-switch, .help-btn, .win-reset, .spec dt, .spec dd,
 footer, .editor-head, .list-head, .bar-status, .pal-open, .share-url .lbl, .promo .lbl, .support .album, .promo .album,
 h1, h2, h3, .wordmark small, .list-del, .list-add, .empty strong,
 .btn, .popup select, span.label, h2[id$="-title"] {
