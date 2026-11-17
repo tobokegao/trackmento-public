@@ -541,8 +541,8 @@ img { max-width: 100%; display: block; }
     linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + 2px) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
     var(--color-bar);
 }
-/* 縞1組ぶん = 帯の20%（白10% ＋ 空き10%）。5組で100% ちょうど */
-.pane-title {
+/* 縞1組ぶん = 帯の20%（白10% ＋ 空き10%）。5組で100% ちょうど。モーダルと引き出しの題名（.sheet-head）も同じ縞を使う */
+.pane-title, .sheet-head {
   --stripe-hl: #fff 0 10%, transparent 10% 20%, #fff 20% 30%, transparent 30% 40%, #fff 40% 50%,
     transparent 50% 60%, #fff 60% 70%, transparent 70% 80%, #fff 80% 90%, transparent 90% 100%;
   --stripe-dim: var(--color-hl-dim) 0 10%, transparent 10% 20%, var(--color-hl-dim) 20% 30%, transparent 30% 40%,
@@ -592,7 +592,8 @@ img { max-width: 100%; display: block; }
 .pane[data-collapsed="true"] > .pane-title { border-bottom-color: transparent; box-shadow: none; }
 .pane-body { padding: var(--space-3); }
 /* 検索ペイン内のBandcamp／手入力は見出し付きの小セクションにして畳めるようにする */
-.sub { border-top: var(--line) dashed var(--color-rule); }
+/* **区切りの線は彫り込んだ線**（濃いグレーの下に白。HIGのseparator line。2026-11-18）。グレーの地に灰色の2pxの線や破線を引いていた所をそろえた */
+.sub { border-top: 1px solid var(--color-bar-dark); box-shadow: inset 0 1px 0 var(--color-hl); }
 .sub-title {
   display: flex; align-items: center; gap: var(--space-2); width: 100%;
   padding: var(--space-2) var(--space-3); border: 0; background: none;   /* 窓の地のまま。三角と字だけ（本物の開閉の三角の行） */
@@ -1057,15 +1058,25 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   position: relative; max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr);
   border-top: var(--line) solid var(--color-ink); background: var(--color-paper);
 }
-/* 計算機（Macのデスクアクセサリ）風の黒いタイトルバー: 黒地に白の題名、右端に「閉じる」 */
+/* **モーダルと引き出しの題名も、窓と同じ縞の題名バー**（2026-11-18。本物の動かせるダイアログと同じ）。
+   それまでは黒地に白い字の帯（計算機のデスクアクセサリ風）で、面取りの窓の中でそこだけ平らだった。
+   縞は .pane-titleと同じ色の変数で描く（白線の5組。帯の高さは20pxで固定、上下は8pxずつ空ける）。
+   題名は縞の上に地の色の下敷きを敷いて真ん中に、「閉じる」は右端。縞は左右とも8px手前で止める */
 .sheet-head {
+  --bar-inset: 8px; --bar-inset-x: 8px; --bar-stripes: 20px;
   display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: var(--line) solid var(--color-ink);
-  background: var(--color-ink); color: var(--color-paper);
+  min-height: calc(36px + var(--edge)); padding: 0 var(--space-2);
+  border-bottom: var(--edge) solid var(--color-bar-dark); box-shadow: 0 1px 0 var(--color-hl);
+  color: var(--color-ink);
+  background:
+    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / 2px var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-dim)) var(--bar-inset-x) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + 2px) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
+    var(--color-bar);
 }
-.sheet-head h2 { font-size: var(--text-base); letter-spacing: 0.04em; color: var(--color-paper); }
-.sheet-head .btn { margin-left: auto; min-height: 36px; }
+.sheet-head h2 { margin-inline: auto; min-width: 0; padding: 0 var(--space-2); align-self: stretch; display: flex; align-items: center;
+  background: var(--color-bar); color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet-head .btn { flex: none; min-height: 26px; padding-block: 0; box-shadow: calc(-1 * var(--space-2)) 0 0 var(--color-bar), var(--space-2) 0 0 var(--color-bar); }   /* 左右に地の色の帯を付けて、縞をボタンの手前で切る（上下には出さない。バーの外へはみ出す） */
 .sheet-body { overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); }
 .sheet-body .pane { --win-drop: 0 0 0 0 transparent; }   /* 引き出しの中の窓は影を落とさない（`box-shadow: none` だと枠まで消える） */
 .sheet-body .results { max-height: none; overflow: visible; }   /* 引き出しの中ではスクロール箱にしない（上の理由） */
@@ -1206,7 +1217,7 @@ body.sheet-open { overflow: hidden; }
 .clear-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* **「トラックを全て外す」は線で区切って離す**（2026-09-25）。赤くはしない: 危ないボタンがいちばん目立ってしまい、
    HIGでも色は付けない（確かめるのは確認窓と「元に戻す」の役目）。利用者と決めた */
-.clear-row { border-top: var(--line) solid var(--color-rule); padding-top: var(--space-3); }
+.clear-row { border-top: 1px solid var(--color-bar-dark); box-shadow: inset 0 1px 0 var(--color-hl); padding-top: var(--space-3); }
 
 /* ---------- options ---------- */
 .opts { display: grid; gap: var(--space-4); }
@@ -1373,7 +1384,7 @@ body.sheet-open { overflow: hidden; }
 .swatches input:checked:focus-visible + span,
 .custom-color button.is-on:focus-visible { outline: 3px solid var(--color-ink); outline-offset: 2px; }
 /* カスタムカラーの色相・彩度・明度スライダー。つまみの位置が色で分かるよう、溝に色の帯を敷く */
-.hsv { display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-1); border: var(--line) solid var(--color-ink); background: var(--color-paper-2); }
+.hsv { display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-1); border: 1px solid var(--color-bar-dark); box-shadow: inset 1px 1px 0 var(--color-hl), 1px 1px 0 var(--color-hl); }   /* グループボックスと同じ彫り込んだ線 */
 .hsv[hidden] { display: none; }   /* display: gridがhidden属性のdisplay: noneに勝ってしまうため明示 */
 .hsv label { display: flex; justify-content: space-between; font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
 /* 色相・彩度・明度の溝も、余白やマスの間隔と同じ「凹み」に見せる。中身が色の帯なだけで作りは同じ
@@ -1471,11 +1482,11 @@ output { font-variant-numeric: tabular-nums; }
 /* ボタンに添えるドット絵（12×12。1ドット = 1pxのときだけ潰れない） */
 .btn .ic { flex: none; width: 12px; height: 12px; fill: currentColor; }
 /* 画像のまとまり。URLのまとまりと区切り線で分ける（HIGのseparator line） */
-.share-img { display: grid; grid-template-columns: max-content; gap: var(--space-1); padding-top: var(--space-3); border-top: var(--line) solid var(--color-rule); }
+.share-img { display: grid; grid-template-columns: max-content; gap: var(--space-1); padding-top: var(--space-3); border-top: 1px solid var(--color-bar-dark); box-shadow: inset 0 1px 0 var(--color-hl); }
 .share-img .lbl { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
 .share-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 /* 自分の共有をあとから外す・消す（2026-09-26）。取り消せない「消す」はURLの列から離して下の段に置く */
-.share-own { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-3); border-top: var(--line) solid var(--color-rule); }   /* 外す・消すも画像のまとまりと区切る */ .share-own .btn[hidden] { display: none; }   /* .btnのdisplayがhidden属性に勝つので打ち消す */
+.share-own { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--color-bar-dark); box-shadow: inset 0 1px 0 var(--color-hl); }   /* 外す・消すも画像のまとまりと区切る */ .share-own .btn[hidden] { display: none; }   /* .btnのdisplayがhidden属性に勝つので打ち消す */
 /* **スマホでは共有のあとのボタンを2列の格子に**（2026-09-26、利用者の指摘）。流し込みだと「3つ・1つ」と不ぞろいに折れた。
    グリッド窓のボタン（2×2）と同じ考え。外す・消すの段も2列。隠れているボタンは数えない */
 @media (max-width: 59.99rem) {
@@ -1484,7 +1495,7 @@ output { font-variant-numeric: tabular-nums; }
   .share-img .lbl { grid-column: 1 / -1; }
   .share-actions > [hidden] { display: none; }
 }
-.support { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: var(--line) solid var(--color-rule); font-size: var(--text-sm); color: var(--color-ink-2); }
+.support { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: 1px solid var(--color-bar-dark); box-shadow: inset 0 1px 0 var(--color-hl); font-size: var(--text-sm); color: var(--color-ink-2); }
 .support .album { font-family: var(--font-display); color: var(--color-ink); }
 /* 作者の顔（ボタンの絵88×31の左の四角27×27（2〜28ドット目）を2倍で切り抜く）と一人称の一言 */
 .maker { display: flex; align-items: center; gap: var(--space-2); }
