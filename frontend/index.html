@@ -532,18 +532,17 @@ img { max-width: 100%; display: block; }
   box-shadow: var(--win-frame), var(--win-drop, var(--shadow));
   min-width: 0;
 }
-/* Mac OS 9（プラチナ）風のタイトルバー。下地はグレー。縞は「2pxの白線」と「その真下の2pxの濃いグレー線を2px右へずらしたもの」の組を
-   4px周期で重ねる（左端に白、右端に影が2pxはみ出して凹凸に見える）。ずらし幅はスクロールバーのつまみの握りと同じ。
-   題名は中央、件数と折りたたみボックスは右端。
-   題名・件数・ボックスの列（バーの上下いっぱい）には縞を描かず下地色で塗る */
+/* **題名バーは本物の作り**（Mac OS 8のHIGの原寸の図HIG_CG-084.gifの画素どおり。2026-11-18）。地は窓の中身より少し暗いグレー。
+   **縞は1ドット刻みの6組**: 白い線1ドットの真下に濃いグレーの線1ドット、濃いグレーは1ドット右へずれる（左端は白が1ドット先に始まり、
+   右端は濃いグレーが1ドット後に終わる）。題名は中央、件数と畳む箱は右端で、その列には縞を描かず地の色で塗る。
+   2026-09-15からは「白2px・影2pxの5組、白は左端だけ明るくあとは暗い白」（スクロールバーのつまみの握りと同じ規則）だったが、
+   利用者が原寸の図と見比べて、本物に合わせると決めた */
 .pane-title {
-  --bar-inset: 4px;     /* 縞を描かない上下の余白（折りたたみボックスの上下の余白と同じ）。縞はボックスの高さの帯だけに引く */
-  --bar-inset-x: 8px;   /* 縞を描かない左端の余白（縞とボックス・題名の間隔と同じ） */
+  --bar-inset: calc(8 * var(--u));     /* 縞の帯の上の位置。28pxのバーの真ん中に12ドットの帯を置く */
+  --bar-inset-x: 4px;                  /* 縞を描かない左右の余白（本物は枠の黒から5ドット目に白い線が始まる。枠の白1＋地3） */
+  --bar-stripes: calc(12 * var(--u));  /* 帯の高さ。6組ちょうど */
   position: relative; display: flex; align-items: center;
-  min-height: calc(28px + var(--edge)); padding: 0 0 0 var(--space-2);   /* 右は .tailが端まで塗る（ボックスより右に縞を出さない） */
-  /* **縞の帯は20pxで固定**（白2px＋影2pxの5組ちょうど）。`100% - 上下の余白` にしていたときは、
-     バーの高さが端数になる端末で6本目の白線が0.5pxだけはみ出して見えた（スマホで報告） */
-  --bar-stripes: 20px;
+  min-height: calc(28px + var(--edge)); padding: 0 0 0 var(--space-2);
   /* **題名バーの所は、窓の枠の作りが中身の所と違う**（HIG_CG-084.gifの画素どおり）: 白は枠の黒のすぐ内側（上と左）、右は濃いグレー1列だけ。
      窓の枠（--win-frame）は中身の所の作り（面の色1px・白1px／濃いグレー2段）なので、題名バーを上と左右へ2pxずつ広げて枠の線を覆い、
      自分の内向きの影で描き直す。下の区切りは、バーの中のいちばん下に濃いグレーの線、その下に黒い線。
@@ -552,52 +551,40 @@ img { max-width: 100%; display: block; }
   border-bottom: var(--edge) solid var(--color-ink);
   box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px 0 0 var(--color-bar-dark), inset 0 -1px 0 var(--color-bar-dark);
   --color-bar: var(--color-titlebar);
-  /* **白線は「左端2pxだけ明るい白、それより右は暗い白」**（つまみの握りとまったく同じ規則。
-     つまみでは明るい白の層を2px幅で左に置き、その右に暗い白の層を並べている）。
-     線の向きを取り違えて「いちばん上の1本だけ純白」にしていた（2026-09-15に指摘） */
-  /* **反復（repeating-linear-gradient）ではなく5組を書き下す**。反復だと1周期（4px）を
-     端末の画素に丸めた誤差が積もり、20pxの帯の終わりぎわで6周期目が1画素だけ始まる
-     （実機の拡大表示で、5組の下に極細の白線として見えていた）。%
-     で書けば帯の高さに比例して割り付けられるので、**6本目は存在しない** */
+  /* **縞は反復（repeating-linear-gradient）で描かず、12段を書き下す**。反復は1周期を端末の画素へ丸めた誤差が積もり、
+     帯の終わりぎわに余分な線が1画素だけ出る（2026-09-15に実機で踏んだ）。段の位置は --uの倍数（端末の画素の整数倍）で書くので、
+     どの段もちょうど画素の境に乗る。白の層と、1ドット右へずらした濃いグレーの層の2枚 */
   background:
-    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / 2px var(--bar-stripes) no-repeat,
-    linear-gradient(to bottom, var(--stripe-dim)) var(--bar-inset-x) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
-    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + 2px) var(--bar-inset) / calc(100% - var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - var(--u)) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + var(--u)) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - var(--u)) var(--bar-stripes) no-repeat,
     var(--color-bar);
 }
-/* 縞1組ぶん = 帯の20%（白10% ＋ 空き10%）。5組で100% ちょうど。モーダルと引き出しの題名（.sheet-head）も同じ縞を使う */
+/* 縞の色の並び（上から12段）。モーダルと引き出しの題名（.sheet-head）も同じ縞を使う。-gap-は、題名や右端の列のすぐ隣の1列ぶん（地の色で埋めてある） */
 .pane-title, .sheet-head {
-  --stripe-hl: #fff 0 10%, transparent 10% 20%, #fff 20% 30%, transparent 30% 40%, #fff 40% 50%,
-    transparent 50% 60%, #fff 60% 70%, transparent 70% 80%, #fff 80% 90%, transparent 90% 100%;
-  --stripe-dim: var(--color-hl-dim) 0 10%, transparent 10% 20%, var(--color-hl-dim) 20% 30%, transparent 30% 40%,
-    var(--color-hl-dim) 40% 50%, transparent 50% 60%, var(--color-hl-dim) 60% 70%, transparent 70% 80%,
-    var(--color-hl-dim) 80% 90%, transparent 90% 100%;
-  --stripe-dark: transparent 0 10%, var(--color-bar-dark) 10% 20%, transparent 20% 30%, var(--color-bar-dark) 30% 40%,
-    transparent 40% 50%, var(--color-bar-dark) 50% 60%, transparent 60% 70%, var(--color-bar-dark) 70% 80%,
-    transparent 80% 90%, var(--color-bar-dark) 90% 100%;
-  --stripe-gap-dark: var(--color-bar) 0 10%, var(--color-bar-dark) 10% 20%, var(--color-bar) 20% 30%, var(--color-bar-dark) 30% 40%,
-    var(--color-bar) 40% 50%, var(--color-bar-dark) 50% 60%, var(--color-bar) 60% 70%, var(--color-bar-dark) 70% 80%,
-    var(--color-bar) 80% 90%, var(--color-bar-dark) 90% 100%;
-  --stripe-gap-hl: #fff 0 10%, var(--color-bar) 10% 20%, #fff 20% 30%, var(--color-bar) 30% 40%, #fff 40% 50%,
-    var(--color-bar) 50% 60%, #fff 60% 70%, var(--color-bar) 70% 80%, #fff 80% 90%, var(--color-bar) 90% 100%;
+  --stripe-hl: var(--color-hl) 0 calc(1 * var(--u)), transparent calc(1 * var(--u)) calc(2 * var(--u)), var(--color-hl) calc(2 * var(--u)) calc(3 * var(--u)), transparent calc(3 * var(--u)) calc(4 * var(--u)), var(--color-hl) calc(4 * var(--u)) calc(5 * var(--u)), transparent calc(5 * var(--u)) calc(6 * var(--u)), var(--color-hl) calc(6 * var(--u)) calc(7 * var(--u)), transparent calc(7 * var(--u)) calc(8 * var(--u)), var(--color-hl) calc(8 * var(--u)) calc(9 * var(--u)), transparent calc(9 * var(--u)) calc(10 * var(--u)), var(--color-hl) calc(10 * var(--u)) calc(11 * var(--u)), transparent calc(11 * var(--u)) calc(12 * var(--u));
+  --stripe-dark: transparent 0 calc(1 * var(--u)), var(--color-relief-deep) calc(1 * var(--u)) calc(2 * var(--u)), transparent calc(2 * var(--u)) calc(3 * var(--u)), var(--color-relief-deep) calc(3 * var(--u)) calc(4 * var(--u)), transparent calc(4 * var(--u)) calc(5 * var(--u)), var(--color-relief-deep) calc(5 * var(--u)) calc(6 * var(--u)), transparent calc(6 * var(--u)) calc(7 * var(--u)), var(--color-relief-deep) calc(7 * var(--u)) calc(8 * var(--u)), transparent calc(8 * var(--u)) calc(9 * var(--u)), var(--color-relief-deep) calc(9 * var(--u)) calc(10 * var(--u)), transparent calc(10 * var(--u)) calc(11 * var(--u)), var(--color-relief-deep) calc(11 * var(--u)) calc(12 * var(--u));
+  --stripe-gap-dark: var(--color-bar) 0 calc(1 * var(--u)), var(--color-relief-deep) calc(1 * var(--u)) calc(2 * var(--u)), var(--color-bar) calc(2 * var(--u)) calc(3 * var(--u)), var(--color-relief-deep) calc(3 * var(--u)) calc(4 * var(--u)), var(--color-bar) calc(4 * var(--u)) calc(5 * var(--u)), var(--color-relief-deep) calc(5 * var(--u)) calc(6 * var(--u)), var(--color-bar) calc(6 * var(--u)) calc(7 * var(--u)), var(--color-relief-deep) calc(7 * var(--u)) calc(8 * var(--u)), var(--color-bar) calc(8 * var(--u)) calc(9 * var(--u)), var(--color-relief-deep) calc(9 * var(--u)) calc(10 * var(--u)), var(--color-bar) calc(10 * var(--u)) calc(11 * var(--u)), var(--color-relief-deep) calc(11 * var(--u)) calc(12 * var(--u));
+  --stripe-gap-hl: var(--color-hl) 0 calc(1 * var(--u)), var(--color-bar) calc(1 * var(--u)) calc(2 * var(--u)), var(--color-hl) calc(2 * var(--u)) calc(3 * var(--u)), var(--color-bar) calc(3 * var(--u)) calc(4 * var(--u)), var(--color-hl) calc(4 * var(--u)) calc(5 * var(--u)), var(--color-bar) calc(5 * var(--u)) calc(6 * var(--u)), var(--color-hl) calc(6 * var(--u)) calc(7 * var(--u)), var(--color-bar) calc(7 * var(--u)) calc(8 * var(--u)), var(--color-hl) calc(8 * var(--u)) calc(9 * var(--u)), var(--color-bar) calc(9 * var(--u)) calc(10 * var(--u)), var(--color-hl) calc(10 * var(--u)) calc(11 * var(--u)), var(--color-bar) calc(11 * var(--u)) calc(12 * var(--u));
 }
+/* **題名と右端の列は、バーの上下1pxずつを空ける**（2026-11-18、利用者の指摘「題名や箱の所で立体感が途切れる」）。
+   上下いっぱいに地の色で塗っていたので、バーの上の白い線と下の濃いグレーの線がそこだけ消えていた。右端の列は右も1px空ける（右の濃いグレーの線） */
 .pane-title h2 {
-  position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: fit-content; margin-inline: auto;   /* transformで中央寄せしない（半端な位置になり境の1px線がにじむ） */
+  position: absolute; left: 0; right: 0; top: 1px; bottom: 1px; width: fit-content; margin-inline: auto;   /* transformで中央寄せしない（半端な位置になり境の1px線がにじむ） */
   display: flex; align-items: center; padding: 0 var(--space-2); background: var(--color-bar);
   font-size: var(--text-sm); letter-spacing: 0.04em; white-space: nowrap;
 }
-.pane-title .tail { position: relative; margin-left: auto; align-self: stretch; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: var(--color-bar); }   /* 縞→件数、件数→ボックス、ボックス→右端をすべて8pxに */
-/* 縞が題名・右端の列にぶつかる所: 白線より影線が2px右へ飛び出す（左隣2px列は影線だけ）。縞が再開する所: 白線が2px先に始まる（右隣2px列は白線だけ） */
-/* **箱はバーと同じ高さ（`top: 0; bottom: 0`）にして、帯は背景の位置と大きさで作る**。
+.pane-title .tail { position: relative; margin: 1px 1px 1px auto; align-self: stretch; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: var(--color-bar); }   /* 縞→件数、件数→ボックス、ボックス→右端をすべて8pxに */
+/* 縞が題名・右端の列にぶつかる所: 濃いグレーの線が白い線より1ドット右へ出る（左隣の1列は濃いグレーだけ）。縞が再開する所: 白い線が1ドット先に始まる（右隣の1列は白だけ） */
+/* **箱はバーと同じ高さにして（上下を1pxずつ外へ戻す）、帯は背景の位置と大きさで作る**。
    `top: var(--bar-inset); height: var(--bar-stripes)` と書くと、この列だけ別の箱として
-   端末の画素へ丸められ、バー本体の縞から1画素ずれる（3組目から下が下へ段ズレして見えた）。
+   端末の画素へ丸められ、バー本体の縞から1画素ずれる（2026-09-15に実機で段ズレを踏んだ）。
    箱の上端をバーの背景の原点にそろえれば、同じ式・同じ丸めで描かれる */
 .pane-title h2::before, .pane-title .tail::before {
-  content: ""; position: absolute; left: -2px; top: 0; bottom: 0; width: 2px;
+  content: ""; position: absolute; left: calc(-1 * var(--u)); top: -1px; bottom: -1px; width: var(--u);
   background: linear-gradient(to bottom, var(--stripe-gap-dark)) 0 var(--bar-inset) / 100% var(--bar-stripes) no-repeat;
 }
 .pane-title h2::after {
-  content: ""; position: absolute; right: -2px; top: 0; bottom: 0; width: 2px;
+  content: ""; position: absolute; right: calc(-1 * var(--u)); top: -1px; bottom: -1px; width: var(--u);
   background: linear-gradient(to bottom, var(--stripe-gap-hl)) 0 var(--bar-inset) / 100% var(--bar-stripes) no-repeat;
 }
 .pane-title .count { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--edge) solid var(--color-ink); padding: 1px calc(var(--space-1) + 1px); }
@@ -1104,28 +1091,27 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 }
 /* **モーダルと引き出しの題名も、窓と同じ縞の題名バー**（2026-11-18。本物の動かせるダイアログと同じ）。
    それまでは黒地に白い字の帯（計算機のデスクアクセサリ風）で、面取りの窓の中でそこだけ平らだった。
-   縞は .pane-titleと同じ色の変数で描く（白線の5組。帯の高さは20pxで固定、上下は8pxずつ空ける）。
-   題名は縞の上に地の色の下敷きを敷いて真ん中に、「閉じる」は右端。縞は左右とも8px手前で止める */
+   縞は .pane-titleと同じ色の変数で描く（1ドット刻みの6組。高さ・帯の位置も同じ）。
+   題名は縞の上に地の色の下敷きを敷いて真ん中に（上下1pxずつ空けて、バーの上の白い線と下の濃いグレーの線を見せる）。縞は左右とも8px手前で止める */
 .sheet-head {
-  --bar-inset: 8px; --bar-inset-x: 8px; --bar-stripes: 20px;
+  --bar-inset: calc(8 * var(--u)); --bar-inset-x: 4px; --bar-stripes: calc(12 * var(--u));
   display: flex; align-items: center; gap: var(--space-2);
-  min-height: calc(36px + var(--edge)); padding: 0 var(--space-2);
+  min-height: calc(28px + var(--edge)); padding: 0 var(--space-2);
   border-bottom: var(--edge) solid var(--color-ink);
   box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px 0 0 var(--color-bar-dark), inset 0 -1px 0 var(--color-bar-dark);   /* 枠の描き直しは .pane-titleの注 */
   --color-bar: var(--color-titlebar);
   position: relative;
   color: var(--color-ink);
   background:
-    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / 2px var(--bar-stripes) no-repeat,
-    linear-gradient(to bottom, var(--stripe-dim)) var(--bar-inset-x) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
-    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + 2px) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - 2px) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - var(--u)) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + var(--u)) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - var(--u)) var(--bar-stripes) no-repeat,
     var(--color-bar);
 }
-.sheet-head h2 { margin-inline: auto; min-width: 0; padding: 0 var(--space-2); align-self: stretch; display: flex; align-items: center;
+.sheet-head h2 { margin: 1px auto; min-width: 0; padding: 0 var(--space-2); align-self: stretch; display: flex; align-items: center;
   background: var(--color-bar); color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 題名バーの中では --color-barが題名バーの地に差し替わっている。ボタンと畳む箱の面は、窓の地の色に戻す（枠の絵の面と同じ色でないと、枠と面がずれて見える） */
 .pane-title .fold, .sheet-head .btn { --color-bar: var(--color-face); }
-.sheet-head .btn { flex: none; min-height: 26px; padding-block: 0; box-shadow: calc(-1 * var(--space-2)) 0 0 var(--color-titlebar), var(--space-2) 0 0 var(--color-titlebar); }   /* 左右に地の色の帯を付けて、縞をボタンの手前で切る（上下には出さない。バーの外へはみ出す） */
+.sheet-head .btn { flex: none; min-height: 22px; padding-block: 0; box-shadow: calc(-1 * var(--space-2)) 0 0 var(--color-titlebar), var(--space-2) 0 0 var(--color-titlebar); }   /* 左右に地の色の帯を付けて、縞をボタンの手前で切る（上下には出さない。バーの外へはみ出す） */
 .sheet-body { overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); }
 .sheet-body .pane { --win-drop: 0 0 0 0 transparent; }   /* 引き出しの中の窓は影を落とさない（`box-shadow: none` だと枠まで消える） */
 .sheet-body .results { max-height: none; overflow: visible; }   /* 引き出しの中ではスクロール箱にしない（上の理由） */

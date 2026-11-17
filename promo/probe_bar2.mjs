@@ -1,4 +1,4 @@
-// いろいろな画素密度・拡大率でタイトルバーの縞を数える（6 本目が出ないことの確認）
+// いろいろな画素密度・拡大率でタイトルバーを撮る（縞は白 6 本・濃いグレー 6 本。余分な線が出ないことの確認。数え方は docs/ui.md）
 import { chromium } from "playwright";
 const browser = await chromium.launch();
 for (const dpr of [1, 2, 2.625, 3, 3.5, 4, 5.25, 12]) {
