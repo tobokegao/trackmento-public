@@ -1167,6 +1167,7 @@ class WrapPlan(NamedTuple):
     inline: bool = False  # マスごとの1行型（曲名とアーティスト名を1行に、アーティスト名は段の右端）
     seg_fs: int = 0       # 回り込み: 段の最小幅を測った字（組み直すときに同じ段を作るため）
     target: int = 0       # 柱・帯: 出力での字の目標（組み直すときに同じ枠を作るため）
+    below: bool = False   # 曲名が全部マスの塊の下に段落で流れている（回り込みの「下だけ」と帯）。表に置き換える候補（`_table_below`）
 
 
 # ---- 帯・柱: マスの塊を枠の辺にぴったり付ける組み方 ----
@@ -1480,6 +1481,68 @@ def _slab_stack_try(doc: GridDoc, gh: int, title_h: int, n: int, W: int, H: int,
     return None
 
 
+def _table_below(doc: GridDoc, gw: int, gh: int, title_h: int, W: int, H: int, pad: int,
+                 scale: float) -> WrapPlan | None:
+    """**決まった枠のまま、マスの塊の下の段落を「列をそろえた表」に置き換える**（2026-11-18、利用者の求め
+    「整列できるのであれば、できるだけ流し込みにしないようにしたい」）。
+
+    曲名が全部塊の下に流れる組み方（回り込みの「下だけ」・帯・下に置く流し込み）は、字が40px台あっても
+    段落になって曲の区切りが見えなかった（9x4・1:1・36曲）。同じ枠に、番号・曲名・右端にアーティスト名の1行を
+    1〜`SLAB_STACK_TABLE_COLS` 列で並べる（帯の下の表 `_slab_stack` と同じ1行型）。
+    **枠は変えないのでマスの大きさは変わらない**。全曲が1行に入り（「…」で切らない）、出力の字が
+    `FLOW_KEEP_FONT` 以上のときだけ。合わなければNone（呼び出し側は段落のまま）。
+    - 表の幅は塊の幅にそろえ、塊は左右の中央に置く。タイトルの左端も塊にそろえる
+    - **字は列の数ごとに「入るいちばん大きい論理px」を二分探索で出し、いちばん大きい列の数を採る**（同じなら列の少ないほう）。
+      帯の下の表のような「列の少ないほうを優先」はしない（塊の幅が広いので、1列だと曲名とアーティスト名が左右の端に離れる）
+    - 行の高さは字の2倍から `TABLE_LH_CAP` 倍まで広げて下の余りを埋め、残りは「タイトル → 塊 → 表」をひとかたまりで下げる
+    - タイトルは字の `WRAP_TITLE_SCALE` 倍（表の字は段落より小さいので、帯の倍率だと枠に対して小さく見える）
+    """
+    n = len(_tracks(doc))
+    if not n or W <= 0 or H <= 0 or scale <= 0:
+        return None
+    x0 = rnd((W - gw) / 2)
+    title = _one_line(doc.title)
+
+    def build(k: int, fs: int) -> WrapPlan | None:
+        wgap = rnd(fs * WRAP_GAP_EM)
+        cap = max(rnd((H - pad * 2 - gh) * SLAB_TITLE_MAX), rnd(math.ceil(fs * SLAB_TITLE_MIN) * 1.9))
+        t_h = min(rnd(fs * WRAP_TITLE_SCALE * 1.9), cap) if title_h else 0
+        t_size = _title_cap(title, rnd(t_h / 1.9) if title_h else 0, W, H, pad)
+        t_size = _title_fit(title, t_size, gw)
+        t_h = rnd(t_size * 1.9) if title_h else 0
+        if title_h and t_size < fs * SLAB_TITLE_MIN:
+            return None
+        gy = pad + t_h + (wgap if t_h else 0)
+        y0 = gy + gh + wgap
+        avail = (H - pad) - y0
+        rows = math.ceil(n / k)
+        lh0 = rnd(fs / TABLE_FONT)
+        tgap = rnd(lh0 * TABLE_GAP_LH)
+        cw = (gw - tgap * (k - 1)) // k
+        if rows * lh0 > avail or cw < fs * WRAP_MIN_SEG / 2 or not _inline_one_line(doc, fs, cw):
+            return None
+        lh = min(avail // rows, rnd(fs * TABLE_LH_CAP))
+        dy = max(0, (avail - rows * lh) // 2)
+        segs = tuple((x0 + (i // rows) * (cw + tgap), y0 + dy + (i % rows) * lh, cw) for i in range(n))
+        return WrapPlan(W, H, scale, fs, lh, t_size, t_h, pad, pad + dy, x0, gy + dy,
+                        segs, [], 1.0, True, tx=x0, inline=True)
+
+    best = None
+    lo0, hi0 = math.ceil(FLOW_KEEP_FONT / scale), rnd(SLAB_TARGET_PX[0] / scale)
+    for k in range(1, SLAB_STACK_TABLE_COLS + 1):
+        lo, hi, got = lo0, hi0, None
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            p = build(k, mid)
+            if p:
+                got, lo = p, mid + 1
+            else:
+                hi = mid - 1
+        if got and (best is None or got.font_s > best.font_s):
+            best = got
+    return best
+
+
 def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: int,
                max_side_v: int, refit: WrapPlan | None = None) -> WrapPlan | None:
     """塊を枠の辺にぴったり付ける割り付け（柱・帯）。合わなければNone。
@@ -1558,7 +1621,7 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
         elif dy:
             segs = [(sx, sy + dy, sw) for sx, sy, sw in segs]
         return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, ty, gx, gy,
-                        tuple(segs), rows, len(rows) / n_seg, target=target)
+                        tuple(segs), rows, len(rows) / n_seg, target=target, below=not vertical)
 
     if refit is not None:
         # 曲の順のまま、決めた枠と字で組み直す（`_refit_flow`）
@@ -1708,7 +1771,7 @@ def _wrap_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             gy += d_m + d_g
             top_ += d_m
         return WrapPlan(W, H, scale, font_s, line_h, t_size, t_h, pad, top_, gx, gy, tuple(segs), rows, pct=pct,
-                        seg_fs=seg_fs or font_s)
+                        seg_fs=seg_fs or font_s, below=not n_top and not left_ok and not right_ok)
 
     if refit is not None:
         # 曲の順のまま、決めた枠と字で組み直す（`_refit_flow`）
@@ -2301,11 +2364,15 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
         if wp and (wp.scale >= scale or font_s * scale < WRAP_SWITCH_PX
                    or (wp.font_s * wp.scale >= font_s * scale * WRAP_SWITCH_GAIN
                        and wp.scale >= scale * WRAP_CELL_KEEP)):
+            # **曲名が全部塊の下に段落で流れるなら、同じ枠のまま表にする**（`_table_below`）
+            tb = _table_below(doc, gw, gh, title_h, wp.W, wp.H, wp.pad, wp.scale) if wp.below else None
+            if tb:
+                wp, wp_fix = tb, None
             if wp_fix:
                 wp = wp_fix(wp)
             return Layout(wp.W, wp.H, wp.scale, wp.gx, wp.gy, gw, gh, title, wp.title_size, wp.title_h,
                           side, 0, 0, 1, wp.line_h, wp.font_s, sb_gap, True, (), (),
-                          True, wp.pad, wp.top, wp.segs, wp.rows_mode, wrap_inline=wp.inline)
+                          True, wp.pad, wp.top, wp.segs, wp.rows_mode, wrap_tx=wp.tx, wrap_inline=wp.inline)
     # **流し込みに落ちるくらいなら、1曲1行を残す**（2026-09-17）。回り込みや柱・帯のほうがマスを大きく
     # 取れる並びは上で返っている。ここに来るのは「流し込みの右サイドバー」で、字は24〜34pxと大きいが
     # 高さの半分が空き、曲の区切りも見えない（利用者の4x4・5x5・6x6の16:9で「整列できそう」と指摘）。
@@ -2313,6 +2380,15 @@ def layout(doc: GridDoc, _title_px: int | None = None, _depth: int = 0) -> Layou
     if sb_flow and keep[4] * keep[7] >= FLOW_KEEP_FONT:
         sb_w, sb_h, sb_cols, line_h, font_s, W, H, scale, title_h = keep
         sb_flow = False
+    # **下に置く流し込みのまま残るなら、同じ枠のまま表にする**（`_table_below`。2026-11-18）。
+    # 余白は枠と中身の差から出す（比率合わせで余る辺は広いので、狭いほう）
+    if sb_flow and side == "bottom" and ratio is not None:
+        pad_b = min(rnd((W - gw) / 2), rnd((H - (title_top_h + gh + sb_gap + sb_h)) / 2))
+        tb = _table_below(doc, gw, gh, title_h, W, H, pad_b, scale)
+        if tb:
+            return Layout(tb.W, tb.H, tb.scale, tb.gx, tb.gy, gw, gh, title, tb.title_size, tb.title_h,
+                          side, 0, 0, 1, tb.line_h, tb.font_s, sb_gap, True, (), (),
+                          True, tb.pad, tb.top, tb.segs, True, wrap_tx=tb.tx, wrap_inline=True)
     # **曲名リストの下端をマスの下端にそろえる**（2026-09-19）。行の高さはマスの送りの約数に寄せるので
     # （`_snap_lead`）、1行に満たない余りがリストの下に残り、「下辺にそろいそうなのにそろっていない」と見えた
     # （利用者の3x3・16:9・9曲で指摘）。余りは**行の高さに均等に配る**（字の大きさはそのまま）。

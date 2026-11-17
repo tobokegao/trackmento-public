@@ -7005,7 +7005,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         if (!vertical) { gy2 = gy + dy; top = pad + dy; }
       }
       return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top, gx, gy: gy2,
-               segs: out, rows, use: rows.length / nSeg, target };
+               segs: out, rows, use: rows.length / nSeg, target, below: !vertical };
     };
     // 曲の順のまま、決めた枠と字で組み直す（refitFlow。backend/render.pyと同じ）
     if (refit) return refitFlow((lh, fs) => build(refit.target, lh, fs), refit);
@@ -7070,6 +7070,49 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
                gx: pad, gy, segs, rows: [], use: 1, rowsMode: true };
     }
     return null;
+  }
+  /* **決まった枠のまま、マスの塊の下の段落を「列をそろえた表」に置き換える**（backend/render.pyの _table_below。2026-11-18）。
+     曲名が全部塊の下に流れる組み方（回り込みの「下だけ」・帯・下に置く流し込み）を、番号・曲名・右端にアーティスト名の
+     1行型の表にする。枠は変えないのでマスの大きさは変わらない。全曲が1行に入り、出力の字がFLOW_KEEP_FONT以上のときだけ。
+     字は列の数ごとに入るいちばん大きい論理pxを二分探索で出し、いちばん大きい列の数を採る（細則はbackend/render.py） */
+  function tableBelow(gw, gh, titleH, W, H, pad, scale) {
+    const n = listTracks().length;
+    if (!n || W <= 0 || H <= 0 || scale <= 0) return null;
+    const x0 = Math.round((W - gw) / 2);
+    const title = oneLine(state.title);
+    const build = (k, fs) => {
+      const wgap = Math.round(fs * WRAP_GAP_EM);
+      const cap = Math.max(Math.round((H - pad * 2 - gh) * SLAB_TITLE_MAX), Math.round(Math.ceil(fs * SLAB_TITLE_MIN) * 1.9));
+      let tH = titleH ? Math.min(Math.round(fs * WRAP_TITLE_SCALE * 1.9), cap) : 0;
+      let tSize = titleCap(title, titleH ? Math.round(tH / 1.9) : 0, W, H, pad);
+      tSize = titleFit(title, tSize, gw);
+      tH = titleH ? Math.round(tSize * 1.9) : 0;
+      if (titleH && tSize < fs * SLAB_TITLE_MIN) return null;
+      const gy = pad + tH + (tH ? wgap : 0);
+      const y0 = gy + gh + wgap;
+      const avail = (H - pad) - y0;
+      const rows = Math.ceil(n / k);
+      const lh0 = Math.round(fs / TABLE_FONT), tgap = Math.round(lh0 * TABLE_GAP_LH);
+      const cw = Math.floor((gw - tgap * (k - 1)) / k);
+      if (rows * lh0 > avail || cw < fs * WRAP_MIN_SEG / 2 || !inlineOneLine(fs, cw)) return null;
+      const lh = Math.min(Math.floor(avail / rows), Math.round(fs * TABLE_LH_CAP));
+      const dy = Math.max(0, Math.floor((avail - rows * lh) / 2));
+      const segs = Array.from({ length: n }, (_, i) => [x0 + Math.floor(i / rows) * (cw + tgap), y0 + dy + (i % rows) * lh, cw]);
+      return { W, H, scale, fontS: fs, lineH: lh, titleSize: tSize, titleH: tH, pad, top: pad + dy,
+               gx: x0, gy: gy + dy, segs, rows: [], use: 1, rowsMode: true, tx: x0, inline: true };
+    };
+    let best = null;
+    const lo0 = Math.ceil(FLOW_KEEP_FONT / scale), hi0 = Math.round(SLAB_TARGET_PX[0] / scale);
+    for (let k = 1; k <= SLAB_STACK_TABLE_COLS; k++) {
+      let lo = lo0, hi = hi0, got = null;
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const p = build(k, mid);
+        if (p) { got = p; lo = mid + 1; } else hi = mid - 1;
+      }
+      if (got && (!best || got.fontS > best.fontS)) best = got;
+    }
+    return best;
   }
   /* マスの塊を中央に置き、まわりの余白に曲名を流し込む割り付けを探す（backend/render.pyの _wrap_plan）。
      出力での文字をFLOW_MIN_FONTに固定し、入る範囲で枠をいちばん小さくする（＝塊をいちばん大きく）。
@@ -7163,7 +7206,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         gy += dM + dG;
         top2 += dM;
       }
-      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: top2, gx, gy, segs: used, pct, rows, segFs: segFs || fontS };
+      return { W, H, scale, fontS, lineH, titleSize: tSize, titleH: tH, pad, top: top2, gx, gy, segs: used, pct, rows, segFs: segFs || fontS,
+               below: !nTop && !leftOk && !rightOk };   // 曲名が全部塊の下（tableBelowの候補。backend/render.pyと同じ）
     };
     // 曲の順のまま、決めた枠と字で組み直す（refitFlow。backend/render.pyと同じ）
     if (refit) return refitFlow((lh, fs) => build(refit.pct, 0, fs || refit.fontS, refit.segFs || refit.fontS, lh), refit);
@@ -7896,12 +7940,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (sp && (!wp || sp.scale >= wp.scale * SLAB_PREFER)) { wp = sp; wpFix = spFix; }
       if (wp && (wp.scale >= scale || fontS * scale < WRAP_SWITCH_PX
                  || (wp.fontS * wp.scale >= fontS * scale * WRAP_SWITCH_GAIN && wp.scale >= scale * WRAP_CELL_KEEP))) {
+        // **曲名が全部塊の下に段落で流れるなら、同じ枠のまま表にする**（tableBelow。backend/render.pyと同じ）
+        const tb = wp.below ? tableBelow(gw, gh, titleH, wp.W, wp.H, wp.pad, wp.scale) : null;
+        if (tb) { wp = tb; wpFix = null; }
         if (wpFix) wp = wpFix(wp);
         return { W: wp.W, H: wp.H, scale: wp.scale, ox: wp.gx, oy: wp.gy, gw, gh, title,
                  titleSize: wp.titleSize, titleH: wp.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
                  lineH: wp.lineH, fontS: wp.fontS, sbGap, sbFlow: true, sbPlan: [],
                  wrap: true, wrapPad: wp.pad, wrapTop: wp.top, wrapSegs: wp.segs,
-                 wrapRows: wp.rowsMode === true, wrapInline: !!wp.inline };
+                 wrapRows: wp.rowsMode === true, wrapTx: wp.tx || 0, wrapInline: !!wp.inline };
       }
     }
     // **流し込みに落ちるくらいなら、1曲1行を残す**（backend/render.pyと同じ）。1曲1行がFLOW_KEEP_FONT以上なら戻す
@@ -7909,6 +7956,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     // 「画像を大きくすれば流し込みを脱せるか」を、割り付けを組み直さずに見積もるのに使う。サーバー側には要らない）
     const keepFont = keep[4] * keep[7];
     if (sbFlow && keepFont >= FLOW_KEEP_FONT) { [sbW, sbH, sbCols, lineH, fontS, W, H, scale, titleH] = keep; sbFlow = false; }
+    // **下に置く流し込みのまま残るなら、同じ枠のまま表にする**（tableBelow。backend/render.pyと同じ。2026-11-18）。
+    // 余白は枠と中身の差から出す（比率合わせで余る辺は広いので、狭いほう）
+    if (sbFlow && side === "bottom" && ratio !== null) {
+      const padB = Math.min(Math.round((W - gw) / 2), Math.round((H - (titleTopH + gh + sbGap + sbH)) / 2));
+      const tb = tableBelow(gw, gh, titleH, W, H, padB, scale);
+      if (tb) {
+        return { W: tb.W, H: tb.H, scale: tb.scale, ox: tb.gx, oy: tb.gy, gw, gh, title,
+                 titleSize: tb.titleSize, titleH: tb.titleH, side, sbW: 0, sbH: 0, sbCols: 1,
+                 lineH: tb.lineH, fontS: tb.fontS, sbGap, sbFlow: true, sbPlan: [],
+                 wrap: true, wrapPad: tb.pad, wrapTop: tb.top, wrapSegs: tb.segs, wrapRows: true, wrapTx: tb.tx, wrapInline: true };
+      }
+    }
     // **ここから曲の順で組み直す**（backend/render.pyと同じ。2026-09-25）。組み方・枠・字・列数はcanonCellsの並びで
     // 決めてあり、曲の順番では変わらない。曲ごとの行数を数え直し、見込みと違えば**行の高さだけ**を合わせる
     if (side !== "none" && !sbFlow && !sbInline && sbPlan.length) {

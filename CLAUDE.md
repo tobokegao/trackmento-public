@@ -197,6 +197,7 @@ Webツールとは逆を行く。**素っ気なさと厚みの同居**が持ち�
 - 曲名リストの回り込み: `_wrap_plan` / `WRAP_*` ↔ `wrapPlan` / `WRAP_*`
 - 柱・帯: `_slab_plan` / `_slab_frame` / `SLAB_*` ↔ `slabPlan` / `slabFrame` / `SLAB_*`
 - 曲名リストの流し込み: `_flow_rows` / `FLOW_*` ↔ `flowRows` / `FLOW_*`（細則は `docs/layout.md` の「曲名リストの流し込み」）
+- 塊の下の段落を表にする: `_table_below` / `WrapPlan.below` ↔ `tableBelow` / `below`（`docs/layout.md` の「塊の下の段落を表にする」）
 - 曲名の刈り込み: `backend/names.py` ↔ `trimName`。**割り付けを決める前に通す**。**割り付けは刈り込み後のセル（`viewCells()`）で測る**
   → `scripts/check_trim.py` と `scripts/compare_trim.py`
 - 検索の絞り込み: `backend/sources/itunes.py` ↔ `itunesSearch`（ブラウザから直接iTunesを叩くため）
