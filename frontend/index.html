@@ -118,7 +118,11 @@
   --color-accent:   var(--color-cerulean);
   --color-accent-ink: var(--color-paper);
   --color-error:    var(--color-vermilion);
-  --color-grain:    oklch(20% 0.012 250 / 0.06);   /* overlay modifier for halftone dots */
+  /* **背景の模様の7段**（2026-11-18）。地の色（--color-paper）を真ん中の段にして、明るい2段は --desk-lightを、暗い4段は --desk-shadeを混ぜて作る。
+     数字は混ぜる割合（%）。Lが明るい側、Pが地の色そのまま、Sが暗い側。模様の0〜6の字に、左から順に当たる。
+     地の色から作るので、配色の組を替えても（自作の組でも）地に合った濃さになる。それまでの白地に灰色のドット（--color-grain）はやめた */
+  --desk-light: #ffffff; --desk-shade: #000000;
+  --desk-steps: L60 L30 P S2 S4 S7 S10;
   /* **影は「地より暗い色」**。地が暗い組ではinkが明るくなるので、影にinkを使うと光って見える */
   --color-shadow:   var(--color-ink);
   /* 色つきの下地に置く文字。**明るい下地には暗いほう、暗い下地には明るいほう**を置く。
@@ -203,8 +207,12 @@ body {
   display: flex;
   flex-direction: column;
   background-color: var(--color-paper);
-  background-image: radial-gradient(var(--color-grain) 1px, transparent 1.2px);
-  background-size: 6px 6px;
+  /* **背景は白い漆喰のような浮き彫りの模様**（2026-11-18、利用者の選択。見本3つ（今・淡い・濃いめ）から淡いほう）。
+     32×32ドットの繰り返しで、JSのpaintDeskが今の地の色から7段の色を作って描き、--desk-patternに入れる。
+     絵は端末の画素の整数倍に拡大して作ってあるので、ここでは等倍で敷くだけ（`image-rendering: pixelated` をbodyに付けると、
+     中のジャケットの画像まで粗くなる。付けない）。JSが動くまでは地の色だけ */
+  background-image: var(--desk-pattern, none);
+  background-size: calc(32 * var(--u)) calc(32 * var(--u));
 }
 h1, h2, h3, legend { font-family: var(--font-display); font-weight: 400; font-style: normal; line-height: 1.15; margin: 0; overflow-wrap: anywhere; min-width: 0; }
 button, input, select { font: inherit; color: inherit; }
@@ -268,7 +276,7 @@ img { max-width: 100%; display: block; }
      影は市松で敷くので、見た目の明るさは地と混ざって半分ほどに落ちる。数字どおりには出ない。
      地（24%）と明るい白（74%）の中間あたりで、面取りの並びとは喧嘩しない */
   --color-shadow:   oklch(58% 0.010 250);
-  --color-grain:    oklch(95% 0.004 95 / 0.05);
+  --desk-steps: L8 L4 P S10 S21 S31 S42;   /* 暗い地では明るい側を控えめに、暗い側を深く（地が24% なので、同じ割合だと差が見えない） */
   --color-on-light: var(--color-paper);     /* 明るい下地の上に置く文字 ＝ 暗いほう */
   --color-on-dark:  var(--color-ink);       /* 暗い下地の上に置く文字 ＝ 明るいほう */
   --color-on-light-2: var(--color-paper-3); /* 同じく添え字。地よりわずかに明るい暗色 */
@@ -484,8 +492,8 @@ img { max-width: 100%; display: block; }
     display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(62svh, calc(var(--vvh, 100svh) - 48px)); --win-drop: 0 0 0 0 transparent; }
   .pane-options > .pane-body { overflow-y: auto; overscroll-behavior: contain; }
   .pane-options > .pane-title::after { content: ""; position: absolute; inset: -10px 0 0; }   /* 指の当たりを上へ10px広げる（バーは29px） */
-  body { padding-bottom: 33px; }   /* 畳んだ窓（枠1＋バー29（上の面取りの所まで広がっている）＋面取り2＋枠1）に、いちばん下の欄が隠れないように */
-  .balloon-bar { bottom: calc(33px + var(--space-3)); }
+  body { padding-bottom: calc(28 * var(--u) + 5px); }   /* 畳んだ窓（枠1＋バー28ドット＋下の線1（上の面取りの所まで広がっている）＋面取り2＋枠1）に、いちばん下の欄が隠れないように */
+  .balloon-bar { bottom: calc(28 * var(--u) + 5px + var(--space-3)); }
 }
 /* オプション列の幅: 背景色の見本8個（32px、間隔8px）が1行に収まる内側の幅 ＋ ペインの余白と枠線。
    見本は28pxだったが、操作部品の字を16pxのドット字にしたとき比率の選択肢が2列に入らず、32pxぶん広げた（2026-09-24） */
@@ -533,16 +541,16 @@ img { max-width: 100%; display: block; }
   min-width: 0;
 }
 /* **題名バーは本物の作り**（Mac OS 8のHIGの原寸の図HIG_CG-084.gifの画素どおり。2026-11-18）。地は窓の中身より少し暗いグレー。
-   **縞は1ドット刻みの6組**: 白い線1ドットの真下に濃いグレーの線1ドット、濃いグレーは1ドット右へずれる（左端は白が1ドット先に始まり、
-   右端は濃いグレーが1ドット後に終わる）。題名は中央、件数と畳む箱は右端で、その列には縞を描かず地の色で塗る。
-   2026-09-15からは「白2px・影2pxの5組、白は左端だけ明るくあとは暗い白」（スクロールバーのつまみの握りと同じ規則）だったが、
-   利用者が原寸の図と見比べて、本物に合わせると決めた */
+   **縞は2ドットずつの5組**: 白い線2ドットの真下に濃いグレーの線2ドット、濃いグレーは2ドット右へずれる（左端は白が2ドット先に始まり、
+   右端は濃いグレーが2ドット後に終わる）。題名は中央、件数と畳む箱は右端で、その列には縞を描かず地の色で塗る。
+   **本物は1ドットずつの6組**。2026-11-18にいちど本物どおりにしたが、利用者が実画面で見て「前の太さが良い」と決めたので、太さと組の数だけ
+   2026-09-15からの形（2ドット・5組）に戻した。白を1色にしたこと・濃いグレーの濃さ・左右の余白・枠の線を端まで通すことは本物どおりのまま */
 .pane-title {
-  --bar-inset: calc(8 * var(--u));     /* 縞の帯の上の位置。28pxのバーの真ん中に12ドットの帯を置く */
+  --bar-inset: calc(4 * var(--u));     /* 縞の帯の上の位置。28pxのバーの真ん中に20ドットの帯を置く */
   --bar-inset-x: 4px;                  /* 縞を描かない左右の余白（本物は枠の黒から5ドット目に白い線が始まる。枠の白1＋地3） */
-  --bar-stripes: calc(12 * var(--u));  /* 帯の高さ。6組ちょうど */
+  --bar-stripes: calc(20 * var(--u));  /* 帯の高さ。5組ちょうど */
   position: relative; display: flex; align-items: center;
-  min-height: calc(28px + var(--edge)); padding: 0 0 0 var(--space-2);
+  min-height: calc(28 * var(--u) + var(--edge));   /* 高さもドットで数える（28ドット）。pxで28と書くと、1ドットが1pxより大きい端末（2.625倍など）で20ドットの帯が下の線に食い込み、いちばん下の濃いグレーが細った */ padding: 0 0 0 var(--space-2);
   /* **題名バーの所は、窓の枠の作りが中身の所と違う**（HIG_CG-084.gifの画素どおり）: 白は枠の黒のすぐ内側（上と左）、右は濃いグレー1列だけ。
      窓の枠（--win-frame）は中身の所の作り（面の色1px・白1px／濃いグレー2段）なので、題名バーを上と左右へ2pxずつ広げて枠の線を覆い、
      自分の内向きの影で描き直す。下の区切りは、バーの中のいちばん下に濃いグレーの線、その下に黒い線。
@@ -551,20 +559,20 @@ img { max-width: 100%; display: block; }
   border-bottom: var(--edge) solid var(--color-ink);
   box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px 0 0 var(--color-bar-dark), inset 0 -1px 0 var(--color-bar-dark);
   --color-bar: var(--color-titlebar);
-  /* **縞は反復（repeating-linear-gradient）で描かず、12段を書き下す**。反復は1周期を端末の画素へ丸めた誤差が積もり、
+  /* **縞は反復（repeating-linear-gradient）で描かず、10段を書き下す**。反復は1周期を端末の画素へ丸めた誤差が積もり、
      帯の終わりぎわに余分な線が1画素だけ出る（2026-09-15に実機で踏んだ）。段の位置は --uの倍数（端末の画素の整数倍）で書くので、
-     どの段もちょうど画素の境に乗る。白の層と、1ドット右へずらした濃いグレーの層の2枚 */
+     どの段もちょうど画素の境に乗る。白の層と、2ドット右へずらした濃いグレーの層の2枚 */
   background:
-    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - var(--u)) var(--bar-stripes) no-repeat,
-    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + var(--u)) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - var(--u)) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - 2 * var(--u)) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + 2 * var(--u)) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - 2 * var(--u)) var(--bar-stripes) no-repeat,
     var(--color-bar);
 }
-/* 縞の色の並び（上から12段）。モーダルと引き出しの題名（.sheet-head）も同じ縞を使う。-gap-は、題名や右端の列のすぐ隣の1列ぶん（地の色で埋めてある） */
+/* 縞の色の並び（上から10段、1段は2ドット）。モーダルと引き出しの題名（.sheet-head）も同じ縞を使う。-gap-は、題名や右端の列のすぐ隣の2ドットぶん（地の色で埋めてある） */
 .pane-title, .sheet-head {
-  --stripe-hl: var(--color-hl) 0 calc(1 * var(--u)), transparent calc(1 * var(--u)) calc(2 * var(--u)), var(--color-hl) calc(2 * var(--u)) calc(3 * var(--u)), transparent calc(3 * var(--u)) calc(4 * var(--u)), var(--color-hl) calc(4 * var(--u)) calc(5 * var(--u)), transparent calc(5 * var(--u)) calc(6 * var(--u)), var(--color-hl) calc(6 * var(--u)) calc(7 * var(--u)), transparent calc(7 * var(--u)) calc(8 * var(--u)), var(--color-hl) calc(8 * var(--u)) calc(9 * var(--u)), transparent calc(9 * var(--u)) calc(10 * var(--u)), var(--color-hl) calc(10 * var(--u)) calc(11 * var(--u)), transparent calc(11 * var(--u)) calc(12 * var(--u));
-  --stripe-dark: transparent 0 calc(1 * var(--u)), var(--color-relief-deep) calc(1 * var(--u)) calc(2 * var(--u)), transparent calc(2 * var(--u)) calc(3 * var(--u)), var(--color-relief-deep) calc(3 * var(--u)) calc(4 * var(--u)), transparent calc(4 * var(--u)) calc(5 * var(--u)), var(--color-relief-deep) calc(5 * var(--u)) calc(6 * var(--u)), transparent calc(6 * var(--u)) calc(7 * var(--u)), var(--color-relief-deep) calc(7 * var(--u)) calc(8 * var(--u)), transparent calc(8 * var(--u)) calc(9 * var(--u)), var(--color-relief-deep) calc(9 * var(--u)) calc(10 * var(--u)), transparent calc(10 * var(--u)) calc(11 * var(--u)), var(--color-relief-deep) calc(11 * var(--u)) calc(12 * var(--u));
-  --stripe-gap-dark: var(--color-bar) 0 calc(1 * var(--u)), var(--color-relief-deep) calc(1 * var(--u)) calc(2 * var(--u)), var(--color-bar) calc(2 * var(--u)) calc(3 * var(--u)), var(--color-relief-deep) calc(3 * var(--u)) calc(4 * var(--u)), var(--color-bar) calc(4 * var(--u)) calc(5 * var(--u)), var(--color-relief-deep) calc(5 * var(--u)) calc(6 * var(--u)), var(--color-bar) calc(6 * var(--u)) calc(7 * var(--u)), var(--color-relief-deep) calc(7 * var(--u)) calc(8 * var(--u)), var(--color-bar) calc(8 * var(--u)) calc(9 * var(--u)), var(--color-relief-deep) calc(9 * var(--u)) calc(10 * var(--u)), var(--color-bar) calc(10 * var(--u)) calc(11 * var(--u)), var(--color-relief-deep) calc(11 * var(--u)) calc(12 * var(--u));
-  --stripe-gap-hl: var(--color-hl) 0 calc(1 * var(--u)), var(--color-bar) calc(1 * var(--u)) calc(2 * var(--u)), var(--color-hl) calc(2 * var(--u)) calc(3 * var(--u)), var(--color-bar) calc(3 * var(--u)) calc(4 * var(--u)), var(--color-hl) calc(4 * var(--u)) calc(5 * var(--u)), var(--color-bar) calc(5 * var(--u)) calc(6 * var(--u)), var(--color-hl) calc(6 * var(--u)) calc(7 * var(--u)), var(--color-bar) calc(7 * var(--u)) calc(8 * var(--u)), var(--color-hl) calc(8 * var(--u)) calc(9 * var(--u)), var(--color-bar) calc(9 * var(--u)) calc(10 * var(--u)), var(--color-hl) calc(10 * var(--u)) calc(11 * var(--u)), var(--color-bar) calc(11 * var(--u)) calc(12 * var(--u));
+  --stripe-hl: var(--color-hl) 0 calc(2 * var(--u)), transparent calc(2 * var(--u)) calc(4 * var(--u)), var(--color-hl) calc(4 * var(--u)) calc(6 * var(--u)), transparent calc(6 * var(--u)) calc(8 * var(--u)), var(--color-hl) calc(8 * var(--u)) calc(10 * var(--u)), transparent calc(10 * var(--u)) calc(12 * var(--u)), var(--color-hl) calc(12 * var(--u)) calc(14 * var(--u)), transparent calc(14 * var(--u)) calc(16 * var(--u)), var(--color-hl) calc(16 * var(--u)) calc(18 * var(--u)), transparent calc(18 * var(--u)) calc(20 * var(--u));
+  --stripe-dark: transparent 0 calc(2 * var(--u)), var(--color-relief-deep) calc(2 * var(--u)) calc(4 * var(--u)), transparent calc(4 * var(--u)) calc(6 * var(--u)), var(--color-relief-deep) calc(6 * var(--u)) calc(8 * var(--u)), transparent calc(8 * var(--u)) calc(10 * var(--u)), var(--color-relief-deep) calc(10 * var(--u)) calc(12 * var(--u)), transparent calc(12 * var(--u)) calc(14 * var(--u)), var(--color-relief-deep) calc(14 * var(--u)) calc(16 * var(--u)), transparent calc(16 * var(--u)) calc(18 * var(--u)), var(--color-relief-deep) calc(18 * var(--u)) calc(20 * var(--u));
+  --stripe-gap-dark: var(--color-bar) 0 calc(2 * var(--u)), var(--color-relief-deep) calc(2 * var(--u)) calc(4 * var(--u)), var(--color-bar) calc(4 * var(--u)) calc(6 * var(--u)), var(--color-relief-deep) calc(6 * var(--u)) calc(8 * var(--u)), var(--color-bar) calc(8 * var(--u)) calc(10 * var(--u)), var(--color-relief-deep) calc(10 * var(--u)) calc(12 * var(--u)), var(--color-bar) calc(12 * var(--u)) calc(14 * var(--u)), var(--color-relief-deep) calc(14 * var(--u)) calc(16 * var(--u)), var(--color-bar) calc(16 * var(--u)) calc(18 * var(--u)), var(--color-relief-deep) calc(18 * var(--u)) calc(20 * var(--u));
+  --stripe-gap-hl: var(--color-hl) 0 calc(2 * var(--u)), var(--color-bar) calc(2 * var(--u)) calc(4 * var(--u)), var(--color-hl) calc(4 * var(--u)) calc(6 * var(--u)), var(--color-bar) calc(6 * var(--u)) calc(8 * var(--u)), var(--color-hl) calc(8 * var(--u)) calc(10 * var(--u)), var(--color-bar) calc(10 * var(--u)) calc(12 * var(--u)), var(--color-hl) calc(12 * var(--u)) calc(14 * var(--u)), var(--color-bar) calc(14 * var(--u)) calc(16 * var(--u)), var(--color-hl) calc(16 * var(--u)) calc(18 * var(--u)), var(--color-bar) calc(18 * var(--u)) calc(20 * var(--u));
 }
 /* **題名と右端の列は、バーの上下1pxずつを空ける**（2026-11-18、利用者の指摘「題名や箱の所で立体感が途切れる」）。
    上下いっぱいに地の色で塗っていたので、バーの上の白い線と下の濃いグレーの線がそこだけ消えていた。右端の列は右も1px空ける（右の濃いグレーの線） */
@@ -574,17 +582,17 @@ img { max-width: 100%; display: block; }
   font-size: var(--text-sm); letter-spacing: 0.04em; white-space: nowrap;
 }
 .pane-title .tail { position: relative; margin: 1px 1px 1px auto; align-self: stretch; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: var(--color-bar); }   /* 縞→件数、件数→ボックス、ボックス→右端をすべて8pxに */
-/* 縞が題名・右端の列にぶつかる所: 濃いグレーの線が白い線より1ドット右へ出る（左隣の1列は濃いグレーだけ）。縞が再開する所: 白い線が1ドット先に始まる（右隣の1列は白だけ） */
+/* 縞が題名・右端の列にぶつかる所: 濃いグレーの線が白い線より2ドット右へ出る（左隣の2ドットは濃いグレーだけ）。縞が再開する所: 白い線が2ドット先に始まる（右隣の2ドットは白だけ） */
 /* **箱はバーと同じ高さにして（上下を1pxずつ外へ戻す）、帯は背景の位置と大きさで作る**。
    `top: var(--bar-inset); height: var(--bar-stripes)` と書くと、この列だけ別の箱として
    端末の画素へ丸められ、バー本体の縞から1画素ずれる（2026-09-15に実機で段ズレを踏んだ）。
    箱の上端をバーの背景の原点にそろえれば、同じ式・同じ丸めで描かれる */
 .pane-title h2::before, .pane-title .tail::before {
-  content: ""; position: absolute; left: calc(-1 * var(--u)); top: -1px; bottom: -1px; width: var(--u);
+  content: ""; position: absolute; left: calc(-2 * var(--u)); top: -1px; bottom: -1px; width: calc(2 * var(--u));
   background: linear-gradient(to bottom, var(--stripe-gap-dark)) 0 var(--bar-inset) / 100% var(--bar-stripes) no-repeat;
 }
 .pane-title h2::after {
-  content: ""; position: absolute; right: calc(-1 * var(--u)); top: -1px; bottom: -1px; width: var(--u);
+  content: ""; position: absolute; right: calc(-2 * var(--u)); top: -1px; bottom: -1px; width: calc(2 * var(--u));
   background: linear-gradient(to bottom, var(--stripe-gap-hl)) 0 var(--bar-inset) / 100% var(--bar-stripes) no-repeat;
 }
 .pane-title .count { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--edge) solid var(--color-ink); padding: 1px calc(var(--space-1) + 1px); }
@@ -1091,20 +1099,20 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 }
 /* **モーダルと引き出しの題名も、窓と同じ縞の題名バー**（2026-11-18。本物の動かせるダイアログと同じ）。
    それまでは黒地に白い字の帯（計算機のデスクアクセサリ風）で、面取りの窓の中でそこだけ平らだった。
-   縞は .pane-titleと同じ色の変数で描く（1ドット刻みの6組。高さ・帯の位置も同じ）。
+   縞は .pane-titleと同じ色の変数で描く（2ドットずつの5組。高さ・帯の位置も同じ）。
    題名は縞の上に地の色の下敷きを敷いて真ん中に（上下1pxずつ空けて、バーの上の白い線と下の濃いグレーの線を見せる）。縞は左右とも8px手前で止める */
 .sheet-head {
-  --bar-inset: calc(8 * var(--u)); --bar-inset-x: 4px; --bar-stripes: calc(12 * var(--u));
+  --bar-inset: calc(4 * var(--u)); --bar-inset-x: 4px; --bar-stripes: calc(20 * var(--u));
   display: flex; align-items: center; gap: var(--space-2);
-  min-height: calc(28px + var(--edge)); padding: 0 var(--space-2);
+  min-height: calc(28 * var(--u) + var(--edge));   /* 高さもドットで数える（28ドット）。pxで28と書くと、1ドットが1pxより大きい端末（2.625倍など）で20ドットの帯が下の線に食い込み、いちばん下の濃いグレーが細った */ padding: 0 var(--space-2);
   border-bottom: var(--edge) solid var(--color-ink);
   box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px 0 0 var(--color-bar-dark), inset 0 -1px 0 var(--color-bar-dark);   /* 枠の描き直しは .pane-titleの注 */
   --color-bar: var(--color-titlebar);
   position: relative;
   color: var(--color-ink);
   background:
-    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - var(--u)) var(--bar-stripes) no-repeat,
-    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + var(--u)) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - var(--u)) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - 2 * var(--u)) var(--bar-stripes) no-repeat,
+    linear-gradient(to bottom, var(--stripe-dark)) calc(var(--bar-inset-x) + 2 * var(--u)) var(--bar-inset) / calc(100% - 2 * var(--bar-inset-x) - 2 * var(--u)) var(--bar-stripes) no-repeat,
     var(--color-bar);
 }
 .sheet-head h2 { margin: 1px auto; min-width: 0; padding: 0 var(--space-2); align-self: stretch; display: flex; align-items: center;
@@ -3371,6 +3379,69 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     paintRadios();   // ラジオボタンの絵は色の変数から描くので、配色が変わったら描き直す
     paintFrames();   // 押しボタンの枠の絵も同じ
     paintChecks();   // チェックボックスの絵も同じ
+    paintDesk();     // 背景の模様も、地の色から描き直す
+  }
+  /* **背景の模様**（2026-11-18）。白い漆喰のような浮き彫りの、32×32ドットの繰り返し。字は0（いちばん明るい）〜6（いちばん暗い）の7段。
+     **参考にしたのはMac OS 8.1のデスクトップパターンの1枚（明るい灰色7色の漆喰風）だが、絵は写していない**。
+     条件（32×32・7段・左上から光の浮き彫り・段の割合は白と淡い2段で約7割）だけ借りて、乱数から作った
+     （乱数の場を斜めにぼかして左上との差を取り、順位で7段に割る。作ったときのスクリプトはリポジトリに置いていない。模様はこの32行が正）。
+     色は地の色（--color-paper）から作る: --desk-stepsの割合で、明るい側は --desk-light、暗い側は --desk-shadeを混ぜる */
+  const DESK_DOTS = [
+    "20033120001321242003232123113220",
+    "10241110222321230034331143033200",
+    "22321312311330231032210230243101",
+    "32233214103501430243101212542013",
+    "22331122035103410430021126520022",
+    "12212310222013213300111245100111",
+    "12223112110012211003212231000222",
+    "14232132122135311233221311202321",
+    "44111221332144112342003213123210",
+    "41112212210252111230023131111212",
+    "11212111001430012320232320102422",
+    "23112010112301223311013100113311",
+    "20132112311223123100022123113222",
+    "01552124223440031010244232024421",
+    "14410122112300421331551210143110",
+    "22200111003104323222401200331221",
+    "01111021022043231221122211511320",
+    "12320221321232202200431114302200",
+    "45101323221233111004300232011111",
+    "62024222320341100043013310111333",
+    "10131024302521112521323212324433",
+    "01300352014311223203112113323111",
+    "13103400036003323011131023210001",
+    "32012102351024122112320132210133",
+    "30001223310131121223310233201442",
+    "21113232011221212112201432002302",
+    "21132330022432121012103420023012",
+    "12333211233311110232035300462033",
+    "14222021024310112431232103620131",
+    "41120120265202212411310124200210",
+    "21300212542112014203201231011214",
+    "24103334200021144002113221211233",
+  ];
+  function paintDesk() {
+    const root = document.documentElement, cs = getComputedStyle(root);
+    const steps = cs.getPropertyValue("--desk-steps").trim().split(/\s+/);
+    if (steps.length !== 7) return;
+    // 色の式（color-mix）を、ブラウザに計算させて実際の色にする。color-mixを解さないブラウザでは空になるので、そのときは地の色だけにする
+    const probe = document.createElement("span"); probe.style.display = "none"; document.body.append(probe);
+    const colors = steps.map(st => {
+      const pct = parseFloat(st.slice(1)) || 0;
+      probe.style.color = "";
+      probe.style.color = st[0] === "P" ? "var(--color-paper)"
+        : `color-mix(in oklab, var(--color-paper), var(${st[0] === "L" ? "--desk-light" : "--desk-shade"}) ${pct}%)`;
+      return probe.style.color ? getComputedStyle(probe).color : null;
+    });
+    probe.remove();
+    if (colors.some(c => !c)) { root.style.removeProperty("--desk-pattern"); return; }
+    // 1ドット = 端末の画素の整数倍（--uと同じ数え方）。絵をその大きさで作っておけば、等倍で敷くだけで縁が立つ
+    const n = Math.max(1, Math.round(window.devicePixelRatio || 1));
+    const cv = document.createElement("canvas"); cv.width = cv.height = 32 * n;
+    const g = cv.getContext("2d");
+    if (!g) return;
+    DESK_DOTS.forEach((row, y) => [...row].forEach((ch, x) => { g.fillStyle = colors[+ch]; g.fillRect(x * n, y * n, n, n); }));
+    root.style.setProperty("--desk-pattern", `url(${cv.toDataURL()})`);
   }
   /* **チェックボックスのドット絵**（2026-11-18）。Mac OS 8のHIGの図（HIG_CG-096.gif）の画素を読んで写した。16×14で、
      左の14×14が箱、右の2列は印がはみ出す所。字は色の変数（`CHECK_INK`）、`.` は透明。
@@ -3476,7 +3547,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   // 画素比が変わったら（ブラウザの拡大・別の画面へ移した）描き直す
   (function watchDpr() {
     const mq = matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
-    mq.addEventListener("change", () => { paintRadios(); watchDpr(); }, { once: true });
+    mq.addEventListener("change", () => { paintRadios(); paintDesk(); watchDpr(); }, { once: true });
   })();
   // 組み込みの色の名前ぜんぶ。**読み込んだ並びの色は、今の組に入っていなくても受け付ける**
   // （別の組の色だった場合は、その組に切り替える。以前はここで弾かれてpaperに戻っていた）
