@@ -759,12 +759,9 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 @media (pointer: coarse) { .seg.radio span { min-height: 40px; } }
 
 .search-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
-.hint-btn {
-  display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; margin-left: var(--space-1); vertical-align: text-bottom;
-  font-family: var(--font-outlier); font-size: var(--text-xs); line-height: 1;
-  background: var(--color-bar); border: var(--edge) solid var(--color-ink); box-shadow: var(--bevel-sm); cursor: pointer;
-}
-.hint-btn:active, .hint-btn[aria-expanded="true"] { background: var(--color-bevel); box-shadow: var(--bevel-in); }
+/* 「ソース」の見出しの横の「ソースについて…」（2026-11-18）。前は小さな「?」の箱だったが、上の帯の「?」（吹き出しの説明の入り切り）と
+   同じ記号で動きが違った。窓を開くボタンなので、名前に「…」を付けた小さいボタンにする */
+.src-about { margin-left: var(--space-2); vertical-align: middle; }
 .note { display: grid; gap: var(--space-3); padding: var(--space-3); font-size: var(--text-sm); }
 /* アプリ内ブラウザ（X・LINEなど）向けの案内帯。共有が遅い・失敗しやすいので外部ブラウザを勧める */
 /* 文章とボタンを横に並べると、「コピーしました」でボタンの幅が変わったときに「閉じる」が
@@ -797,13 +794,15 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
              gap: var(--space-2); padding: var(--space-2); min-height: 0; overflow: hidden auto; }   /* 横は中の枠がスクロールするので、窓自身には出さない */
 .zoom-slot .editor { width: min(100%, 48rem); }
 /* 拡大窓では全部入る大きさにするので、溝のぶんを空けておく必要がない */
-/* 「大きく見る」ボタン。タイトル欄の右に置く（タイトルバーの縞の規則に触らないため） */
-.grid-head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
-/* **ボタンの高さはタイトル欄と同じ式で出す**（1行ぶん＋欄の上下の余白＋枠線）。ボタン共通の40pxのままだと
-   欄（44.8px）より5px低く、下辺でそろえているぶん上に段差が出ていた（記事のサムネで指摘） */
-/* **1行ぶんは本文の行の高さ（1rem × 1.55）で数える**。`1lh` と書くとボタン自身の行（ドット字12px × 1.55 = 18.6px）で数えられ、
-   欄（44.8px）より6px低くなって、下辺でそろえているぶん上辺に段差が出ていた（2026-11-18、利用者の指摘「入力窓と横のラインが合っていない」） */
-.grid-head .btn { white-space: nowrap; min-height: calc(1.55rem + 2 * var(--space-2) + 4px); }   /* 4pxは欄の枠1px＋足した余白1pxの上下ぶん（.inputの注） */
+/* 「大きく見る」はグリッドのすぐ上、右寄せの小さいボタン（2026-11-18。題名欄の右にあったときは題名の操作に見えた） */
+.grid-tools { display: flex; justify-content: flex-end; margin-bottom: var(--space-2); }
+/* **役割ごとの囲み**（2026-11-18）。グループボックスと同じ彫り込んだ線で、題は付けない（中の部品が自分の名前を持っている）。
+   「並び」（どの並びを開くか）と「タイトル・お題」（画像の題名）を分けて見せる */
+.setbox { display: grid; gap: var(--space-3); padding: 10px; margin-bottom: var(--space-3);
+  border: 1px solid var(--color-bar-dark); box-shadow: inset 1px 1px 0 var(--color-hl), 1px 1px 0 var(--color-hl); }
+.setbox > :is(.layouts, .grid-head, .start-themes) { margin-bottom: 0; }   /* 間隔は囲みのgapが出す（`.setbox > *` と書くと、後ろにある .layoutsの指定に負ける） */
+.setbox > .start-themes { border: 0; box-shadow: none; padding: 0; }   /* 囲みの中なので、自分の枠は付けない */
+.layouts.themes[hidden] { display: none; }   /* 「お題から始める」が出ている間は隠す（.layoutsのdisplay: flexがhiddenに勝つので明示） */
 .pl-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 var(--space-2); }
 .note p { margin: 0; overflow-wrap: anywhere; }
 /* **リンクの色の既定は組の青**（`--color-cerulean`。ナイトならアジュール）。指定の無いリンクはブラウザ既定の
@@ -845,7 +844,6 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .caution .c-edge { fill: var(--color-ink); }
 .caution .c-mark { fill: var(--color-on-light); }
 /* 行の箱の余白（min-height: 28px）を外して、箱と文字の下端が「トラックを全て外す」の枠の下辺に乗るようにする */
-.grid-foot .check { min-height: 0; }
 .msg-under { margin-top: var(--space-3); }
 .msg .undo, .msg .pick { font: inherit; font-weight: 700; color: var(--color-ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }   /* ボタンの真下に置く注釈。.msgはmargin 0なので詰まって見える */
 .msg .dup-note { font-weight: 700; color: var(--color-ink); } .msg .dup-note::before { content: ""; display: block; } .msg .dup-note .ic { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; fill: currentColor; } .msg .dup-note .ic-fill { fill: var(--color-paper); }   /* 同じトラックの知らせ（2026-09-26）。改行して太字、頭にNoteの吹き出し。塗りと枠は付けない */
@@ -1202,12 +1200,10 @@ body.sheet-open { overflow: hidden; }
 @media (min-width: 60rem) { #preview-btn { grid-column: 1 / -1; } }   /* PCは「曲を探す」が無いので「できあがりを見る」を1行いっぱい */
 /* **取り消せない操作は、いちばん押すものから遠く・最後・小さく**（OS 9のSpecialメニューの末尾にEmpty Trash… があるのと同じ）。
    以前は「曲を探す」の真上に「全部クリア」があり、利用者から「ヒヤヒヤする」と言われた */
-/* 最後の行: 左に「みんなのグリッド」の2段、右に「トラックを全て外す」。幅が足りなければボタンが次の行の右端に落ちる */
-.grid-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end;   /* 説明の行はボタンの下辺にそろえる（利用者の指定） */
-  gap: var(--space-2); margin-top: var(--space-2); }
-/* **「トラックを全て外す」は説明文の下、右端に単独で置く**（2026-09-21、利用者の指定）。
+/* **取り消せない操作（この並びを消す・トラックを全て外す）は説明文の下、右端にまとめて置く**（2026-09-21、利用者の指定。
+   「この並びを消す」は2026-11-18にここへ。前は「新しい並び」の真下で、画面のいちばん上にあった）。
    ボタンの列から縦にも横にも離れるので、続けて押したときに当たりにくい */
-.clear-row { display: flex; justify-content: flex-end; margin-top: var(--space-3); }
+.clear-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* **「トラックを全て外す」は線で区切って離す**（2026-09-25）。赤くはしない: 危ないボタンがいちばん目立ってしまい、
    HIGでも色は付けない（確かめるのは確認窓と「元に戻す」の役目）。利用者と決めた */
 .clear-row { border-top: var(--line) solid var(--color-rule); padding-top: var(--space-3); }
@@ -1455,7 +1451,7 @@ output { font-variant-numeric: tabular-nums; }
 .out-shot img { display: block; width: 100%; height: auto; border: var(--line) solid var(--color-ink); }
 .out-shot[hidden], #share-done[hidden] { display: none; }
 .out-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.out-actions #share-btn { flex: 1 1 auto; }
+.out-actions #share-btn { flex: 1 1 100%; }   /* 共有は1行いっぱいに、補助の2つ（見本を作る・トラック名をコピー）とは行を分ける（2026-11-18） */
 #share-done { display: grid; gap: var(--space-3); }
 .pane-output .listed .check { min-height: 0; }
 .output[hidden] { display: none; }
@@ -1661,7 +1657,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <input class="input" id="artist" name="artist" type="search" autocomplete="off" placeholder="例: 米津玄師" enterkeyhint="search">
       </div>
       <fieldset class="field">
-        <legend>ソース <button class="hint-btn" type="button" id="src-hint-btn" aria-haspopup="dialog" title="各ソースの説明">?</button></legend>
+        <legend>ソース <button class="btn btn-sm src-about" type="button" id="src-hint-btn" aria-haspopup="dialog" title="各ソースの説明">ソースについて…</button></legend>
         <div class="seg radio" id="sources" role="radiogroup" aria-label="検索ソース"></div>
       </fieldset>
       <div class="search-actions">
@@ -1677,7 +1673,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
-        <button class="btn btn-primary" type="submit" id="bc-btn"><span class="label">URLから取得</span></button>
+        <button class="btn" type="submit" id="bc-btn"><span class="label">URLから取得</span></button>
         <p class="msg" id="bc-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -1698,7 +1694,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
       </div>
       <div class="search-actions">
-        <button class="btn btn-primary" type="submit" id="list-btn"><span class="label">一覧から入れる</span></button>
+        <button class="btn" type="submit" id="list-btn"><span class="label">一覧から入れる</span></button>
         <p class="msg" id="list-form-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -1729,7 +1725,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         <p class="msg">共有ページのトラック名から、このページへ飛べるようになります。</p>
       </div>
       <div class="search-actions">
-        <button class="btn btn-primary" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
+        <button class="btn" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
         <p class="msg" id="m-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -1749,18 +1745,21 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     <div class="pane-title"><h2 id="h-grid">グリッド <span id="grid-size-label">3×3</span></h2><span class="tail"><span class="count" id="grid-count" aria-label="配置数">0/9</span><button class="fold" type="button" aria-expanded="true" aria-label="グリッドを折りたたむ"></button></span></div>
     <div class="pane-body">
       <!-- 並びの切り替え（2026-09-23、運用ボードのgrids-multi）。数が決まらないのでタブではなくポップアップメニュー（HIG） -->
+      <!-- **役割ごとに彫り込んだ線で囲む**（2026-11-18、ボタン配置の見直し）。「並び」（どの並びを開くか）と「タイトル・お題」（画像の題名）が
+           同じ見た目の行で3段続き、違いが読めなかった。「この並びを消す」は取り消せないので、下の「トラックを全て外す」の隣へ移した -->
+      <div class="setbox">
       <div class="layouts">
         <label for="layout-sel">並び</label>
         <span class="popup"><select id="layout-sel"></select></span>
         <button class="btn" type="button" id="layout-new" title="空の並びをもう1つ作る。今の並びはそのまま残る">新しい並び</button>
-        <button class="btn" type="button" id="layout-del" title="いま開いている並びを消す。ほかの並びは残る">この並びを消す</button>
       </div>
+      </div>
+      <div class="setbox">
       <div class="grid-head">
         <div class="field">
           <label for="title">タイトル（省略可）</label>
           <input class="input" id="title" type="text" placeholder="例: 私を構成する9曲" maxlength="60">
         </div>
-        <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
       <!-- お題の見本（2026-09-24、運用ボードのideas-0923）。選ぶとタイトルが入る。
            題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。valueが「横x縦」なら大きさも変え、
@@ -1797,6 +1796,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
         <button class="btn" type="button" id="start-later">あとで</button>
       </div>
+      </div>
       <!-- 行の見出し（2026-10-11）。書き出しではグリッドの左に見出しの列を足す。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
            枠とサムネと同じ三角で畳む（ふだんは使わないので） -->
       <div class="rowlabels">
@@ -1821,6 +1821,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           <ol class="rowlab-list" id="cellcap-list"></ol>
         </div>
       </div>
+      <!-- 「大きく見る」はグリッドのすぐ上（2026-11-18）。題名欄の右にあったときは、題名の操作に見えた -->
+      <div class="grid-tools"><button class="btn btn-sm" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button></div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
@@ -1832,25 +1834,27 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="preview-btn" title="書き出す画像の見本を「できあがり」の窓に作って見せる（送らない）">できあがりを見る</button>
+        <!-- 並びを書き換える操作（色で並べ替え・トラック名を短くする）と、ファイルの出し入れ（保存・読み込み）は行を分ける（2026-11-18）。
+             同じ行に混ぜていたときは、「色で並べ替え」がファイルの操作の仲間に見えた -->
+        <div class="minor">
+          <button class="btn btn-sm" type="button" id="color-sort" title="サムネイルの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のサムネイルは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+          <button class="btn btn-sm" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
+        </div>
         <div class="minor">
           <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
           <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
-          <button class="btn btn-sm" type="button" id="color-sort" title="サムネイルの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のサムネイルは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
         </div>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
-        <div class="grid-foot">
-          <button class="btn btn-sm" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
-        </div>
       </div>
-      <!-- **できあがりの窓はいつも出しておく**（2026-09-25、利用者の案）。「更新」で書き出しの見本を端末の中で作り（送らない）、
+      <!-- **できあがりの窓はいつも出しておく**（2026-09-25、利用者の案）。「見本を作る」（2026-11-18までは「更新」）で書き出しの見本を端末の中で作り（送らない）、
            その下で共有する。並びと設定が前回と同じなら作り直さない。共有もこの絵をそのまま送る（描き直さない） -->
       <section class="pane pane-output" id="output" aria-labelledby="h-output">
         <div class="pane-title"><h2 id="h-output">できあがり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="できあがりを折りたたむ"></button></span></div>
         <div class="pane-body">
-        <p class="msg" id="out-msg" role="status" aria-live="polite">「更新」で見本を作ります（共有しません）。</p>
+        <p class="msg" id="out-msg" role="status" aria-live="polite">「見本を作る」を押すと、書き出す画像の見本がここに出ます（共有しません）。</p>
         <button type="button" class="out-shot" id="out-shot" hidden title="大きく見る"><img id="output-img" alt="書き出す画像の見本"></button>
         <div class="out-actions">
-          <button class="btn btn-sm" type="button" id="out-refresh">更新</button>
+          <button class="btn btn-sm" type="button" id="out-refresh">見本を作る</button>
           <button class="btn btn-sm" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。Xの本文などにそのまま貼れる">トラック名をコピー</button>
           <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有URLにする"><span class="label">トラックを共有</span></button>
         </div>
@@ -1898,6 +1902,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       <!-- **取り消せない操作は説明文の下に置いて、位置をずらす**（利用者の指定、2026-09-21）。
            すぐ上のボタンの列と離すことで、続けて押したときの誤タップを防ぐ -->
       <div class="clear-row">
+        <button class="btn btn-sm" type="button" id="layout-del" title="いま開いている並びを消す。ほかの並びは残る">この並びを消す</button>
         <button class="btn btn-sm" type="button" id="clear-btn" title="トラックを全て外す。あとから「元に戻す」で戻せる">トラックを全て外す</button>
       </div>
 
@@ -2474,10 +2479,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "動かした窓を元の位置に戻す": "Put moved windows back where they were",
         "できあがりを見る": "Preview",
         "書き出す画像の見本を「できあがり」の窓に作って見せる（送らない）": "Make a preview of the exported image in the result window (nothing is sent)",
-        "更新": "Refresh",
-        "「更新」で見本を作ります（共有しません）。": "Press “Refresh” to make a preview (nothing is shared).",
+        "見本を作る": "Make preview",
+        "「見本を作る」を押すと、書き出す画像の見本がここに出ます（共有しません）。": "Press “Make preview” and a preview of the exported image appears here (nothing is shared).",
         "トラックを置くと、ここに書き出す画像の見本が出ます。": "Add tracks and a preview of the exported image appears here.",
-        "並びか設定が変わりました。「更新」で見本を作り直します。": "The grid or settings changed. Press “Refresh” to update the preview.",
+        "並びか設定が変わりました。「見本を作る」で作り直せます。": "The grid or settings changed. Press “Make preview” to redo it.",
         "端末から上げた画像は90日で消えます。出ていない画像は、もう一度選び直してください。": "Images uploaded from your device are deleted after 90 days. Choose any missing images again.",
         "できあがりの見本": "Preview",
         "書き出す画像の見本": "Preview of the exported image",
@@ -2614,6 +2619,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "マスに入れる": "Fill the grid",
         "候補に置いて選ぶ": "Put in results and pick",
         "ソースについて": "About the sources",
+        "ソースについて…": "About the sources…",
         ": トラック名に検索した言葉を含み、アーティスト名に検索したアーティストを含むものだけを表示します（関係ないトラックやカバーを避けるため）。完全一致が先頭に並びます。": ": only shows tracks whose title contains your query and whose artist contains the artist you typed, to keep unrelated songs and covers out. Exact matches come first.",
         ": 画像はCover Art Archiveに登録された盤だけ。1秒1回の制限があり少し遅いです。": ": covers come only from releases registered with the Cover Art Archive. It allows one request per second, so it is a little slow.",
         ": 音MADデータベース（otodb.net）。作品名で探せて、作者はデータベースのタグから取ります。サムネイルはotoDB側に保存されているので、元動画が削除済みでも表示できます。": ": the otoMAD database (otodb.net). Search by work title; the creator comes from the database tags. Thumbnails live on otoDB, so they still show even when the original video is gone.",
@@ -4025,7 +4031,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     }
   });
 
-  /* ---- できあがりの窓（2026-09-25、利用者の案）。いつも出しておき、「更新」で書き出しの見本を端末の中で作る（送らない）。
+  /* ---- できあがりの窓（2026-09-25、利用者の案）。いつも出しておき、「見本を作る」で書き出しの見本を端末の中で作る（送らない）。
      - **並びと設定が前回と同じなら作り直さない**（同じ絵をもう一度見るたびに書き出しと同じだけ待たされる、と利用者）。鍵はoutSigNow()
      - 変わったら「変わりました」と出すだけで、自動では作り直さない（数秒かかるので、スマホで重くなる）
      - **共有はこの絵をそのまま送る**（shareViaBrowserがoutCanvasを使う。描き直さない）
@@ -4035,14 +4041,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const outSigNow = () => JSON.stringify({ ...serialize(), savedAt: null, listed: null, lang: LANG });
   /** 並びか設定が見本を作ったあとで変わったら知らせる（saveのたびに呼ぶ） */
   function markOutStale() {
-    if (outSig && outSigNow() !== outSig) say($("#out-msg"), tr("並びか設定が変わりました。「更新」で見本を作り直します。"));
+    if (outSig && outSigNow() !== outSig) say($("#out-msg"), tr("並びか設定が変わりました。「見本を作る」で作り直せます。"));
   }
   /** 見本を捨てる（並びを切り替えた・全部外したとき） */
   function resetOutput() {
     outRun++; outSig = ""; outCanvas = null; outBg = null;
     if (outUrl) { URL.revokeObjectURL(outUrl); outUrl = ""; }
     $("#out-shot").hidden = true; $("#share-done").hidden = true;
-    say($("#out-msg"), tr("「更新」で見本を作ります（共有しません）。"));
+    say($("#out-msg"), tr("「見本を作る」を押すと、書き出す画像の見本がここに出ます（共有しません）。"));
   }
   async function refreshOutput() {
     const msg = $("#out-msg"), btn = $("#out-refresh");
@@ -4641,8 +4647,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     document.fonts?.ready.then(run);
   }
   {
-    const box = document.querySelector(".grid-actions > .minor");
-    if (box) {
+    for (const box of document.querySelectorAll(".grid-actions > .minor")) {
       const run = () => requestAnimationFrame(() => balanceRows(box));
       new ResizeObserver(run).observe(box);
       new MutationObserver(run).observe(box, { subtree: true, characterData: true, childList: false });   // 英語に切り替えると字の幅が変わる
@@ -5471,7 +5476,10 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const startDismissed = () => { try { return localStorage.getItem(START_KEY) === "0"; } catch { return false; } };
   const dismissStart = () => { try { localStorage.setItem(START_KEY, "0"); } catch { /* 覚えられなくても閉じられる */ } };
   function updateStart() {
-    $("#start-themes").hidden = state.cells.some(Boolean) || state.stash.length > 0 || !!(state.title || "").trim() || startDismissed();
+    const hide = state.cells.some(Boolean) || state.stash.length > 0 || !!(state.title || "").trim() || startDismissed();
+    $("#start-themes").hidden = hide;
+    // 出している間は、上の「お題」のポップアップを隠す（同じことをする入口が2つ並ぶため。2026-11-18）
+    $(".layouts.themes").hidden = !hide;
   }
   for (const b of $("#start-themes").querySelectorAll(".start-btns .btn")) {
     b.addEventListener("click", () => {

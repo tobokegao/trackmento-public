@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.81c7910a.css">
+<link rel="stylesheet" href="app/app.86374391.css">
 </head>
 <body>
 
@@ -105,7 +105,7 @@
         <input class="input" id="artist" name="artist" type="search" autocomplete="off" placeholder="例: 米津玄師" enterkeyhint="search">
       </div>
       <fieldset class="field">
-        <legend>ソース <button class="hint-btn" type="button" id="src-hint-btn" aria-haspopup="dialog" title="各ソースの説明">?</button></legend>
+        <legend>ソース <button class="btn btn-sm src-about" type="button" id="src-hint-btn" aria-haspopup="dialog" title="各ソースの説明">ソースについて…</button></legend>
         <div class="seg radio" id="sources" role="radiogroup" aria-label="検索ソース"></div>
       </fieldset>
       <div class="search-actions">
@@ -121,7 +121,7 @@
         <textarea class="input" id="bc-url" name="url" rows="2" autocomplete="off" placeholder="https://xxx.bandcamp.com/track/…"></textarea>
       </div>
       <div class="search-actions">
-        <button class="btn btn-primary" type="submit" id="bc-btn"><span class="label">URLから取得</span></button>
+        <button class="btn" type="submit" id="bc-btn"><span class="label">URLから取得</span></button>
         <p class="msg" id="bc-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -142,7 +142,7 @@
         </div>
       </div>
       <div class="search-actions">
-        <button class="btn btn-primary" type="submit" id="list-btn"><span class="label">一覧から入れる</span></button>
+        <button class="btn" type="submit" id="list-btn"><span class="label">一覧から入れる</span></button>
         <p class="msg" id="list-form-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -173,7 +173,7 @@
         <p class="msg">共有ページのトラック名から、このページへ飛べるようになります。</p>
       </div>
       <div class="search-actions">
-        <button class="btn btn-primary" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
+        <button class="btn" type="submit" id="m-btn"><span class="label">手入力で追加</span></button>
         <p class="msg" id="m-msg" role="status" aria-live="polite"></p>
       </div>
     </form>
@@ -193,18 +193,21 @@
     <div class="pane-title"><h2 id="h-grid">グリッド <span id="grid-size-label">3×3</span></h2><span class="tail"><span class="count" id="grid-count" aria-label="配置数">0/9</span><button class="fold" type="button" aria-expanded="true" aria-label="グリッドを折りたたむ"></button></span></div>
     <div class="pane-body">
       <!-- 並びの切り替え（2026-09-23、運用ボードのgrids-multi）。数が決まらないのでタブではなくポップアップメニュー（HIG） -->
+      <!-- **役割ごとに彫り込んだ線で囲む**（2026-11-18、ボタン配置の見直し）。「並び」（どの並びを開くか）と「タイトル・お題」（画像の題名）が
+           同じ見た目の行で3段続き、違いが読めなかった。「この並びを消す」は取り消せないので、下の「トラックを全て外す」の隣へ移した -->
+      <div class="setbox">
       <div class="layouts">
         <label for="layout-sel">並び</label>
         <span class="popup"><select id="layout-sel"></select></span>
         <button class="btn" type="button" id="layout-new" title="空の並びをもう1つ作る。今の並びはそのまま残る">新しい並び</button>
-        <button class="btn" type="button" id="layout-del" title="いま開いている並びを消す。ほかの並びは残る">この並びを消す</button>
       </div>
+      </div>
+      <div class="setbox">
       <div class="grid-head">
         <div class="field">
           <label for="title">タイトル（省略可）</label>
           <input class="input" id="title" type="text" placeholder="例: 私を構成する9曲" maxlength="60">
         </div>
-        <button class="btn" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button>
       </div>
       <!-- お題の見本（2026-09-24、運用ボードのideas-0923）。選ぶとタイトルが入る。
            題名は選んだ項目の文字をそのまま使う（英語表示なら英訳が入る）。valueが「横x縦」なら大きさも変え、
@@ -241,6 +244,7 @@
         </div>
         <button class="btn" type="button" id="start-later">あとで</button>
       </div>
+      </div>
       <!-- 行の見出し（2026-10-11）。書き出しではグリッドの左に見出しの列を足す。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
            枠とサムネと同じ三角で畳む（ふだんは使わないので） -->
       <div class="rowlabels">
@@ -265,6 +269,8 @@
           <ol class="rowlab-list" id="cellcap-list"></ol>
         </div>
       </div>
+      <!-- 「大きく見る」はグリッドのすぐ上（2026-11-18）。題名欄の右にあったときは、題名の操作に見えた -->
+      <div class="grid-tools"><button class="btn btn-sm" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button></div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
@@ -276,25 +282,27 @@
         </div>
         <button class="btn btn-primary" type="button" id="find-btn">トラックを探す</button>
         <button class="btn btn-primary" type="button" id="preview-btn" title="書き出す画像の見本を「できあがり」の窓に作って見せる（送らない）">できあがりを見る</button>
+        <!-- 並びを書き換える操作（色で並べ替え・トラック名を短くする）と、ファイルの出し入れ（保存・読み込み）は行を分ける（2026-11-18）。
+             同じ行に混ぜていたときは、「色で並べ替え」がファイルの操作の仲間に見えた -->
+        <div class="minor">
+          <button class="btn btn-sm" type="button" id="color-sort" title="サムネイルの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のサムネイルは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
+          <button class="btn btn-sm" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
+        </div>
         <div class="minor">
           <button class="btn btn-sm" type="button" id="json-export" title="並び（トラック・画像URL・出力設定）をファイルとして手元に保存。読み込むと同じ並びに戻せる">並びを保存</button>
           <button class="btn btn-sm" type="button" id="json-import" title="「並びを保存」で書き出したファイルを読み込んで、同じ並びに戻す">並びを読み込み…</button>
-          <button class="btn btn-sm" type="button" id="color-sort" title="サムネイルの主な色で、赤 → 黄 → 緑 → 青 → 紫の順に並べ替える。白黒のサムネイルは最後に明るい順。あとから「元に戻す」で戻せる">色で並べ替え</button>
         </div>
         <input type="file" id="json-file" accept="application/json,.json" hidden>
-        <div class="grid-foot">
-          <button class="btn btn-sm" type="button" id="trim-all-btn" title="トラック名から【東方Vocal】や「- Topic」のような部分を外して、データそのものを短くする。あとから「元に戻す」で戻せる">トラック名を短くする</button>
-        </div>
       </div>
-      <!-- **できあがりの窓はいつも出しておく**（2026-09-25、利用者の案）。「更新」で書き出しの見本を端末の中で作り（送らない）、
+      <!-- **できあがりの窓はいつも出しておく**（2026-09-25、利用者の案）。「見本を作る」（2026-11-18までは「更新」）で書き出しの見本を端末の中で作り（送らない）、
            その下で共有する。並びと設定が前回と同じなら作り直さない。共有もこの絵をそのまま送る（描き直さない） -->
       <section class="pane pane-output" id="output" aria-labelledby="h-output">
         <div class="pane-title"><h2 id="h-output">できあがり</h2><span class="tail"><button class="fold" type="button" aria-expanded="true" aria-label="できあがりを折りたたむ"></button></span></div>
         <div class="pane-body">
-        <p class="msg" id="out-msg" role="status" aria-live="polite">「更新」で見本を作ります（共有しません）。</p>
+        <p class="msg" id="out-msg" role="status" aria-live="polite">「見本を作る」を押すと、書き出す画像の見本がここに出ます（共有しません）。</p>
         <button type="button" class="out-shot" id="out-shot" hidden title="大きく見る"><img id="output-img" alt="書き出す画像の見本"></button>
         <div class="out-actions">
-          <button class="btn btn-sm" type="button" id="out-refresh">更新</button>
+          <button class="btn btn-sm" type="button" id="out-refresh">見本を作る</button>
           <button class="btn btn-sm" type="button" id="text-copy" title="「1. アーティスト - トラック名」の形で、番号順にコピーする。Xの本文などにそのまま貼れる">トラック名をコピー</button>
           <button class="btn btn-primary" type="button" id="share-btn" title="画像を作り、今の並びと一緒に共有URLにする"><span class="label">トラックを共有</span></button>
         </div>
@@ -342,6 +350,7 @@
       <!-- **取り消せない操作は説明文の下に置いて、位置をずらす**（利用者の指定、2026-09-21）。
            すぐ上のボタンの列と離すことで、続けて押したときの誤タップを防ぐ -->
       <div class="clear-row">
+        <button class="btn btn-sm" type="button" id="layout-del" title="いま開いている並びを消す。ほかの並びは残る">この並びを消す</button>
         <button class="btn btn-sm" type="button" id="clear-btn" title="トラックを全て外す。あとから「元に戻す」で戻せる">トラックを全て外す</button>
       </div>
 
@@ -718,6 +727,6 @@
 <div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
-<script id="app-js" src="app/app.e5b9b543.js"></script>
+<script id="app-js" src="app/app.51b2f823.js"></script>
 </body>
 </html>
