@@ -145,9 +145,15 @@
      落ちる影は窓の右下の1pxだけ。細則はdocs/ui.mdの「面取り」 */
   --shadow: 1px 1px 0 var(--color-shadow);   /* 窓・メニューが落とす影。1pxだけ */
   --edge: 1px;                               /* 窓と押せる部品（ボタン・入力欄・ポップアップ）の外枠。--line（2px）は絵やマスを囲む線 */
-  /* 出っぱり（ボタン・ポップアップ）。外から、白（左上）／濃いグレー（右下）、その内側の右下に中間のグレー */
-  --bevel-out: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark), inset -2px -2px 0 var(--color-bevel);
-  /* 小さな箱（畳む箱・「?」・矢印）は1段だけ。2段だと面が線で埋まる */
+  /* **押しボタンの枠は1枚のドット絵**（--fr-*。JSのpaintFramesが今の色で描いて入れる。2026-11-18）。
+     Mac OS 8のHIGの図（Push Button States、HIG_CG-105.gif）の画素を読んで写した: 黒1ドットの枠で四隅が1ドット欠け、
+     枠の1ドット内側の左上に白、右下に2段のグレー。押している間は濃いグレーの面に白い字。細則はdocs/ui.mdの「面取り」 */
+  --color-press:    oklch(50% 0.012 250);   /* 押している間の面（本物は #666） */
+  --color-press-lo: oklch(36% 0.012 250);   /* その左上の暗い線 */
+  --color-press-hi: oklch(62% 0.012 250);   /* その右下の明るい線 */
+  --color-press-ink: #ffffff;               /* 押している間の字 */
+  --fr: calc(3 * var(--u));                 /* 枠の絵の太さ（3ドット。1ドットは端末の画素の整数倍） */
+  /* 小さな箱（畳む箱・「?」・矢印）は内向きの影で1段だけ描く。絵にするほどの広さが無い */
   --bevel-sm: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark);
   /* 押し込んだとき。明るさの並びを逆にする（左上が濃く、右下が明るい）。地は --color-bevelに落とす */
   --bevel-in: inset 1px 1px 0 var(--color-bar-dark), inset -1px -1px 0 var(--color-hl-dim);
@@ -222,6 +228,11 @@ img { max-width: 100%; display: block; }
   /* 掴んでいる間のつまみ。rule-2はこの組ではつまみの地と同じ38%で、掴んでも何も変わらなかった（2026-10-12）。
      明るい組と同じく地より一段（9%）暗くする */
   --color-thumb-held: var(--color-bevel);
+  /* 押している間のボタン。暗い地では面を地（38%）より暗くし、字は明るいまま */
+  --color-press:    oklch(26% 0.012 250);
+  --color-press-lo: oklch(16% 0.012 250);
+  --color-press-hi: oklch(34% 0.012 250);
+  --color-press-ink: var(--color-ink);
   --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
   --sb-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h5v1H0zM0 4h5v1H0zM0 0h1v5H0zM4 0h1v5H4z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 3h3v1H1zM3 1h1v3H3z'/%3E%3Cpath fill='%23fff' d='M1 1h3v1H1zM1 1h1v3H1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M3 1h1v1H3zM1 3h1v1H1z'/%3E%3C/svg%3E");
   --sb-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16' viewBox='0 0 9 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM0 6h2v2H0zM0 12h2v2H0z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M2 0h5v2H2zM2 6h5v2H2zM2 12h5v2H2z'/%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M2 2h7v2H2zM2 8h7v2H2zM2 14h7v2H2z'/%3E%3C/svg%3E");
@@ -285,27 +296,27 @@ img { max-width: 100%; display: block; }
 .lang-switch {
   order: 9;   /* 常にバーの右端。直前の .bar-statusがmargin-left:autoで余白を吸うので、これで右端に付く */
   font-family: var(--font-display); font-size: var(--text-sm); line-height: 1;
-  padding: 6px 11px; border: var(--edge) solid var(--color-ink);
-  background: var(--color-bar); color: var(--color-ink); box-shadow: var(--bevel-out); cursor: pointer;
+  padding: 4px 9px; color: var(--color-ink); cursor: pointer;
 }
-/* 上の帯の3つ（言語・「?」・窓を元に戻す）は小さな押しボタン。押している間と、入っている間（「?」）はへこむ */
-.lang-switch:active, .win-reset:active, .help-btn:active, .help-btn[aria-pressed="true"] { background: var(--color-bevel); box-shadow: var(--bevel-in); }
+/* 上の帯の3つ（言語・「?」・窓を元に戻す）は小さな押しボタン。枠は .btnと同じ絵（下の「ボタンの枠」）。押している間と、入っている間（「?」）はへこむ */
+.lang-switch, .win-reset, .help-btn { border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr); background: var(--color-bar) padding-box; image-rendering: pixelated; }
+.lang-switch:active, .win-reset:active, .help-btn:active, .help-btn[aria-pressed="true"] { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }
 /* 窓を動かしたあとに出す「窓を元に戻す」（2026-09-25）。言語の切り替えの左 */
-.win-reset { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 6px 11px;
-  border: var(--edge) solid var(--color-ink); background: var(--color-bar); color: var(--color-ink); box-shadow: var(--bevel-out); cursor: pointer; }
+.win-reset { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 4px 9px;
+  color: var(--color-ink); cursor: pointer; }
 .win-reset[hidden] { display: none; }
 /* **吹き出しの説明**（2026-09-27、Mac OS 8/9のバルーンヘルプ。運用ボードのhelp-videosの②）。「?」で出す・隠すを切り替える。
    出しているあいだは、PCは部品にマウスを重ねると、スマホは部品に触れると吹き出しが出る（スマホは覆い #balloon-veilが
    触れた所を受けるので、部品そのものは動かない）。中身はJSのHELP表（無ければtitleの文）。仕組みはdocs/ui.md */
-.help-btn { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 6px 11px;
-  border: var(--edge) solid var(--color-ink); background: var(--color-bar); color: var(--color-ink); box-shadow: var(--bevel-out); cursor: pointer; }
+.help-btn { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 4px 9px;
+  color: var(--color-ink); cursor: pointer; }
 /* **狭いスマホでは間隔とボタンの内側を詰める**（2026-09-27）。「?」を足してから、幅360〜375pxではロゴ・「?」・「EN」が1行に
    収まらず（328pxに330px）、390pxでも英語の画面の「日本語」が2行目に落ちて、上の帯が49pxから91pxに伸びていた。
    ロゴはピクセルの字なので縮めない。空の部品（ロゴ横の札・状態の1行）にも間隔が付いていたので、空のときは間隔を打ち消す。
    詰めると360pxで「日本語」まで326pxに収まる（320pxは2行のまま） */
 @media (max-width: 420px) {
   .bar { gap: var(--space-2); }
-  .lang-switch, .help-btn, .win-reset { padding-inline: 8px; }
+  .lang-switch, .help-btn, .win-reset { padding-inline: 6px; }
   .wordmark small:empty { display: none; }
   .bar-status:empty { margin-right: calc(-1 * var(--space-2)); }
 }
@@ -565,7 +576,7 @@ img { max-width: 100%; display: block; }
 }
 .pane-title .count { font-family: var(--font-outlier); font-size: var(--text-xs); background: var(--color-paper); border: var(--edge) solid var(--color-ink); padding: 1px calc(var(--space-1) + 1px); }
 /* Explorer風の最小化ボタン。タイトル行のクリックでも開閉できる */
-.pane-title { cursor: pointer; user-select: none; }
+.pane-title { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }   /* 指で押した瞬間のブラウザの水色は出さない（スマホの下端の窓で、バー全体が水色に光った。2026-11-18、利用者の動画で） */
 .fold {
   width: 24px; height: 20px; padding: 0; flex: none;
   display: grid; place-items: center;
@@ -660,36 +671,46 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .input[aria-invalid="true"]:focus-visible { outline-color: var(--color-error); }
 .input:disabled { opacity: .5; cursor: not-allowed; }
 
-/* **ボタンは面取りの出っぱり**（2026-11-17、プラチナの押しボタン）。黒1pxの枠・グレーの地・内側の左上に白、右下に2段のグレー。
-   落ちる影は付けない（それまでは市松の影を右下へずらして敷き、押すと影の位置へ動かしていた）。
-   押している間は地を一段暗くして、面取りの明るさを逆にする。**位置は動かさない**（本物も動かない） */
+/* **ボタンの枠はプラチナの押しボタンの絵**（2026-11-18。Mac OS 8のHIGの図HIG_CG-105.gifの画素を読んで写した）。
+   黒1ドットの枠で四隅が1ドット欠け、枠の1ドット内側の左上に白、右下に2段のグレー。面はグレー。
+   絵は7×7のドット絵（真ん中は透かし）で、JSのpaintFramesが今の色で描いて --fr-* に入れる。それを `border-image` で
+   9つに割って使う（角は3ドット四方のまま、辺だけ伸びる。スクロールバーのつまみと同じ手）。
+   **面の色はbackground（padding-boxで切る）**。border-boxのままだと、欠けた角から面の色がはみ出す。
+   落ちる影は付けない。押している間は濃いグレーの面に白い字（明るさの並びが逆の絵）。**位置は動かさない**。
+   押せないときは枠も字もグレーで、面取りなし（本物のDisabled。前は全体を半透明にしていた） */
 .btn {
   position: relative;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
-  min-height: 40px; padding: var(--space-1) var(--space-4);
-  border: var(--edge) solid var(--color-ink);
-  background: var(--color-bar); color: var(--color-ink);
-  box-shadow: var(--bevel-out);
+  min-height: 40px; padding: calc(var(--space-1) - 2px) calc(var(--space-4) - 2px);   /* 枠が1px → 3ドットになったぶん、余白を2pxずつ引く */
+  border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr);
+  background: var(--color-bar) padding-box; color: var(--color-ink);
+  image-rendering: pixelated;
   font-family: var(--font-display); font-size: var(--text-base); letter-spacing: 0.02em;
   text-decoration: none;
   white-space: nowrap; cursor: pointer;
 }
-.btn:active { background: var(--color-bevel); box-shadow: var(--bevel-in); }
-.btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; background: var(--color-bar); box-shadow: var(--bevel-out); }
-/* いちばん押すボタン（トラックを探す・共有など）は黒地に白い字。面取りは付けない（黒い面に白や灰の線を入れると枠が二重に見える） */
-.btn-primary, .btn-primary:disabled { background: var(--color-ink); color: var(--color-paper); box-shadow: none; }
-.btn-primary:active { background: var(--color-muted); box-shadow: none; }
-/* 既定のボタン（Returnで押されるもの）は二重の枠で示す（HIG、2026-09-23）。紙の色1pxのすき間の外に黒3px。
-   Returnで押せるのは、窓を開いたときにこのボタンへ焦点を置いているため（ブラウザの既定の動き） */
-.btn-default { box-shadow: var(--bevel-out), 0 0 0 1px var(--color-paper), 0 0 0 4px var(--color-ink); margin: 4px; }
-.btn-default:active { box-shadow: var(--bevel-in), 0 0 0 1px var(--color-paper), 0 0 0 4px var(--color-ink); }
-.btn-primary.btn-default, .btn-primary.btn-default:active { box-shadow: 0 0 0 1px var(--color-paper), 0 0 0 4px var(--color-ink); }
-@media (hover: hover) and (pointer: fine) { .btn-primary:hover { background: var(--color-ink-2); } }
+.btn:active { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }
+.btn:disabled, .btn[aria-disabled="true"] { border-image-source: var(--fr-off, none); background-color: var(--color-bar); color: var(--color-bar-dark); cursor: not-allowed; }
+/* **いちばん押すボタン（.btn-primary: トラックを探す・検索する・共有など）と、Returnで押される既定のボタン（.btn-default）は、
+   本物の既定のボタンの形**: ふつうのボタンの外を、立体の輪（黒1・明るいグレー1・中間のグレー1。右下は中間・濃いグレー・黒）で囲む。
+   2026-11-18までは黒地に白い字で、面取りの画面の中でそこだけ平らに浮いて見えた（利用者の指摘）。
+   輪は ::afterに絵（--fr-ring）で描き、外へ3ドットはみ出すぶんをmarginで空ける。本体は角の欠けない絵にする
+   （欠けた角から後ろの地がのぞいて、輪との間に明るい点が出るため）。
+   Returnで押せるのは、窓を開いたときにそのボタンへ焦点を置いているため（ブラウザの既定の動き） */
+.btn-primary, .btn-default { border-image-source: var(--fr-up-sq, none); margin: var(--fr); }
+.btn-primary:active, .btn-default:active { border-image-source: var(--fr-down-sq, none); }
+.btn-primary::after, .btn-default::after {
+  content: ""; position: absolute; inset: calc(-2 * var(--fr)); pointer-events: none;
+  border: var(--fr) solid transparent; border-image: var(--fr-ring, none) 3 / var(--fr);
+}
+.btn-primary:disabled, .btn-default:disabled { border-image-source: var(--fr-off-sq, none); }
+.btn-primary:disabled::after, .btn-default:disabled::after { border-image-source: var(--fr-ring-off, none); }
 .btn[data-state="loading"] { cursor: progress; }
 .btn[data-state="loading"] .label::after { content: "…"; }
 .btn[data-state="loading"]::before { content: ""; width: 8px; height: 8px; background: currentColor; animation: blink 1s steps(2) infinite; }
-.btn[data-state="error"] { border-color: var(--color-error); }
-.btn[data-state="success"] { border-color: var(--color-mint); }
+/* 失敗・成功の印は、枠の絵の外に2pxの色の線で出す（枠は絵なので、border-colorでは色が変わらない） */
+.btn[data-state="error"] { outline: 2px solid var(--color-error); outline-offset: 1px; }
+.btn[data-state="success"] { outline: 2px solid var(--color-mint); outline-offset: 1px; }
 @keyframes blink { 50% { opacity: 0; } }
 @media (pointer: coarse) { .btn { min-height: 44px; } }
 
@@ -706,9 +727,9 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
   position: relative;
   display: block; padding: var(--space-1) var(--space-3); text-align: center;
   font-family: var(--font-display); font-size: var(--text-sm); white-space: nowrap; cursor: pointer;
-  border: var(--edge) solid var(--color-ink); background: var(--color-bar); box-shadow: var(--bevel-out);
+  border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr); background: var(--color-bar) padding-box; image-rendering: pixelated;
 }
-.seg input:checked + span { background: var(--color-bevel); box-shadow: var(--bevel-in); }   /* 入っているものはへこんだまま */
+.seg input:checked + span { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }   /* 入っているものはへこんだまま */
 .seg input:focus-visible + span { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
 .seg input:disabled + span { opacity: .45; cursor: not-allowed; }
 
@@ -722,7 +743,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 #pad-seg { grid-template-columns: repeat(3, max-content); }   /* 余白の段は名前が短いので3つを1行に（2列だと「たっぷり」だけ次の行に落ちる） */
 .seg.radio span {
   display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) 0;
-  border: 0; background: none; box-shadow: none; text-align: left; font-family: var(--font-body);
+  border: 0; border-image: none; background: none; text-align: left; font-family: var(--font-body);
 }
 .seg.radio span::before {
   /* **ドット絵の丸**（2026-09-22、利用者の指定）。Mac OS 8のヒューマンインターフェースガイドラインの図
@@ -735,7 +756,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
   image-rendering: pixelated;   /* 拡大してもドットをぼかさない */
   position: relative; top: -0.042em;   /* ドット字（M+ 12）のインクは行の中心より0.042em上に出るので、丸のほうを合わせる（2026-09-24。チェックの注を見る） */
 }
-.seg.radio input:checked + span { background: none; box-shadow: none; }
+.seg.radio input:checked + span { background: none; border-image: none; color: inherit; }
 .seg.radio input:checked + span::before { background-image: var(--radio-on); }
 @media (pointer: coarse) { .seg.radio span { min-height: 40px; } }
 
@@ -897,21 +918,26 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .popup select {
   -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; min-height: 40px; margin: 0;
   padding: var(--space-1) calc(var(--arrow-w) + var(--space-2)) var(--space-1) var(--space-3);
-  border: var(--edge) solid var(--color-ink); border-radius: 0; color: var(--color-ink); cursor: pointer;
-  /* 矢印の左の区切りは、濃いグレーと白の2本（彫り込んだ線）。面取りの線（上1px・下2px）には掛けない */
+  /* 枠は押しボタンと同じ絵（.btnの注）。面と区切りの線は枠の内側（padding-box）に描く */
+  border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr); border-radius: 0; color: var(--color-ink); cursor: pointer;
+  image-rendering: pixelated;
+  /* 矢印の左の区切りは、濃いグレーと白の2本（彫り込んだ線） */
   background:
-    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)) right var(--arrow-w) top 1px / 1px calc(100% - 3px) no-repeat,
-    linear-gradient(var(--color-hl), var(--color-hl)) right calc(var(--arrow-w) - 1px) top 1px / 1px calc(100% - 3px) no-repeat,
+    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)) right calc(var(--arrow-w) - var(--fr)) top 0 / 1px 100% no-repeat,
+    linear-gradient(var(--color-hl), var(--color-hl)) right calc(var(--arrow-w) - var(--fr) - 1px) top 0 / 1px 100% no-repeat,
     var(--color-bar);
-  box-shadow: var(--bevel-out);
+  background-clip: padding-box;
   font-family: var(--font-display); font-size: var(--text-base); text-overflow: ellipsis;
 }
-.popup::before {
-  content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; right: 0; width: var(--arrow-w); pointer-events: none;
-  background: var(--color-ink); transform: rotate(180deg);
+/* 矢印は上向きと下向きの三角を縦に2つ（本物のポップアップメニューの印。HIGの図HIG_CG-081.gif）。間は2ドット */
+.popup::before, .popup::after {
+  content: ""; position: absolute; z-index: 1; top: 50%; right: 0; width: var(--arrow-w); height: calc(4 * var(--u)); pointer-events: none;
+  background: var(--color-ink);
   -webkit-mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat; mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat;
 }
-.popup:active select { background-color: var(--color-bevel); box-shadow: var(--bevel-in); }   /* 押し口（.popup-hit）が上に重なっているので、外の箱の :activeで受ける */
+.popup::before { margin-top: calc(-5 * var(--u)); }
+.popup::after { margin-top: var(--u); transform: rotate(180deg); }
+.popup:active select { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }   /* 押し口（.popup-hit）が上に重なっているので、外の箱の :activeで受ける */
 /* 一覧の中の項目はブラウザが描くので、暗い組でも読めるように色だけ渡す */
 .popup option { background: var(--color-paper); color: var(--color-ink); }
 /* **一覧は自前のOS 9風のメニューで出す**（2026-09-25、利用者の指摘。スマホではブラウザの黒い一覧が出て、サイトの見た目から浮いていた）。
@@ -3264,6 +3290,43 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       else root.style.setProperty(slot, cssRgb(mixRgb(rgb[0], ink, t)));
     });
     paintRadios();   // ラジオボタンの絵は色の変数から描くので、配色が変わったら描き直す
+    paintFrames();   // 押しボタンの枠の絵も同じ
+  }
+  /* **押しボタンの枠のドット絵**（2026-11-18）。Mac OS 8のHIGの図（HIG_CG-105.gif）の画素を読んで写した7×7。
+     1字1ドットで、字は色の変数（`FRAME_INK`）、`.` は透明。真ん中の1ドットは透かす（面の色はCSSのbackgroundが出す）。
+     CSSは `border-image` で3ドットずつ9つに割って使うので、**角の3×3と、辺の真ん中の1列・1行**が見た目を決める。
+     up = ふつう、down = 押している間、off = 押せない、-sq = 角を欠かないもの（輪で囲むボタンの本体）、
+     ring = 既定のボタンを囲む輪、ring-off = 押せないときの輪 */
+  const FRAME_INK = { k: "--color-ink", f: "--color-bar", w: "--color-hl", m: "--color-bevel", d: "--color-bar-dark",
+    p: "--color-press", l: "--color-press-lo", h: "--color-press-hi" };
+  const FRAME_DOTS = {
+    "up":       [".kkkkk.", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", ".kkkkk."],
+    "down":     [".kkkkk.", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", ".kkkkk."],
+    "off":      [".ddddd.", "dfffffd", "dfffffd", "dff.ffd", "dfffffd", "dfffffd", ".ddddd."],
+    "up-sq":    ["kkkkkkk", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", "kkkkkkk"],
+    "down-sq":  ["kkkkkkk", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", "kkkkkkk"],
+    "off-sq":   ["ddddddd", "dfffffd", "dfffffd", "dff.ffd", "dfffffd", "dfffffd", "ddddddd"],
+    "ring":     ["..kkk..", ".kfffk.", "kfmmmdk", "kfm.mdk", "kfmmmdk", ".kdddk.", "..kkk.."],
+    "ring-off": ["..ddd..", ".dfffd.", "dfffffd", "dff.ffd", "dfffffd", ".dfffd.", "..ddd.."],
+  };
+  /* 今の色でSVGに組んで --fr-* に入れる（パレットを替えたとき）。**PNGではなくSVG**（`shape-rendering="crispEdges"`）:
+     border-imageは辺を引き伸ばすので、縁の立つ形式にしておく（スクロールバーの --sb-frameと同じ） */
+  function paintFrames() {
+    const root = document.documentElement, cs = getComputedStyle(root);
+    const ink = Object.fromEntries(Object.entries(FRAME_INK).map(([ch, v]) => [ch, cs.getPropertyValue(v).trim()]));
+    for (const [name, rows] of Object.entries(FRAME_DOTS)) {
+      let rects = "";
+      rows.forEach((row, y) => {
+        for (let x = 0; x < row.length;) {
+          const ch = row[x]; let w = 1;
+          while (x + w < row.length && row[x + w] === ch) w++;
+          if (ch !== ".") rects += `<rect x="${x}" y="${y}" width="${w}" height="1" fill="${ink[ch]}"/>`;
+          x += w;
+        }
+      });
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 7 7" shape-rendering="crispEdges">${rects}</svg>`;
+      root.style.setProperty("--fr-" + name, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+    }
   }
   /* **ラジオボタンのドット絵**（2026-09-22）。参考元の図（HIG_CG-004.gif）の16x16を1字1ドットで写したもの。
      字は色の変数（`RADIO_INK`）、`.` は透明。上 = 選んでいない、下 = 選んだ */

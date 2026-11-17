@@ -61,7 +61,7 @@ Cloudflare R2 (img.trackmento.com)
 
 ## デザインと言葉づかい
 
-見た目は **Mac OS 9（プラチナ）風**に寄せてある。角丸を使わない、厚みは面取り（左上が白・右下がグレーの線）で出して落ちる影は右下1pxだけ、
+見た目は **Mac OS 9（プラチナ）風**に寄せてある。角丸を使わない（押しボタンの四隅の1ドット欠けだけは本物どおりドット絵で欠く）、厚みは面取り（左上が白・右下がグレーの線）で出して落ちる影は右下1pxだけ、
 タイトルバーは縞模様、スクロールバーは溝とつまみの立体感まで作る。今どきのフラットな
 Webツールとは逆を行く。**素っ気なさと厚みの同居**が持ち味なので、装飾を足すときは
 「OS 9のダイアログに出てきそうか」を基準にする。
@@ -210,6 +210,7 @@ Webツールとは逆を行く。**素っ気なさと厚みの同居**が持ち�
 - マスへの絵の入れ方: `_cover_blur_pad` / `blur_margin` ↔ `coverBlurPad` / `blurMargin`（**下地はマスより広く作ってから切り取る**）
 - 行の見出しの列と行の間隔: `_label_col` / `_label_lines` / `_row_gap` / `LABEL_COL_PX` / `ROW_GAP_FRAC` ↔ `labelCol` / `labelLines` / `rowGap` / 同名の定数（`gw` に列を、縦の送りに間隔を足す）。曲名リストの見出しは `_songs` / `_nums` / `cell_nums` / `_Head` / `LIST_HEAD_SCALE` ↔ `listCells` / `listNums` / `cellNums` / `LIST_HEAD_SCALE`（番号は見出しごとに01から。共有ページの一覧も `cell_nums`）。まとまりごとの組み方は `_groups` / `_group_layout` / `_draw_groups` / `GRP_*` ↔ `groupsOf` / `groupLayout` / `GRP_*`。見出しがあるときのタイトルの下限 `TITLE_OVER_LABEL` も両方。字数の上限は `grids.py` の `MAX_ROW_LABEL` ↔ frontendの `MAX_ROW_LABEL`
 - お問い合わせのフォームのURL: `backend/pages.py` の `CONTACT_FORM` ↔ frontendの `CONTACT_FORM`（`docs/ops.md`）
+- 押しボタンの枠のドット絵: frontendの `FRAME_DOTS` / `paintFrames` ↔ `backend/share.py` の `_FRAME_DOTS` / `_frame_url`（共有ページ。`docs/ui.md` の「面取り」）
 
 ## 覚え書き（核）
 

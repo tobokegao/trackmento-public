@@ -27,7 +27,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年11月17日", "en": "Last updated: November 17, 2026"}
+UPDATED = {"ja": "最終更新: 2026年11月18日", "en": "Last updated: November 18, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Googleフォーム。2026-09-19）
 
@@ -465,8 +465,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
-    ("2026-11-17", "窓とボタンの見た目を変えました。右下にずらした影をやめて、縁の明るい線と暗い線で厚みを出す形にしています（共有ページのボタンも同じです）。スマホでは「出力オプション」を画面のいちばん下に留めました。帯を押すと窓が開き、グリッドを見ながら設定を変えられます。",
-     "Changed the look of windows and buttons: the offset drop shadows are gone, and depth now comes from light and dark lines along the edges (buttons on shared pages too). On phones, “Output options” now stays docked at the bottom of the screen. Tap its bar to open the window and change settings while watching the grid."),
+    ("2026-11-18", "窓とボタンの見た目を、昔のMacintosh（Mac OS 8）の形に寄せて作り直しました。右下にずらした影と黒いボタンをやめて、縁の明るい線と暗い線で厚みを出しています。いちばん押すボタンは、まわりを輪で囲んだ形です（共有ページのボタンも同じです）。スマホでは「出力オプション」を画面のいちばん下に留めました。帯を押すと窓が開き、グリッドを見ながら設定を変えられます。",
+     "Rebuilt the look of windows and buttons after the classic Macintosh (Mac OS 8). The offset drop shadows and the black buttons are gone; depth now comes from light and dark lines along the edges, and the main button in each area is marked with a ring around it (buttons on shared pages too). On phones, “Output options” now stays docked at the bottom of the screen. Tap its bar to open the window and change settings while watching the grid."),
     ("2026-11-16", "プライバシーポリシーの広告の項目を書き直しました。第三者の広告サービスは使っておらず、画面の広告欄は運営者自身の音楽の宣伝だけです。",
      "Rewrote the advertising section of the privacy policy. The site does not use third-party advertising services; the ad area only promotes the operator's own music."),
     ("2026-11-08", "コラムや使い方など、文章のページのURLをXなどに貼ったときに、リンクのカード（題名と画像。コラムは説明つき）が出るようにしました。すでに貼ったことのあるURLは、Xの側に覚えられていて、しばらく出ないことがあります。",
