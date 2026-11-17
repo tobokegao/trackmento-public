@@ -157,15 +157,18 @@
   --bevel-sm: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark);
   /* 押し込んだとき。明るさの並びを逆にする（左上が濃く、右下が明るい）。地は --color-bevelに落とす */
   --bevel-in: inset 1px 1px 0 var(--color-bar-dark), inset -1px -1px 0 var(--color-hl-dim);
-  /* 窓の枠。外枠（border）の内側に、面取り1px・グレー2px・中身を囲む黒1px。合わせて --win-pad（4px）の余白に描く */
-  --win-pad: 4px;
-  --win-frame: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark), inset 0 0 0 3px var(--color-bar), inset 0 0 0 4px var(--color-ink);
+  /* **窓の中身の地はグレー**（2026-11-18。本物のダイアログと同じ。白いのは入力欄・一覧・表・メニューだけ）。ボタンの面と同じ色 */
+  --color-face: var(--color-bar);
+  --color-track: var(--color-bevel);   /* スクロールバーの溝。窓の地より一段暗い */
+  /* 窓の枠。外枠（border）のすぐ内側に面取りの1px（左上が白、右下が濃いグレー）。--win-pad（1px）の余白に描く。
+     本物のダイアログは中身もグレーなので、中身を囲む黒い線は無い（11/17は白い中身を黒1pxで囲んでいた） */
+  --win-pad: 1px;
+  --win-frame: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark);
   /* 開閉の三角（Finderのリスト表示と同じ。閉じていると右、開いていると下）。9x9のドット */
   --disclosure: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" shape-rendering="crispEdges"><path d="M2 0h1v1h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-1v1h-1z" fill="%23fff"/></svg>');
   /* 小さな矢印（Little Arrows）の上向きの三角。7x4のドット。下向きは回して使う */
   --arrow-up: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="7" height="4" shape-rendering="crispEdges"><path d="M3 0h1v1h1v1h1v1h1v1H0V3h1V2h1V1h1z" fill="%23fff"/></svg>');
   --arrow-left: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="7" shape-rendering="crispEdges"><path d="M3 0h1v2h4v3H4v2H3V6H2V5H1V4H0V3h1V2h1V1h1z" fill="%23fff"/></svg>');   /* 左向きの矢印（8×7。サーバー代の欄でBandcampのボタンを指す） */
-  --check-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="13" shape-rendering="crispEdges"><path d="M16 0h2v1H16zM15 1h3v1H15zM14 2h3v1H14zM13 3h3v1H13zM12 4h3v1H12zM2 5h2v1H2zM11 5h3v1H11zM2 6h3v1H2zM10 6h3v1H10zM3 7h3v1H3zM9 7h3v1H9zM4 8h3v1H4zM8 8h3v1H8zM5 9h5v1H5zM6 10h3v1H6zM7 11h1v1H7z" fill="%23fff"/></svg>');   /* チェック印（18×13のドット絵。OS 9の印を1.5倍にしたもの。色はbackgroundで付ける） */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --dur-tick: 100ms; --dur-short: 180ms; --dur-mid: 260ms;
@@ -364,7 +367,7 @@ img { max-width: 100%; display: block; }
 /* scrollbar-color / scrollbar-widthを書くと、Chromeは ::-webkit-scrollbar-* を丸ごと無視する。
    そのためFirefox用の指定は「::-webkit-scrollbarを解さないブラウザ」に閉じ込める */
 @supports not selector(::-webkit-scrollbar) {
-  * { scrollbar-width: auto; scrollbar-color: var(--color-bar) var(--color-paper-3); }
+  * { scrollbar-width: auto; scrollbar-color: var(--color-bar) var(--color-track); }
 }
 
 ::-webkit-scrollbar { width: 16px; height: 16px; }
@@ -377,7 +380,8 @@ img { max-width: 100%; display: block; }
 }
 /* 溝は両側に1pxの線を引いて筋として見せる。片側だけ明るい色にすると紙の地色に溶けて、
    レーンの端が無いように見える */
-::-webkit-scrollbar-track { background: var(--color-paper-3); }
+/* 溝は窓の地（--color-face）より一段暗くする（2026-11-18。窓の地をグレーにしたら、それまでのpaper-3が地とほぼ同じ明るさになって溝が見えなくなった） */
+::-webkit-scrollbar-track { background: var(--color-track); }
 ::-webkit-scrollbar-track:vertical {
   box-shadow: inset 1px 0 0 var(--color-bar-dark), inset -1px 0 0 var(--color-bar-dark);
 }
@@ -463,8 +467,8 @@ img { max-width: 100%; display: block; }
     display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(62svh, calc(var(--vvh, 100svh) - 48px)); --win-drop: 0 0 0 0 transparent; }
   .pane-options > .pane-body { overflow-y: auto; overscroll-behavior: contain; }
   .pane-options > .pane-title::after { content: ""; position: absolute; inset: -10px 0 0; }   /* 指の当たりを上へ10px広げる（バーは29px） */
-  body { padding-bottom: 35px; }   /* 畳んだ窓（枠1＋面取り1＋バー29＋下3＋枠1）に、いちばん下の欄が隠れないように */
-  .balloon-bar { bottom: calc(35px + var(--space-3)); }
+  body { padding-bottom: 33px; }   /* 畳んだ窓（枠1＋面取り1＋バー29＋面取り1＋枠1）に、いちばん下の欄が隠れないように */
+  .balloon-bar { bottom: calc(33px + var(--space-3)); }
 }
 /* オプション列の幅: 背景色の見本8個（32px、間隔8px）が1行に収まる内側の幅 ＋ ペインの余白と枠線。
    見本は28pxだったが、操作部品の字を16pxのドット字にしたとき比率の選択肢が2列に入らず、32pxぶん広げた（2026-09-24） */
@@ -500,15 +504,14 @@ img { max-width: 100%; display: block; }
     grid-template-rows: auto;
   }
 }
-/* **窓の枠はプラチナの作り**（2026-11-17）。外から、黒1px（border）・面取り1px（左上が白、右下が濃いグレー）・グレー2px・
-   中身を囲む黒1px。面取りから内側の4pxは余白（--win-pad）に内向きの影（--win-frame）で描く。落ちる影は右下の1pxだけ。
-   題名バーは枠のグレーと地続きに見せる: 上の余白は面取りの1pxだけにし、題名バーを左右に1pxずつ広げて
-   「中身を囲む黒」の縦線を隠す（題名バーの下線がその黒の上辺になる）。
-   影を外したい所（引き出しの中）は --win-dropを消す。`box-shadow: none` と書くと枠ごと消える */
+/* **窓はプラチナのダイアログの作り**（2026-11-18）。黒1pxの枠（border）、そのすぐ内側に面取りの1px（左上が白、右下が濃いグレー。
+   余白 --win-padに内向きの影 --win-frameで描く）、中身の地はグレー（--color-face）。落ちる影は右下の1pxだけ。
+   題名バーの下は彫り込んだ線（濃いグレーの下に白）で、黒い線では区切らない。
+   影を外したい所（引き出しの中）は --win-dropを消す。`box-shadow: none` と書くと面取りごと消える */
 .pane {
   border: var(--edge) solid var(--color-ink);
-  padding: 1px var(--win-pad) var(--win-pad);
-  background: var(--color-paper);
+  padding: var(--win-pad);
+  background: var(--color-face);
   box-shadow: var(--win-frame), var(--win-drop, var(--shadow));
   min-width: 0;
 }
@@ -520,12 +523,11 @@ img { max-width: 100%; display: block; }
   --bar-inset: 4px;     /* 縞を描かない上下の余白（折りたたみボックスの上下の余白と同じ）。縞はボックスの高さの帯だけに引く */
   --bar-inset-x: 8px;   /* 縞を描かない左端の余白（縞とボックス・題名の間隔と同じ） */
   position: relative; display: flex; align-items: center;
-  margin-inline: -1px;   /* 窓の「中身を囲む黒」の縦線を隠す（上の .paneの注） */
   min-height: calc(28px + var(--edge)); padding: 0 0 0 var(--space-2);   /* 右は .tailが端まで塗る（ボックスより右に縞を出さない） */
   /* **縞の帯は20pxで固定**（白2px＋影2pxの5組ちょうど）。`100% - 上下の余白` にしていたときは、
      バーの高さが端数になる端末で6本目の白線が0.5pxだけはみ出して見えた（スマホで報告） */
   --bar-stripes: 20px;
-  border-bottom: var(--edge) solid var(--color-ink);
+  border-bottom: var(--edge) solid var(--color-bar-dark); box-shadow: 0 1px 0 var(--color-hl);   /* 彫り込んだ線（濃いグレーの下に白） */
   /* **白線は「左端2pxだけ明るい白、それより右は暗い白」**（つまみの握りとまったく同じ規則。
      つまみでは明るい白の層を2px幅で左に置き、その右に暗い白の層を並べている）。
      線の向きを取り違えて「いちばん上の1本だけ純白」にしていた（2026-09-15に指摘） */
@@ -586,14 +588,14 @@ img { max-width: 100%; display: block; }
 .fold:active { background: var(--color-bevel); box-shadow: var(--bevel-in); }
 .fold::before { content: "—"; }   /* 窓の畳む箱（OS 9のcollapse box）。畳んでも形は変えない（窓の丈で分かる） */
 .pane[data-collapsed="true"] > :not(.pane-title):not(.editor) { display: none; }
-/* 畳んだ窓は題名バーだけ。下の余白を1px減らして、題名バーの下線と「中身を囲む黒」の下辺を同じ1本に重ねる（4pxのままだと黒が2本並ぶ） */
-.pane[data-collapsed="true"] { padding-bottom: calc(var(--win-pad) - 1px); }
+/* 畳んだ窓は題名バーだけ。下の彫り込んだ線は消す（すぐ下が窓の面取りなので、線が4本並んで見える）。高さは変えない */
+.pane[data-collapsed="true"] > .pane-title { border-bottom-color: transparent; box-shadow: none; }
 .pane-body { padding: var(--space-3); }
 /* 検索ペイン内のBandcamp／手入力は見出し付きの小セクションにして畳めるようにする */
 .sub { border-top: var(--line) dashed var(--color-rule); }
 .sub-title {
   display: flex; align-items: center; gap: var(--space-2); width: 100%;
-  padding: var(--space-2) var(--space-3); border: 0; background: var(--color-paper-2);
+  padding: var(--space-2) var(--space-3); border: 0; background: none;   /* 窓の地のまま。三角と字だけ（本物の開閉の三角の行） */
   font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); text-align: left; cursor: pointer;
 }
 .sub-title::before {
@@ -653,19 +655,15 @@ fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
   /* **文字色は必ず指定する**。入力欄は色を継承せず、ブラウザ既定の黒のままになるので、
      地が暗いパレットだと黒地に黒い文字になって読めない（利用者から報告） */
   color: var(--color-ink);
-  /* へこみ。黒い枠の内側の左上に1pxの影（プラチナの入力欄と同じ。2026-11-17に2pxから） */
-  box-shadow: inset 1px 1px 0 var(--color-bevel);
-  transition: box-shadow var(--dur-short) var(--ease-out);
+  /* **へこみは枠の外側に描く**（2026-11-18。HIGの図HIG_CG-100.gifの画素どおり）: 白い欄を黒1pxで囲み、その外の
+     上と左に濃いグレー、下と右に白の1px。欄の中には影を入れない（11/17までは内側の左上に影を入れていた） */
+  box-shadow: -1px -1px 0 var(--color-bar-dark), 1px 1px 0 var(--color-hl);
 }
-/* textareaはfontを継承しないので揃える。縦だけ伸ばせるようにして、横に広げて崩されないようにする。
-   **上の余白を1px足す**。凹みの影（`inset 1px 1px`）が上辺と左辺にだけ乗るので、
-   上下の余白が同じだと**文字が上に寄って見える**（利用者から報告）。影のぶんだけ下げて釣り合わせる */
-textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
-  padding-top: calc(var(--space-2) + 2px); }
+/* textareaはfontを継承しないので揃える。縦だけ伸ばせるようにして、横に広げて崩されないようにする */
+textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .input::placeholder { color: var(--color-muted); }
-.input:hover { box-shadow: inset 1px 1px 0 var(--color-bar-dark); }
-.input:focus-visible { outline-offset: 0; box-shadow: inset 1px 1px 0 var(--color-bevel); }
-.input[aria-invalid="true"] { border-color: var(--color-error); box-shadow: inset 1px 1px 0 var(--color-error); }
+.input:focus-visible { outline-offset: 1px; }   /* 焦点の輪は、へこみの線の外に出す */
+.input[aria-invalid="true"] { border-color: var(--color-error); }
 /* 誤りのある欄に焦点が当たっているときは、**囲みの色も赤にそろえる**。
    青（焦点）と赤（誤り）が二重の枠に見えて、どちらの状態なのか読み取りにくかった */
 .input[aria-invalid="true"]:focus-visible { outline-color: var(--color-error); }
@@ -782,7 +780,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em;
 .modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: var(--space-4); }
 .modal[hidden] { display: none; }
 /* 枠は窓（.pane）と同じ作り。題名は黒い帯（.sheet-head）なので、「中身を囲む黒」は四辺とも見せる */
-.modal-panel { position: relative; width: min(100%, 40rem); max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--edge) solid var(--color-ink); padding: var(--win-pad); background: var(--color-paper); box-shadow: var(--win-frame), var(--shadow); }
+.modal-panel { position: relative; width: min(100%, 40rem); max-height: 88dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--edge) solid var(--color-ink); padding: var(--win-pad); background: var(--color-face); box-shadow: var(--win-frame), var(--shadow); }
 .modal-body { overflow-y: auto; }
 /* グリッドを大きく見る窓。**画面いっぱいに広げる**（16x16だと欄の中では1マス26pxしかない） */
 /* **行の高さを画面に固定する**（`minmax(0, 1fr)`）。既定のautoだと、中の並びが縦に長いとき（1x32で4,874px）
@@ -833,7 +831,6 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .check-sep > span { user-select: none; -webkit-user-select: none; }
 .check-sep a { cursor: pointer; user-select: auto; -webkit-user-select: auto; touch-action: manipulation; }
 /* **押している間の色は自前で描く**（`:active`）。箱は箱だけ、リンクはリンクの文字だけ。色はブラウザの水色と同じ */
-.check-sep input:active { box-shadow: inset 0 0 0 18px rgba(51, 181, 229, .4); }
 .check-sep a:active { background: rgba(51, 181, 229, .4); }
 /* 確認の窓（「トラックを全て外す」）。幅は文だけなので狭くし、ボタンは右に寄せる */
 .modal-narrow { width: min(100%, 26rem); }
@@ -899,8 +896,9 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
    中身はブラウザのselect。開いた一覧は自前のメニュー（下の .popup-hit / #popmenu。2026-09-25までは端末のものが出ていた） */
 .layouts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-3); }
 .layouts > label { font-family: var(--font-display); font-size: var(--text-sm); color: var(--color-ink-2); }
-/* お題から始める（2026-10-15）。OS 9のダイアログの中身のように、枠線1本とボタンの並び。影・角丸は付けない */
-.start-themes { border: var(--line) solid var(--color-ink); padding: var(--space-3); margin-bottom: var(--space-3); display: grid; gap: var(--space-2); justify-items: start; }
+/* お題から始める（2026-10-15）。OS 9のダイアログの中身のように、枠線1本とボタンの並び。影・角丸は付けない。
+   枠はグループボックスと同じ彫り込んだ線（2026-11-18。窓の地をグレーにしてから、黒2pxの枠だけ重く見えた） */
+.start-themes { border: 1px solid var(--color-bar-dark); box-shadow: inset 1px 1px 0 var(--color-hl), 1px 1px 0 var(--color-hl); padding: var(--space-3); margin-bottom: var(--space-3); display: grid; gap: var(--space-2); justify-items: start; }
 .start-themes[hidden] { display: none; }
 .start-themes h3 { margin: 0; font-weight: 400; }
 .start-btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -955,7 +953,7 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 /* メニューは黒1pxの枠と右下1pxの影だけ（窓の枠のグレーは付けない。本物のメニューも同じ） */
 .popmenu-panel { position: absolute; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--edge) solid var(--color-ink);
   background: var(--color-paper); box-shadow: var(--shadow); max-height: 70dvh; }
-.popmenu-panel > .pane-title { margin-inline: 0; }
+.popmenu-panel > .pane-title { border-bottom-color: var(--color-ink); box-shadow: none; }   /* 下が白い一覧なので、黒い線で区切る */
 .popmenu-panel > .pane-title { cursor: default; }
 .popmenu-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; }
 .popmenu-list li { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); cursor: pointer;
@@ -1219,8 +1217,8 @@ body.sheet-open { overflow: hidden; }
 /* **グループボックス**（2026-09-25、Mac OS 8のHIG）。1段目は彫り込んだ2pxの線（濃い線の右下に明るい線）、題は枠の上辺に重ねて左に置く。
    内側の余白はHIGの数字（上12px・左右と下10px）に題の高さを足したもの。2段目（.gbox-sub）は1pxの線で、決め方ごとの補足の設定を囲む */
 .gbox { position: relative; display: grid; gap: var(--space-4); margin-top: 0.7em; padding: calc(12px + 0.4em) 10px 10px;
-  border: 1px solid var(--color-bevel); box-shadow: inset 1px 1px 0 var(--color-hl), 1px 1px 0 var(--color-hl); }
-.gbox-title { position: absolute; top: -0.7em; left: 8px; padding: 0 4px; background: var(--color-paper); color: var(--color-ink);
+  border: 1px solid var(--color-bar-dark); box-shadow: inset 1px 1px 0 var(--color-hl), 1px 1px 0 var(--color-hl); }
+.gbox-title { position: absolute; top: -0.7em; left: 8px; padding: 0 4px; background: var(--color-face); color: var(--color-ink);
   font-family: var(--font-display); font-size: var(--dot-size); line-height: 1.4; }
 /* 畳む三角（Mac OS 8のHIGのdisclosure triangle）。右向きが閉じ、下向きが開き */
 .disclose { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; padding: var(--space-1) 0; border: 0; background: none;
@@ -1265,35 +1263,22 @@ body.sheet-open { overflow: hidden; }
    「チェックボックスとのラインが崩れている」と利用者に言われた。**pxで1pxと書くとスマホでずれる**
    （画素比2〜3で字が端末の画素2〜3.5画素ぶん上に出た。emなら0.5画素以内）。狭い画面の13pxは下の上書きを見る */
 .check > span { position: relative; top: 0.042em; }
+/* **チェックボックスは1枚のドット絵**（2026-11-18。Mac OS 8のHIGの図HIG_CG-096.gifの画素を読んで写した）。
+   黒1ドットの枠・グレーの面・左上に白・右下に濃いグレーの箱で、印は黒い太い線が**箱の右上へ2ドットはみ出し**、右下に影が付く。
+   絵はJSの `CHECK_DOTS` が今の色で描いて `--check-*` に入れる（ラジオの `RADIO_DOTS` と同じ仕組み。1ドット = --rp）。
+   絵は16×14（箱14×14＋右へはみ出す2ドット）。本物の箱は12×12だが、16×16のラジオと並べると小さく見えるので面だけ2ドット広げた。
+   印の画素は本物のまま。それまでは白い箱に黒2pxの枠で、印と影を擬似要素3枚で重ねていた */
 .check input {
-  appearance: none; width: 18px; height: 18px; margin: 0; flex: none;
-  border: var(--line) solid var(--color-ink); background: var(--color-paper);
-  box-shadow: inset 2px 2px 0 var(--color-paper-3);
-  display: grid; place-items: center; cursor: pointer;
+  appearance: none; flex: none; margin: 0 calc(-2 * var(--rp, 1px)) 0 0;   /* はみ出しの2ドットぶんを詰める（字との間隔は箱の右端から数える） */
+  width: calc(var(--rp, 1px) * 16); height: calc(var(--rp, 1px) * 14); border: 0;
+  background: var(--check-off) no-repeat 0 0 / 100% 100%; image-rendering: pixelated; cursor: pointer;
 }
-/* 入れたら**白い箱に黒いチェック印**（OS 9の作法。印は18×13のドット絵をSVGの型抜きで描く。
-   斜線をCSSで回して描くと滑らかすぎてサイトの見た目から浮く）。黒く塗って白い四角を置く形は、小さいと
-   「枠が太くなった」ようにしか見えず、入ったかどうか分かりにくい（利用者の指摘、2026-09-16） */
-/* **印は箱から右上へはみ出す**（OS 9の実物と同じ。箱の中に収めると窮屈で、印が小さく見える） */
-.check input { position: relative; overflow: visible; }
-.check input:checked::after, .check input:checked::before {
-  content: ""; position: absolute; left: 0; top: 0; width: 18px; height: 13px; background: var(--color-ink);   /* 右上の先端が枠の角に乗る（OS 9と同じ向き） */
-  -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
-}
-/* 印の影（同じ形を1px右下にずらして敷く。::beforeなので印の下に来る）。**枠の線には掛けない**:
-   影は枠の内側だけで切る（線の上に乗ると、線が灰色ににじんで見える。利用者の指摘） */
-.check input:checked::before { left: 1px; top: 1px; background: var(--color-paper-3);   /* 箱の内側の影（insetのpaper-3）と同じ薄さ */
-  clip-path: inset(0 5px 0 0); }   /* 枠の内寸（14×14）で切る。線に掛けない。印そのものは枠の外へ出てよい */
-/* **枠の外へ出た先端にも同じ1px右下の影**。labelの擬似要素で同じ形をもう1枚敷き、**枠より外側だけ**残す
-   （枠の線に掛からない）。印はlabelのx=2（枠の内側）から始まるので、影はx=3、枠の外はx≥18 → 局所15pxで切る */
+.check input:checked { background-image: var(--check-on); }
+.check input:active { background-image: var(--check-off-down); }   /* 押している間は濃いグレー（本物のPressed） */
+.check input:checked:active { background-image: var(--check-on-down); }
+.check input:disabled { background-image: var(--check-off-dis); cursor: not-allowed; }
+.check input:checked:disabled { background-image: var(--check-on-dis); }
 .check { position: relative; }
-.check:has(> input:checked)::before {
-  content: ""; position: absolute; left: 3px; top: calc(50% - 7px); width: 18px; height: 13px;   /* 縦は2px下（枠の外は下に落ちる余地があるぶん、影が下へ伸びて見える） */
-  background: var(--color-paper-3); pointer-events: none;
-  -webkit-mask: var(--check-mask) 0 0 / 18px 13px no-repeat; mask: var(--check-mask) 0 0 / 18px 13px no-repeat;
-  clip-path: inset(0 1px 0 16px);   /* 枠の外に出た先端の影だけ（右端も1px切って出過ぎを抑える） */
-}
-.check input:disabled { opacity: .5; cursor: not-allowed; }
 .swatches { display: flex; gap: var(--space-2); margin-top: var(--space-2); }   /* 見出しとの間は選択枠（外側5px）の分だけ広めに */
 .swatches label { position: relative; flex: 1 1 0; min-width: 0; aspect-ratio: 1; }   /* 見本は間隔8pxのまま行幅いっぱいに等分（PCの列幅では32px）。右に空きが残らない。
    折り返さない（2026-09-25。枠で囲んで幅が減ったとき、8個目だけ次の行に落ちて行幅いっぱいの大きな四角になっていた） */
@@ -1312,7 +1297,7 @@ body.sheet-open { overflow: hidden; }
      `attachTouchScrollbar` の判定側で止める（8pxの遊び＋2コマ続けて同じ判定のときだけ切り替える） */
   .tsb-host.tsb-on { padding-right: 24px; }
   .tsb-host::-webkit-scrollbar { width: 0; height: 0; }    /* ブラウザのものは出さない（二重になる） */
-  .tsb { display: block; position: absolute; width: 24px; background: var(--color-paper-3);
+  .tsb { display: block; position: absolute; width: 24px; background: var(--color-track);
     box-shadow: inset 1px 0 0 var(--color-bar-dark), inset -1px 0 0 var(--color-bar-dark); touch-action: none; }
   .tsb[hidden] { display: none; }
   /* 見た目は ::-webkit-scrollbar-thumb:verticalと同じ絵（枠はborder-image、縞は真ん中の1枚） */
@@ -3296,6 +3281,35 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     });
     paintRadios();   // ラジオボタンの絵は色の変数から描くので、配色が変わったら描き直す
     paintFrames();   // 押しボタンの枠の絵も同じ
+    paintChecks();   // チェックボックスの絵も同じ
+  }
+  /* **チェックボックスのドット絵**（2026-11-18）。Mac OS 8のHIGの図（HIG_CG-096.gif）の画素を読んで写した。16×14で、
+     左の14×14が箱、右の2列は印がはみ出す所。字は色の変数（`CHECK_INK`）、`.` は透明。
+     本物の箱は12×12。面だけ2ドット広げ、印は右上の角に合わせて置いた（印の画素そのものは本物のまま）。
+     押している間・押せないときの絵は、同じ形の色を入れ替えて作る（`CHECK_SWAP`） */
+  const CHECK_INK = { k: "--color-ink", w: "--color-hl", f: "--color-bar", d: "--color-bar-dark", m: "--color-bevel", n: "--color-muted",
+    l: "--color-press-lo", p: "--color-press", h: "--color-press-hi" };
+  const CHECK_DOTS = {
+    off: ["kkkkkkkkkkkkkk..", "kwwwwwwwwwwwfk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..",
+          "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kfdddddddddddk..", "kkkkkkkkkkkkkk.."],
+    on:  ["kkkkkkkkkkkkkk..", "kwwwwwwwwwwwfk..", "kwffffffffffdkk.", "kwffffffffffkkdm", "kwfffffffffkkkm.", "kwffffffffkknk..", "kwffkkfffkkddk..",
+          "kwfffkkfkkdmdk..", "kwfffmkkkdmfdk..", "kwffffmkdmffdk..", "kwfffffdmfffdk..", "kwffffffffffdk..", "kfdddddddddddk..", "kkkkkkkkkkkkkk.."],
+  };
+  const CHECK_SWAP = { "": {}, "-down": { w: "l", f: "p", d: "h", m: "h", n: "k" }, "-dis": { k: "d", w: "f", d: "f", m: "f", n: "d" } };
+  function paintChecks() {
+    const root = document.documentElement, cs = getComputedStyle(root);
+    const cv = document.createElement("canvas"); cv.width = 16; cv.height = 14;
+    const g = cv.getContext("2d");
+    if (!g) return;
+    for (const [name, rows] of Object.entries(CHECK_DOTS)) for (const [suffix, swap] of Object.entries(CHECK_SWAP)) {
+      g.clearRect(0, 0, 16, 14);
+      rows.forEach((row, y) => [...row].forEach((ch, x) => {
+        if (ch === ".") return;
+        g.fillStyle = cs.getPropertyValue(CHECK_INK[swap[ch] || ch]).trim();
+        g.fillRect(x, y, 1, 1);
+      }));
+      root.style.setProperty("--check-" + name + suffix, `url(${cv.toDataURL()})`);
+    }
   }
   /* **押しボタンの枠のドット絵**（2026-11-18）。Mac OS 8のHIGの図（HIG_CG-105.gif）の画素を読んで写した7×7。
      1字1ドットで、字は色の変数（`FRAME_INK`）、`.` は透明。真ん中の1ドットは透かす（面の色はCSSのbackgroundが出す）。

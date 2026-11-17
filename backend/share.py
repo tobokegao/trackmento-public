@@ -576,8 +576,8 @@ button.btn.primary:disabled::after {{ border-image-source: {_frame_url("ring_off
 /* 確認の窓。画面（frontend/index.html）の #confirm-modalと同じ作り */
 .odlg {{ position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; }}
 .odlg-bg {{ position: absolute; inset: 0; background: color-mix(in oklab, #12171b 45%, transparent); }}
-.odlg-panel {{ position: relative; width: min(100%, 26rem); border: 1px solid #12171b; padding: 4px; background: #f6f5f3;
-  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #8b8f93, inset 0 0 0 3px #dddcd8, inset 0 0 0 4px #12171b, 1px 1px 0 #12171b; }}   /* 枠は外から、黒1・面取り1・グレー2・黒1。影は右下の1pxだけ */
+.odlg-panel {{ position: relative; width: min(100%, 26rem); border: 1px solid #12171b; padding: 1px; background: #dddcd8;
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #8b8f93, 1px 1px 0 #12171b; }}   /* 黒1pxの枠の内側に面取り1px、中身の地はグレー（画面の .modal-panelと同じ）。影は右下の1pxだけ */
 .odlg-head {{ padding: 8px 12px; background: #12171b; }}
 .odlg-head h2 {{ margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: .04em; color: #f6f5f3; }}
 .odlg-body {{ display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: start; padding: 12px; }}
