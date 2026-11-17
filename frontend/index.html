@@ -834,7 +834,9 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
    **3列の格子にしてはいけない**: 開いた中身を全部の列にまたがせると、見出しの列の幅が0に潰れて2つの見出しが重なった */
 .grid-meta { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-3); row-gap: var(--space-2); margin-bottom: var(--space-2); }   /* 横の間隔は12px。16pxだと幅412pxのスマホで3つが2pxだけ入りきらず、ボタンが次の段に落ちた */
 .grid-meta > .rowlabels { display: contents; }
-.grid-meta > .rowlabels > .disclose-head { order: 1; flex: 0 1 auto; display: flex; align-items: baseline; gap: var(--space-2); }
+/* **見出しの箱は行の幅を超えさせない**（min-width: 0とmax-width: 100%。2026-11-18、長い見出しを入れて確かめた）。折り返さない字の入った箱は、
+   放っておくと字の幅より縮まない。今の値が長いと（12字 × 4行ぶんなど）箱が窓の右へはみ出し、「…」にならずに端で切れていた */
+.grid-meta > .rowlabels > .disclose-head { order: 1; flex: 0 1 auto; min-width: 0; max-width: 100%; display: flex; align-items: baseline; gap: var(--space-2); }
 .grid-meta > .grid-tools { order: 1; flex: none; margin-left: auto; }
 .grid-meta > .rowlabels > .disclose-body { order: 2; flex: 0 0 100%; }
 .grid-meta .disclose { width: auto; flex: none; }
