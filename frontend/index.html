@@ -8152,8 +8152,12 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     els.grid.style.gap = `${gap}px`;
     els.grid.dataset.labels = lab ? "on" : "off";
     els.grid.style.rowGap = `${rowGap(state.rows) * k + capH}px`;   // 行の見出しがあれば行の間隔は広い（書き出しと同じ比率）
-    els.grid.style.setProperty("--labw", `${Math.max(0, lab - state.gap) * k}px`);
-    els.grid.style.setProperty("--labpx", `${Math.max(9, LABEL_COL_PX * k)}px`);
+    /* 見出しの字は9pxより小さくしない（読めなくなる）。**字を引き上げたときは、列の幅も同じ倍率で広げる**（2026-11-18、利用者の指摘）。
+       字だけ9pxに引き上げて列は書き出しの比率のままだったので、列の多い並び（スマホの5列など。比率どおりだと字が6pxほど）では
+       見出しが列からはみ出し、「中学」が「中」と半分の字に切れていた。広げたぶんはマスが少し縮む（画面の見本だけ。書き出しは変わらない） */
+    const labPx = Math.max(9, LABEL_COL_PX * k), labScale = labPx / (LABEL_COL_PX * k);
+    els.grid.style.setProperty("--labw", `${Math.max(0, lab - state.gap) * k * labScale}px`);
+    els.grid.style.setProperty("--labpx", `${labPx}px`);
     els.grid.style.setProperty("--grid-ink", token(isLight(bgColor() || token("paper")) ? "ink" : "paper"));   // 見出しの字は書き出しと同じく地の明るさで黒か白
     els.grid.style.background = bgColor();
     // 背景の画像も見本に敷く（書き出しと同じ濃さ。背景色の幕をかぶせて薄くする）。見本は曲名リストの無い枠なので、切り抜きの位置は書き出しと少し違う
