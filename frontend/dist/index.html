@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.472e17ca.css">
+<link rel="stylesheet" href="app/app.b3a6c65d.css">
 </head>
 <body>
 
@@ -245,6 +245,10 @@
         <button class="btn" type="button" id="start-later">あとで</button>
       </div>
       </div>
+      <!-- **「行の見出し」「マスの見出し」「大きく見る」は1行に並べる**（2026-11-18、利用者の指摘「見出し2つの右側の余白が気になる」）。
+           それまでは三角の行と今の値（「なし」）を縦に2段ずつ積み、その下に「大きく見る」を置いていて、右側が大きく空いていた。
+           今の値は三角の右に薄い字で1行（長ければ「…」で切る）。三角を開くと、中身はこの行の下に幅いっぱいで出る -->
+      <div class="grid-meta">
       <!-- 行の見出し（2026-10-11）。書き出しではグリッドの左に見出しの列を足す。お題「私の音楽遍歴」を選ぶと入り、ここで書き換えられる。
            枠とサムネと同じ三角で畳む（ふだんは使わないので） -->
       <div class="rowlabels">
@@ -271,6 +275,7 @@
       </div>
       <!-- 「大きく見る」はグリッドのすぐ上（2026-11-18）。題名欄の右にあったときは、題名の操作に見えた -->
       <div class="grid-tools"><button class="btn btn-sm" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button></div>
+      </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
       <div class="grid-actions">
