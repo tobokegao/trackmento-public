@@ -152,6 +152,9 @@
   --color-press-lo: oklch(36% 0.012 250);   /* その左上の暗い線 */
   --color-press-hi: oklch(62% 0.012 250);   /* その右下の明るい線 */
   --color-press-ink: #ffffff;               /* 押している間の字 */
+  /* **押せないときの枠と字**（ボタン・チェックボックス）。面取りの濃いグレー（--color-bar-dark）と同じ明るさだが、変数は分ける:
+     暗い地の組ではbar-darkが面より暗く（20% と38%）、字が沈んで読めなかった（2026-11-18、利用者の実機で） */
+  --color-off: var(--color-bar-dark);
   --fr: calc(3 * var(--u));                 /* 枠の絵の太さ（3ドット。1ドットは端末の画素の整数倍） */
   /* 小さな箱（畳む箱・「?」・矢印）は内向きの影で1段だけ描く。絵にするほどの広さが無い */
   --bevel-sm: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark);
@@ -236,6 +239,7 @@ img { max-width: 100%; display: block; }
   --color-press-lo: oklch(16% 0.012 250);
   --color-press-hi: oklch(34% 0.012 250);
   --color-press-ink: var(--color-ink);
+  --color-off: oklch(62% 0.010 250);   /* 押せないときの枠と字。面（38%）より明るくする */
   --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
   --sb-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h5v1H0zM0 4h5v1H0zM0 0h1v5H0zM4 0h1v5H4z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 3h3v1H1zM3 1h1v3H3z'/%3E%3Cpath fill='%23fff' d='M1 1h3v1H1zM1 1h1v3H1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M3 1h1v1H3zM1 3h1v1H1z'/%3E%3C/svg%3E");
   --sb-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16' viewBox='0 0 9 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM0 6h2v2H0zM0 12h2v2H0z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M2 0h5v2H2zM2 6h5v2H2zM2 12h5v2H2z'/%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M2 2h7v2H2zM2 8h7v2H2zM2 14h7v2H2z'/%3E%3C/svg%3E");
@@ -586,7 +590,10 @@ img { max-width: 100%; display: block; }
   background: var(--color-bar); border: var(--edge) solid var(--color-ink); box-shadow: var(--bevel-sm); cursor: pointer;
 }
 .fold:active { background: var(--color-bevel); box-shadow: var(--bevel-in); }
-.fold::before { content: "—"; }   /* 窓の畳む箱（OS 9のcollapse box）。畳んでも形は変えない（窓の丈で分かる） */
+.fold::before { content: "—"; }   /* 窓の畳む箱（OS 9のcollapse box） */
+/* **畳んでいる間は「+」にする**（2026-11-18、利用者の指摘）。本物は形を変えないが、スマホの下端に留めた出力オプションは
+   いつも畳んだ姿で出ているので、「—」のままだと「押すと開く」が読めなかった */
+.pane[data-collapsed="true"] > .pane-title .fold::before { content: "+"; }
 .pane[data-collapsed="true"] > :not(.pane-title):not(.editor) { display: none; }
 /* 畳んだ窓は題名バーだけ。下の彫り込んだ線は消す（すぐ下が窓の面取りなので、線が4本並んで見える）。高さは変えない */
 .pane[data-collapsed="true"] > .pane-title { border-bottom-color: transparent; box-shadow: none; }
@@ -692,7 +699,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
   white-space: nowrap; cursor: pointer;
 }
 .btn:active { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }
-.btn:disabled, .btn[aria-disabled="true"] { border-image-source: var(--fr-off, none); background-color: var(--color-bar); color: var(--color-bar-dark); cursor: not-allowed; }
+.btn:disabled, .btn[aria-disabled="true"] { border-image-source: var(--fr-off, none); background-color: var(--color-bar); color: var(--color-off); cursor: not-allowed; }
 /* **いちばん押すボタン（.btn-primary: トラックを探す・検索する・共有など）と、Returnで押される既定のボタン（.btn-default）は、
    本物の既定のボタンの形**: ふつうのボタンの外を、立体の輪（黒1・明るいグレー1・中間のグレー1。右下は中間・濃いグレー・黒）で囲む。
    2026-11-18までは黒地に白い字で、面取りの画面の中でそこだけ平らに浮いて見えた（利用者の指摘）。
@@ -3303,14 +3310,14 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      本物の箱は12×12。面だけ2ドット広げ、印は右上の角に合わせて置いた（印の画素そのものは本物のまま）。
      押している間・押せないときの絵は、同じ形の色を入れ替えて作る（`CHECK_SWAP`） */
   const CHECK_INK = { k: "--color-ink", w: "--color-hl", f: "--color-bar", d: "--color-bar-dark", m: "--color-bevel", n: "--color-muted",
-    l: "--color-press-lo", p: "--color-press", h: "--color-press-hi" };
+    l: "--color-press-lo", p: "--color-press", h: "--color-press-hi", o: "--color-off" };
   const CHECK_DOTS = {
     off: ["kkkkkkkkkkkkkk..", "kwwwwwwwwwwwfk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..",
           "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kwffffffffffdk..", "kfdddddddddddk..", "kkkkkkkkkkkkkk.."],
     on:  ["kkkkkkkkkkkkkk..", "kwwwwwwwwwwwfk..", "kwffffffffffdkk.", "kwffffffffffkkdm", "kwfffffffffkkkm.", "kwffffffffkknk..", "kwffkkfffkkddk..",
           "kwfffkkfkkdmdk..", "kwfffmkkkdmfdk..", "kwffffmkdmffdk..", "kwfffffdmfffdk..", "kwffffffffffdk..", "kfdddddddddddk..", "kkkkkkkkkkkkkk.."],
   };
-  const CHECK_SWAP = { "": {}, "-down": { w: "l", f: "p", d: "h", m: "h", n: "k" }, "-dis": { k: "d", w: "f", d: "f", m: "f", n: "d" } };
+  const CHECK_SWAP = { "": {}, "-down": { w: "l", f: "p", d: "h", m: "h", n: "k" }, "-dis": { k: "o", w: "f", d: "f", m: "f", n: "o" } };
   function paintChecks() {
     const root = document.documentElement, cs = getComputedStyle(root);
     const cv = document.createElement("canvas"); cv.width = 16; cv.height = 14;
@@ -3332,16 +3339,16 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
      up = ふつう、down = 押している間、off = 押せない、-sq = 角を欠かないもの（輪で囲むボタンの本体）、
      ring = 既定のボタンを囲む輪、ring-off = 押せないときの輪 */
   const FRAME_INK = { k: "--color-ink", f: "--color-bar", w: "--color-hl", m: "--color-bevel", d: "--color-bar-dark",
-    p: "--color-press", l: "--color-press-lo", h: "--color-press-hi" };
+    p: "--color-press", l: "--color-press-lo", h: "--color-press-hi", o: "--color-off" };
   const FRAME_DOTS = {
     "up":       [".kkkkk.", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", ".kkkkk."],
     "down":     [".kkkkk.", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", ".kkkkk."],
-    "off":      [".ddddd.", "dfffffd", "dfffffd", "dff.ffd", "dfffffd", "dfffffd", ".ddddd."],
+    "off":      [".ooooo.", "offfffo", "offfffo", "off.ffo", "offfffo", "offfffo", ".ooooo."],
     "up-sq":    ["kkkkkkk", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", "kkkkkkk"],
     "down-sq":  ["kkkkkkk", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", "kkkkkkk"],
-    "off-sq":   ["ddddddd", "dfffffd", "dfffffd", "dff.ffd", "dfffffd", "dfffffd", "ddddddd"],
+    "off-sq":   ["ooooooo", "offfffo", "offfffo", "off.ffo", "offfffo", "offfffo", "ooooooo"],
     "ring":     ["..kkk..", ".kfffk.", "kfmmmdk", "kfm.mdk", "kfmmmdk", ".kdddk.", "..kkk.."],
-    "ring-off": ["..ddd..", ".dfffd.", "dfffffd", "dff.ffd", "dfffffd", ".dfffd.", "..ddd.."],
+    "ring-off": ["..ooo..", ".offfo.", "offfffo", "off.ffo", "offfffo", ".offfo.", "..ooo.."],
   };
   /* 今の色でSVGに組んで --fr-* に入れる（パレットを替えたとき）。**PNGではなくSVG**（`shape-rendering="crispEdges"`）:
      border-imageは辺を引き伸ばすので、縁の立つ形式にしておく（スクロールバーの --sb-frameと同じ） */

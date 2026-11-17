@@ -480,16 +480,16 @@ def logo_font_url() -> str:
 # このページの色で組む。Mac OS 8のHIGの図（HIG_CG-105.gif）を写した7×7で、CSSがborder-imageで9つに割って使う。
 # 字は色、`.` は透明。真ん中の1ドットは透かす（面の色はCSSのbackground）。**絵を直すときは画面の側と両方**
 _FRAME_INK = {"k": "#12171b", "f": "#dddcd8", "w": "#ffffff", "m": "#c2c4c6", "d": "#8b8f93",
-              "p": "#63676c", "l": "#3f4347", "h": "#8b8f93"}
+              "p": "#63676c", "l": "#3f4347", "h": "#8b8f93", "o": "#8b8f93"}   # oは押せないときの枠（画面の --color-off）
 _FRAME_DOTS = {
     "up":       [".kkkkk.", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", ".kkkkk."],
     "down":     [".kkkkk.", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", ".kkkkk."],
-    "off":      [".ddddd.", "dfffffd", "dfffffd", "dff.ffd", "dfffffd", "dfffffd", ".ddddd."],
+    "off":      [".ooooo.", "offfffo", "offfffo", "off.ffo", "offfffo", "offfffo", ".ooooo."],
     "up_sq":    ["kkkkkkk", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", "kkkkkkk"],
     "down_sq":  ["kkkkkkk", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", "kkkkkkk"],
-    "off_sq":   ["ddddddd", "dfffffd", "dfffffd", "dff.ffd", "dfffffd", "dfffffd", "ddddddd"],
+    "off_sq":   ["ooooooo", "offfffo", "offfffo", "off.ffo", "offfffo", "offfffo", "ooooooo"],
     "ring":     ["..kkk..", ".kfffk.", "kfmmmdk", "kfm.mdk", "kfmmmdk", ".kdddk.", "..kkk.."],
-    "ring_off": ["..ddd..", ".dfffd.", "dfffffd", "dff.ffd", "dfffffd", ".dfffd.", "..ddd.."],
+    "ring_off": ["..ooo..", ".offfo.", "offfffo", "off.ffo", "offfffo", ".offfo.", "..ooo.."],
 }
 
 
