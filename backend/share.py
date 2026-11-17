@@ -477,19 +477,16 @@ def logo_font_url() -> str:
 
 
 # 押しボタンの枠のドット絵（2026-11-18）。画面（frontend/index.htmlのFRAME_DOTS / paintFrames）と同じ絵を、
-# このページの色で組む。Mac OS 8のHIGの図（HIG_CG-105.gif）を写した7×7で、CSSがborder-imageで9つに割って使う。
+# このページの色で組む。Mac OS 8のHIGの原寸の図（HIG_CG-087.gif）を写したもので、ボタンは9×9（4ドットずつ割る）、輪は11×11（5ドットずつ割る）。
 # 字は色、`.` は透明。真ん中の1ドットは透かす（面の色はCSSのbackground）。**絵を直すときは画面の側と両方**
-_FRAME_INK = {"k": "#12171b", "f": "#dddcd8", "w": "#ffffff", "m": "#c2c4c6", "d": "#8b8f93",
+_FRAME_INK = {"k": "#12171b", "f": "#dddcd8", "w": "#ffffff", "L": "#bbbbb9", "m": "#aaaaa8", "d": "#777775",
               "p": "#63676c", "l": "#3f4347", "h": "#8b8f93", "o": "#8b8f93"}   # oは押せないときの枠（画面の --color-off）
 _FRAME_DOTS = {
-    "up":       [".kkkkk.", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", ".kkkkk."],
-    "down":     [".kkkkk.", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", ".kkkkk."],
-    "off":      [".ooooo.", "offfffo", "offfffo", "off.ffo", "offfffo", "offfffo", ".ooooo."],
-    "up_sq":    ["kkkkkkk", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", "kkkkkkk"],
-    "down_sq":  ["kkkkkkk", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", "kkkkkkk"],
-    "off_sq":   ["ooooooo", "offfffo", "offfffo", "off.ffo", "offfffo", "offfffo", "ooooooo"],
-    "ring":     ["..kkk..", ".kfffk.", "kfmmmdk", "kfm.mdk", "kfmmmdk", ".kdddk.", "..kkk.."],
-    "ring_off": ["..ooo..", ".offfo.", "offfffo", "off.ffo", "offfffo", ".offfo.", "..ooo.."],
+    "up":       ["..kkkkk..", ".kLfffLk.", "kLwwwwfLk", "kfwwffmdk", "kfwf.fmdk", "kfwffmmdk", "kLfmmmddk", ".kLddddk.", "..kkkkk.."],
+    "down":     ["..kkkkk..", ".klllllk.", "kllpppphk", "klppppphk", "klpp.pphk", "klppppphk", "klpppphhk", ".klhhhhk.", "..kkkkk.."],
+    "off":      ["..ooooo..", ".offfffo.", "offfffffo", "offfffffo", "offf.fffo", "offfffffo", "offfffffo", ".offfffo.", "..ooooo.."],
+    "ring":     ["...kkkkk...", "..kffffLk..", ".kffmmmmLk.", "kffmd.dmmdk", "kfmd...dmdk", "kfm.....mdk", "kfmd...dmdk", "kLmmd.dmddk", ".kLmmmmddk.", "..kdddddk..", "...kkkkk..."],
+    "ring_off": ["...ooooo...", "..offfffo..", ".offfffffo.", "offff.ffffo", "offf...fffo", "off.....ffo", "offf...fffo", "offff.ffffo", ".offfffffo.", "..offfffo..", "...ooooo..."],
 }
 
 
@@ -498,8 +495,9 @@ def _frame_url(name: str) -> str:
     rects = "".join(
         f"%3Crect x='{x}' y='{y}' width='1' height='1' fill='%23{_FRAME_INK[ch][1:]}'/%3E"
         for y, row in enumerate(_FRAME_DOTS[name]) for x, ch in enumerate(row) if ch != ".")
-    return ("url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' "
-            f"viewBox='0 0 7 7' shape-rendering='crispEdges'%3E{rects}%3C/svg%3E\")")
+    n = len(_FRAME_DOTS[name])
+    return (f"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='{n}' height='{n}' "
+            f"viewBox='0 0 {n} {n}' shape-rendering='crispEdges'%3E{rects}%3C/svg%3E\")")
 
 
 def _page_css(base: str) -> str:
@@ -543,18 +541,16 @@ img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b;
 /* ボタンはプラチナの押しボタン（2026-11-18。画面のfrontend/index.htmlの .btnと同じ作り。それまでは黒2pxの枠に黒い影を右下へずらしていた）。
    枠は7×7のドット絵（上の_FRAME_DOTS）をborder-imageで9つに割る。面の色はbackground（欠けた角からはみ出さないようpadding-boxで切る）。
    押している間は濃いグレーに白い字。いちばん押すボタン（.primary）と既定のボタン（.odlg-default）は、外を立体の輪で囲む */
-.btn {{ position: relative; display: inline-flex; align-items: center; min-height: 28px; padding: 0 8px; color: #12171b;
-  border: 3px solid transparent; border-image: {_frame_url("up")} 3 / 3px; background: #dddcd8 padding-box; image-rendering: pixelated;
+.btn {{ position: relative; display: inline-flex; align-items: center; min-height: 28px; padding: 0 7px; color: #12171b;
+  border: 4px solid transparent; border-image: {_frame_url("up")} 4 / 4px; background: #dddcd8 padding-box; image-rendering: pixelated;
   font-weight: 700; text-decoration: none; }}
 .btn:active {{ border-image-source: {_frame_url("down")}; background-color: #63676c; color: #fff; }}
-.btn.primary, .odlg-default {{ border-image-source: {_frame_url("up_sq")}; margin: 3px; }}
-.btn.primary:active, .odlg-default:active {{ border-image-source: {_frame_url("down_sq")}; }}
-.btn.primary::after, .odlg-default::after {{ content: ""; position: absolute; inset: -6px; pointer-events: none;
-  border: 3px solid transparent; border-image: {_frame_url("ring")} 3 / 3px; }}
+.btn.primary, .odlg-default {{ margin: 3px; }}
+.btn.primary::after, .odlg-default::after {{ content: ""; position: absolute; inset: -7px; pointer-events: none;
+  border: 5px solid transparent; border-image: {_frame_url("ring")} 5 / 5px; }}
 /* 自分の共有を外す・消す（2026-09-26）。鍵を持つ端末にだけ出る。buttonはaと同じ見た目に */
 button.btn {{ font: inherit; font-weight: 700; cursor: pointer; }}
 button.btn:disabled {{ border-image-source: {_frame_url("off")}; background-color: #dddcd8; color: #8b8f93; cursor: default; }}
-button.btn.primary:disabled {{ border-image-source: {_frame_url("off_sq")}; }}
 button.btn.primary:disabled::after {{ border-image-source: {_frame_url("ring_off")}; }}
 .own {{ display: grid; gap: 8px; padding: 12px; border: 2px dashed #12171b; }}
 .own[hidden] {{ display: none; }}

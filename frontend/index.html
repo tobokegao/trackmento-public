@@ -155,7 +155,10 @@
   /* **押せないときの枠と字**（ボタン・チェックボックス）。面取りの濃いグレー（--color-bar-dark）と同じ明るさだが、変数は分ける:
      暗い地の組ではbar-darkが面より暗く（20% と38%）、字が沈んで読めなかった（2026-11-18、利用者の実機で） */
   --color-off: var(--color-bar-dark);
-  --fr: calc(3 * var(--u));                 /* 枠の絵の太さ（3ドット。1ドットは端末の画素の整数倍） */
+  --fr: calc(4 * var(--u));                 /* 枠の絵の太さ（4ドット。1ドットは端末の画素の整数倍） */
+  /* ボタンの右下の2段の影。本物は #AAA と #777 で、面取りのグレー（--color-bevel 78%・--color-bar-dark 66%）より濃い */
+  --color-relief: oklch(73% 0.012 250);
+  --color-relief-deep: oklch(56% 0.012 250);
   /* 小さな箱（畳む箱・「?」・矢印）は内向きの影で1段だけ描く。絵にするほどの広さが無い */
   --bevel-sm: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark);
   /* 押し込んだとき。明るさの並びを逆にする（左上が濃く、右下が明るい）。地は --color-bevelに落とす */
@@ -163,14 +166,20 @@
   /* **窓の中身の地はグレー**（2026-11-18。本物のダイアログと同じ。白いのは入力欄・一覧・表・メニューだけ）。ボタンの面と同じ色 */
   --color-face: var(--color-bar);
   --color-track: var(--color-bevel);   /* スクロールバーの溝。窓の地より一段暗い */
-  /* 窓の枠。外枠（border）のすぐ内側に面取りの1px（左上が白、右下が濃いグレー）。--win-pad（1px）の余白に描く。
-     本物のダイアログは中身もグレーなので、中身を囲む黒い線は無い（11/17は白い中身を黒1pxで囲んでいた） */
-  --win-pad: 1px;
-  --win-frame: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark);
+  /* 窓の枠（HIGの原寸の図HIG_CG-084.gifの画素どおり）。外枠（border）の内側の2pxに描く（--win-pad）:
+     左と上は「面の色1px・その内側に白1px」、右と下は「内側に濃いグレー1px・外側にもっと濃いグレー1px」。
+     **白は枠の黒にじかに付けない**（はじめは黒のすぐ内側に白を置き、右下も1段だった。突き合わせて直した）。
+     本物のダイアログは中身もグレーなので、中身を囲む黒い線は無い（11/17は白い中身を黒1pxで囲んでいた）。
+     内向きの影は先に書いたものが上に乗る。外側の1px（面の色・もっと濃いグレー）を先に書く */
+  --win-pad: 2px;
+  --win-frame: inset -1px -1px 0 var(--color-muted), inset 1px 1px 0 var(--color-face), inset -2px -2px 0 var(--color-bar-dark), inset 2px 2px 0 var(--color-hl);
+  /* 題名バーの地。本物は窓の中身（#DDD）より少し暗い（#CCC）。題名バーの中では --color-barをこの色に差し替える（縞の間・題名の下敷き・箱も一緒に暗くなる） */
+  --color-titlebar: oklch(86% 0.006 250);
   /* 開閉の三角（Finderのリスト表示と同じ。閉じていると右、開いていると下）。9x9のドット */
   --disclosure: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" shape-rendering="crispEdges"><path d="M2 0h1v1h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-1v1h-1z" fill="%23fff"/></svg>');
   /* 小さな矢印（Little Arrows）の上向きの三角。7x4のドット。下向きは回して使う */
   --arrow-up: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="7" height="4" shape-rendering="crispEdges"><path d="M3 0h1v1h1v1h1v1h1v1H0V3h1V2h1V1h1z" fill="%23fff"/></svg>');
+  --arrow-down: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="7" height="4" shape-rendering="crispEdges"><path d="M0 0h7v1H6v1H5v1H4v1H3V3H2V2H1V1H0z" fill="%23fff"/></svg>');   /* 下向きの三角（ポップアップの印の下半分） */
   --arrow-left: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="7" shape-rendering="crispEdges"><path d="M3 0h1v2h4v3H4v2H3V6H2V5H1V4H0V3h1V2h1V1h1z" fill="%23fff"/></svg>');   /* 左向きの矢印（8×7。サーバー代の欄でBandcampのボタンを指す） */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
@@ -240,6 +249,10 @@ img { max-width: 100%; display: block; }
   --color-press-hi: oklch(34% 0.012 250);
   --color-press-ink: var(--color-ink);
   --color-off: oklch(62% 0.010 250);   /* 押せないときの枠と字。面（38%）より明るくする */
+  --color-relief: var(--color-bevel); --color-relief-deep: var(--color-bar-dark);   /* ボタンの右下の2段。暗い地では面取りと同じ */
+  /* 窓の枠の右下。暗い地では --color-mutedが明るい色なので使わない（外側をいちばん暗く、内側を地と外枠の中間に） */
+  --win-frame: inset -1px -1px 0 var(--color-bar-dark), inset 1px 1px 0 var(--color-face), inset -2px -2px 0 var(--color-bevel), inset 2px 2px 0 var(--color-hl);
+  --color-titlebar: oklch(33% 0.010 250);
   --range-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='18' viewBox='0 0 19 18' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h19v1H0zM0 17h19v1H0zM0 0h1v18H0zM18 0h1v18h-1zM5 5h1v8H5zM9 5h1v8H9zM13 5h1v8h-1z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 16h17v1H1zM17 1h1v16h-1z'/%3E%3Cpath fill='%23fff' d='M1 1h17v1H1zM1 1h1v16H1zM4 4h1v1H4zM8 4h1v1H8zM12 4h1v1h-1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M4 5h1v7H4zM8 5h1v7H8zM12 5h1v7h-1zM17 1h1v1h-1zM1 16h1v1H1z'/%3E%3C/svg%3E");
   --sb-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' viewBox='0 0 5 5' shape-rendering='crispEdges'%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M0 0h5v1H0zM0 4h5v1H0zM0 0h1v5H0zM4 0h1v5H4z'/%3E%3Cpath fill='oklch(29%25 0.012 250)' d='M1 3h3v1H1zM3 1h1v3H3z'/%3E%3Cpath fill='%23fff' d='M1 1h3v1H1zM1 1h1v3H1z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M3 1h1v1H3zM1 3h1v1H1z'/%3E%3C/svg%3E");
   --sb-grip-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='16' viewBox='0 0 9 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' d='M0 0h2v2H0zM0 6h2v2H0zM0 12h2v2H0z'/%3E%3Cpath fill='oklch(58%25 0.010 250)' d='M2 0h5v2H2zM2 6h5v2H2zM2 12h5v2H2z'/%3E%3Cpath fill='oklch(20%25 0.012 250)' d='M2 2h7v2H2zM2 8h7v2H2zM2 14h7v2H2z'/%3E%3C/svg%3E");
@@ -303,19 +316,19 @@ img { max-width: 100%; display: block; }
 .lang-switch {
   order: 9;   /* 常にバーの右端。直前の .bar-statusがmargin-left:autoで余白を吸うので、これで右端に付く */
   font-family: var(--font-display); font-size: var(--text-sm); line-height: 1;
-  padding: 4px 9px; color: var(--color-ink); cursor: pointer;
+  padding: 3px 8px; color: var(--color-ink); cursor: pointer;
 }
 /* 上の帯の3つ（言語・「?」・窓を元に戻す）は小さな押しボタン。枠は .btnと同じ絵（下の「ボタンの枠」）。押している間と、入っている間（「?」）はへこむ */
-.lang-switch, .win-reset, .help-btn { border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr); background: var(--color-bar) padding-box; image-rendering: pixelated; }
+.lang-switch, .win-reset, .help-btn { border: var(--fr) solid transparent; border-image: var(--fr-up, none) 4 / var(--fr); background: var(--color-bar) padding-box; image-rendering: pixelated; }
 .lang-switch:active, .win-reset:active, .help-btn:active, .help-btn[aria-pressed="true"] { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }
 /* 窓を動かしたあとに出す「窓を元に戻す」（2026-09-25）。言語の切り替えの左 */
-.win-reset { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 4px 9px;
+.win-reset { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 3px 8px;
   color: var(--color-ink); cursor: pointer; }
 .win-reset[hidden] { display: none; }
 /* **吹き出しの説明**（2026-09-27、Mac OS 8/9のバルーンヘルプ。運用ボードのhelp-videosの②）。「?」で出す・隠すを切り替える。
    出しているあいだは、PCは部品にマウスを重ねると、スマホは部品に触れると吹き出しが出る（スマホは覆い #balloon-veilが
    触れた所を受けるので、部品そのものは動かない）。中身はJSのHELP表（無ければtitleの文）。仕組みはdocs/ui.md */
-.help-btn { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 4px 9px;
+.help-btn { order: 9; font-family: var(--font-display); font-size: var(--text-sm); line-height: 1; padding: 3px 8px;
   color: var(--color-ink); cursor: pointer; }
 /* **狭いスマホでは間隔とボタンの内側を詰める**（2026-09-27）。「?」を足してから、幅360〜375pxではロゴ・「?」・「EN」が1行に
    収まらず（328pxに330px）、390pxでも英語の画面の「日本語」が2行目に落ちて、上の帯が49pxから91pxに伸びていた。
@@ -323,7 +336,7 @@ img { max-width: 100%; display: block; }
    詰めると360pxで「日本語」まで326pxに収まる（320pxは2行のまま） */
 @media (max-width: 420px) {
   .bar { gap: var(--space-2); }
-  .lang-switch, .help-btn, .win-reset { padding-inline: 6px; }
+  .lang-switch, .help-btn, .win-reset { padding-inline: 5px; }
   .wordmark small:empty { display: none; }
   .bar-status:empty { margin-right: calc(-1 * var(--space-2)); }
 }
@@ -471,7 +484,7 @@ img { max-width: 100%; display: block; }
     display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(62svh, calc(var(--vvh, 100svh) - 48px)); --win-drop: 0 0 0 0 transparent; }
   .pane-options > .pane-body { overflow-y: auto; overscroll-behavior: contain; }
   .pane-options > .pane-title::after { content: ""; position: absolute; inset: -10px 0 0; }   /* 指の当たりを上へ10px広げる（バーは29px） */
-  body { padding-bottom: 33px; }   /* 畳んだ窓（枠1＋面取り1＋バー29＋面取り1＋枠1）に、いちばん下の欄が隠れないように */
+  body { padding-bottom: 33px; }   /* 畳んだ窓（枠1＋バー29（上の面取りの所まで広がっている）＋面取り2＋枠1）に、いちばん下の欄が隠れないように */
   .balloon-bar { bottom: calc(33px + var(--space-3)); }
 }
 /* オプション列の幅: 背景色の見本8個（32px、間隔8px）が1行に収まる内側の幅 ＋ ペインの余白と枠線。
@@ -531,7 +544,14 @@ img { max-width: 100%; display: block; }
   /* **縞の帯は20pxで固定**（白2px＋影2pxの5組ちょうど）。`100% - 上下の余白` にしていたときは、
      バーの高さが端数になる端末で6本目の白線が0.5pxだけはみ出して見えた（スマホで報告） */
   --bar-stripes: 20px;
-  border-bottom: var(--edge) solid var(--color-bar-dark); box-shadow: 0 1px 0 var(--color-hl);   /* 彫り込んだ線（濃いグレーの下に白） */
+  /* **題名バーの所は、窓の枠の作りが中身の所と違う**（HIG_CG-084.gifの画素どおり）: 白は枠の黒のすぐ内側（上と左）、右は濃いグレー1列だけ。
+     窓の枠（--win-frame）は中身の所の作り（面の色1px・白1px／濃いグレー2段）なので、題名バーを上と左右へ2pxずつ広げて枠の線を覆い、
+     自分の内向きの影で描き直す。下の区切りは、バーの中のいちばん下に濃いグレーの線、その下に黒い線。
+     黒の2px下の白い線（窓の中身の左上の白が、ここで上の辺になる）は ::beforeで描く（左は面の色1pxを空け、右は濃いグレー2列の手前で止める） */
+  margin: calc(-1 * var(--win-pad)) calc(-1 * var(--win-pad)) 0;
+  border-bottom: var(--edge) solid var(--color-ink);
+  box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px 0 0 var(--color-bar-dark), inset 0 -1px 0 var(--color-bar-dark);
+  --color-bar: var(--color-titlebar);
   /* **白線は「左端2pxだけ明るい白、それより右は暗い白」**（つまみの握りとまったく同じ規則。
      つまみでは明るい白の層を2px幅で左に置き、その右に暗い白の層を並べている）。
      線の向きを取り違えて「いちばん上の1本だけ純白」にしていた（2026-09-15に指摘） */
@@ -595,8 +615,12 @@ img { max-width: 100%; display: block; }
    いつも畳んだ姿で出ているので、「—」のままだと「押すと開く」が読めなかった */
 .pane[data-collapsed="true"] > .pane-title .fold::before { content: "+"; }
 .pane[data-collapsed="true"] > :not(.pane-title):not(.editor) { display: none; }
-/* 畳んだ窓は題名バーだけ。下の彫り込んだ線は消す（すぐ下が窓の面取りなので、線が4本並んで見える）。高さは変えない */
-.pane[data-collapsed="true"] > .pane-title { border-bottom-color: transparent; box-shadow: none; }
+/* 題名バーの下の白い線（上の .pane-titleの注）。モーダルの題名（.modal-panelの中の .sheet-head）も同じ。引き出しの題名は枠の外なので広げない */
+.pane-title::before, .modal-panel > .sheet-head::before { content: ""; position: absolute; left: 1px; right: 2px; bottom: calc(-2px - var(--edge)); height: 1px; background: var(--color-hl); pointer-events: none; }
+.modal-panel > .sheet-head { margin: calc(-1 * var(--win-pad)) calc(-1 * var(--win-pad)) 0; }
+/* 畳んだ窓は題名バーだけ。下の黒い線と白い線は出さない（すぐ下が窓の枠なので、線が何本も並んで見える）。高さは変えない */
+.pane[data-collapsed="true"] > .pane-title { border-bottom-color: transparent; box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px 0 0 var(--color-bar-dark); }
+.pane[data-collapsed="true"] > .pane-title::before { display: none; }
 .pane-body { padding: 10px; }
 /* 検索ペイン内のBandcamp／手入力は見出し付きの小セクションにして畳めるようにする */
 /* **区切りの線は彫り込んだ線**（濃いグレーの下に白。HIGのseparator line。2026-11-18）。グレーの地に灰色の2pxの線や破線を引いていた所をそろえた */
@@ -677,10 +701,10 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .input[aria-invalid="true"]:focus-visible { outline-color: var(--color-error); }
 .input:disabled { opacity: .5; cursor: not-allowed; }
 
-/* **ボタンの枠はプラチナの押しボタンの絵**（2026-11-18。Mac OS 8のHIGの図HIG_CG-105.gifの画素を読んで写した）。
-   黒1ドットの枠で四隅が1ドット欠け、枠の1ドット内側の左上に白、右下に2段のグレー。面はグレー。
-   絵は7×7のドット絵（真ん中は透かし）で、JSのpaintFramesが今の色で描いて --fr-* に入れる。それを `border-image` で
-   9つに割って使う（角は3ドット四方のまま、辺だけ伸びる。スクロールバーのつまみと同じ手）。
+/* **ボタンの枠はプラチナの押しボタンの絵**（2026-11-18。Mac OS 8のHIGの原寸の図HIG_CG-087.gifの画素を読んで写した）。
+   黒1ドットの枠で四隅が2ドット欠け、枠の1ドット内側の左上に白、右下に2段のグレー。面はグレー。
+   絵は9×9のドット絵（真ん中は透かし）で、JSのpaintFramesが今の色で描いて --fr-* に入れる。それを `border-image` で
+   9つに割って使う（角は4ドット四方のまま、辺だけ伸びる。スクロールバーのつまみと同じ手）。
    **面の色はbackground（padding-boxで切る）**。border-boxのままだと、欠けた角から面の色がはみ出す。
    落ちる影は付けない。押している間は濃いグレーの面に白い字（明るさの並びが逆の絵）。**位置は動かさない**。
    押せないときは枠も字もグレーで、面取りなし（本物のDisabled。前は全体を半透明にしていた） */
@@ -690,8 +714,8 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
   /* **高さは28px、左右の余白は8px**（2026-11-18、利用者が見本3つから選んだ）。本物は高さ20px・字12ポイント・字の端から枠まで8px
      （HIGのControl Layout Guidelines）。それまでの40px（指の画面44px）は字の上下が14〜16px空き、本物より厚ぼったく見えた。
      20pxは指に小さいので、小さいボタンで使ってきた28pxにそろえた。指の画面でも同じ高さ */
-  min-height: 28px; padding: 0 8px;
-  border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr);
+  min-height: 28px; padding: 0 7px;   /* 枠の絵が4ドットあるので、字の端から枠の黒まで11px */
+  border: var(--fr) solid transparent; border-image: var(--fr-up, none) 4 / var(--fr);
   background: var(--color-bar) padding-box; color: var(--color-ink);
   image-rendering: pixelated;
   font-family: var(--font-display); font-size: var(--text-base); letter-spacing: 0.02em;
@@ -701,18 +725,16 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .btn:active { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }
 .btn:disabled, .btn[aria-disabled="true"] { border-image-source: var(--fr-off, none); background-color: var(--color-bar); color: var(--color-off); cursor: not-allowed; }
 /* **いちばん押すボタン（.btn-primary: トラックを探す・検索する・共有など）と、Returnで押される既定のボタン（.btn-default）は、
-   本物の既定のボタンの形**: ふつうのボタンの外を、立体の輪（黒1・明るいグレー1・中間のグレー1。右下は中間・濃いグレー・黒）で囲む。
+   本物の既定のボタンの形**: ふつうのボタンの外を、立体の輪（黒1・面の色1・中間のグレー1。右下は中間・濃いグレー・黒）で囲む。
    2026-11-18までは黒地に白い字で、面取りの画面の中でそこだけ平らに浮いて見えた（利用者の指摘）。
-   輪は ::afterに絵（--fr-ring）で描き、外へ3ドットはみ出すぶんをmarginで空ける。本体は角の欠けない絵にする
-   （欠けた角から後ろの地がのぞいて、輪との間に明るい点が出るため）。
+   輪は ::afterに絵（--fr-ring）で描く。輪は外へ3ドット出る（そのぶんをmarginで空ける）。絵は内側へも2ドットかぶさり、
+   中のボタンの欠けた角を輪の色で埋める（本物どおり。埋めないと、欠けた角から後ろの地がのぞく）。**中のボタンの絵はふつうのボタンと同じ**。
    Returnで押せるのは、窓を開いたときにそのボタンへ焦点を置いているため（ブラウザの既定の動き） */
-.btn-primary, .btn-default { border-image-source: var(--fr-up-sq, none); margin: var(--fr); }
-.btn-primary:active, .btn-default:active { border-image-source: var(--fr-down-sq, none); }
+.btn-primary, .btn-default { margin: calc(3 * var(--u)); }
 .btn-primary::after, .btn-default::after {
-  content: ""; position: absolute; inset: calc(-2 * var(--fr)); pointer-events: none;
-  border: var(--fr) solid transparent; border-image: var(--fr-ring, none) 3 / var(--fr);
+  content: ""; position: absolute; inset: calc(-7 * var(--u)); pointer-events: none;   /* 枠4ドット＋輪3ドットぶん外へ */
+  border: calc(5 * var(--u)) solid transparent; border-image: var(--fr-ring, none) 5 / calc(5 * var(--u));
 }
-.btn-primary:disabled, .btn-default:disabled { border-image-source: var(--fr-off-sq, none); }
 .btn-primary:disabled::after, .btn-default:disabled::after { border-image-source: var(--fr-ring-off, none); }
 .btn[data-state="loading"] { cursor: progress; }
 .btn[data-state="loading"] .label::after { content: "…"; }
@@ -735,7 +757,7 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
   position: relative;
   display: block; padding: var(--space-1) var(--space-3); text-align: center;
   font-family: var(--font-display); font-size: var(--text-sm); white-space: nowrap; cursor: pointer;
-  border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr); background: var(--color-bar) padding-box; image-rendering: pixelated;
+  border: var(--fr) solid transparent; border-image: var(--fr-up, none) 4 / var(--fr); background: var(--color-bar) padding-box; image-rendering: pixelated;
 }
 .seg input:checked + span { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }   /* 入っているものはへこんだまま */
 .seg input:focus-visible + span { outline: var(--focus-ring); outline-offset: var(--focus-gap); }
@@ -926,33 +948,42 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 /* 行の見出しの列（書き出しと同じく、グリッドの左。幅と字の大きさはsyncPreviewが書き出しの比率で決める） */
 .grid[data-labels="on"] { grid-template-columns: var(--labw) repeat(var(--cols, 3), minmax(0, 1fr)); }
 .grid .rowhead { align-self: center; min-width: 0; overflow: hidden; white-space: nowrap; font-weight: 700; font-size: var(--labpx); line-height: 1.2;   /* 長い見出しの2行はJSが<br>で折る */ color: var(--grid-ink, var(--color-ink)); }
-.popup { --arrow-w: 25px; position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
+/* **ポップアップメニューは本物の絵を写したもの**（2026-11-18。Mac OS 8のHIGの原寸の図HIG_CG-081.gifを1画素ずつ読んだ）。
+   - 枠は1枚のドット絵（--fr-pop。押しボタンと同じく四隅が2ドット欠ける）。左上の白は枠のすぐ内側。下は中間のグレー1段、右は2段
+   - **右端の矢印の所は、それだけで1つの出っぱり**（::before。幅21ドット）: 左に中間のグレーの縦線（区切り）、1ドット空けて白い縦線と横線、
+     下は中間・濃いグレーの2段（枠の絵の下辺の中間のグレーを、ここだけ濃いグレーで上書きする）
+   - 印は上向きと下向きの三角（7×4ドット）を縦に2つ、間は2ドット（::after。1つの箱に型抜きを2枚）。出っぱりの真ん中に置く
+   はじめは枠を押しボタンと同じ絵にして、区切りを「濃いグレーと白の2本」で描いていた（利用者の「ほかにドット絵のミスが無いか」で突き合わせて直した） */
+.popup { --arrow-w: calc(22 * var(--u)); position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
 .popup select {
   -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; min-height: 28px; margin: 0;   /* 高さはボタンと同じ */
-  padding: 0 calc(var(--arrow-w) + var(--space-2)) 0 var(--space-2);
-  /* 枠は押しボタンと同じ絵（.btnの注）。面と区切りの線は枠の内側（padding-box）に描く */
-  border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr); border-radius: 0; color: var(--color-ink); cursor: pointer;
+  padding: 0 calc(var(--arrow-w) + var(--space-1)) 0 var(--space-2);
+  border: var(--fr) solid transparent; border-image: var(--fr-pop, none) 4 / var(--fr); border-radius: 0; color: var(--color-ink); cursor: pointer;
   image-rendering: pixelated;
-  /* 矢印の左の区切りは、濃いグレーと白の2本（彫り込んだ線） */
-  background:
-    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)) right calc(var(--arrow-w) - var(--fr)) top 0 / 1px 100% no-repeat,
-    linear-gradient(var(--color-hl), var(--color-hl)) right calc(var(--arrow-w) - var(--fr) - 1px) top 0 / 1px 100% no-repeat,
-    var(--color-bar);
-  background-clip: padding-box;
+  background: var(--color-bar) padding-box;
   font-family: var(--font-display); font-size: var(--text-base); text-overflow: ellipsis;
 }
-/* 矢印は上向きと下向きの三角を縦に2つ（本物のポップアップメニューの印。HIGの図HIG_CG-081.gif）。間は2ドット。
-   **置く箱は「区切りの白線の右〜枠の内側」**（幅21px = --arrow-w 25 − 枠3 − 白線1）。箱を枠の外側の端から取っていたときは、
-   右の枠3pxのぶん矢印が右へ寄り、しかも（24 − 7）÷ 2が半端で半画素ずれた（2026-11-18、利用者の指摘「矢印がズレて見える」）。
-   21pxなら7ドットの三角の左右がちょうど7pxずつ */
-.popup::before, .popup::after {
-  content: ""; position: absolute; z-index: 1; top: 50%; right: var(--fr); width: calc(var(--arrow-w) - var(--fr) - 1px); height: calc(4 * var(--u)); pointer-events: none;
-  background: var(--color-ink);
-  -webkit-mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat; mask: var(--arrow-up) center / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat;
+.popup::before {
+  content: ""; position: absolute; z-index: 1; pointer-events: none;
+  top: var(--u); bottom: var(--u); right: var(--u); width: calc(21 * var(--u));
+  background:
+    linear-gradient(var(--color-relief), var(--color-relief)) left 0 top var(--u) / var(--u) calc(100% - 2 * var(--u)) no-repeat,
+    linear-gradient(var(--color-hl), var(--color-hl)) left calc(2 * var(--u)) top var(--u) / var(--u) calc(100% - 3 * var(--u)) no-repeat,
+    linear-gradient(var(--color-hl), var(--color-hl)) left calc(2 * var(--u)) top var(--u) / calc(100% - 4 * var(--u)) var(--u) no-repeat,
+    linear-gradient(var(--color-relief), var(--color-relief)) left calc(3 * var(--u)) bottom var(--u) / calc(100% - 5 * var(--u)) var(--u) no-repeat,
+    linear-gradient(var(--color-relief-deep), var(--color-relief-deep)) left calc(2 * var(--u)) bottom 0 / calc(100% - 3 * var(--u)) var(--u) no-repeat;
 }
-.popup::before { margin-top: calc(-5 * var(--u)); }
-.popup::after { margin-top: var(--u); transform: rotate(180deg); }
-.popup:active select { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }   /* 押し口（.popup-hit）が上に重なっているので、外の箱の :activeで受ける */
+.popup::after {
+  content: ""; position: absolute; z-index: 1; pointer-events: none;
+  top: 50%; margin-top: calc(-5 * var(--u)); right: calc(8 * var(--u)); width: calc(7 * var(--u)); height: calc(10 * var(--u));
+  background: var(--color-ink);
+  -webkit-mask: var(--arrow-up) center top / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat, var(--arrow-down) center bottom / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat;
+  mask: var(--arrow-up) center top / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat, var(--arrow-down) center bottom / calc(7 * var(--u)) calc(4 * var(--u)) no-repeat;
+}
+/* 押している間は押しボタンと同じ絵（押し口 .popup-hitが上に重なっているので、外の箱の :activeで受ける）。矢印の出っぱりの線は消す */
+.popup:active select { border-image-source: var(--fr-down, none); background-color: var(--color-press); color: var(--color-press-ink); }
+.popup:active::before { display: none; }
+.popup:active::after { background: var(--color-press-ink); }
 /* 一覧の中の項目はブラウザが描くので、暗い組でも読めるように色だけ渡す */
 .popup option { background: var(--color-paper); color: var(--color-ink); }
 /* **一覧は自前のOS 9風のメニューで出す**（2026-09-25、利用者の指摘。スマホではブラウザの黒い一覧が出て、サイトの見た目から浮いていた）。
@@ -965,7 +996,8 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 /* メニューは黒1pxの枠と右下1pxの影だけ（窓の枠のグレーは付けない。本物のメニューも同じ） */
 .popmenu-panel { position: absolute; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--edge) solid var(--color-ink);
   background: var(--color-paper); box-shadow: var(--shadow); max-height: 70dvh; }
-.popmenu-panel > .pane-title { border-bottom-color: var(--color-ink); box-shadow: none; }   /* 下が白い一覧なので、黒い線で区切る */
+.popmenu-panel > .pane-title { margin: 0; border-bottom-color: var(--color-ink); box-shadow: none; }   /* メニューは枠が黒1pxだけなので広げない。下が白い一覧なので、黒い線で区切る */
+.popmenu-panel > .pane-title::before { display: none; }
 .popmenu-panel > .pane-title { cursor: default; }
 .popmenu-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; }
 .popmenu-list li { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); cursor: pointer;
@@ -1078,7 +1110,10 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   --bar-inset: 8px; --bar-inset-x: 8px; --bar-stripes: 20px;
   display: flex; align-items: center; gap: var(--space-2);
   min-height: calc(36px + var(--edge)); padding: 0 var(--space-2);
-  border-bottom: var(--edge) solid var(--color-bar-dark); box-shadow: 0 1px 0 var(--color-hl);
+  border-bottom: var(--edge) solid var(--color-ink);
+  box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px 0 0 var(--color-bar-dark), inset 0 -1px 0 var(--color-bar-dark);   /* 枠の描き直しは .pane-titleの注 */
+  --color-bar: var(--color-titlebar);
+  position: relative;
   color: var(--color-ink);
   background:
     linear-gradient(to bottom, var(--stripe-hl)) var(--bar-inset-x) var(--bar-inset) / 2px var(--bar-stripes) no-repeat,
@@ -1088,7 +1123,9 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 }
 .sheet-head h2 { margin-inline: auto; min-width: 0; padding: 0 var(--space-2); align-self: stretch; display: flex; align-items: center;
   background: var(--color-bar); color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sheet-head .btn { flex: none; min-height: 26px; padding-block: 0; box-shadow: calc(-1 * var(--space-2)) 0 0 var(--color-bar), var(--space-2) 0 0 var(--color-bar); }   /* 左右に地の色の帯を付けて、縞をボタンの手前で切る（上下には出さない。バーの外へはみ出す） */
+/* 題名バーの中では --color-barが題名バーの地に差し替わっている。ボタンと畳む箱の面は、窓の地の色に戻す（枠の絵の面と同じ色でないと、枠と面がずれて見える） */
+.pane-title .fold, .sheet-head .btn { --color-bar: var(--color-face); }
+.sheet-head .btn { flex: none; min-height: 26px; padding-block: 0; box-shadow: calc(-1 * var(--space-2)) 0 0 var(--color-titlebar), var(--space-2) 0 0 var(--color-titlebar); }   /* 左右に地の色の帯を付けて、縞をボタンの手前で切る（上下には出さない。バーの外へはみ出す） */
 .sheet-body { overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); }
 .sheet-body .pane { --win-drop: 0 0 0 0 transparent; }   /* 引き出しの中の窓は影を落とさない（`box-shadow: none` だと枠まで消える） */
 .sheet-body .results { max-height: none; overflow: visible; }   /* 引き出しの中ではスクロール箱にしない（上の理由） */
@@ -1340,26 +1377,41 @@ body.sheet-open { overflow: hidden; }
 }
 /* 送信中の窓。**上りが細いと80秒かかる**ことがあり、何も出ていないと「固まった」と思って
    押し直される。押し直されると同じ1MBがもう一度流れるので、進み具合を見せる意味がある */
-/* **進み具合の棒は本物のプログレスバーの作り**（2026-11-18。Mac OS 8のHIGの図HIG_CG-062.gifの画素を読んで写した）。
-   黒1pxの枠、その外の上と左に濃いグレー・下と右に白のへこみ。中は10段（高さ10px）:
-   - 残りの溝: いちばん上の1段が影（濃いグレー）、あとは中間のグレー、いちばん下の1段だけ明るい
-   - 塗り: **上下が濃く、真ん中が明るい筒**。上から「濃い・やや濃い・地の色・淡い・ほぼ白・淡い・地の色・やや濃い・濃い・いちばん濃い」
+/* **進み具合の棒は本物のプログレスバーの作り**（2026-11-18。Mac OS 8のHIGの図HIG_CG-062.gifを1画素ずつ読んで写した。
+   図は1.2倍に拡大されているので、同じ行・列が2つ続く所は1つに数える）。黒1pxの枠、その外の上と左に濃いグレー・下と右に白のへこみ。
+   中は高さ10pxの10段:
+   - 溝は**へこみ**: いちばん上の1段と左が影（濃いグレー）、面は中間のグレー、いちばん下の1段と右端の1列が明るい。
+     左の影は塗りの右にも落ちる（塗りの黒い端の右に、濃いグレー・やや濃いグレーの2列。.up-fillのbox-shadow）
+   - 塗りは**上下が濃く、真ん中が明るい筒**。上から「濃い・やや濃い・地の色・淡い・ほぼ白・淡い・地の色・やや濃い・濃い・いちばん濃い」。
+     **左端は2列**: 枠のすぐ内側に、やや濃い色の縦線が上から下まで1列。その右の1列は、段ごとに1段ずつ明るい（筒の縁の光）。
+     **右端の2列は暗い**（右から2列目が濃い、右端がいちばん濃い。筒の端の影）。その右に黒い線。
+     （左端のやや濃い縦線は、はじめ列を1つ数え違えて落としていた。利用者に拡大の見比べで指摘されて足した）
    本物は青紫。ここはサイトのマスタードを地の色にして、同じ明暗の並びを作る（暗い側は --color-on-light、明るい側は --color-on-darkを混ぜる。
    どちらも配色の組が変わっても暗い色・明るい色のまま）。
-   **「グラデーションの背景は足さない」の決まりには当たらない**: 段ごとに1色の、10本の横線の絵（ハードストップ）。ぼかして繋げない */
+   **「グラデーションの背景は足さない」の決まりには当たらない**: 段ごとに1色の、10本の横線の絵（ハードストップ）。ぼかして繋げない。
+   はじめは左端の光・右端の影・溝のへこみを写しておらず、塗りが平らな帯に見えた（利用者の指摘「影の付き方が違う」） */
 .up-bar { height: 12px; border: var(--edge) solid var(--color-ink);
-  background: linear-gradient(to bottom, var(--color-bar-dark) 0 10%, var(--color-bevel) 10% 90%, var(--color-bar) 90% 100%);
+  background:
+    linear-gradient(var(--color-bar-dark), var(--color-bar-dark)) left top / calc(100% - 1px) 10% no-repeat,   /* 上の影は右端の1列に掛けない（本物はそこだけ面の色） */
+    linear-gradient(to bottom, var(--color-bevel) 0 10%, var(--color-bar) 10% 100%) right top / 1px 100% no-repeat,
+    linear-gradient(to bottom, var(--color-bevel) 0 90%, var(--color-bar) 90% 100%);
   box-shadow: -1px -1px 0 var(--color-bar-dark), 1px 1px 0 var(--color-hl); overflow: hidden; }
 .up-fill { height: 100%; width: 0; transition: width .2s linear; border-right: var(--edge) solid var(--color-ink);
+  box-shadow: 1px 0 0 var(--color-muted), 2px 0 0 var(--color-bar-dark);   /* 溝に落ちる影（黒い端の右の2列） */
   --pf-1: color-mix(in oklab, var(--color-mustard) 55%, var(--color-on-light));
   --pf-2: color-mix(in oklab, var(--color-mustard) 78%, var(--color-on-light));
   --pf-3: var(--color-mustard);
   --pf-4: color-mix(in oklab, var(--color-mustard) 55%, var(--color-on-dark));
   --pf-5: color-mix(in oklab, var(--color-mustard) 18%, var(--color-on-dark));
   --pf-6: color-mix(in oklab, var(--color-mustard) 38%, var(--color-on-light));
-  background: linear-gradient(to bottom, var(--pf-1) 0 10%, var(--pf-2) 10% 20%, var(--pf-3) 20% 30%, var(--pf-4) 30% 40%, var(--pf-5) 40% 50%,
-    var(--pf-4) 50% 60%, var(--pf-3) 60% 70%, var(--pf-2) 70% 80%, var(--pf-1) 80% 90%, var(--pf-6) 90% 100%); }
-.up-fill[data-done="1"] { border-right: none; }
+  background:
+    linear-gradient(var(--pf-2), var(--pf-2)) left top / 1px 100% no-repeat,
+    linear-gradient(to bottom, var(--pf-2) 0 10%, var(--pf-3) 10% 20%, var(--pf-4) 20% 30%, var(--pf-5) 30% 60%, var(--pf-4) 60% 70%, var(--pf-3) 70% 80%, var(--pf-2) 80% 90%, var(--pf-1) 90% 100%) left 1px top / 1px 100% no-repeat,
+    linear-gradient(to bottom, var(--pf-1) 0 10%, var(--pf-6) 10% 100%) right top / 1px 100% no-repeat,
+    linear-gradient(to bottom, var(--pf-1) 0 10%, var(--pf-2) 10% 20%, var(--pf-1) 20% 90%, var(--pf-6) 90% 100%) right 1px top / 1px 100% no-repeat,
+    linear-gradient(to bottom, var(--pf-1) 0 10%, var(--pf-2) 10% 20%, var(--pf-3) 20% 30%, var(--pf-4) 30% 40%, var(--pf-5) 40% 50%,
+      var(--pf-4) 50% 60%, var(--pf-3) 60% 70%, var(--pf-2) 70% 80%, var(--pf-1) 80% 90%, var(--pf-6) 90% 100%); }
+.up-fill[data-done="1"] { border-right: none; box-shadow: none; }   /* いっぱいになったら、端の黒い線と溝の影は出さない */
 .up-pct { font-family: var(--font-outlier); font-size: var(--text-sm); margin: var(--space-1) 0 0;
   font-variant-numeric: tabular-nums; }
 .up-note { color: var(--color-muted); font-size: var(--text-sm); margin: var(--space-1) 0 0; }
@@ -3362,22 +3414,25 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       root.style.setProperty("--check-" + name + suffix, `url(${cv.toDataURL()})`);
     }
   }
-  /* **押しボタンの枠のドット絵**（2026-11-18）。Mac OS 8のHIGの図（HIG_CG-105.gif）の画素を読んで写した7×7。
+  /* **押しボタンの枠のドット絵**（2026-11-18）。Mac OS 8のHIGの**原寸の図**（HIG_CG-087.gifのCancelとConnect）を1画素ずつ読んで写した。
      1字1ドットで、字は色の変数（`FRAME_INK`）、`.` は透明。真ん中の1ドットは透かす（面の色はCSSのbackgroundが出す）。
-     CSSは `border-image` で3ドットずつ9つに割って使うので、**角の3×3と、辺の真ん中の1列・1行**が見た目を決める。
-     up = ふつう、down = 押している間、off = 押せない、-sq = 角を欠かないもの（輪で囲むボタンの本体）、
-     ring = 既定のボタンを囲む輪、ring-off = 押せないときの輪 */
-  const FRAME_INK = { k: "--color-ink", f: "--color-bar", w: "--color-hl", m: "--color-bevel", d: "--color-bar-dark",
+     - up（9×9。CSSは4ドットずつ9つに割る）: 黒1ドットの枠で**四隅は2ドット欠ける**（角は斜めに3段）。枠の内側の角に中間のグレー（L）。
+       左上は枠の1ドット内側に白。右下は内側から中間のグレー（m）・濃いグレー（d）の2段
+     - down = 押している間、off = 押せない（どちらも外形はupと同じ）
+     - ring（11×11。5ドットずつ割る）: 既定のボタンを囲む輪。外から黒・面の色・中間のグレー（右下は中間・濃いグレー・黒）の3ドットで、
+       **四隅は3ドット欠ける**。内側の2ドットは、中のボタンの欠けた角を埋める所だけ色がある（そこ以外は透明で、中のボタンが見える）
+     - pop（9×9）: ポップアップメニューの枠（HIG_CG-081.gif）。左上の白は枠のすぐ内側、下は中間のグレー1段、右は中間・濃いグレーの2段
+     **はじめはPush Button Statesの図（HIG_CG-105.gif）から写したが、あれは1.5倍に拡大された図で、角を1ドット欠けと読み違えていた**
+     （利用者の「ほかにドット絵のミスが無いか」で原寸の図と突き合わせて分かった。7×7・3ドット割りの絵は捨てた） */
+  const FRAME_INK = { k: "--color-ink", f: "--color-bar", w: "--color-hl", L: "--color-bevel", m: "--color-relief", d: "--color-relief-deep",
     p: "--color-press", l: "--color-press-lo", h: "--color-press-hi", o: "--color-off" };
   const FRAME_DOTS = {
-    "up":       [".kkkkk.", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", ".kkkkk."],
-    "down":     [".kkkkk.", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", ".kkkkk."],
-    "off":      [".ooooo.", "offfffo", "offfffo", "off.ffo", "offfffo", "offfffo", ".ooooo."],
-    "up-sq":    ["kkkkkkk", "kffffmk", "kfwwwdk", "kfw.mdk", "kfmmmdk", "kmddddk", "kkkkkkk"],
-    "down-sq":  ["kkkkkkk", "klllllk", "klppphk", "klp.phk", "klppphk", "klhhhhk", "kkkkkkk"],
-    "off-sq":   ["ooooooo", "offfffo", "offfffo", "off.ffo", "offfffo", "offfffo", "ooooooo"],
-    "ring":     ["..kkk..", ".kfffk.", "kfmmmdk", "kfm.mdk", "kfmmmdk", ".kdddk.", "..kkk.."],
-    "ring-off": ["..ooo..", ".offfo.", "offfffo", "off.ffo", "offfffo", ".offfo.", "..ooo.."],
+    "up":       ["..kkkkk..", ".kLfffLk.", "kLwwwwfLk", "kfwwffmdk", "kfwf.fmdk", "kfwffmmdk", "kLfmmmddk", ".kLddddk.", "..kkkkk.."],
+    "down":     ["..kkkkk..", ".klllllk.", "kllpppphk", "klppppphk", "klpp.pphk", "klppppphk", "klpppphhk", ".klhhhhk.", "..kkkkk.."],
+    "off":      ["..ooooo..", ".offfffo.", "offfffffo", "offfffffo", "offf.fffo", "offfffffo", "offfffffo", ".offfffo.", "..ooooo.."],
+    "ring":     ["...kkkkk...", "..kffffLk..", ".kffmmmmLk.", "kffmd.dmmdk", "kfmd...dmdk", "kfm.....mdk", "kfmd...dmdk", "kLmmd.dmddk", ".kLmmmmddk.", "..kdddddk..", "...kkkkk..."],
+    "pop":      ["..kkkkk..", ".kwwwfLk.", "kwfffffmk", "kwffffmdk", "kwff.fmdk", "kwffffmdk", "kwffffddk", ".kmmmmdk.", "..kkkkk.."],
+    "ring-off": ["...ooooo...", "..offfffo..", ".offfffffo.", "offff.ffffo", "offf...fffo", "off.....ffo", "offf...fffo", "offff.ffffo", ".offfffffo.", "..offfffo..", "...ooooo..."],
   };
   /* 今の色でSVGに組んで --fr-* に入れる（パレットを替えたとき）。**PNGではなくSVG**（`shape-rendering="crispEdges"`）:
      border-imageは辺を引き伸ばすので、縁の立つ形式にしておく（スクロールバーの --sb-frameと同じ） */
@@ -3394,7 +3449,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
           x += w;
         }
       });
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 7 7" shape-rendering="crispEdges">${rects}</svg>`;
+      const n = rows.length;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n}" height="${n}" viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges">${rects}</svg>`;
       root.style.setProperty("--fr-" + name, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
     }
   }
