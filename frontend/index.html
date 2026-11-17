@@ -590,7 +590,7 @@ img { max-width: 100%; display: block; }
 .pane[data-collapsed="true"] > :not(.pane-title):not(.editor) { display: none; }
 /* 畳んだ窓は題名バーだけ。下の彫り込んだ線は消す（すぐ下が窓の面取りなので、線が4本並んで見える）。高さは変えない */
 .pane[data-collapsed="true"] > .pane-title { border-bottom-color: transparent; box-shadow: none; }
-.pane-body { padding: var(--space-3); }
+.pane-body { padding: 10px; }
 /* 検索ペイン内のBandcamp／手入力は見出し付きの小セクションにして畳めるようにする */
 /* **区切りの線は彫り込んだ線**（濃いグレーの下に白。HIGのseparator line。2026-11-18）。グレーの地に灰色の2pxの線や破線を引いていた所をそろえた */
 .sub { border-top: 1px solid var(--color-bar-dark); box-shadow: inset 0 1px 0 var(--color-hl); }
@@ -649,8 +649,8 @@ fieldset.field { border: 0; padding: 0; margin: 0; }
 fieldset.field legend { margin-bottom: var(--space-1); padding: 0; }
 .input {
   width: 100%; min-width: 0;
-  /* 余白は枠が2pxだった頃より1pxずつ多い（枠を1pxにしても欄の外寸を変えないため。横に並ぶボタンと高さがそろう） */
-  padding: calc(var(--space-2) + 1px) calc(var(--space-3) + 1px);
+  /* **余白は上下4px・左右6px**（2026-11-18、利用者の選択。本物の入力欄は字の上下3px）。それまでは上下9pxで、欄の高さが44.8pxあった */
+  padding: 4px 6px;
   border: var(--edge) solid var(--color-ink);
   background: var(--color-paper);
   /* **文字色は必ず指定する**。入力欄は色を継承せず、ブラウザ既定の黒のままになるので、
@@ -680,7 +680,10 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .btn {
   position: relative;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
-  min-height: 40px; padding: calc(var(--space-1) - 2px) calc(var(--space-4) - 2px);   /* 枠が1px → 3ドットになったぶん、余白を2pxずつ引く */
+  /* **高さは28px、左右の余白は8px**（2026-11-18、利用者が見本3つから選んだ）。本物は高さ20px・字12ポイント・字の端から枠まで8px
+     （HIGのControl Layout Guidelines）。それまでの40px（指の画面44px）は字の上下が14〜16px空き、本物より厚ぼったく見えた。
+     20pxは指に小さいので、小さいボタンで使ってきた28pxにそろえた。指の画面でも同じ高さ */
+  min-height: 28px; padding: 0 8px;
   border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr);
   background: var(--color-bar) padding-box; color: var(--color-ink);
   image-rendering: pixelated;
@@ -711,7 +714,6 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .btn[data-state="error"] { outline: 2px solid var(--color-error); outline-offset: 1px; }
 .btn[data-state="success"] { outline: 2px solid var(--color-mint); outline-offset: 1px; }
 @keyframes blink { 50% { opacity: 0; } }
-@media (pointer: coarse) { .btn { min-height: 44px; } }
 
 .seg { display: flex; flex-wrap: wrap; gap: var(--space-1); max-width: 100%; min-width: 0; }
 .seg label { position: relative; flex: 1 1 auto; }   /* 折り返した各行の項目を行幅いっぱいに広げる（右に空きが残らないように） */
@@ -772,7 +774,6 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
   border-bottom: var(--line) solid var(--color-ink); font-size: var(--text-sm); }
 .inapp p { margin: 0; overflow-wrap: anywhere; }
 .inapp .btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.inapp .btn { min-height: 36px; padding-inline: var(--space-2); }
 .inapp[hidden] { display: none; }
 /* ソース説明のモーダル（中央のオーバーレイ） */
 .modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: var(--space-4); }
@@ -915,8 +916,8 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .grid .rowhead { align-self: center; min-width: 0; overflow: hidden; white-space: nowrap; font-weight: 700; font-size: var(--labpx); line-height: 1.2;   /* 長い見出しの2行はJSが<br>で折る */ color: var(--grid-ink, var(--color-ink)); }
 .popup { --arrow-w: 25px; position: relative; display: inline-flex; flex: 1 1 10rem; min-width: 0; max-width: 22rem; }
 .popup select {
-  -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; min-height: 40px; margin: 0;
-  padding: var(--space-1) calc(var(--arrow-w) + var(--space-2)) var(--space-1) var(--space-3);
+  -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; min-height: 28px; margin: 0;   /* 高さはボタンと同じ */
+  padding: 0 calc(var(--arrow-w) + var(--space-2)) 0 var(--space-2);
   /* 枠は押しボタンと同じ絵（.btnの注）。面と区切りの線は枠の内側（padding-box）に描く */
   border: var(--fr) solid transparent; border-image: var(--fr-up, none) 3 / var(--fr); border-radius: 0; color: var(--color-ink); cursor: pointer;
   image-rendering: pixelated;
@@ -971,7 +972,6 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
   .popmenu-list li { padding: var(--space-3) var(--space-4); }
 }
 @media (min-width: 60rem) { .popmenu-panel > .pane-title { display: none; } }
-.layouts .btn { min-height: 40px; }
 /* 縦に長いグリッドはこの枠の中でスクロールする */
 /* **溝のぶんは空けない**（2026-09-16。`scrollbar-gutter: stable` をやめた。スクロールしない並びで右に
    空きが残っていた）。行が列より多いときだけ縦にあふれるので、出る／出ないが行き来することはない
@@ -1163,10 +1163,8 @@ body.sheet-open { overflow: hidden; }
 /* グリッド列が狭いとき（スマホのPC表示など）は2列だと文字の余白が足りないので、ボタンを1列に縦積み */
 /* 幅が20rem（320px）を切る狭い画面だけ1列。412pxの端末（欄の幅348px）は2×2のまま */
 @container (max-width: 20rem) { .grid-actions > .btn { grid-column: 1 / -1; } }
-/* **小さいボタン**（2026-09-25、利用者の指定）。よく使う「トラックを探す」「トラックを共有」だけ大きいまま残し、
-   ほか（元に戻す・並びを保存・色で並べ替え・端末から画像を選択…など）は高さ28pxにする。字はドット字の升目の大きさから
-   下げられないので、高さと左右の余白で控えめにする。スマホでも同じ（利用者の判断） */
-.btn.btn-sm { min-height: 28px; padding: 0 var(--space-2); }
+/* `.btn-sm` は2026-09-25に足した「小さいボタン」（高さ28px）の名前。2026-11-18にボタンをぜんぶ28pxにそろえたので、
+   今はふつうの .btnと同じ大きさ。HTMLのクラスは残してある（役割の印として。大きさを分け直すときはここに書く） */
 /* 「元に戻す」「やり直す」は右に寄せて2つ並べる */
 .grid-actions > .history { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: var(--space-2); }
 /* 保存・読み込み・コピー・色で並べ替えは1つの箱で、幅に合わせて折り返す（2列の升目だとPCの細い窓で字がはみ出す） */
@@ -1242,7 +1240,7 @@ body.sheet-open { overflow: hidden; }
 .gbox-sub { display: grid; gap: var(--space-2); margin-top: var(--space-2); padding: 10px; border: 1px solid var(--color-bevel); }
 .custom-size { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .custom-size label { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); }
-.input.num { width: 4.5rem; padding: var(--space-1) var(--space-2); font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+.input.num { width: 4.5rem; padding: 2px 6px; font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
 .input.num::-webkit-inner-spin-button, .input.num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 /* 横 × 縦の小さな矢印（OS 9のLittle Arrows、2026-09-23）。欄の右に上下2つ。押し続けると続けて増減する。
    ブラウザの数値欄の上下ボタンは端末ごとに見た目が違うので消して、こちらで描く */

@@ -543,7 +543,7 @@ img {{ max-width: 100%; height: auto; display: block; border: 2px solid #12171b;
 /* ボタンはプラチナの押しボタン（2026-11-18。画面のfrontend/index.htmlの .btnと同じ作り。それまでは黒2pxの枠に黒い影を右下へずらしていた）。
    枠は7×7のドット絵（上の_FRAME_DOTS）をborder-imageで9つに割る。面の色はbackground（欠けた角からはみ出さないようpadding-boxで切る）。
    押している間は濃いグレーに白い字。いちばん押すボタン（.primary）と既定のボタン（.odlg-default）は、外を立体の輪で囲む */
-.btn {{ position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 3px 15px; color: #12171b;
+.btn {{ position: relative; display: inline-flex; align-items: center; min-height: 28px; padding: 0 8px; color: #12171b;
   border: 3px solid transparent; border-image: {_frame_url("up")} 3 / 3px; background: #dddcd8 padding-box; image-rendering: pixelated;
   font-weight: 700; text-decoration: none; }}
 .btn:active {{ border-image-source: {_frame_url("down")}; background-color: #63676c; color: #fff; }}
