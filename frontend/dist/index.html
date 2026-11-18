@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.c36b3105.css">
+<link rel="stylesheet" href="app/app.ba02473a.css">
 </head>
 <body>
 
@@ -195,14 +195,15 @@
       <!-- 並びの切り替え（2026-09-23、運用ボードのgrids-multi）。数が決まらないのでタブではなくポップアップメニュー（HIG） -->
       <!-- **役割ごとに彫り込んだ線で囲む**（2026-11-18、ボタン配置の見直し）。「並び」（どの並びを開くか）と「タイトル・お題」（画像の題名）が
            同じ見た目の行で3段続き、違いが読めなかった。「この並びを消す」は取り消せないので、下の「トラックを全て外す」の隣へ移した -->
-      <div class="setbox">
+      <section class="setbox gbox" aria-labelledby="gb-layout">
+      <h3 class="gbox-title" id="gb-layout">並び</h3>
       <div class="layouts">
-        <label for="layout-sel">並び</label>
-        <span class="popup"><select id="layout-sel"></select></span>
+        <span class="popup"><select id="layout-sel" aria-labelledby="gb-layout"></select></span>
         <button class="btn" type="button" id="layout-new" title="空の並びをもう1つ作る。今の並びはそのまま残る">新しい並び</button>
       </div>
-      </div>
-      <div class="setbox">
+      </section>
+      <section class="setbox gbox" aria-labelledby="gb-title">
+      <h3 class="gbox-title" id="gb-title">タイトルとお題</h3>
       <div class="grid-head">
         <div class="field">
           <label for="title">タイトル（省略可）</label>
@@ -244,7 +245,7 @@
         </div>
         <button class="btn" type="button" id="start-later">あとで</button>
       </div>
-      </div>
+      </section>
       <!-- **「行の見出し」「マスの見出し」「大きく見る」は1行に並べる**（2026-11-18、利用者の指摘「見出し2つの右側の余白が気になる」）。
            それまでは三角の行と今の値（「なし」）を縦に2段ずつ積み、その下に「大きく見る」を置いていて、右側が大きく空いていた。
            今の値は三角の右に薄い字で1行（長ければ「…」で切る）。三角を開くと、中身はこの行の下に幅いっぱいで出る -->
@@ -738,6 +739,6 @@
 <div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
-<script id="app-js" src="app/app.95d3fb02.js"></script>
+<script id="app-js" src="app/app.b3ab6cc5.js"></script>
 </body>
 </html>

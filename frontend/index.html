@@ -841,10 +841,13 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .grid-meta > .rowlabels > .disclose-body { order: 2; flex: 0 0 100%; }
 .grid-meta .disclose { width: auto; flex: none; }
 .grid-meta .disclose-sum { flex: 0 1 auto; min-width: 2em; padding-left: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
-/* **役割ごとの囲み**（2026-11-18）。グループボックスと同じ彫り込んだ線で、題は付けない（中の部品が自分の名前を持っている）。
-   「並び」（どの並びを開くか）と「タイトル・お題」（画像の題名）を分けて見せる */
+/* **役割ごとの囲み**（2026-11-18）。「並び」（どの並びを開くか）と「タイトルとお題」（画像の題名）を分けて見せる。
+   **出力オプションと同じ、題つきのグループボックス**（`.gbox` と併用。線・題・内側の余白はそちらが出す）。はじめは題なしの箱だったが、
+   題の無い箱が2つ積まれるとMac OS 8のグループボックスに見えなかった（同じ日、利用者の指摘）。「並び」の行のラベルは題が兼ねる */
 .setbox { display: grid; gap: var(--space-3); padding: 10px; margin-bottom: var(--space-3);
   border: 1px solid var(--color-bar-dark); box-shadow: inset 1px 1px 0 var(--color-hl), 1px 1px 0 var(--color-hl); }
+.setbox.gbox { gap: var(--space-3); margin-top: 0.9em; }   /* `.gbox` は後ろにあるので、違える所だけ詳しいセレクタで上書きする */
+.setbox.gbox + .setbox.gbox { margin-top: 1.3em; }         /* 下の箱の題が上の箱の線に寄りすぎない */
 .setbox > :is(.layouts, .grid-head, .start-themes) { margin-bottom: 0; }   /* 間隔は囲みのgapが出す（`.setbox > *` と書くと、後ろにある .layoutsの指定に負ける） */
 .setbox > .start-themes { border: 0; box-shadow: none; padding: 0; }   /* 囲みの中なので、自分の枠は付けない */
 .layouts.themes[hidden] { display: none; }   /* 「お題から始める」が出ている間は隠す（.layoutsのdisplay: flexがhiddenに勝つので明示） */
@@ -1002,23 +1005,28 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 .popmenu { position: fixed; inset: 0; z-index: 70; }
 .popmenu[hidden] { display: none; }
 .popmenu-backdrop { position: absolute; inset: 0; }
-/* メニューは黒1pxの枠と右下1pxの影だけ（窓の枠のグレーは付けない。本物のメニューも同じ） */
+/* メニューは黒1pxの枠と右下1pxの影だけ（窓の枠のグレーは付けない。本物のメニューも同じ）。
+   **面は窓と同じグレー**で、黒い枠のすぐ内側に左上は白・右下は濃いグレーの線（一覧の側に付ける。題名バーは自分の地を持つので、パネルに付けると隠れる）。
+   紙の色（白）の面にラジオボタンが並ぶ形は、Mac OS 8のメニューに見えなかった（2026-11-18、利用者の指摘） */
 .popmenu-panel { position: absolute; display: grid; grid-template-rows: auto minmax(0, 1fr); border: var(--edge) solid var(--color-ink);
-  background: var(--color-paper); box-shadow: var(--shadow); max-height: 70dvh; }
-.popmenu-panel > .pane-title { margin: 0; border-bottom-color: var(--color-ink); box-shadow: none; }   /* メニューは枠が黒1pxだけなので広げない。下が白い一覧なので、黒い線で区切る */
+  background: var(--color-face); box-shadow: var(--shadow); max-height: 70dvh; }
+.popmenu-panel > .pane-title { margin: 0; border-bottom-color: var(--color-bar-dark); box-shadow: none; }   /* メニューは枠が黒1pxだけなので広げない。下は彫り込んだ線（濃いグレー。その下の白は一覧の内側の線） */
 .popmenu-panel > .pane-title::before { display: none; }
 .popmenu-panel > .pane-title { cursor: default; }
-.popmenu-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; }
+.popmenu-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain;
+  box-shadow: inset 1px 1px 0 var(--color-hl), inset -1px -1px 0 var(--color-bar-dark); }
 .popmenu-list li { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); cursor: pointer;
   font-family: var(--font-display); font-size: var(--dot-size); color: var(--color-ink); }
 /* 頭の印は出力オプションと同じ **OS 8のHIGのラジオボタンのドット絵**（2026-09-25、利用者の指定。✓ の字は書体で形が変わり、ドット絵に見えなかった）。
    大きさとずらしは .seg.radio span::beforeと同じ */
 .popmenu-list li::before { content: ""; flex: none; width: calc(var(--rp, 1px) * 16); height: calc(var(--rp, 1px) * 16);
   background: var(--radio-off) no-repeat 0 0 / 100% 100%; image-rendering: pixelated; position: relative; top: -0.042em; }
-.popmenu-list li[aria-selected="true"]::before { background-image: var(--radio-on); } /* 項目ごとに線で区切る（利用者の指定） */ .popmenu-list li + li { border-top: var(--line) solid var(--color-rule); }
+.popmenu-list li[aria-selected="true"]::before { background-image: var(--radio-on); }
+/* 項目ごとに線で区切る（利用者の指定）。線は彫り込んだ線（濃いグレーの下に白。`.sub` と同じ。2026-11-18にグレーの面へ替えたとき） */
+.popmenu-list li + li { border-top: 1px solid var(--color-bar-dark); box-shadow: inset 0 1px 0 var(--color-hl); }
 .popmenu-list li:focus { outline: none; }
-.popmenu-list li:focus-visible { background: var(--color-ink); color: var(--color-paper); }
-@media (hover: hover) and (pointer: fine) { .popmenu-list li:hover { background: var(--color-ink); color: var(--color-paper); } }
+.popmenu-list li:focus-visible { background: var(--color-ink); color: var(--color-paper); box-shadow: none; }
+@media (hover: hover) and (pointer: fine) { .popmenu-list li:hover { background: var(--color-ink); color: var(--color-paper); box-shadow: none; } }
 @media (max-width: 59.99rem) {
   .popmenu-backdrop { background: color-mix(in oklab, var(--color-ink) 45%, transparent); }
   .popmenu-panel { left: 50% !important; top: 50% !important; transform: translate(-50%, -50%); width: min(92vw, 26rem) !important; }
@@ -1848,14 +1856,15 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       <!-- 並びの切り替え（2026-09-23、運用ボードのgrids-multi）。数が決まらないのでタブではなくポップアップメニュー（HIG） -->
       <!-- **役割ごとに彫り込んだ線で囲む**（2026-11-18、ボタン配置の見直し）。「並び」（どの並びを開くか）と「タイトル・お題」（画像の題名）が
            同じ見た目の行で3段続き、違いが読めなかった。「この並びを消す」は取り消せないので、下の「トラックを全て外す」の隣へ移した -->
-      <div class="setbox">
+      <section class="setbox gbox" aria-labelledby="gb-layout">
+      <h3 class="gbox-title" id="gb-layout">並び</h3>
       <div class="layouts">
-        <label for="layout-sel">並び</label>
-        <span class="popup"><select id="layout-sel"></select></span>
+        <span class="popup"><select id="layout-sel" aria-labelledby="gb-layout"></select></span>
         <button class="btn" type="button" id="layout-new" title="空の並びをもう1つ作る。今の並びはそのまま残る">新しい並び</button>
       </div>
-      </div>
-      <div class="setbox">
+      </section>
+      <section class="setbox gbox" aria-labelledby="gb-title">
+      <h3 class="gbox-title" id="gb-title">タイトルとお題</h3>
       <div class="grid-head">
         <div class="field">
           <label for="title">タイトル（省略可）</label>
@@ -1897,7 +1906,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
         <button class="btn" type="button" id="start-later">あとで</button>
       </div>
-      </div>
+      </section>
       <!-- **「行の見出し」「マスの見出し」「大きく見る」は1行に並べる**（2026-11-18、利用者の指摘「見出し2つの右側の余白が気になる」）。
            それまでは三角の行と今の値（「なし」）を縦に2段ずつ積み、その下に「大きく見る」を置いていて、右側が大きく空いていた。
            今の値は三角の右に薄い字で1行（長ければ「…」で切る）。三角を開くと、中身はこの行の下に幅いっぱいで出る -->
@@ -2572,6 +2581,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "押すと次の空きマスに入ります。": "Press one to drop it into the next empty cell.",
         "グリッド": "Grid",
         "タイトル（省略可）": "Title (optional)",
+        "タイトルとお題": "Title and theme",
         "候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。": "Press a result to fill the next empty cell. Press a cell to select it, then press another to swap.",
         "トラックを共有": "Share these tracks",
         "トラックを全て外す": "Remove all tracks",
@@ -5582,7 +5592,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   }
   function openPopmenu(sel) {
     popSel = sel;
-    const label = document.querySelector(`label[for="${sel.id}"]`);
+    // 題名はラベルから。「並び」はグループボックスの題が名前を兼ねるので、aria-labelledbyの先も見る
+    const label = document.querySelector(`label[for="${sel.id}"]`) || document.getElementById(sel.getAttribute("aria-labelledby") || "");
     $("#popmenu-title").textContent = label ? label.textContent.trim() : "";
     // **項目の順番で選ぶ**（お題は値がどれも "t" なので、値で選ぶと最初の項目になる）
     popList.replaceChildren(...[...sel.options].map((o, idx) => [o, idx]).filter(([o]) => o.value !== "").map(([o, idx]) => {
