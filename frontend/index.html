@@ -6993,7 +6993,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
       if (!segs.length) return null;
       const nSeg = segs.length;
       const rows = flowRows(fontS, 0, segs.map((sg) => sg[2]), nSeg + 1);
-      if (rows.length > nSeg) return null;
+      if (!rows.length || rows.length > nSeg) return null;   // 行が1つも無い（曲が0・名前が全部空）ときは組まない
       let out = segs.slice(0, rows.length);
       const last = out[out.length - 1][1] + lineH - a;
       const dy = Math.max(0, Math.floor((y1 - last) / 2));
@@ -8920,6 +8920,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const drawable = (s) => {
     let out = "";
     for (const ch of s) {
+      // 改行・タブは空白にする（落とすと前後の語がくっつく。backend/render.pyの _drawableと同じ5字。2026-11-18）
+      if (ch === "\t" || ch === "\n" || ch === "\r" || ch === "\v" || ch === "\f") { out += " "; continue; }
       if (ch === " " || inPlex(ch.codePointAt(0))) { out += ch; continue; }
       const alt = ch.normalize("NFKC");
       if (alt !== ch && [...alt].every((c) => inPlex(c.codePointAt(0)))) out += alt;

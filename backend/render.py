@@ -192,6 +192,12 @@ def _drawable(s: str) -> str:
     cmap = _cmap()
     out: list[str] = []
     for ch in s:
+        # **改行・タブは空白にする**（落とすと前後の語がくっつく）。並びの検証（grids.py）は先に空白へ直すので
+        # サーバーでは「改行 あり」、検証を通らないブラウザでは「改行あり」と字数が変わり、折り返しがずれていた
+        # （2026-11-18、想定外の入力の試し。frontendのdrawableと同じ5字）
+        if ch in "\t\n\r\x0b\x0c":
+            out.append(" ")
+            continue
         if ord(ch) in cmap or ch == " ":
             out.append(ch)
             continue
@@ -1605,7 +1611,8 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             return None
         n_seg = len(segs)
         rows = _flow_rows(doc, font_s, 0.0, [float(sg[2]) for sg in segs], n_seg + 1)
-        if len(rows) > n_seg:
+        # 行が1つも無い（曲が0・名前が全部空）ときは組まない。下の segs[-1] で落ちていた（2026-11-18、想定外の入力の試し）
+        if not rows or len(rows) > n_seg:
             return None
         segs = segs[:len(rows)]
         # **余った高さは中身ごと下げて、上下の余白をそろえる**。文字の場所だけ動かすと、

@@ -7,7 +7,8 @@
 // 別の組み方になる（`scripts/compare_layout.py` が自分の `MAX_SIDE` を渡してくる。既定 2400）
 import { chromium } from "playwright";
 import fs from "node:fs";
-const [out, combosPath, tracksPath, maxSideArg, padArg, holesArg] = process.argv.slice(2);
+const [out, combosPath, tracksPath, maxSideArg, padArg, holesArg, optArg] = process.argv.slice(2);
+const extra = optArg ? JSON.parse(optArg) : {};   // 出力オプションの上書き（scripts/compare_layout.py の COMPARE_OPT。2026-11-18）
 const holes = holesArg === "holes";   // 末尾の空き段・途中の空きマスがある並び（scripts/compare_layout.py の holed と同じ。2026-09-26）
 const pad = padArg || "normal";   // 余白の段（normal / wide / xwide）
 const maxSide = Number(maxSideArg) || 2400;
@@ -18,11 +19,11 @@ const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, l
 const page = await ctx.newPage();
 await page.goto("http://127.0.0.1:8000/", { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__layoutFor && window.__setGrid);
-const res = await page.evaluate(async ({ combos, tracks, maxSide, pad, holes }) => {
+const res = await page.evaluate(async ({ combos, tracks, maxSide, pad, holes, extra }) => {
   const holed = (c, r, i) => { const row = Math.floor(i / c), col = i % c;
     return row < Math.max(1, Math.ceil(r * 6 / 10)) && col < Math.max(1, Math.ceil(c * 7 / 10)) && (i % 3 !== 1 || i === 0); };
   const opt = { title: "私を構成する9選", showTitle: true, sidebar: true, numbers: false,
-                margin: 16, pad, gap: 16, bg: "mustard", bgCustom: null };
+                margin: 16, pad, gap: 16, bg: "mustard", bgCustom: null, ...extra };
   // **字幅の控えは Web フォントが効いてから取る**（代替フォントで測った値が残ると折り返しがずれる）
   window.__setGrid(4, 4, opt, tracks);
   await window.__loadShareFonts();
@@ -39,7 +40,7 @@ const res = await page.evaluate(async ({ combos, tracks, maxSide, pad, holes }) 
               L.sbCols, L.side, L.sbFlow ? 1 : 0, L.sbInline ? 1 : 0, L.wrapTx || 0, L.wrapInline ? 1 : 0, L.sbTop || 0]);
   }
   return got;
-}, { combos, tracks, maxSide, pad, holes });
+}, { combos, tracks, maxSide, pad, holes, extra });
 fs.writeFileSync(out, JSON.stringify(res));
 console.log("書き出し", res.length, `（出力の最大辺 ${maxSide}px）`);
 await ctx.close(); await browser.close();

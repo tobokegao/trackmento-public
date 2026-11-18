@@ -39,6 +39,9 @@ MAX_SIDE = int(os.getenv("COMPARE_MAX_SIDE", "2400"))
 os.environ["MAX_SIDE"] = str(MAX_SIDE)
 # 余白の段（normal / wide / xwide）。両方に同じ段を渡す（2026-09-24にスライダーから3段に替えた）
 PAD = os.getenv("COMPARE_PAD", "normal")
+# 出力オプションの上書き（JSON）。題名は "title" で渡す。ふだんと違う設定（番号つき・題名なし・間隔0など）で
+# 突き合わせるとき。例: COMPARE_OPT='{"numbers": true, "title": ""}'（2026-11-18）
+OPT = json.loads(os.getenv("COMPARE_OPT") or "{}")
 
 from backend import render as R  # noqa: E402
 from backend.grids import GridDoc  # noqa: E402
@@ -81,7 +84,7 @@ def main() -> int:
     (tmp / "tracks.json").write_text(json.dumps(tracks, ensure_ascii=False), encoding="utf-8")
     holes = "--holes" in sys.argv
     r = subprocess.run(["node", str(ROOT / "promo" / "dump_layouts.mjs"), str(tmp / "js.json"),
-                        str(tmp / "combos.json"), str(tmp / "tracks.json"), str(MAX_SIDE), PAD, "holes" if holes else ""],
+                        str(tmp / "combos.json"), str(tmp / "tracks.json"), str(MAX_SIDE), PAD, "holes" if holes else "", json.dumps(OPT, ensure_ascii=False)],
                        cwd=ROOT, capture_output=True, text=True)
     if r.returncode:
         print(r.stdout, r.stderr)
@@ -97,10 +100,11 @@ def main() -> int:
                 cells.append(tracks[k % len(tracks)] if holed(c, rr, i) else None)
                 k += 1 if cells[-1] else 0
         doc = GridDoc(**{**src, "name": "t", "cols": c, "rows": rr, "cells": cells, "stash": [],
-                         "title": "私を構成する9選",
+                         "title": OPT.get("title", "私を構成する9選"),
                          "options": {**src.get("options", {}), "ratio": q, "showTitle": True,
                                      "sidebar": True, "numbers": False, "margin": 16, "pad": PAD, "gap": 16,
-                                     "bg": "mustard", "bgCustom": None, "cellRatio": cq}})
+                                     "bg": "mustard", "bgCustom": None, "cellRatio": cq,
+                                     **{k: v for k, v in OPT.items() if k != "title"}}})
         L = R.layout(doc)
         py = [L.W, L.H, round(L.scale * 1e9), L.font_s, L.line_h, L.ox, L.oy, L.title_size, L.title_h,
               1 if L.wrap else 0, L.wrap_pad, L.wrap_top, len(L.wrap_segs), L.sb_cols,
