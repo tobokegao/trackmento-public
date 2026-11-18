@@ -1611,7 +1611,7 @@ def _slab_plan(doc: GridDoc, gw: int, gh: int, title_h: int, ratio: float, m: in
             return None
         n_seg = len(segs)
         rows = _flow_rows(doc, font_s, 0.0, [float(sg[2]) for sg in segs], n_seg + 1)
-        # 行が1つも無い（曲が0・名前が全部空）ときは組まない。下の segs[-1] で落ちていた（2026-11-18、想定外の入力の試し）
+        # 行が1つも無い（曲が0・名前が全部空）ときは組まない。下のsegs[-1]で落ちていた（2026-11-18、想定外の入力の試し）
         if not rows or len(rows) > n_seg:
             return None
         segs = segs[:len(rows)]
