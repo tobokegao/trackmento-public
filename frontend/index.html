@@ -2594,7 +2594,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "見本を作る": "Make preview",
         "「見本を作る」を押すと、書き出す画像の見本がここに出ます（共有しません）。": "Press “Make preview” and a preview of the exported image appears here (nothing is shared).",
         "トラックを置くと、ここに書き出す画像の見本が出ます。": "Add tracks and a preview of the exported image appears here.",
-        "並びか設定が変わりました。「見本を作る」で作り直せます。": "The grid or settings changed. Press “Make preview” to redo it.",
+        "並びか、設定が変わりました。「見本を作る」で作り直せます。": "The grid or settings changed. Press “Make preview” to redo it.",
         "端末から上げた画像は90日で消えます。出ていない画像は、もう一度選び直してください。": "Images uploaded from your device are deleted after 90 days. Choose any missing images again.",
         "できあがりの見本": "Preview",
         "書き出す画像の見本": "Preview of the exported image",
@@ -4220,7 +4220,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const outSigNow = () => JSON.stringify({ ...serialize(), savedAt: null, listed: null, lang: LANG });
   /** 並びか設定が見本を作ったあとで変わったら知らせる（saveのたびに呼ぶ） */
   function markOutStale() {
-    if (outSig && outSigNow() !== outSig) say($("#out-msg"), tr("並びか設定が変わりました。「見本を作る」で作り直せます。"));
+    if (outSig && outSigNow() !== outSig) say($("#out-msg"), tr("並びか、設定が変わりました。「見本を作る」で作り直せます。"));
   }
   /** 見本を捨てる（並びを切り替えた・全部外したとき） */
   function resetOutput() {
