@@ -97,7 +97,7 @@
     手元は `.env`、本番はRenderのEnvironmentに `YOUTUBE_API_KEY` として入れてある。
     183曲の再生リストで、手元と本番の両方から取れることを確かめた
   - **`trackmento` プロジェクトは請求先なし**（2026-11-25）。Google Cloudの無料トライアル（12/20まで）につながっていたが、「お支払い」→「アカウント管理」で課金を無効にして外した。
-    YouTube Data APIは請求先なしで無料枠（1日10,000 units）が使える。外したあと200曲の再生リストが取れることを手元で確かめた（本番の再確認は未）。
+    YouTube Data APIは請求先なしで無料枠（1日10,000 units）が使える。外したあと200曲の再生リストが取れることを手元で確かめ、本番（trackmento.com）でも利用者が再生リストのURLを貼って取れることを確かめた（2026-11-25）。
     請求先つきのプロジェクトと分けたほうが、キーが漏れたときに安全。**添削のGeminiキー（`trackmento-proofread`）は別プロジェクト**
     （Default Gemini Project、My Billing Account・Tier 1・前払い。Gemini AI Proのクレジットで足りる）。取れなくなったら請求先を戻して相談し直す
   - **Bandcampから返事あり（2026-11-13）**: 「APIはレーベルアカウント（bandcamp.com/labels）の物理注文・売上取得向けに限る。将来変わるかもしれないので bandcamp.com/developer を見ていて」（Kit）。公開ページの取得の可否には触れていない。**利用者の判断: 禁止とは書かれていないので今のまま続ける**（`bandcamp.py` / `playlist._bandcamp` は縮小しない）。公開APIが出たら移る
