@@ -960,7 +960,7 @@ Inside Macintosh / Mac OS 8のHIGと突き合わせて直した。
   （`renderGrid` の頭で隠し、`img` の `error` で出す）。押すとそのマスを空きマスに戻す。**位置は詰めない**（× と同じ。マスの見出しと番号がずれないように）。元に戻せる。
   削除・非公開の動画が散らばった256マスのプレイリストで、1つずつ × を押すのは手間だった（利用者の指摘）
 - プレイリストを取り込む窓（`askPlaylist`）で、削除・非公開の動画の件数を添える（「うちNトラックは削除か非公開の動画で…」）。
-  題の決まり文句は frontendの `GONE_TITLES` ↔ `backend/sources/playlist.py` の `_GONE_TITLES`（otoDBで埋まったものは本来の題に替わるので数えない）
+  題の決まり文句はfrontendの `GONE_TITLES` ↔ `backend/sources/playlist.py` の `_GONE_TITLES`（otoDBで埋まったものは本来の題に替わるので数えない）
 
 ## 空きマスが無いときに候補を押す（2026-11-25）
 
