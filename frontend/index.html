@@ -826,7 +826,8 @@ textarea.input { font: inherit; resize: vertical; min-height: 4.5em; }
 .zoom-slot .editor { width: min(100%, 48rem); }
 /* 拡大窓では全部入る大きさにするので、溝のぶんを空けておく必要がない */
 /* 「大きく見る」はグリッドのすぐ上、右寄せの小さいボタン（2026-11-18。題名欄の右にあったときは題名の操作に見えた） */
-.grid-tools { display: flex; justify-content: flex-end; }
+.grid-tools { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
+#broken-btn[hidden] { display: none; }
 /* **見出し2つと「大きく見る」の行**（上のHTMLの注）。横並び（折り返しあり）: 見出し・見出し・ボタン（右寄せ）。
    見出しの箱（.rowlabels）は `display: contents` で透かして、三角の行（.disclose-head）を1段目に並べ、開いた中身（.disclose-body）は
    幅いっぱいの段として後ろへ送る（order）。入りきらないときは今の値の長いほうから縮み、「…」で切る。
@@ -882,6 +883,7 @@ a:visited { color: color-mix(in oklab, var(--color-lavender) 65%, var(--color-in
 /* 確認の窓（「トラックを全て外す」）。幅は文だけなので狭くし、ボタンは右に寄せる */
 .modal-narrow { width: min(100%, 26rem); }
 .confirm-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+.confirm-actions .btn[hidden] { display: none; }   /* 知らせるだけの窓では「やめる」を隠す */
 /* 確認窓はOS 9の警告（Alert）の組み方: 左上にアイコン、右に文、ボタンは右下 */
 .confirm-body { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-4); align-items: start; }
 .confirm-body > p { margin-top: 0; }
@@ -1936,7 +1938,8 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         </div>
       </div>
       <!-- 「大きく見る」はグリッドのすぐ上（2026-11-18）。題名欄の右にあったときは、題名の操作に見えた -->
-      <div class="grid-tools"><button class="btn btn-sm" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button></div>
+      <!-- 「画像を取れなかったマスを外す」は、取れなかったマスがあるときだけ出す（2026-11-25。削除・非公開の動画が散らばったプレイリスト向け） -->
+      <div class="grid-tools"><button class="btn btn-sm" type="button" id="broken-btn" hidden>画像を取れなかったマスを外す</button><button class="btn btn-sm" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button></div>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
@@ -2879,6 +2882,11 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         "並びをファイル（JSON）に保存しました。「並びを読み込み」で同じ並びに戻せます（端末から選んだ画像は期限切れで再取得できないことがあります）。": "Layout saved to a JSON file. \"Load layout\" brings it back, though images you uploaded from this device may have expired by then.",
         "トラックを全て外しました。": "Removed every track.",
         "画像取得失敗": "Load failed",
+        "画像を取れなかったマスを外す": "Remove cells with failed images",
+        "画像を取れなかった{}トラックを外しました。": "Removed {0} tracks whose images failed to load.",
+        "空きマスがありません。画像を取れなかったマスが{}個あります。外して空けますか？": "No empty cells left. {0} cells have images that failed to load. Remove them to make room?",
+        "外す": "Remove",
+        "うち{}トラックは削除か非公開の動画で、画像を取れないことがあります。": "{0} of them are deleted or private videos, so their images may not load.",
         "失敗": "Failed",
         "TRACKMENTOの並びのファイルではないようです。": "This does not look like a TRACKMENTO layout file.",
         "サーバー側の保存（CLIなど）の方が新しいので、そちらを読み込みました。": "The copy saved on the server (from the CLI, say) was newer, so that one was loaded.",
@@ -4305,11 +4313,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     plModal.hidden = true; plPending = null;
     if (!sheetOpen()) unlockScroll();
   }
+  /* 削除・非公開の動画がプレイリストに残す決まり文句（2026-11-25）。**`backend/sources/playlist.py` の `_GONE_TITLES` と同じ**。
+     otoDBで埋まったものは本来の題に替わっているので、ここで数えるのは埋まらなかった分（画像も取れないことが多い） */
+  const GONE_TITLES = new Set(["削除された動画", "非公開動画", "非公開の動画", "この動画は削除されました",
+    "deleted video", "private video", "unavailable video", "unavailable", "已失效视频", "已失效視頻", "失效视频"]);
+  const isGone = (title) => GONE_TITLES.has((title || "").trim().replace(/^\[+|\]+$/g, "").toLowerCase());
   function askPlaylist(tracks) {
     plPending = tracks;
     const empty = state.cells.filter(c => c === null).length;
     const fit = Math.min(empty, tracks.length);
-    $("#pl-summary").textContent = tr`${tracks.length}トラック 取れました。いまの空きマスは${empty}個です。`;
+    const gone = tracks.filter(t => isGone(t.title)).length;
+    $("#pl-summary").textContent = tr`${tracks.length}トラック 取れました。いまの空きマスは${empty}個です。`
+      + (gone ? tr`うち${gone}トラックは削除か非公開の動画で、画像を取れないことがあります。` : "");
     $("#pl-hint").textContent = fit >= tracks.length
       ? tr("「マスに入れる」で、番号の若い空きマスから順に全て入ります。")
       : tr`「マスに入れる」で${fit}トラックが入り、残り${tracks.length - fit}トラックは候補に置きます。`;
@@ -4859,9 +4874,32 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   const DUP_NOTE_ICON = '<svg class="ic" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" shape-rendering="crispEdges"><path class="ic-fill" d="M1 2h10v5h-10z"/><path d="M1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM0 2h1v1h-1zM11 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM11 6h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM0 9h1v1h-1z"/></svg>';
   const sameTrack = (a, b) => nkey(a.title) === nkey(b.title) && nkey(a.artist) === nkey(b.artist);
   const dupAt = (i) => { const t = state.cells[i]; return t && nkey(t.title) ? state.cells.findIndex((c, j) => j !== i && c && sameTrack(c, t)) : -1; };
+  /* ---- 画像を取れなかったマス（2026-11-25）。削除・非公開の動画などで「失敗」の帯が出たマスを、まとめて空きマスに戻す。
+     ×と同じく位置は詰めない（マスの見出しと番号がずれないように）。元に戻せる ---- */
+  const brokenCells = () => [...els.grid.querySelectorAll(".cell.is-broken")].map(li => +li.dataset.index).filter(i => state.cells[i]);
+  function showBrokenBtn() { $("#broken-btn").hidden = false; }
+  function removeBroken() {
+    const idx = brokenCells();
+    if (!idx.length) return;
+    checkpoint();
+    for (const i of idx) state.cells[i] = null;
+    if (selected !== null && !state.cells[selected]) selected = null;
+    renderGrid(); save();
+    say(els.gridMsg, tr`画像を取れなかった${idx.length}トラックを外しました。`); undoLink();
+  }
+  $("#broken-btn").addEventListener("click", removeBroken);
   function addTrack(t) {
     let i = target !== null && state.cells[target] === null ? target : state.cells.findIndex(c => c === null);
-    if (i < 0) { say(els.gridMsg, tr("空きマスがありません。マスの × でトラックを外してから追加してください。"), "error"); return; }
+    if (i < 0) {
+      say(els.gridMsg, tr("空きマスがありません。マスの × でトラックを外してから追加してください。"), "error");
+      // **候補を押しても何も起きないように見えた**（2026-11-25、利用者の指摘）。下の文はグリッドの下にあり、
+      // スマホのシートやPCの候補ペインからは見えない。押した場所の上に窓で出す
+      const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const n = brokenCells().length;
+      if (n) openConfirm(removeBroken, tr`空きマスがありません。画像を取れなかったマスが${n}個あります。外して空けますか？`, tr("外す"), back);
+      else openConfirm(null, tr("空きマスがありません。マスの × でトラックを外してから追加してください。"), null, back, true);
+      return;
+    }
     checkpoint();
     target = null;
     state.cells[i] = { ...t };   // 候補と切り離す（曲名の編集が候補に波及しないように）
@@ -5253,6 +5291,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
     els.grid.dataset.numbers = state.numbers ? "on" : "off";
     els.gridSizeLabel.textContent = `${state.cols}×${state.rows}`;
     els.grid.innerHTML = "";
+    $("#broken-btn").hidden = true;   // 作り直したマスで、読み込みに失敗したら出し直す（showBrokenBtn）
     const labOn = labelCol(state.rows) > 0;
     // **マスに出すのは刈った題**（書き出しと同じ見た目にする）。編集パネルの入力欄は元のまま
     viewCells().forEach((t, i) => {
@@ -5272,7 +5311,7 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
         img.src = proxied(t.thumb || t.image); img.alt = ""; img.draggable = false;
         if ((t.thumb || t.image || "").startsWith("/uploads/")) img.addEventListener("error", uploadGone);   // 表示は小さい方（転送量）。フル解像度は共有画像を描くときだけ
         // 取れなかったら「画像取得失敗」の帯を出す（/image-proxyの404・502など。2026-09-25）
-        img.addEventListener("error", () => li.classList.add("is-broken"));
+        img.addEventListener("error", () => { li.classList.add("is-broken"); showBrokenBtn(); });
         const fail = document.createElement("span"); fail.className = "fail";
         const band = document.createElement("span"); band.className = "fail-band";
         const failLong = document.createElement("span"); failLong.className = "fail-long"; failLong.textContent = tr("画像取得失敗");
@@ -5513,14 +5552,18 @@ label[for="bc-url"] { font-family: var(--font-body); font-size: var(--text-sm); 
   /* 文言と「はい」の札を差し替えて使い回す（「トラックを全て外す」と「トラック名を短くする」）。
      閉じたあとは開いたボタンへフォーカスを戻す。**既定の文言はtr() の中に直接書く**
      （定数に逃がすとscripts/check_i18n.pyが「包み忘れ」と読む） */
-  function openConfirm(onYes, msg = null, yesLabel = null, back = null) {
+  /* `single` … 知らせるだけの窓（「OK」1つ。空きマスが無いときなど。2026-11-25） */
+  function openConfirm(onYes, msg = null, yesLabel = null, back = null, single = false) {
     $("#confirm-msg").textContent = msg || tr("トラックを全て外します。あとから「元に戻す」で戻せます。");
-    $("#confirm-yes").textContent = yesLabel || tr("全て外す");
+    $("#confirm-yes").textContent = single ? "OK" : (yesLabel || tr("全て外す"));
+    $("#confirm-no").hidden = single;
+    $("#confirm-yes").classList.toggle("btn-default", single);
     confirmYes = onYes; confirmBack = back || els.clearBtn; confirmModal.hidden = false; lockScroll();
-    $("#confirm-no").focus({ preventScroll: true });
+    $(single ? "#confirm-yes" : "#confirm-no").focus({ preventScroll: true });
   }
   function closeConfirm() {
     confirmYes = null; confirmModal.hidden = true; if (!sheetOpen()) unlockScroll();
+    $("#confirm-no").hidden = false; $("#confirm-yes").classList.remove("btn-default");
     (confirmBack || els.clearBtn).focus({ preventScroll: true });
   }
   $("#confirm-no").addEventListener("click", closeConfirm);

@@ -27,7 +27,7 @@ TITLES = {
 }
 NAV = {"ja": ("画面へ戻る", "使い方", "使い方の動画", "コラム", "プライバシーポリシー", "利用規約", "運営者", "更新情報"),
        "en": ("Back to the app", "How to use", "How-to videos", "Articles", "Privacy policy", "Terms", "About", "Updates")}
-UPDATED = {"ja": "最終更新: 2026年11月18日", "en": "Last updated: November 18, 2026"}
+UPDATED = {"ja": "最終更新: 2026年11月25日", "en": "Last updated: November 25, 2026"}
 OFFICIAL = "https://tobokegao.github.io/ja/about/", "https://tobokegao.github.io/about/"
 CONTACT_FORM = "https://forms.gle/2ktpQAXMjJrkFJFz8"   # お問い合わせフォーム（Googleフォーム。2026-09-19）
 
@@ -465,6 +465,8 @@ otoDB and the music sites of the links you enter. TRACKMENTO is not affiliated w
 # **利用者に見える変化だけ**を、日付と1〜2行で書く（内部の直し・点検の話は書かない）。新しいものを先頭に足す。
 # 「検討中」の一覧は置かない（一人で運営しているので、約束に見えるものを増やさない）
 CHANGES: list[tuple[str, str, str]] = [
+    ("2026-11-25", "削除や非公開の動画などで画像を取れなかったマスがあるとき、グリッドの上に「画像を取れなかったマスを外す」を表示するようにしました。押すと、そのマスがまとめて空きマスになります（元に戻せます）。プレイリストを取り込むときは、削除や非公開の動画が何トラックあるかも表示します。空きマスがないときに候補を押すと、何も起きないように見えていたので、窓でお知らせするようにしました。",
+     "When some cells could not load their images (deleted or private videos, for example), “Remove cells with failed images” now appears above the grid. Pressing it empties those cells all at once (you can undo it). When importing a playlist, the number of deleted or private videos is now shown as well. Pressing a candidate when there are no empty cells used to seem to do nothing; a window now tells you so."),
     ("2026-11-18", "書き出す画像で、グリッドの下に文章のようにつながって並んでいた曲名リスト（横9 × 縦4を正方形にしたときなど）を、1曲ずつ行に分けた表にしました。全曲が1行に収まり、字が小さくなりすぎないときだけ表になります。マスの大きさは変わりません。",
      "In exported images, track lists that used to run together like a paragraph below the grid (for example a 9 × 4 grid in a square image) are now set as a table with one track per line. This happens only when every track fits on one line without the text getting too small. The size of the cells does not change."),
     ("2026-11-18", "窓とボタンの見た目を、昔のMacintosh（Mac OS 8）の形に寄せて作り直しました。右下にずらした影と黒いボタンをやめて、縁の明るい線と暗い線で厚みを出しています。いちばんよく押すボタンは、まわりを輪で囲んだ形です（共有ページのボタンも同じです）。スマホでは「出力オプション」を画面のいちばん下に固定しました。帯を押すと窓が開き、グリッドを見ながら設定を変えられます。ボタンの場所と名前も見直しました。「大きく見る」はグリッドのすぐ上に、「この並びを消す」は「トラックを全て外す」の隣に移り、「更新」は「見本を作る」という名前になりました。画面の背景は、白い漆喰のような模様に変えました。",

@@ -104,6 +104,7 @@ def _js(html: str) -> str:
     js = re.sub(r'const BREAK_AFTER = "[^"]*", BREAK_BEFORE = "[^"]*";', "", js)
     js = re.sub(r'const NO_HEAD = "[^"]*"', "", js)   # 行頭に来てはいけない字の表（禁則。文言ではない）
     js = re.sub(r"const FLOW_WORD_SEP = new Set\(.*?\);\n", "\n", js)   # 流し込みで語を区切る記号の表（文言ではない）
+    js = re.sub(r"const GONE_TITLES = new Set\(\[.*?\]\);\n", "\n", js, flags=re.S)   # 削除・非公開の動画の決まり文句（相手のサイトが返す題。突き合わせ用で画面には出さない）
     return re.sub(r"(?m)^\s*//.*$", "", js)
 
 

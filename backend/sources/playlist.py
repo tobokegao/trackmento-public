@@ -345,6 +345,7 @@ async def _youtube(url: str, client: httpx.AsyncClient) -> list[Track]:
 # otoDBのサムネイルは元動画が消えても残るため、音MADのプレイリストではかなりの確率で埋まる
 # ニコニコは「削除された動画」「非公開動画」、YouTubeは「[削除された動画]」「[非公開の動画]」
 # （英語ロケールだとDeleted video / Private video）、bilibiliは「已失效视频」。表記の揺れごと並べる
+# **frontendの `GONE_TITLES` と同じ並び**（取り込みの窓で、埋まらなかった件数を数える。2026-11-25）
 _GONE_TITLES = ("削除された動画", "非公開動画", "非公開の動画", "この動画は削除されました",
                 "deleted video", "private video", "unavailable video", "unavailable",
                 "已失效视频", "已失效視頻", "失效视频")

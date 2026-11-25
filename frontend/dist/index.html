@@ -35,7 +35,7 @@
 /* ロゴ専用（Silkscreen BoldのMだけ描き替えたもの。scripts/build_logo_font.py。URLはサーバーが差し込む） */
 @font-face { font-family: "TrackmentoMark"; font-weight: 700; font-style: normal; font-display: swap; src: url("__LOGO_FONT__") format("woff2"), url("fonts/TrackmentoMark-Bold.ttf") format("truetype"); }
 </style>
-<link rel="stylesheet" href="app/app.ba02473a.css">
+<link rel="stylesheet" href="app/app.a79fc26d.css">
 </head>
 <body>
 
@@ -275,7 +275,8 @@
         </div>
       </div>
       <!-- 「大きく見る」はグリッドのすぐ上（2026-11-18）。題名欄の右にあったときは、題名の操作に見えた -->
-      <div class="grid-tools"><button class="btn btn-sm" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button></div>
+      <!-- 「画像を取れなかったマスを外す」は、取れなかったマスがあるときだけ出す（2026-11-25。削除・非公開の動画が散らばったプレイリスト向け） -->
+      <div class="grid-tools"><button class="btn btn-sm" type="button" id="broken-btn" hidden>画像を取れなかったマスを外す</button><button class="btn btn-sm" type="button" id="zoom-btn" title="グリッドを画面いっぱいに開いて並べ替える">大きく見る</button></div>
       </div>
       <div class="grid-scroll" id="grid-scroll"><ol class="grid" id="grid" aria-label="サムネイルの並び" style="--cols:3;--rows:3"></ol></div>
       <p class="msg" id="grid-msg" role="status" aria-live="polite">候補を押すと空きマスに入ります。マスを押して選び、別のマスを押すと入れ替わります。</p>
@@ -739,6 +740,6 @@
 <div class="balloon" id="balloon" role="tooltip" hidden><svg class="balloon-frame" id="balloon-frame" aria-hidden="true"><path class="shade"/><path class="face"/></svg><p id="balloon-text"></p><a id="balloon-video" href="/howto" target="_blank" rel="noopener" hidden>使い方の動画で見る</a></div>
 <div class="balloon-bar" id="balloon-bar" role="status" hidden><span id="balloon-bar-text"></span><button class="btn btn-sm" type="button" id="balloon-off">吹き出しを隠す</button></div>
 
-<script id="app-js" src="app/app.b3ab6cc5.js"></script>
+<script id="app-js" src="app/app.5f3d8474.js"></script>
 </body>
 </html>

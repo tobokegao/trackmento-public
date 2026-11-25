@@ -203,6 +203,7 @@ Webツールとは逆を行く。**素っ気なさと厚みの同居**が持ち�
 - 検索の絞り込み: `backend/sources/itunes.py` ↔ `itunesSearch`（ブラウザから直接iTunesを叩くため）
 - 描く前の文字の掃除: `render.py` の `_drawable` ↔ `oneLine`（`drawable`）。**両方ともIBM Plex Sans JPのcmapで決める**。
   JSのcmap（`PLEX_CMAP_BLOCKS` / `PLEX_CMAP_BITS`）は **`scripts/build_fonts.py` が書き込む**（手で直さない）
+- 削除・非公開の動画の決まり文句: `backend/sources/playlist.py` の `_GONE_TITLES` ↔ frontendの `GONE_TITLES`
 - 曲名の正規化: `backend/merge.py` の `_n()` ↔ `nkey()`。ß と単独の濁点（゛゜）の扱いを手で合わせてある（`docs/sources.md`）
 - マスの上限: 4か所（上の表）
 - 文言: 日本語の原文と `EN` 表 → `scripts/check_i18n.py`
