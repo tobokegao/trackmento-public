@@ -1,6 +1,6 @@
 """利用者向けの文章（更新情報・案内ページなど）をGeminiに添削してもらう。
 
-    PYTHONUTF8=1 .venv/Scripts/python scripts/proofread.py <下書き.txt> [--out <添削.txt>] [--model gemini-3.8-flash]
+    PYTHONUTF8=1 .venv/Scripts/python scripts/proofread.py <下書き.txt> [--out <添削.txt>] [--model gemini-4-hydrogen]
     （--doc = 作業する人向けの文書、--letter = 英語の問い合わせ、--ui = 画面の文言の一覧をHIGの決まりで見直す）
 
 - 鍵は `.env` の `GEMINI_API_KEY`（gitには入らない）。無ければ止まる
@@ -25,7 +25,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-DEFAULT_MODEL = "gemini-3.8-flash"
+DEFAULT_MODEL = "gemini-4-hydrogen"
 
 STYLE = """あなたは日本語のWebサービスの告知文を整える編集者です。次の文章を添削してください。
 
@@ -118,7 +118,7 @@ def ask(text: str, model: str, key: str, style: str = STYLE) -> str:
     }).encode()
     req = urllib.request.Request(API.format(model=model), data=body, method="POST",
                                  headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    # 混雑（503）と回数制限（429）は少し待って取り直す。`gemini-3.8-flash` は混んでいて503が返ることがある（2026-09-19実測）
+    # 混雑（503）と回数制限（429）は少し待って取り直す。3.8 flash（無料枠だった頃）は混んでいて503が返ることがあった（2026-09-19実測）
     for attempt in range(5):
         try:
             with urllib.request.urlopen(req, timeout=180) as r:

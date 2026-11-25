@@ -70,8 +70,8 @@ UPDATED = {"ja": "最終更新: 2026年9月20日", "en": "Last updated: Septembe
 PYTHONUTF8=1 .venv/Scripts/python scripts/proofread.py <下書き.txt> --out <添削.txt>
 ```
 
-- モデルは `gemini-3.8-flash`（鍵は `.env` の `GEMINI_API_KEY`）
-- **使えないとき（無料枠は1日20回）は回さない。** 別のモデルで代用せず、下書きを利用者に渡す
+- モデルは `gemini-4-hydrogen`（鍵は `.env` の `GEMINI_API_KEY`。有料なので回数の上限はない）
+- **APIがエラー（503など）で使えないときは回さない。** 別のモデルで代用せず、下書きを利用者に渡す
 - **直しをそのまま採らない。** 事実（言い切りすぎ）・画面の表記（「」の中）・書き方の好みを突き合わせて取捨し、
   「仕上がり」と「採った直し・採らなかった直しと理由」をtxtで渡す
 
