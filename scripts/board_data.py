@@ -255,6 +255,37 @@ def watch_items(latest: dict) -> list:
             "level": "watch" if (sq + r2c) / total < 0.1 else "ok",
         })
 
+    # 点検の記録の切れ目（2026-11-28）。GitHubのcronが間引かれて、Renderのログ（約7日）が消える前に
+    # 埋められなかった時間が2回あった。render-check.ymlの--fill-gapsが自動で埋めるが、それ自体が
+    # 止まっていても気付けるよう、ログが残っている範囲の切れ目と最後の記録からの時間を出す
+    from datetime import datetime, timedelta, timezone
+    jst = timezone(timedelta(hours=9))
+    now = datetime.now(jst)
+    floor = now - timedelta(hours=6.5 * 24)
+    spans = []
+    for r in rows(SERIES_PATH):
+        try:
+            e = datetime.strptime(r["jst"], "%Y-%m-%d %H:%M").replace(tzinfo=jst)
+        except (KeyError, ValueError):
+            continue
+        if e > floor:
+            spans.append((e - timedelta(hours=float(r.get("hours") or 2)), e))
+    spans.sort()
+    holes, cur = [], floor
+    for s0, e0 in spans:
+        if (s0 - cur).total_seconds() / 3600 > 2.5:
+            holes.append((cur, s0))
+        cur = max(cur, e0)
+    age_h = (now - cur).total_seconds() / 3600
+    bad = holes or age_h > 14
+    out.append({
+        "t": f"点検の記録: 最後は{age_h:.0f}時間前・切れ目{len(holes)}か所（直近6.5日）",
+        "d": ("切れ目: " + "、".join(f"{a:%m/%d %H:%M}〜{b:%m/%d %H:%M}" for a, b in holes[:4]) + "。" if holes else "")
+             + "Renderのログは約7日で消える。render-check.ymlを引数なしで手で回すと、切れ目を古い順に埋める"
+             + "（最後の記録が14時間より前なら、定期の回が止まっている）",
+        "level": "watch" if bad else "ok",
+    })
+
     # インスタンスを下げる判断
     rss, mem_limit = latest.get("rss"), 2048
     if rss:

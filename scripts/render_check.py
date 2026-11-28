@@ -5,6 +5,10 @@
 
   --untilは窓の終わり（既定は今）。タイムゾーンが無ければJST。点検が飛んだ時間を後から埋めるときに使う。
   --appendと一緒なら、記録は終わりの時刻の位置に差し込む（図は時刻の順に並んでいる前提なので）。
+  --fill-gapsは、--appendの記録で覆われていない時間（Renderのログが残っている約6.5日ぶん）を
+  2時間前後の窓に割って古い順に点検し、最後に今の窓を見る。定期点検はこれで回す（2026-11-28）。
+  GitHubのcronは1日2〜3回しか起動しないことがあり、固定の「直近2時間」だと残りが穴になっていた。
+  これなら7日に1回でも起動すれば記録は欠けない。
 
   RENDER_API_KEY（必須）を環境変数か .envから読む。サービスはRENDER_SERVICE_NAME（既定trackmento）で探す。
   --strictは異常があれば終了コード2（GitHub Actionsで失敗扱いにして通知を出す）。
@@ -787,6 +791,121 @@ def _to_mb(metric) -> float:
     return _to_gb(top, unit) * 1024
 
 
+def check_window(key: str, name: str, svc: dict | None, start: datetime, end: datetime, hours: float,
+                 until: datetime | None) -> tuple[str, list[str], dict]:
+    """窓1つぶんを点検して (要約, 異常の一覧, 記録の材料) を返す。失敗しても例外は投げない"""
+    ok = True
+    try:
+        svc = svc or find_service(key, name)
+        sid, owner = svc["id"], svc["ownerId"]
+        # **イベントは窓の20分前から取る**。デプロイの直後にプロセスが入れ替わるので、
+        # 窓の開始直前に終わったデプロイだと「uptimeのリセットはあるのにデプロイが無い」ことになり、
+        # 想定外の再起動として誤検知する（2026-09-14 23:30の点検で実際に出た）
+        events = fetch_events(key, sid, start - timedelta(minutes=20), end)
+        logs, cut_at = fetch_logs(key, owner, sid, start, end)
+        la = analyze_logs(logs)
+        la["cut_at"] = cut_at
+        la["tb_body"] = fetch_tracebacks(key, owner, sid, la.get("tb_at") or [])
+        bw_from = start.replace(minute=0, second=0, microsecond=0)
+        bw = fetch_metric(key, "bandwidth", sid, bw_from, end, 3600)
+        bws = fetch_bw_sources(key, sid, bw_from, end)
+        mem = fetch_metric(key, "memory", sid, start, end, 300, "MAX")
+        cpu = fetch_metric(key, "cpu", sid, start, end, 300, "MAX")
+        text, problems = summarize(svc, hours, events, la, bw, mem, cpu, until, bws)
+    except Exception as ex:
+        ok = False   # API側の失敗も「異常」として要約に残す（点検が黙って止まらないように）
+        problems = [f"点検自体が失敗: {type(ex).__name__}: {ex}"]
+        text = "\n".join([f"## Render点検: {name}（直近{hours:g}時間）", "", "### 判定: **異常あり**", f"- {problems[0]}"])
+        la = {"per_path": {}, "rss": []}
+        events = []
+        bw = mem = cpu = ("", [])
+        bws = {}
+    return text, problems, {"la": la, "events": events, "bw": bw, "mem": mem, "cpu": cpu, "bws": bws, "ok": ok,
+                            "svc": svc if ok else None}
+
+
+# ---- 記録の切れ目を埋める（2026-11-28）----
+# Renderのログは約7日で消える。保持の端ぎりぎりは取りこぼすことがあるので6.5日にする
+LOG_KEEP_H = 6.5 * 24
+GAP_MIN_H = 1.0           # これより短い切れ目は埋めない。ボードの図は2時間に直して描くので、
+                          # 20分の窓だと6倍に引き伸ばされて山に見える。1時間未満の取りこぼしは受け入れる
+WIN_H = 2.0               # 埋める窓の目安。切れ目を等分して、どの窓も1〜3時間に収める
+
+
+def find_gaps(path: str, now: datetime, keep_h: float = LOG_KEEP_H) -> list[tuple[datetime, datetime]]:
+    """記録（窓の終わり `jst` と長さ `hours`）で覆われていない時間を、古い順に (始め, 終わり) で返す。
+    見るのはログが残っている範囲だけ。最後の記録から今までも切れ目に入る"""
+    floor = now - timedelta(hours=keep_h)
+    spans = []
+    p = Path(path)
+    for line in (p.read_text(encoding="utf-8").splitlines() if p.exists() else []):
+        if not line.strip():
+            continue
+        r = json.loads(line)
+        e = datetime.strptime(r["jst"], "%Y-%m-%d %H:%M").replace(tzinfo=JST).astimezone(timezone.utc)
+        h = float(r.get("hours") or 2)
+        if e > floor:
+            spans.append((e - timedelta(hours=h), e))
+    spans.sort()
+    gaps, cur = [], floor
+    for s0, e0 in spans:
+        if s0 > cur and (s0 - cur).total_seconds() / 3600 >= GAP_MIN_H:
+            gaps.append((cur, s0))
+        cur = max(cur, e0)
+    if (now - cur).total_seconds() / 3600 >= GAP_MIN_H:
+        gaps.append((cur, now))
+    return gaps
+
+
+def split_gap(a: datetime, b: datetime, win_h: float = WIN_H) -> list[tuple[datetime, datetime]]:
+    """切れ目を等分する。端数の短い窓を作らない（2時間に直す図で山に見えるので）"""
+    total = (b - a).total_seconds() / 3600
+    n = max(1, round(total / win_h))
+    step = (b - a) / n
+    return [(a + step * k, a + step * (k + 1)) for k in range(n)]
+
+
+def fill_gaps(key: str, name: str, args) -> int:
+    """切れ目を古い順に埋め、最後に今の窓を見る。**req=0の窓と失敗した窓は記録しない**
+    （記録すると「覆われた」ことになり、次の回で埋め直せなくなる）"""
+    now = datetime.now(timezone.utc)
+    wins = [w for g in find_gaps(args.append, now) for w in split_gap(*g)]
+    if not wins:   # 前の回からまだ1時間経っていない。今の窓だけ見る（記録はしない）
+        wins = [(now - timedelta(hours=WIN_H), now)]
+    over = max(0, len(wins) - args.max_windows)
+    if over:       # 今の窓は必ず見る。あふれた分は古いほうから順に、次の回へ
+        wins = wins[:args.max_windows - 1] + wins[-1:]
+    svc, results, skipped = None, [], []
+    for a, b in wins:
+        h = round((b - a).total_seconds() / 3600, 2)
+        is_now = (a, b) == wins[-1]
+        text, problems, rec = check_window(key, name, svc, a, b, h, None if is_now else b)
+        svc = rec["svc"] or svc
+        req = sum(v["count"] for v in (rec["la"].get("per_path") or {}).values())
+        when = b.astimezone(JST).strftime("%m-%d %H:%M")
+        if rec["ok"] and req > 0:
+            _append_record(args.append, h, rec["la"], rec["bw"], rec["mem"], rec["cpu"], problems, b, rec["bws"])
+        else:
+            skipped.append(f"{when}（{'点検が失敗' if not rec['ok'] else 'ログが0件'}）")
+        results.append((when, h, text, problems))
+    latest = results[-1][2]
+    bad = [(w, h, p) for w, h, _, p in results if p]
+    lines = [latest, "", f"### 記録の切れ目の埋め: {len(results)}窓（{results[0][0]}〜{results[-1][0]} JST）"]
+    if over:
+        lines.append(f"- 上限{args.max_windows}窓を超えた。残り{over}窓は次の回で埋める")
+    if skipped:
+        lines.append("- 記録しなかった窓（次の回でまた試す）: " + "、".join(skipped))
+    for w, h, _, p in results[:-1]:   # 今の窓の異常は上の要約に出ている
+        if p:
+            lines.append(f"- {w}（{h:g}時間）: " + " / ".join(p))
+    text = "\n".join(lines)
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+    problems = [x for _, _, p in bad for x in p]
+    return 2 if (problems and args.strict) else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--hours", type=float, default=2.0, help="さかのぼる時間（既定2）")
@@ -795,6 +914,9 @@ def main() -> int:
     ap.add_argument("--out", help="要約（Markdown）を書き出すファイル")
     ap.add_argument("--json", action="store_true", help="集計結果をJSONでも標準出力に出す")
     ap.add_argument("--append", metavar="PATH", help="1行1回分の記録（JSON Lines）を書き足す。推移の図はこれを元に描く")
+    ap.add_argument("--fill-gaps", action="store_true",
+                    help="--appendの記録の切れ目（ログが残っている範囲）を古い順に埋めてから今の窓を見る")
+    ap.add_argument("--max-windows", type=int, default=60, help="--fill-gapsで1回に点検する窓の上限（既定60）")
     args = ap.parse_args()
 
     _load_dotenv()
@@ -817,39 +939,21 @@ def main() -> int:
         if until > datetime.now(timezone.utc):
             print(f"--untilが未来です: {args.until}", file=sys.stderr)
             return 1
+    if args.fill_gaps:
+        if not args.append or until:
+            print("--fill-gapsは--appendと一緒に、--untilなしで使う", file=sys.stderr)
+            return 1
+        return fill_gaps(key, name, args)
     end = until or datetime.now(timezone.utc)
-    start = end - timedelta(hours=args.hours)
-    try:
-        svc = find_service(key, name)
-        sid, owner = svc["id"], svc["ownerId"]
-        # **イベントは窓の20分前から取る**。デプロイの直後にプロセスが入れ替わるので、
-        # 窓の開始直前に終わったデプロイだと「uptimeのリセットはあるのにデプロイが無い」ことになり、
-        # 想定外の再起動として誤検知する（2026-09-14 23:30の点検で実際に出た）
-        events = fetch_events(key, sid, start - timedelta(minutes=20), end)
-        logs, cut_at = fetch_logs(key, owner, sid, start, end)
-        la = analyze_logs(logs)
-        la["cut_at"] = cut_at
-        la["tb_body"] = fetch_tracebacks(key, owner, sid, la.get("tb_at") or [])
-        bw_from = start.replace(minute=0, second=0, microsecond=0)
-        bw = fetch_metric(key, "bandwidth", sid, bw_from, end, 3600)
-        bws = fetch_bw_sources(key, sid, bw_from, end)
-        mem = fetch_metric(key, "memory", sid, start, end, 300, "MAX")
-        cpu = fetch_metric(key, "cpu", sid, start, end, 300, "MAX")
-        text, problems = summarize(svc, args.hours, events, la, bw, mem, cpu, until, bws)
-    except Exception as ex:   # API側の失敗も「異常」として要約に残す（点検が黙って止まらないように）
-        problems = [f"点検自体が失敗: {type(ex).__name__}: {ex}"]
-        text = "\n".join([f"## Render点検: {name}（直近{args.hours:g}時間）", "", "### 判定: **異常あり**", f"- {problems[0]}"])
-        la = {"per_path": {}, "rss": []}
-        events = []
-        bw = mem = cpu = ("", [])
-        bws = {}
+    text, problems, rec = check_window(key, name, None, end - timedelta(hours=args.hours), end, args.hours, until)
     print(text)
     if args.out:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
     if args.json:
+        la, events = rec["la"], rec["events"]
         print(json.dumps({"problems": problems, "per_path": la["per_path"], "rss": la["rss"][-5:], "events": [e.get("type") for e in events]}, ensure_ascii=False))
     if args.append:
-        _append_record(args.append, args.hours, la, bw, mem, cpu, problems, end, bws)
+        _append_record(args.append, args.hours, rec["la"], rec["bw"], rec["mem"], rec["cpu"], problems, end, rec["bws"])
     return 2 if (problems and args.strict) else 0
 
 

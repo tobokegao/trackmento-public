@@ -2,6 +2,9 @@
 # 異常（再起動・帯域超過・5xx増加・[share] budgetなど）があればジョブを失敗させ、Issueを作る／既存のIssueにコメントする。
 # 必要なSecret: RENDER_API_KEY（Render → Account Settings → API Keys）。
 # 注意: GitHubのcronは混雑時に遅れる。60日pushが無いとscheduleは止まる（keepalive.ymlと同じ）。
+# 2026-11-28: 2時間おきの指定でも実際の起動は1日2〜3回（間隔5〜12時間）だった。固定の「直近2時間」では
+#   残りが穴になり、Renderのログ（約7日）が消えると埋め直せない。**定期の回と、untilを空にした手動の回は
+#   --fill-gaps**（記録の切れ目を古い順に埋めてから今の窓を見る）。7日に1回でも起動すれば欠けない。
 name: Render check
 
 on:
@@ -10,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       hours:
-        description: "さかのぼる時間"
+        description: "さかのぼる時間（untilを入れたときだけ使う）"
         default: "2"
       until:
         description: "窓の終わり（空なら今）。例2026-09-28 16:40（JST）。点検が飛んだ時間を後から埋めるとき"
@@ -20,10 +23,16 @@ permissions:
   contents: write   # 点検の数字をmetrics/series.jsonlに書き足すため
   issues: write
 
+# 並べて走らせると同じ切れ目を二重に埋める。後から来た回は前の回が終わるのを待つ
+concurrency:
+  group: render-check
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 窓1つは約10秒（/logsは30回/分の制限つき）。--max-windowsの60窓で10分ほど
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -37,7 +46,11 @@ jobs:
           UNTIL: ${{ inputs.until || '' }}
         run: |
           set +e
-          python scripts/render_check.py --hours "${{ inputs.hours || '2' }}" ${UNTIL:+--until "$UNTIL"} --strict --out summary.md --append metrics/series.jsonl
+          if [ -n "$UNTIL" ]; then
+            python scripts/render_check.py --hours "${{ inputs.hours || '2' }}" --until "$UNTIL" --strict --out summary.md --append metrics/series.jsonl
+          else
+            python scripts/render_check.py --fill-gaps --strict --out summary.md --append metrics/series.jsonl
+          fi
           echo "code=$?" >> "$GITHUB_OUTPUT"
           cat summary.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "要約なし（スクリプトが途中で落ちた）" | tee summary.md >> "$GITHUB_STEP_SUMMARY"
       # 点検の数字を1行ずつ残す（Renderのログは日が経つと消えるので、あとから推移を描けるように）。
@@ -55,7 +68,7 @@ jobs:
             git pull --rebase --autostash && git push && exit 0
             sleep 5
           done
-          echo "記録をpushできなかった（次の点検でまとめて入る）"
+          echo "記録をpushできなかった（次の回の--fill-gapsが同じ時間を埋め直す）"
 
       - name: 異常ならIssueに書く
         if: steps.check.outputs.code == '2'
