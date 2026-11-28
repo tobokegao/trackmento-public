@@ -865,34 +865,51 @@ def split_gap(a: datetime, b: datetime, win_h: float = WIN_H) -> list[tuple[date
     return [(a + step * k, a + step * (k + 1)) for k in range(n)]
 
 
+def plan_windows(path: str, now: datetime, max_windows: int) -> tuple[list[tuple[datetime, datetime, bool]], int]:
+    """点検する窓を (始め, 終わり, 記録するか) で古い順に返す。**最後は必ず今で終わる窓**。
+    最後の記録から1時間未満なら、今の窓は見るだけで記録しない（前の行と重なるので）。
+    上限を超えたら古いほうから max_windows-1 窓と今の窓。2つ目の値はあふれた窓の数"""
+    fill = [w for g in find_gaps(path, now) for w in split_gap(*g)]
+    if fill and fill[-1][1] == now:
+        cur = (*fill.pop(), True)
+    else:
+        cur = (now - timedelta(hours=WIN_H), now, False)
+    over = max(0, len(fill) - (max_windows - 1))
+    return [(a, b, True) for a, b in fill[:max_windows - 1]] + [cur], over
+
+
 def fill_gaps(key: str, name: str, args) -> int:
     """切れ目を古い順に埋め、最後に今の窓を見る。**req=0の窓と失敗した窓は記録しない**
-    （記録すると「覆われた」ことになり、次の回で埋め直せなくなる）"""
+    （記録すると「覆われた」ことになり、次の回で埋め直せなくなる）。
+    埋める窓が1つ失敗したら残りは打ち切って今の窓だけ見る（APIが落ちているとき60窓ぶん失敗を並べない）"""
     now = datetime.now(timezone.utc)
-    wins = [w for g in find_gaps(args.append, now) for w in split_gap(*g)]
-    if not wins:   # 前の回からまだ1時間経っていない。今の窓だけ見る（記録はしない）
-        wins = [(now - timedelta(hours=WIN_H), now)]
-    over = max(0, len(wins) - args.max_windows)
-    if over:       # 今の窓は必ず見る。あふれた分は古いほうから順に、次の回へ
-        wins = wins[:args.max_windows - 1] + wins[-1:]
-    svc, results, skipped = None, [], []
-    for a, b in wins:
+    wins, over = plan_windows(args.append, now, args.max_windows)
+    svc, results, skipped, cut = None, [], [], 0
+    for k, (a, b, record) in enumerate(wins):
+        is_now = k == len(wins) - 1
+        if cut and not is_now:
+            continue
         h = round((b - a).total_seconds() / 3600, 2)
-        is_now = (a, b) == wins[-1]
         text, problems, rec = check_window(key, name, svc, a, b, h, None if is_now else b)
         svc = rec["svc"] or svc
         req = sum(v["count"] for v in (rec["la"].get("per_path") or {}).values())
         when = b.astimezone(JST).strftime("%m-%d %H:%M")
-        if rec["ok"] and req > 0:
+        if rec["ok"] and req > 0 and record:
             _append_record(args.append, h, rec["la"], rec["bw"], rec["mem"], rec["cpu"], problems, b, rec["bws"])
-        else:
+        elif record:
             skipped.append(f"{when}（{'点検が失敗' if not rec['ok'] else 'ログが0件'}）")
+        if not rec["ok"] and not is_now:
+            cut = len(wins) - 1 - k - 1
         results.append((when, h, text, problems))
     latest = results[-1][2]
     bad = [(w, h, p) for w, h, _, p in results if p]
     lines = [latest, "", f"### 記録の切れ目の埋め: {len(results)}窓（{results[0][0]}〜{results[-1][0]} JST）"]
     if over:
         lines.append(f"- 上限{args.max_windows}窓を超えた。残り{over}窓は次の回で埋める")
+    if cut:
+        lines.append(f"- 点検が失敗したので、残り{cut}窓は打ち切った（次の回でまた試す）")
+    if not wins[-1][2]:
+        lines.append("- 最後の記録から1時間たっていないので、今の窓は見ただけで記録していない")
     if skipped:
         lines.append("- 記録しなかった窓（次の回でまた試す）: " + "、".join(skipped))
     for w, h, _, p in results[:-1]:   # 今の窓の異常は上の要約に出ている

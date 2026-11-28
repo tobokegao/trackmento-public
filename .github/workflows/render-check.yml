@@ -34,7 +34,11 @@ jobs:
     # 窓1つは約10秒（/logsは30回/分の制限つき）。--max-windowsの60窓で10分ほど
     timeout-minutes: 25
     steps:
+      # 起動時のコミットではなく、走り始めた時点のブランチの先を取る。concurrencyで待たされた回が
+      # 前の回の足した行を知らずに、同じ切れ目を埋め直さないように
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"

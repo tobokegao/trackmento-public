@@ -279,7 +279,8 @@ def watch_items(latest: dict) -> list:
     age_h = (now - cur).total_seconds() / 3600
     bad = holes or age_h > 14
     out.append({
-        "t": f"点検の記録: 最後は{age_h:.0f}時間前・切れ目{len(holes)}か所（直近6.5日）",
+        # 「N時間前」はこれを回した時点の値でdbに固まる。ルーティンが止まっても気付けるよう時刻も出す
+        "t": f"点検の記録: 最後は{cur:%m/%d %H:%M}（{now:%m/%d %H:%M}の時点で{age_h:.0f}時間前）・切れ目{len(holes)}か所（直近6.5日）",
         "d": ("切れ目: " + "、".join(f"{a:%m/%d %H:%M}〜{b:%m/%d %H:%M}" for a, b in holes[:4]) + "。" if holes else "")
              + "Renderのログは約7日で消える。render-check.ymlを引数なしで手で回すと、切れ目を古い順に埋める"
              + "（最後の記録が14時間より前なら、定期の回が止まっている）",
