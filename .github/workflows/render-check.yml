@@ -10,6 +10,11 @@ name: Render check
 on:
   schedule:
     - cron: "17 */2 * * *"
+  # 予備の引き金（2026-11-28）。ボード更新のルーティン（9:00・21:00 JST）はクラウドからgh workflow runを
+  # 打てない（GH_TOKENが無効）ので、origin/masterの上の空コミットをこの名前のブランチにpushして合図する。
+  # 毎回違う名前にするのでforce pushは要らない。ブランチは最後のステップで消す
+  push:
+    branches: ["claude/render-check-ping-**"]
   workflow_dispatch:
     inputs:
       hours:
@@ -36,9 +41,10 @@ jobs:
     steps:
       # 起動時のコミットではなく、走り始めた時点のブランチの先を取る。concurrencyで待たされた回が
       # 前の回の足した行を知らずに、同じ切れ目を埋め直さないように
+      # 合図のpushの回はmasterを取る（記録をmasterに足すため。合図用ブランチに足しても意味がない）
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event_name == 'push' && 'master' || github.ref_name }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -88,6 +94,9 @@ jobs:
             gh label create render-check --description "Renderの自動点検" --color D93F0B 2>/dev/null || true
             gh issue create --title "Render点検: 異常あり（$(date -u +%m/%d) ）" --label render-check --body "$body"
           fi
+      - name: 合図用ブランチを消す
+        if: always() && github.event_name == 'push'
+        run: git push origin --delete "${{ github.ref_name }}" || echo "消せなかった（手で消す）"
       - name: 結果
         run: |
           code="${{ steps.check.outputs.code }}"
